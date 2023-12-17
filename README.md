@@ -1,3 +1,15 @@
+<div>
+<a href="https://docs.rs/vkteams-bot/latest/vkteams_bot/">
+    <img src="https://img.shields.io/docsrs/vkteams-bot/latest">
+</a>
+<a href="https://crates.io/crates/vkteams-bot">
+    <img src="https://img.shields.io/crates/v/vkteams-bot">
+</a>
+ <a href="https://github.com/k05h31/vkteams-bot/actions">
+    <img src="https://github.com/k05h31/vkteams-bot/workflows/Rust/badge.svg">
+</a>
+</div>
+
 # VK Teams Bot API client
 
 VK Teams Bot API client written in Rust.
