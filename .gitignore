@@ -1,0 +1,7 @@
+/target
+/tests
+/.env
+.devcontainer
+.vscode
+.idea
+Cargo.lock
