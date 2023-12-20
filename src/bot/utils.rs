@@ -87,6 +87,8 @@ impl RequestMessagesSendText {
             parse_mode: None,
         }
     }
+}
+impl RequestMessagesSendText {
     /// Set reply message id
     pub fn set_reply_msg_id(&mut self, msg_id: MsgId) -> &mut Self {
         self.reply_msg_id = Some(msg_id);
@@ -119,12 +121,66 @@ impl RequestMessagesSendText {
         self.parse_mode = Some(parse_mode);
         self
     }
-    /// Build [`RequestMessagesSendTExt`]
+    /// Build [`RequestMessagesSendTextWithDeepLink`]
     pub fn build(&mut self) -> Self {
-        self.to_owned()
+        self.clone()
     }
 }
 
+impl RequestMessagesSendTextWithDeepLink {
+    /// Create new [`RequestMessagesSendTextWithDeepLink`] with required params
+    pub fn new(chat_id: ChatId, deep_link: String) -> Self {
+        Self {
+            chat_id,
+            deep_link,
+            text: String::new(),
+            reply_msg_id: None,
+            forward_chat_id: None,
+            forward_msg_id: None,
+            inline_keyboard_markup: None,
+            format: None,
+            parse_mode: None,
+        }
+    }
+}
+impl RequestMessagesSendTextWithDeepLink {
+    /// Set reply message id
+    pub fn set_reply_msg_id(&mut self, msg_id: MsgId) -> &mut Self {
+        self.reply_msg_id = Some(msg_id);
+        self
+    }
+    /// Forward message
+    pub fn set_forward_msg(&mut self, msg_id: MsgId, chat_id: ChatId) -> &mut Self {
+        self.forward_msg_id = Some(msg_id);
+        self.forward_chat_id = Some(chat_id);
+        self
+    }
+    /// Set inline keyboard markup
+    pub fn set_keyboard(&mut self, kb: Keyboard) -> &mut Self {
+        self.inline_keyboard_markup = Some(kb.get_keyboard());
+        self
+    }
+    /// Set format
+    pub fn set_format(&mut self) -> &mut Self {
+        self.format = None; //TODO: impl format
+        self
+    }
+    /// Set parse mode
+    pub fn set_parse_mode(&mut self, pm: ParseMode) -> &mut Self {
+        self.parse_mode = Some(pm);
+        self
+    }
+    /// Set text as HTML
+    pub fn set_text(&mut self, (text, parse_mode): (String, ParseMode)) -> &mut Self {
+        self.text = text;
+        self.parse_mode = Some(parse_mode);
+        self
+    }
+    /// Build [`RequestMessagesSendTextWithDeepLink`]
+    pub fn build(&mut self) -> Self {
+        self.clone()
+    }
+}
 impl RequestMessagesEditText {
     /// Create new [`RequestMessagesEditText`] with required params
     pub fn new(chat_id: ChatId, msg_id: MsgId) -> Self {
@@ -137,16 +193,19 @@ impl RequestMessagesEditText {
             parse_mode: None,
         }
     }
+}
+
+impl RequestMessagesEditText {
     /// Set inline keyboard markup
     pub fn set_keyboard(&mut self, kb: Keyboard) -> &mut Self {
         self.inline_keyboard_markup = Some(kb.get_keyboard());
         self
     }
     /// Set format
-    pub fn set_format(&mut self) -> &mut Self {
-        self.format = None; //TODO: impl format
-        self
-    }
+    // fn set_format(&mut self) -> &mut Self {
+    //     self.format = None; //TODO: impl format
+    //     self
+    // }
     /// Set parse mode
     pub fn set_parse_mode(&mut self, pm: ParseMode) -> &mut Self {
         self.parse_mode = Some(pm);
@@ -177,6 +236,11 @@ impl RequestMessagesSendFile {
             format: None,
             parse_mode: None,
         }
+    }
+    /// Set caption
+    pub fn set_caption(&mut self, caption: String) -> &mut Self {
+        self.caption = Some(caption);
+        self
     }
     /// Set reply message id
     pub fn set_reply_msg_id(&mut self, msg_id: MsgId) -> &mut Self {

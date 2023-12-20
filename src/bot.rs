@@ -103,6 +103,28 @@ impl Bot {
         )
         .await
     }
+    /// Send text message with deeplink to chat
+    /// HTTP Method `GET`
+    /// path `/messages/sendTextWithDeeplink`
+    /// query {`token`,`chatId`,`text`,`replyMsgId`,`forwardChatId`,`forwardMsgId`,`inlineKeyboardMarkup`,`format`,`parseMode`,`deeplink`}
+    ///
+    /// See the details in [VKTeams Bot API]
+    ///
+    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/messages/get_messages_sendTextWithDeeplink
+    pub async fn request_messages_send_text_with_deeplink(
+        &self,
+        request_message: RequestMessagesSendTextWithDeepLink,
+    ) -> Result<ResponseMessagesSendTextWithDeepLink> {
+        self.send_get_request::<
+            RequestMessagesSendTextWithDeepLink,
+            ResponseMessagesSendTextWithDeepLink,
+            Methods,
+        >(
+            request_message,
+            Methods::MessagesSendTextWithDeepLink,
+        )
+        .await
+    }
     /// Edit text message in chat
     /// HTTP Method `GET`
     /// path `/messages/editText`
@@ -324,6 +346,96 @@ impl Bot {
         )
         .await
     }
+    /// Set chat title
+    /// HTTP Method `GET`
+    /// path `/chats/setTitle`
+    /// query {`token`,`chatId`,`title`}
+    ///
+    /// See the details in [VKTeams Bot API]
+    ///
+    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/chats/get_chats_setTitle
+    pub async fn chats_set_title(
+        &self,
+        request_message: RequestChatsSetTitle,
+    ) -> Result<ResponseChatsSetTitle> {
+        self.send_get_request::<RequestChatsSetTitle, ResponseChatsSetTitle, Methods>(
+            request_message,
+            Methods::ChatsSetTitle,
+        )
+        .await
+    }
+    /// Set chat about
+    /// HTTP Method `GET`
+    /// path `/chats/setAbout`
+    /// query {`token`,`chatId`,`about`}
+    ///
+    /// See the details in [VKTeams Bot API]
+    ///
+    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/chats/get_chats_setAbout
+    pub async fn chats_set_about(
+        &self,
+        request_message: RequestChatsSetAbout,
+    ) -> Result<ResponseChatsSetAbout> {
+        self.send_get_request::<RequestChatsSetAbout, ResponseChatsSetAbout, Methods>(
+            request_message,
+            Methods::ChatsSetAbout,
+        )
+        .await
+    }
+    /// Set chat rules
+    /// HTTP Method `GET`
+    /// path `/chats/setRules`
+    /// query {`token`,`chatId`,`rules`}
+    ///
+    /// See the details in [VKTeams Bot API]
+    ///
+    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/chats/get_chats_setRules
+    pub async fn chats_set_rules(
+        &self,
+        request_message: RequestChatsSetRules,
+    ) -> Result<ResponseChatsSetRules> {
+        self.send_get_request::<RequestChatsSetRules, ResponseChatsSetRules, Methods>(
+            request_message,
+            Methods::ChatsSetRules,
+        )
+        .await
+    }
+    /// Pin message in chat
+    /// HTTP Method `GET`
+    /// path `/chats/pinMessage`
+    /// query {`token`,`chatId`,`msgId`}
+    ///
+    /// See the details in [VKTeams Bot API]
+    ///
+    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/chats/get_chats_pinMessage
+    pub async fn chats_pin_message(
+        &self,
+        request_message: RequestChatsPinMessage,
+    ) -> Result<ResponseChatsPinMessage> {
+        self.send_get_request::<RequestChatsPinMessage, ResponseChatsPinMessage, Methods>(
+            request_message,
+            Methods::ChatsPinMessage,
+        )
+        .await
+    }
+    /// Unpin message in chat
+    /// HTTP Method `GET`
+    /// path `/chats/unpinMessage`
+    /// query {`token`,`chatId`,`msgId`}
+    ///
+    /// See the details in [VKTeams Bot API]
+    ///
+    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/chats/get_chats_unpinMessage
+    pub async fn chats_unpin_message(
+        &self,
+        request_message: RequestChatsUnpinMessage,
+    ) -> Result<ResponseChatsUnpinMessage> {
+        self.send_get_request::<RequestChatsUnpinMessage, ResponseChatsUnpinMessage, Methods>(
+            request_message,
+            Methods::ChatsUnpinMessage,
+        )
+        .await
+    }
     /// Files get info
     /// HTTP Method `GET`
     /// path `/files/getInfo`
@@ -343,10 +455,6 @@ impl Bot {
         .await
     }
 
-    // --MESSAGES--
-    //
-    // TODO: [GET]          /messages/sendTextWithDeeplink
-    //
     // --CHATS--
     //
     // TODO: [GET]  /chats/getBlockedUsers
@@ -354,9 +462,4 @@ impl Bot {
     // TODO: [GET]  /chats/blockUser
     // TODO: [GET]  /chats/unblockUser
     // TODO: [GET]  /chats/resolvePending
-    // TODO: [GET]  /chats/setTitle
-    // TODO: [GET]  ​/chats​/setAbout
-    // TODO: [GET]  /chats/setRules
-    // TODO: [GET]  /chats/pinMessage
-    // TODO: [GET]  /chats/unpinMessage
 }

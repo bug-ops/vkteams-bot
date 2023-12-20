@@ -14,7 +14,6 @@
 
 VK Teams Bot API client written in Rust.
 
-
 ## Table of Contents
 
 - [Environment](#environment)

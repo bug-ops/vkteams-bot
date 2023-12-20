@@ -50,6 +50,7 @@ pub struct Bot {
 /// API possible methods
 pub enum SendMessagesAPIMethods {
     MessagesSendText,
+    MessagesSendTextWithDeepLink,
     MessagesEditText,
     MessagesDeleteMessages,
     MessagesAnswerCallbackQuery,
@@ -61,6 +62,11 @@ pub enum SendMessagesAPIMethods {
     ChatsGetAdmins,
     ChatsGetMembers,
     ChatsMembersDelete,
+    ChatsSetTitle,
+    ChatsSetAbout,
+    ChatsSetRules,
+    ChatsPinMessage,
+    ChatsUnpinMessage,
     SelfGet,
     FilesGetInfo,
     EventsGet,
@@ -71,6 +77,9 @@ impl Display for SendMessagesAPIMethods {
     fn fmt(&self, f: &mut Formatter) -> Result {
         match self {
             SendMessagesAPIMethods::MessagesSendText => write!(f, "messages/sendText"),
+            SendMessagesAPIMethods::MessagesSendTextWithDeepLink => {
+                write!(f, "messages/sendTextWithDeepLink")
+            }
             SendMessagesAPIMethods::MessagesEditText => write!(f, "messages/editText"),
             SendMessagesAPIMethods::MessagesDeleteMessages => write!(f, "messages/deleteMessages"),
             SendMessagesAPIMethods::MessagesAnswerCallbackQuery => {
@@ -84,6 +93,11 @@ impl Display for SendMessagesAPIMethods {
             SendMessagesAPIMethods::ChatsGetAdmins => write!(f, "chats/getAdmins"),
             SendMessagesAPIMethods::ChatsGetMembers => write!(f, "chats/getMembers"),
             SendMessagesAPIMethods::ChatsMembersDelete => write!(f, "chats/members/delete"),
+            SendMessagesAPIMethods::ChatsSetTitle => write!(f, "chats/setTitle"),
+            SendMessagesAPIMethods::ChatsSetAbout => write!(f, "chats/setAbout"),
+            SendMessagesAPIMethods::ChatsSetRules => write!(f, "chats/setRules"),
+            SendMessagesAPIMethods::ChatsPinMessage => write!(f, "chats/pinMessage"),
+            SendMessagesAPIMethods::ChatsUnpinMessage => write!(f, "chats/unpinMessage"),
             SendMessagesAPIMethods::SelfGet => write!(f, "self/get"),
             SendMessagesAPIMethods::FilesGetInfo => write!(f, "files/getInfo"),
             SendMessagesAPIMethods::EventsGet => write!(f, "events/get"),
@@ -185,6 +199,32 @@ pub enum ParseMode {
 pub struct ResponseMessagesSendText {
     pub msg_id: Option<MsgId>,       //ok = True
     pub description: Option<String>, //ok = False
+    pub ok: bool,
+}
+/// Request for method [`SendMessagesAPIMethods::MessagesSendTextWithDeepLink`]
+///
+/// [`SendMessagesAPIMethods::MessagesSendTextWithDeepLink`]: enum.SendMessagesAPIMethods.html#variant.MessagesSendTextWithDeepLink
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct RequestMessagesSendTextWithDeepLink {
+    pub chat_id: ChatId,
+    pub text: String,
+    pub reply_msg_id: Option<MsgId>,
+    pub forward_chat_id: Option<ChatId>,
+    pub forward_msg_id: Option<MsgId>,
+    pub inline_keyboard_markup: Option<String>,
+    pub format: Option<MessageFormat>,
+    pub parse_mode: Option<ParseMode>,
+    pub deep_link: String,
+}
+/// Response for method [`SendMessagesAPIMethods::MessagesSendTextWithDeepLink`]
+///
+/// [`SendMessagesAPIMethods::MessagesSendTextWithDeepLink`]: enum.SendMessagesAPIMethods.html#variant.MessagesSendTextWithDeepLink
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ResponseMessagesSendTextWithDeepLink {
+    pub msg_id: Option<MsgId>,
+    pub description: Option<String>,
     pub ok: bool,
 }
 /// Request for method [`SendMessagesAPIMethods::MessagesDeleteMessages`]
@@ -513,6 +553,92 @@ pub struct Sn {
 /// [`SendMessagesAPIMethods::ChatsMembersDelete`]: enum.SendMessagesAPIMethods.html#variant.ChatsMembersDelete
 #[derive(Deserialize, Debug)]
 pub struct ResponseChatsMembersDelete {
+    pub ok: bool,
+}
+/// Request for method [`SendMessagesAPIMethods::ChatsSetTitle`]
+///
+/// [`SendMessagesAPIMethods::ChatsSetTitle`]: enum.SendMessagesAPIMethods.html#variant.ChatsSetTitle
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct RequestChatsSetTitle {
+    pub chat_id: ChatId,
+    pub title: String,
+}
+/// Response for method [`SendMessagesAPIMethods::ChatsSetTitle`]
+///
+/// [`SendMessagesAPIMethods::ChatsSetTitle`]: enum.SendMessagesAPIMethods.html#variant.ChatsSetTitle
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ResponseChatsSetTitle {
+    pub ok: bool,
+}
+/// Request for method [`SendMessagesAPIMethods::ChatsSetAbout`]
+///
+/// [`SendMessagesAPIMethods::ChatsSetAbout`]: enum.SendMessagesAPIMethods.html#variant.ChatsSetAbout
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct RequestChatsSetAbout {
+    pub chat_id: ChatId,
+    pub about: String,
+}
+/// Response for method [`SendMessagesAPIMethods::ChatsSetAbout`]
+///
+/// [`SendMessagesAPIMethods::ChatsSetAbout`]: enum.SendMessagesAPIMethods.html#variant.ChatsSetAbout
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+
+pub struct ResponseChatsSetAbout {
+    pub ok: bool,
+}
+/// Request for method [`SendMessagesAPIMethods::ChatsSetRules`]
+///
+/// [`SendMessagesAPIMethods::ChatsSetRules`]: enum.SendMessagesAPIMethods.html#variant.ChatsSetRules
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct RequestChatsSetRules {
+    pub chat_id: ChatId,
+    pub rules: String,
+}
+/// Response for method [`SendMessagesAPIMethods::ChatsSetRules`]
+///
+/// [`SendMessagesAPIMethods::ChatsSetRules`]: enum.SendMessagesAPIMethods.html#variant.ChatsSetRules
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ResponseChatsSetRules {
+    pub ok: bool,
+}
+/// Request for method [`SendMessagesAPIMethods::ChatsPinMessage`]
+///
+/// [`SendMessagesAPIMethods::ChatsPinMessage`]: enum.SendMessagesAPIMethods.html#variant.ChatsPinMessage
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct RequestChatsPinMessage {
+    pub chat_id: ChatId,
+    pub msg_id: MsgId,
+}
+/// Response for method [`SendMessagesAPIMethods::ChatsPinMessage`]
+///
+/// [`SendMessagesAPIMethods::ChatsPinMessage`]: enum.SendMessagesAPIMethods.html#variant.ChatsPinMessage
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ResponseChatsPinMessage {
+    pub ok: bool,
+}
+/// Request for method [`SendMessagesAPIMethods::ChatsUnpinMessage`]
+///
+/// [`SendMessagesAPIMethods::ChatsUnpinMessage`]: enum.SendMessagesAPIMethods.html#variant.ChatsUnpinMessage
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct RequestChatsUnpinMessage {
+    pub chat_id: ChatId,
+    pub msg_id: MsgId,
+}
+/// Response for method [`SendMessagesAPIMethods::ChatsUnpinMessage`]
+///
+/// [`SendMessagesAPIMethods::ChatsUnpinMessage`]: enum.SendMessagesAPIMethods.html#variant.ChatsUnpinMessage
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ResponseChatsUnpinMessage {
     pub ok: bool,
 }
 /// Request for method [`SendMessagesAPIMethods::SelfGet`]
