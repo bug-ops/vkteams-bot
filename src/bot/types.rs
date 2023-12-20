@@ -61,6 +61,11 @@ pub enum SendMessagesAPIMethods {
     ChatsGetInfo,
     ChatsGetAdmins,
     ChatsGetMembers,
+    ChatsGetBlockedUsers,
+    ChatsGetPendingUsers,
+    ChatsBlockUser,
+    ChatsUnblockUser,
+    ChatsResolvePending,
     ChatsMembersDelete,
     ChatsSetTitle,
     ChatsSetAbout,
@@ -93,6 +98,11 @@ impl Display for SendMessagesAPIMethods {
             SendMessagesAPIMethods::ChatsGetAdmins => write!(f, "chats/getAdmins"),
             SendMessagesAPIMethods::ChatsGetMembers => write!(f, "chats/getMembers"),
             SendMessagesAPIMethods::ChatsMembersDelete => write!(f, "chats/members/delete"),
+            SendMessagesAPIMethods::ChatsGetBlockedUsers => write!(f, "chats/getBlockedUsers"),
+            SendMessagesAPIMethods::ChatsGetPendingUsers => write!(f, "chats/getPendingUsers"),
+            SendMessagesAPIMethods::ChatsBlockUser => write!(f, "chats/blockUser"),
+            SendMessagesAPIMethods::ChatsUnblockUser => write!(f, "chats/unblockUser"),
+            SendMessagesAPIMethods::ChatsResolvePending => write!(f, "chats/resolvePending"),
             SendMessagesAPIMethods::ChatsSetTitle => write!(f, "chats/setTitle"),
             SendMessagesAPIMethods::ChatsSetAbout => write!(f, "chats/setAbout"),
             SendMessagesAPIMethods::ChatsSetRules => write!(f, "chats/setRules"),
@@ -523,6 +533,50 @@ pub struct ResponseChatsGetMembers {
     pub members: Option<Vec<Member>>,
     pub cursor: Option<u64>,
 }
+/// Request for method [`SendMessagesAPIMethods::ChatsGetBlockedUsers`]
+///
+/// [`SendMessagesAPIMethods::ChatsGetBlockedUsers`]: enum.SendMessagesAPIMethods.html#variant.ChatsGetBlockedUsers
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RequestChatsGetBlockedUsers {
+    pub chat_id: ChatId,
+}
+/// Response for method [`SendMessagesAPIMethods::ChatsGetBlockedUsers`]
+///
+/// [`SendMessagesAPIMethods::ChatsGetBlockedUsers`]: enum.SendMessagesAPIMethods.html#variant.ChatsGetBlockedUsers
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResponseChatsGetBlockedUsers {
+    pub users: Option<Vec<BlockedUser>>,
+}
+/// Blocked user struct
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BlockedUser {
+    pub user_id: UserId,
+}
+/// Request for method [`SendMessagesAPIMethods::ChatsBlockUser`]
+///
+/// [`SendMessagesAPIMethods::ChatsBlockUser`]: enum.SendMessagesAPIMethods.html#variant.ChatsBlockUser
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RequestChatsGetPendingUsers {
+    pub chat_id: ChatId,
+}
+/// Response for method [`SendMessagesAPIMethods::ChatsBlockUser`]
+///
+/// [`SendMessagesAPIMethods::ChatsBlockUser`]: enum.SendMessagesAPIMethods.html#variant.ChatsBlockUser
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResponseChatsGetPendingUsers {
+    pub users: Option<Vec<PendingUser>>,
+}
+///Pending user struct
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PendingUser {
+    pub user_id: UserId,
+}
 /// Member struct
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -530,6 +584,60 @@ pub struct Member {
     pub user_id: UserId,
     pub creator: Option<bool>,
     pub admin: Option<bool>,
+}
+/// Request for method [`SendMessagesAPIMethods::ChatsBlockUser`]
+///
+/// [`SendMessagesAPIMethods::ChatsBlockUser`]: enum.SendMessagesAPIMethods.html#variant.ChatsBlockUser
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct RequestChatsBlockUser {
+    pub chat_id: ChatId,
+    pub user_id: UserId,
+    pub del_last_messages: bool,
+}
+/// Response for method [`SendMessagesAPIMethods::ChatsBlockUser`]
+///
+/// [`SendMessagesAPIMethods::ChatsBlockUser`]: enum.SendMessagesAPIMethods.html#variant.ChatsBlockUser
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ResponseChatsBlockUser {
+    pub ok: bool,
+}
+/// Request for method [`SendMessagesAPIMethods::ChatsUnblockUser`]
+///
+/// [`SendMessagesAPIMethods::ChatsResolvePending`]: enum.SendMessagesAPIMethods.html#variant.ChatsUnblockUser
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct RequestChatsUnblockUser {
+    pub chat_id: ChatId,
+    pub user_id: UserId,
+}
+/// Response for method [`SendMessagesAPIMethods::ChatsUnblockUser`]
+///
+/// [`SendMessagesAPIMethods::ChatsResolvePending`]: enum.SendMessagesAPIMethods.html#variant.ChatsUnblockUser
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ResponseChatsUnblockUser {
+    pub ok: bool,
+}
+/// Request for method [`SendMessagesAPIMethods::ChatsResolvePending`]
+///
+/// [`SendMessagesAPIMethods::ChatsResolvePending`]: enum.SendMessagesAPIMethods.html#variant.ChatsResolvePending
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct RequestChatsResolvePending {
+    pub chat_id: ChatId,
+    pub user_id: Option<UserId>,
+    pub approve: bool,
+    pub everyone: Option<bool>,
+}
+/// Response for method [`SendMessagesAPIMethods::ChatsResolvePending`]
+///
+/// [`SendMessagesAPIMethods::ChatsResolvePending`]: enum.SendMessagesAPIMethods.html#variant.ChatsResolvePending
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ResponseChatsResolvePending {
+    pub ok: bool,
 }
 /// Request for method [`SendMessagesAPIMethods::ChatsMembersDelete`]
 ///

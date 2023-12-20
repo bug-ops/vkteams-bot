@@ -454,12 +454,94 @@ impl Bot {
         )
         .await
     }
-
-    // --CHATS--
-    //
-    // TODO: [GET]  /chats/getBlockedUsers
-    // TODO: [GET]  /chats/getPendingUsers
-    // TODO: [GET]  /chats/blockUser
-    // TODO: [GET]  /chats/unblockUser
-    // TODO: [GET]  /chats/resolvePending
+    /// Get blocked users
+    /// HTTP Method `GET`
+    /// path `/chats/getBlockedUsers`
+    /// query {`token`,`chatId`,`
+    ///
+    /// See the details in [VKTeams Bot API]
+    ///
+    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/chats/get_chats_getBlockedUsers}
+    pub async fn chats_get_blocked_users(
+        &self,
+        request_message: RequestChatsGetBlockedUsers,
+    ) -> Result<ResponseChatsGetBlockedUsers> {
+        self.send_get_request::<RequestChatsGetBlockedUsers, ResponseChatsGetBlockedUsers, Methods>(
+            request_message,
+            Methods::ChatsGetBlockedUsers,
+        )
+        .await
+    }
+    /// Get pending users
+    /// HTTP Method `GET`
+    /// path `/chats/getPendingUsers`
+    /// query {`token`,`chatId`}
+    ///
+    /// See the details in [VKTeams Bot API]
+    ///
+    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/chats/get_chats_getPendingUsers
+    pub async fn chats_get_pending_users(
+        &self,
+        request_message: RequestChatsGetPendingUsers,
+    ) -> Result<ResponseChatsGetPendingUsers> {
+        self.send_get_request::<RequestChatsGetPendingUsers, ResponseChatsGetPendingUsers, Methods>(
+            request_message,
+            Methods::ChatsGetPendingUsers,
+        )
+        .await
+    }
+    /// Block user
+    /// HTTP Method `GET`
+    /// path `/chats/blockUser`
+    /// query {`token`, `chatId`, `userId`, `delLastMessages`}
+    ///
+    /// See the details in [VKTeams Bot API]
+    ///
+    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/chats/get_chats_blockUser
+    pub async fn chats_block_user(
+        &self,
+        request_message: RequestChatsBlockUser,
+    ) -> Result<ResponseChatsBlockUser> {
+        self.send_get_request::<RequestChatsBlockUser, ResponseChatsBlockUser, Methods>(
+            request_message,
+            Methods::ChatsBlockUser,
+        )
+        .await
+    }
+    /// Unblock user
+    /// HTTP Method `GET`
+    /// path `/chats/unblockUser`
+    /// query {`token`,`chatId`,`userId`}
+    ///
+    /// See the details in [VKTeams Bot API]
+    ///
+    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/chats/get_chats_unblockUser
+    pub async fn chats_unblock_user(
+        &self,
+        request_message: RequestChatsUnblockUser,
+    ) -> Result<ResponseChatsUnblockUser> {
+        self.send_get_request::<RequestChatsUnblockUser, ResponseChatsUnblockUser, Methods>(
+            request_message,
+            Methods::ChatsUnblockUser,
+        )
+        .await
+    }
+    /// Resolve pending
+    /// HTTP Method `GET`
+    /// path `/chats/resolvePending`
+    /// query {`token`,`chatId`,`approve`,`userId`,`everyone`}
+    ///
+    /// See the details in [VKTeams Bot API]
+    ///
+    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/chats/get_chats_resolvePending
+    pub async fn chats_resolve_pending(
+        &self,
+        request_message: RequestChatsResolvePending,
+    ) -> Result<ResponseChatsResolvePending> {
+        self.send_get_request::<RequestChatsResolvePending, ResponseChatsResolvePending, Methods>(
+            request_message,
+            Methods::ChatsResolvePending,
+        )
+        .await
+    }
 }
