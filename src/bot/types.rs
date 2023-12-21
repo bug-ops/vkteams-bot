@@ -49,31 +49,57 @@ pub struct Bot {
 }
 /// API possible methods
 pub enum SendMessagesAPIMethods {
+    /// messages/sendText
     MessagesSendText,
+    /// messages/sendTextWithDeepLink
     MessagesSendTextWithDeepLink,
+    /// messages/editText
     MessagesEditText,
+    /// messages/deleteMessages
     MessagesDeleteMessages,
+    /// messages/answerCallbackQuery
     MessagesAnswerCallbackQuery,
+    /// messages/sendFile
     MessagesSendFile,
+    /// messages/sendVoice
     MessagesSendVoice,
+    /// chats/avatar/set
     ChatsAvatarSet,
+    /// chats/sendActions
     ChatsSendActions,
+    /// chats/getInfo
     ChatsGetInfo,
+    /// chats/getAdmins
     ChatsGetAdmins,
+    /// chats/getMembers
     ChatsGetMembers,
+    /// chats/getBlockedUsers
     ChatsGetBlockedUsers,
+    /// chats/getPendingUsers
     ChatsGetPendingUsers,
+    /// chats/blockUser
     ChatsBlockUser,
+    /// chats/unblockUser
     ChatsUnblockUser,
+    /// chats/resolvePending
     ChatsResolvePending,
+    /// chats/members/delete
     ChatsMembersDelete,
+    /// chats/setTitle
     ChatsSetTitle,
+    /// chats/setAbout
     ChatsSetAbout,
+    /// chats/setRules
     ChatsSetRules,
+    /// chats/pinMessage
     ChatsPinMessage,
+    /// chats/unpinMessage
     ChatsUnpinMessage,
+    /// self/get
     SelfGet,
+    /// files/getInfo
     FilesGetInfo,
+    /// events/get
     EventsGet,
 }
 pub type Methods = SendMessagesAPIMethods;
@@ -111,7 +137,6 @@ impl Display for SendMessagesAPIMethods {
             SendMessagesAPIMethods::SelfGet => write!(f, "self/get"),
             SendMessagesAPIMethods::FilesGetInfo => write!(f, "files/getInfo"),
             SendMessagesAPIMethods::EventsGet => write!(f, "events/get"),
-            // _ => panic!("Unknown API method"),
         }
     }
 }

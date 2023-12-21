@@ -5,7 +5,6 @@ use reqwest::{
     multipart::{Form, Part},
     Body, Client, Url,
 };
-use std::fmt;
 use std::time::Duration;
 use tokio_util::codec::{BytesCodec, FramedRead};
 /// Get raw response from API
@@ -36,11 +35,11 @@ fn file_to_multipart(part: MultipartName) -> Form {
 /// Get raw response from API
 /// Send request with [`Client`] `post` method with body file streaming and get body with [`Response`] `text` method
 pub async fn post_response_file(client: Client, url: Url, part: MultipartName) -> Result<String> {
-    debug!("Get response from API path {}...", url.to_string());
-    let prepare = client.post(url.as_str()).multipart(file_to_multipart(part));
-    debug!("Prepare request: {:?}", prepare);
-    let response = prepare.send().await;
-    debug!("Response: {:?}", response);
+    let response = client
+        .post(url.as_str())
+        .multipart(file_to_multipart(part))
+        .send()
+        .await;
     match response {
         Ok(r) => {
             debug!("Response status: OK");
@@ -52,25 +51,6 @@ pub async fn post_response_file(client: Client, url: Url, part: MultipartName) -
         }
     }
 }
-
-// pub async fn post_response_file<T>(client: &Client, url: &Url, body: T) -> Result<reqwest::Response>
-// where
-//     T: Serialize,
-// {
-//     debug!("Get response from API path {}...", url.to_string());
-//     let response = client.post(url.as_str()).multipart(body).send().await;
-//     match response {
-//         Ok(r) => {
-//             debug!("Response status: OK");
-//             Ok(r)
-//         }
-//         Err(e) => {
-//             error!("Response status: {}", e);
-//             Err(e.into())
-//         }
-//     }
-// }
-
 /// Set default request settings: timeout, tcp
 /// Set connection timeout to [`POLL_DURATION`] constant
 /// Set `timeout` to 5 secs
@@ -130,7 +110,7 @@ impl Bot {
     ) -> Result<String> {
         match file {
             MultipartName::File(_) | MultipartName::Image(_) => {
-                debug!("Send POST request with file");
+                // Send file POST request
                 post_response_file(
                     self.client.clone(),
                     self.get_parsed_url(self.set_path(path), query).unwrap(),
@@ -139,6 +119,7 @@ impl Bot {
                 .await
             }
             _ => {
+                // Simple GET request
                 get_response(
                     self.client.clone(),
                     self.get_parsed_url(self.set_path(path), query).unwrap(),
@@ -187,46 +168,15 @@ impl Bot {
     /// Deserialize response with [`serde_json::from_str`] into association type `Rs`
     ///
     /// [`response`]: #method.response
-    pub async fn send_get_request<Rq, Rs, M>(&self, request: Rq, method: M) -> Result<Rs>
-    where
-        Rq: serde::ser::Serialize,
-        Rs: serde::de::DeserializeOwned,
-        M: fmt::Display,
-    {
-        let query = serde_url_params::to_string(&request).unwrap();
-        let body = self
-            .response(method.to_string(), query, MultipartName::None)
-            .await;
-        match body {
-            Ok(b) => {
-                let rs = serde_json::from_str::<Rs>(b.as_str());
-                match rs {
-                    Ok(r) => Ok(r),
-                    Err(e) => Err(e.into()),
-                }
-            }
-            Err(e) => Err(e),
-        }
-    }
-    /// Send post request, get response
-    ///
-    /// Serialize request type `Rq` with [`serde_url_params::to_string`] into query string
-    ///
-    /// Get response body with [`response`] method type `M`
-    ///
-    /// Deserialize response with [`serde_json::from_str`] into association type `Rs`
-    ///
-    /// [`response`]: #method.response
-    pub async fn send_post_request<Rq, Rs, M>(
+    pub async fn send_get_request<Rq, Rs>(
         &self,
         request: Rq,
-        method: M,
         file: MultipartName,
+        method: Methods,
     ) -> Result<Rs>
     where
         Rq: serde::ser::Serialize,
         Rs: serde::de::DeserializeOwned,
-        M: fmt::Display,
     {
         let query = serde_url_params::to_string(&request).unwrap();
         let body = self.response(method.to_string(), query, file).await;

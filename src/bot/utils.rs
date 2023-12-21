@@ -72,7 +72,6 @@ impl ButtonKeyboard {
         }
     }
 }
-
 impl RequestMessagesSendText {
     /// Create new [`RequestMessagesSendTExt`] with required params
     pub fn new(chat_id: ChatId) -> Self {
@@ -126,7 +125,6 @@ impl RequestMessagesSendText {
         self.clone()
     }
 }
-
 impl RequestMessagesSendTextWithDeepLink {
     /// Create new [`RequestMessagesSendTextWithDeepLink`] with required params
     pub fn new(chat_id: ChatId, deep_link: String) -> Self {
@@ -194,18 +192,12 @@ impl RequestMessagesEditText {
         }
     }
 }
-
 impl RequestMessagesEditText {
     /// Set inline keyboard markup
     pub fn set_keyboard(&mut self, kb: Keyboard) -> &mut Self {
         self.inline_keyboard_markup = Some(kb.get_keyboard());
         self
     }
-    /// Set format
-    // fn set_format(&mut self) -> &mut Self {
-    //     self.format = None; //TODO: impl format
-    //     self
-    // }
     /// Set parse mode
     pub fn set_parse_mode(&mut self, pm: ParseMode) -> &mut Self {
         self.parse_mode = Some(pm);
@@ -222,7 +214,6 @@ impl RequestMessagesEditText {
         self.clone()
     }
 }
-
 impl RequestMessagesSendFile {
     /// Create new [`RequestMessagesSendFile`] with required params
     pub fn new(chat_id: ChatId) -> Self {
@@ -263,7 +254,6 @@ impl RequestMessagesSendFile {
         self.clone()
     }
 }
-
 impl Default for MessageTextParser {
     /// Create new [`MessageText`] with required params
     fn default() -> Self {
@@ -302,7 +292,7 @@ impl MessageTextParser {
         }
         (result, self.parse_mode)
     }
-    /// Parse [`MessageText`] types to HTML string
+    /// Parse [`MessageTextFormat`] types to HTML string
     fn parse_html(&self, text: &MessageTextFormat) -> String {
         match text {
             MessageTextFormat::Plain(text) => text.to_string(),

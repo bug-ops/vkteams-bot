@@ -8,6 +8,12 @@ pub mod utils;
 use crate::net::*;
 use crate::types::*;
 
+impl Default for Bot {
+    // default API version V1
+    fn default() -> Self {
+        Self::new(APIVersionUrl::V1)
+    }
+}
 impl Bot {
     /// Creates a new `Bot` with API version [`APIVersionUrl`]
     ///
@@ -61,11 +67,12 @@ impl Bot {
     ///
     /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/events/get_events_get
     pub async fn get_events(&self) -> Result<ResponseEventsGet> {
-        self.send_get_request::<RequestEventsGet, ResponseEventsGet, Methods>(
+        self.send_get_request::<RequestEventsGet, ResponseEventsGet>(
             RequestEventsGet {
                 last_event_id: Arc::clone(&self.event_id).to_string(),
                 poll_time: POLL_TIME.to_string(),
             },
+            MultipartName::None,
             Methods::EventsGet,
         )
         .await
@@ -79,8 +86,9 @@ impl Bot {
     ///
     /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/self/get_self_get
     pub async fn self_get(&self) -> Result<ResponseSelfGet> {
-        self.send_get_request::<RequestSelfGet, ResponseSelfGet, Methods>(
+        self.send_get_request::<RequestSelfGet, ResponseSelfGet>(
             RequestSelfGet {},
+            MultipartName::None,
             Methods::SelfGet,
         )
         .await
@@ -97,8 +105,9 @@ impl Bot {
         &self,
         request_message: RequestMessagesSendText,
     ) -> Result<ResponseMessagesSendText> {
-        self.send_get_request::<RequestMessagesSendText, ResponseMessagesSendText, Methods>(
+        self.send_get_request::<RequestMessagesSendText, ResponseMessagesSendText>(
             request_message,
+            MultipartName::None,
             Methods::MessagesSendText,
         )
         .await
@@ -118,9 +127,9 @@ impl Bot {
         self.send_get_request::<
             RequestMessagesSendTextWithDeepLink,
             ResponseMessagesSendTextWithDeepLink,
-            Methods,
         >(
             request_message,
+            MultipartName::None,
             Methods::MessagesSendTextWithDeepLink,
         )
         .await
@@ -137,8 +146,9 @@ impl Bot {
         &self,
         request_message: RequestMessagesEditText,
     ) -> Result<ResponseMessagesEditText> {
-        self.send_get_request::<RequestMessagesEditText, ResponseMessagesEditText, Methods>(
+        self.send_get_request::<RequestMessagesEditText, ResponseMessagesEditText>(
             request_message,
+            MultipartName::None,
             Methods::MessagesEditText,
         )
         .await
@@ -155,8 +165,9 @@ impl Bot {
         &self,
         request_message: RequestMessagesDeleteMessages,
     ) -> Result<ResponseMessagesDeleteMessages> {
-        self.send_get_request::<RequestMessagesDeleteMessages, ResponseMessagesDeleteMessages, Methods>(
+        self.send_get_request::<RequestMessagesDeleteMessages, ResponseMessagesDeleteMessages>(
             request_message,
+            MultipartName::None,
             Methods::MessagesDeleteMessages,
         )
         .await
@@ -173,8 +184,9 @@ impl Bot {
         &self,
         request_message: RequestMessagesAnswerCallbackQuery,
     ) -> Result<ResponseMessagesAnswerCallbackQuery> {
-        self.send_get_request::<RequestMessagesAnswerCallbackQuery, ResponseMessagesAnswerCallbackQuery, Methods>(
+        self.send_get_request::<RequestMessagesAnswerCallbackQuery, ResponseMessagesAnswerCallbackQuery>(
             request_message,
+            MultipartName::None,
             Methods::MessagesAnswerCallbackQuery,
         )
         .await
@@ -194,13 +206,14 @@ impl Bot {
     ) -> Result<ResponseMessagesSendFile> {
         let file = File::open(file_path).await;
         match file {
-            Ok(f) => self
-                .send_post_request::<RequestMessagesSendFile, ResponseMessagesSendFile, Methods>(
+            Ok(f) => {
+                self.send_get_request::<RequestMessagesSendFile, ResponseMessagesSendFile>(
                     request_message,
-                    Methods::MessagesSendFile,
                     MultipartName::File(f),
+                    Methods::MessagesSendFile,
                 )
-                .await,
+                .await
+            }
             Err(e) => Err(anyhow!(e)),
         }
     }
@@ -219,13 +232,14 @@ impl Bot {
     ) -> Result<ResponseMessagesSendVoice> {
         let file = File::open(file_path).await;
         match file {
-            Ok(f) => self
-                .send_post_request::<RequestMessagesSendVoice, ResponseMessagesSendVoice, Methods>(
+            Ok(f) => {
+                self.send_get_request::<RequestMessagesSendVoice, ResponseMessagesSendVoice>(
                     request_message,
-                    Methods::MessagesSendVoice,
                     MultipartName::File(f),
+                    Methods::MessagesSendVoice,
                 )
-                .await,
+                .await
+            }
             Err(e) => Err(anyhow!(e)),
         }
     }
@@ -246,10 +260,10 @@ impl Bot {
         let file = File::open(file_path).await;
         match file {
             Ok(f) => {
-                self.send_post_request::<RequestChatsAvatarSet, ResponseChatsAvatarSet, Methods>(
+                self.send_get_request::<RequestChatsAvatarSet, ResponseChatsAvatarSet>(
                     request_message,
-                    Methods::ChatsAvatarSet,
                     MultipartName::Image(f),
+                    Methods::ChatsAvatarSet,
                 )
                 .await
             }
@@ -268,8 +282,9 @@ impl Bot {
         &self,
         request_message: RequestChatsSendAction,
     ) -> Result<ResponseChatsSendAction> {
-        self.send_get_request::<RequestChatsSendAction, ResponseChatsSendAction, Methods>(
+        self.send_get_request::<RequestChatsSendAction, ResponseChatsSendAction>(
             request_message,
+            MultipartName::None,
             Methods::ChatsSendActions,
         )
         .await
@@ -286,8 +301,9 @@ impl Bot {
         &self,
         request_message: RequestChatsGetInfo,
     ) -> Result<ResponseChatsGetInfo> {
-        self.send_get_request::<RequestChatsGetInfo, ResponseChatsGetInfo, Methods>(
+        self.send_get_request::<RequestChatsGetInfo, ResponseChatsGetInfo>(
             request_message,
+            MultipartName::None,
             Methods::ChatsGetInfo,
         )
         .await
@@ -304,8 +320,9 @@ impl Bot {
         &self,
         request_message: RequestChatsGetAdmins,
     ) -> Result<ResponseChatsGetAdmins> {
-        self.send_get_request::<RequestChatsGetAdmins, ResponseChatsGetAdmins, Methods>(
+        self.send_get_request::<RequestChatsGetAdmins, ResponseChatsGetAdmins>(
             request_message,
+            MultipartName::None,
             Methods::ChatsGetAdmins,
         )
         .await
@@ -322,8 +339,9 @@ impl Bot {
         &self,
         request_message: RequestChatsGetMembers,
     ) -> Result<ResponseChatsGetMembers> {
-        self.send_get_request::<RequestChatsGetMembers, ResponseChatsGetMembers, Methods>(
+        self.send_get_request::<RequestChatsGetMembers, ResponseChatsGetMembers>(
             request_message,
+            MultipartName::None,
             Methods::ChatsGetMembers,
         )
         .await
@@ -340,8 +358,9 @@ impl Bot {
         &self,
         request_message: RequestChatsMembersDelete,
     ) -> Result<ResponseChatsMembersDelete> {
-        self.send_get_request::<RequestChatsMembersDelete, ResponseChatsMembersDelete, Methods>(
+        self.send_get_request::<RequestChatsMembersDelete, ResponseChatsMembersDelete>(
             request_message,
+            MultipartName::None,
             Methods::ChatsMembersDelete,
         )
         .await
@@ -358,8 +377,9 @@ impl Bot {
         &self,
         request_message: RequestChatsSetTitle,
     ) -> Result<ResponseChatsSetTitle> {
-        self.send_get_request::<RequestChatsSetTitle, ResponseChatsSetTitle, Methods>(
+        self.send_get_request::<RequestChatsSetTitle, ResponseChatsSetTitle>(
             request_message,
+            MultipartName::None,
             Methods::ChatsSetTitle,
         )
         .await
@@ -376,8 +396,9 @@ impl Bot {
         &self,
         request_message: RequestChatsSetAbout,
     ) -> Result<ResponseChatsSetAbout> {
-        self.send_get_request::<RequestChatsSetAbout, ResponseChatsSetAbout, Methods>(
+        self.send_get_request::<RequestChatsSetAbout, ResponseChatsSetAbout>(
             request_message,
+            MultipartName::None,
             Methods::ChatsSetAbout,
         )
         .await
@@ -394,8 +415,9 @@ impl Bot {
         &self,
         request_message: RequestChatsSetRules,
     ) -> Result<ResponseChatsSetRules> {
-        self.send_get_request::<RequestChatsSetRules, ResponseChatsSetRules, Methods>(
+        self.send_get_request::<RequestChatsSetRules, ResponseChatsSetRules>(
             request_message,
+            MultipartName::None,
             Methods::ChatsSetRules,
         )
         .await
@@ -412,8 +434,9 @@ impl Bot {
         &self,
         request_message: RequestChatsPinMessage,
     ) -> Result<ResponseChatsPinMessage> {
-        self.send_get_request::<RequestChatsPinMessage, ResponseChatsPinMessage, Methods>(
+        self.send_get_request::<RequestChatsPinMessage, ResponseChatsPinMessage>(
             request_message,
+            MultipartName::None,
             Methods::ChatsPinMessage,
         )
         .await
@@ -430,8 +453,9 @@ impl Bot {
         &self,
         request_message: RequestChatsUnpinMessage,
     ) -> Result<ResponseChatsUnpinMessage> {
-        self.send_get_request::<RequestChatsUnpinMessage, ResponseChatsUnpinMessage, Methods>(
+        self.send_get_request::<RequestChatsUnpinMessage, ResponseChatsUnpinMessage>(
             request_message,
+            MultipartName::None,
             Methods::ChatsUnpinMessage,
         )
         .await
@@ -448,8 +472,9 @@ impl Bot {
         &self,
         request_message: RequestFilesGetInfo,
     ) -> Result<ResponseFilesGetInfo> {
-        self.send_get_request::<RequestFilesGetInfo, ResponseFilesGetInfo, Methods>(
+        self.send_get_request::<RequestFilesGetInfo, ResponseFilesGetInfo>(
             request_message,
+            MultipartName::None,
             Methods::FilesGetInfo,
         )
         .await
@@ -466,8 +491,9 @@ impl Bot {
         &self,
         request_message: RequestChatsGetBlockedUsers,
     ) -> Result<ResponseChatsGetBlockedUsers> {
-        self.send_get_request::<RequestChatsGetBlockedUsers, ResponseChatsGetBlockedUsers, Methods>(
+        self.send_get_request::<RequestChatsGetBlockedUsers, ResponseChatsGetBlockedUsers>(
             request_message,
+            MultipartName::None,
             Methods::ChatsGetBlockedUsers,
         )
         .await
@@ -484,8 +510,9 @@ impl Bot {
         &self,
         request_message: RequestChatsGetPendingUsers,
     ) -> Result<ResponseChatsGetPendingUsers> {
-        self.send_get_request::<RequestChatsGetPendingUsers, ResponseChatsGetPendingUsers, Methods>(
+        self.send_get_request::<RequestChatsGetPendingUsers, ResponseChatsGetPendingUsers>(
             request_message,
+            MultipartName::None,
             Methods::ChatsGetPendingUsers,
         )
         .await
@@ -502,8 +529,9 @@ impl Bot {
         &self,
         request_message: RequestChatsBlockUser,
     ) -> Result<ResponseChatsBlockUser> {
-        self.send_get_request::<RequestChatsBlockUser, ResponseChatsBlockUser, Methods>(
+        self.send_get_request::<RequestChatsBlockUser, ResponseChatsBlockUser>(
             request_message,
+            MultipartName::None,
             Methods::ChatsBlockUser,
         )
         .await
@@ -520,8 +548,9 @@ impl Bot {
         &self,
         request_message: RequestChatsUnblockUser,
     ) -> Result<ResponseChatsUnblockUser> {
-        self.send_get_request::<RequestChatsUnblockUser, ResponseChatsUnblockUser, Methods>(
+        self.send_get_request::<RequestChatsUnblockUser, ResponseChatsUnblockUser>(
             request_message,
+            MultipartName::None,
             Methods::ChatsUnblockUser,
         )
         .await
@@ -538,8 +567,9 @@ impl Bot {
         &self,
         request_message: RequestChatsResolvePending,
     ) -> Result<ResponseChatsResolvePending> {
-        self.send_get_request::<RequestChatsResolvePending, ResponseChatsResolvePending, Methods>(
+        self.send_get_request::<RequestChatsResolvePending, ResponseChatsResolvePending>(
             request_message,
+            MultipartName::None,
             Methods::ChatsResolvePending,
         )
         .await
