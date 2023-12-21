@@ -1,4 +1,5 @@
 use crate::types::*;
+use std::convert::From;
 /// Keyboard with simple logic
 /// Create new [`Keyboard`] with empty rows
 /// ## Example
