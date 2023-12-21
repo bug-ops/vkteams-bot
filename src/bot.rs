@@ -204,12 +204,15 @@ impl Bot {
         request_message: RequestMessagesSendFile,
         file_path: String,
     ) -> Result<ResponseMessagesSendFile> {
-        let file = File::open(file_path).await;
+        let file = File::open(file_path.to_owned()).await;
         match file {
             Ok(f) => {
                 self.send_get_request::<RequestMessagesSendFile, ResponseMessagesSendFile>(
                     request_message,
-                    MultipartName::File(f),
+                    MultipartName::File {
+                        name: file_path.to_owned(),
+                        file: f,
+                    },
                     Methods::MessagesSendFile,
                 )
                 .await
@@ -230,12 +233,15 @@ impl Bot {
         request_message: RequestMessagesSendVoice,
         file_path: String,
     ) -> Result<ResponseMessagesSendVoice> {
-        let file = File::open(file_path).await;
+        let file = File::open(file_path.to_owned()).await;
         match file {
             Ok(f) => {
                 self.send_get_request::<RequestMessagesSendVoice, ResponseMessagesSendVoice>(
                     request_message,
-                    MultipartName::File(f),
+                    MultipartName::File {
+                        name: file_path.to_owned(),
+                        file: f,
+                    },
                     Methods::MessagesSendVoice,
                 )
                 .await
@@ -257,12 +263,15 @@ impl Bot {
         request_message: RequestChatsAvatarSet,
         file_path: String,
     ) -> Result<ResponseChatsAvatarSet> {
-        let file = File::open(file_path).await;
+        let file = File::open(file_path.to_owned()).await;
         match file {
             Ok(f) => {
                 self.send_get_request::<RequestChatsAvatarSet, ResponseChatsAvatarSet>(
                     request_message,
-                    MultipartName::Image(f),
+                    MultipartName::Image {
+                        name: file_path.to_owned(),
+                        file: f,
+                    },
                     Methods::ChatsAvatarSet,
                 )
                 .await

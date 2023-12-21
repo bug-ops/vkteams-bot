@@ -24,12 +24,13 @@ pub async fn get_response(client: Client, url: Url) -> Result<String> {
     }
 }
 /// Upload file stream to API in multipart form
-fn file_to_multipart(part: MultipartName) -> Form {
+async fn file_to_multipart(part: MultipartName) -> Form {
     let name = part.to_string();
-    let file = part.get_file();
+    let (filename, file) = part.get_file();
     Form::new().part(
         name,
-        Part::stream(Body::wrap_stream(FramedRead::new(file, BytesCodec::new()))),
+        Part::stream(Body::wrap_stream(FramedRead::new(file, BytesCodec::new())))
+            .file_name(filename),
     )
 }
 /// Get raw response from API
@@ -37,7 +38,7 @@ fn file_to_multipart(part: MultipartName) -> Form {
 pub async fn post_response_file(client: Client, url: Url, part: MultipartName) -> Result<String> {
     let response = client
         .post(url.as_str())
-        .multipart(file_to_multipart(part))
+        .multipart(file_to_multipart(part).await)
         .send()
         .await;
     match response {
@@ -109,7 +110,7 @@ impl Bot {
         file: MultipartName,
     ) -> Result<String> {
         match file {
-            MultipartName::File(_) | MultipartName::Image(_) => {
+            MultipartName::File { .. } | MultipartName::Image { .. } => {
                 // Send file POST request
                 post_response_file(
                     self.client.clone(),

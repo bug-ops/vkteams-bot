@@ -481,23 +481,25 @@ pub enum ChatActions {
 }
 /// Multipart name
 pub enum MultipartName {
-    File(File),
-    Image(File),
+    File { name: String, file: File },
+    Image { name: String, file: File },
     None,
 }
 impl Display for MultipartName {
     fn fmt(&self, f: &mut Formatter) -> Result {
         match self {
-            MultipartName::File(_) => write!(f, "file"),
-            MultipartName::Image(_) => write!(f, "image"),
+            MultipartName::File { .. } => write!(f, "file"),
+            MultipartName::Image { .. } => write!(f, "image"),
             _ => write!(f, ""),
         }
     }
 }
 impl MultipartName {
-    pub fn get_file(self) -> File {
+    pub fn get_file(self) -> (String, File) {
         match self {
-            MultipartName::File(file) | MultipartName::Image(file) => file,
+            MultipartName::File { name, file } | MultipartName::Image { name, file } => {
+                (name, file)
+            }
             _ => panic!("No file"),
         }
     }
