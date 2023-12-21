@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use std::path::Path;
 use std::sync::Arc;
 use tokio::fs::File;
 // pub mod db; //TODO: Add db module
@@ -204,13 +205,14 @@ impl Bot {
         request_message: RequestMessagesSendFile,
         file_path: String,
     ) -> Result<ResponseMessagesSendFile> {
-        let file = File::open(file_path.to_owned()).await;
+        let path = Path::new(&file_path);
+        let file = File::open(path.to_owned()).await;
         match file {
             Ok(f) => {
                 self.send_get_request::<RequestMessagesSendFile, ResponseMessagesSendFile>(
                     request_message,
                     MultipartName::File {
-                        name: file_path.to_owned(),
+                        name: path.file_name().unwrap().to_string_lossy().to_string(),
                         file: f,
                     },
                     Methods::MessagesSendFile,
@@ -233,13 +235,14 @@ impl Bot {
         request_message: RequestMessagesSendVoice,
         file_path: String,
     ) -> Result<ResponseMessagesSendVoice> {
-        let file = File::open(file_path.to_owned()).await;
+        let path = Path::new(&file_path);
+        let file = File::open(path.to_owned()).await;
         match file {
             Ok(f) => {
                 self.send_get_request::<RequestMessagesSendVoice, ResponseMessagesSendVoice>(
                     request_message,
                     MultipartName::File {
-                        name: file_path.to_owned(),
+                        name: path.file_name().unwrap().to_string_lossy().to_string(),
                         file: f,
                     },
                     Methods::MessagesSendVoice,
@@ -263,13 +266,14 @@ impl Bot {
         request_message: RequestChatsAvatarSet,
         file_path: String,
     ) -> Result<ResponseChatsAvatarSet> {
-        let file = File::open(file_path.to_owned()).await;
+        let path = Path::new(&file_path);
+        let file = File::open(path.to_owned()).await;
         match file {
             Ok(f) => {
                 self.send_get_request::<RequestChatsAvatarSet, ResponseChatsAvatarSet>(
                     request_message,
                     MultipartName::Image {
-                        name: file_path.to_owned(),
+                        name: path.file_name().unwrap().to_string_lossy().to_string(),
                         file: f,
                     },
                     Methods::ChatsAvatarSet,
