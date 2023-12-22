@@ -211,7 +211,7 @@ pub struct Keyboard {
     pub buttons: Vec<Vec<ButtonKeyboard>>,
 }
 /// Keyboard buttons style
-#[derive(Serialize, Clone, Copy, Debug, Default)]
+#[derive(Serialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub enum ButtonStyle {
     Primary,
@@ -220,7 +220,7 @@ pub enum ButtonStyle {
     Base,
 }
 /// Message text format parse mode
-#[derive(Serialize, Deserialize, Clone, Debug, Copy, Default)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, Default)]
 pub enum ParseMode {
     MarkdownV2,
     #[default]
@@ -229,7 +229,7 @@ pub enum ParseMode {
 /// Response for method [`SendMessagesAPIMethods::MessagesSendText`]
 ///
 /// [`SendMessagesAPIMethods::MessagesSendText`]: enum.SendMessagesAPIMethods.html#variant.MessagesSendText
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseMessagesSendText {
     pub msg_id: Option<MsgId>,       //ok = True
@@ -255,7 +255,7 @@ pub struct RequestMessagesSendTextWithDeepLink {
 /// Response for method [`SendMessagesAPIMethods::MessagesSendTextWithDeepLink`]
 ///
 /// [`SendMessagesAPIMethods::MessagesSendTextWithDeepLink`]: enum.SendMessagesAPIMethods.html#variant.MessagesSendTextWithDeepLink
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseMessagesSendTextWithDeepLink {
     pub msg_id: Option<MsgId>,
@@ -265,7 +265,7 @@ pub struct ResponseMessagesSendTextWithDeepLink {
 /// Request for method [`SendMessagesAPIMethods::MessagesDeleteMessages`]
 ///
 /// [`SendMessagesAPIMethods::MessagesDeleteMessages`]: enum.SendMessagesAPIMethods.html#variant.MessagesDeleteMessages
-#[derive(Serialize)]
+#[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestMessagesDeleteMessages {
     pub chat_id: ChatId,
@@ -274,14 +274,14 @@ pub struct RequestMessagesDeleteMessages {
 /// Response for method [`SendMessagesAPIMethods::MessagesDeleteMessages`]
 ///
 /// [`SendMessagesAPIMethods::MessagesDeleteMessages`]: enum.SendMessagesAPIMethods.html#variant.MessagesDeleteMessages
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ResponseMessagesDeleteMessages {
     pub ok: bool,
 }
 /// Request for method [`SendMessagesAPIMethods::MessagesEditText`]
 ///
 /// [`SendMessagesAPIMethods::MessagesEditText`]: enum.SendMessagesAPIMethods.html#variant.MessagesEditText
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestMessagesEditText {
     pub chat_id: ChatId,
@@ -294,14 +294,14 @@ pub struct RequestMessagesEditText {
 /// Response for method [`SendMessagesAPIMethods::MessagesEditText`]
 ///
 /// [`SendMessagesAPIMethods::MessagesEditText`]: enum.SendMessagesAPIMethods.html#variant.MessagesEditText
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ResponseMessagesEditText {
     pub ok: bool,
 }
 /// Request for method [`SendMessagesAPIMethods::EventsGet`]
 ///
 /// [`SendMessagesAPIMethods::EventsGet`]: enum.SendMessagesAPIMethods.html#variant.EventsGet
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestEventsGet {
     pub last_event_id: String,
@@ -310,13 +310,13 @@ pub struct RequestEventsGet {
 /// Response for method [`SendMessagesAPIMethods::EventsGet`]
 ///
 /// [`SendMessagesAPIMethods::EventsGet`]: enum.SendMessagesAPIMethods.html#variant.EventsGet
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ResponseEventsGet {
     pub events: Vec<EventMessage>,
     pub ok: bool,
 }
 /// Event message
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct EventMessage {
     pub event_id: u64,
@@ -325,7 +325,7 @@ pub struct EventMessage {
     pub payload: EventPayload,
 }
 /// Event message payload
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct EventPayload {
     pub msg_id: Option<MsgId>,
@@ -343,7 +343,7 @@ pub struct EventPayload {
     pub edited_timestamp: Option<u64>,
 }
 /// Message parts
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageParts {
     #[serde(rename = "type")]
@@ -351,7 +351,7 @@ pub struct MessageParts {
     pub payload: MessagePartsPayload,
 }
 /// Message parts payload
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct MessagePartsPayload {
     pub file_id: Option<String>,
@@ -365,7 +365,7 @@ pub struct MessagePartsPayload {
     pub message: Option<MessagePayload>,
 }
 /// Array of message formats
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageFormat {
     pub bold: Option<Vec<MessageFormatStruct>>,
@@ -380,7 +380,7 @@ pub struct MessageFormat {
     pub quote: Option<Vec<MessageFormatStruct>>,
 }
 /// Message format struct
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageFormatStruct {
     /// offset - required for every format
@@ -393,7 +393,7 @@ pub struct MessageFormatStruct {
     pub code: Option<String>,
 }
 /// Event message payload
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct MessagePayload {
     pub from: From,
@@ -402,7 +402,7 @@ pub struct MessagePayload {
     pub timestamp: u64,
 }
 /// Chat id struct
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ChatId(pub String);
 /// Display trait for [`ChatId`]
 impl Display for ChatId {
@@ -411,13 +411,13 @@ impl Display for ChatId {
     }
 }
 /// Message id struct
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct MsgId(pub String);
 /// User id struct
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct UserId(pub String);
 /// Chat struct
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Chat {
     pub chat_id: ChatId,
@@ -426,7 +426,7 @@ pub struct Chat {
     pub chat_type: String,
 }
 /// From struct
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct From {
     pub first_name: String,
@@ -434,7 +434,7 @@ pub struct From {
     pub user_id: UserId,
 }
 /// Message parts type
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub enum MessagePartsType {
     Sticker,
@@ -445,7 +445,7 @@ pub enum MessagePartsType {
     Reply,
 }
 /// Event types
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub enum EventType {
     NewMessage,
@@ -458,14 +458,14 @@ pub enum EventType {
     CallbackQuery,
 }
 /// Languages
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub enum Languages {
     Ru,
     En,
 }
 /// Chat types
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub enum ChatType {
     Private,
@@ -473,7 +473,7 @@ pub enum ChatType {
     Channel,
 }
 /// Chat actions
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub enum ChatActions {
     Looking,
@@ -507,7 +507,7 @@ impl MultipartName {
 /// Request for method [`SendMessagesAPIMethods::ChatsAvatarSet`]
 ///
 /// [`SendMessagesAPIMethods::ChatsAvatarSet`]: enum.SendMessagesAPIMethods.html#variant.ChatsAvatarSet
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestChatsAvatarSet {
     pub chat_id: ChatId,
@@ -515,7 +515,7 @@ pub struct RequestChatsAvatarSet {
 /// Response for method [`SendMessagesAPIMethods::ChatsAvatarSet`]
 ///
 /// [`SendMessagesAPIMethods::ChatsAvatarSet`]: enum.SendMessagesAPIMethods.html#variant.ChatsAvatarSet
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsAvatarSet {
     pub ok: bool,
@@ -523,7 +523,7 @@ pub struct ResponseChatsAvatarSet {
 /// Request for method [`SendMessagesAPIMethods::ChatsGetAdmins`]
 ///
 /// [`SendMessagesAPIMethods::ChatsGetAdmins`]: enum.SendMessagesAPIMethods.html#variant.ChatsGetAdmins
-#[derive(Serialize)]
+#[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestChatsGetAdmins {
     pub chat_id: ChatId,
@@ -531,12 +531,12 @@ pub struct RequestChatsGetAdmins {
 /// Response for method [`SendMessagesAPIMethods::ChatsGetAdmins`]
 ///
 /// [`SendMessagesAPIMethods::ChatsGetAdmins`]: enum.SendMessagesAPIMethods.html#variant.ChatsGetAdmins
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsGetAdmins {
     pub admins: Option<Vec<Admin>>,
 }
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Admin {
     pub user_id: UserId,
@@ -545,7 +545,7 @@ pub struct Admin {
 /// Request for method [`SendMessagesAPIMethods::ChatsGetMembers`]
 ///
 /// [`SendMessagesAPIMethods::ChatsGetMembers`]: enum.SendMessagesAPIMethods.html#variant.ChatsGetMembers
-#[derive(Serialize)]
+#[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestChatsGetMembers {
     pub chat_id: ChatId,
@@ -554,7 +554,7 @@ pub struct RequestChatsGetMembers {
 /// Response for method [`SendMessagesAPIMethods::ChatsGetMembers`]
 ///
 /// [`SendMessagesAPIMethods::ChatsGetMembers`]: enum.SendMessagesAPIMethods.html#variant.ChatsGetMembers
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsGetMembers {
     pub members: Option<Vec<Member>>,
@@ -563,7 +563,7 @@ pub struct ResponseChatsGetMembers {
 /// Request for method [`SendMessagesAPIMethods::ChatsGetBlockedUsers`]
 ///
 /// [`SendMessagesAPIMethods::ChatsGetBlockedUsers`]: enum.SendMessagesAPIMethods.html#variant.ChatsGetBlockedUsers
-#[derive(Serialize)]
+#[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestChatsGetBlockedUsers {
     pub chat_id: ChatId,
@@ -571,13 +571,13 @@ pub struct RequestChatsGetBlockedUsers {
 /// Response for method [`SendMessagesAPIMethods::ChatsGetBlockedUsers`]
 ///
 /// [`SendMessagesAPIMethods::ChatsGetBlockedUsers`]: enum.SendMessagesAPIMethods.html#variant.ChatsGetBlockedUsers
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsGetBlockedUsers {
     pub users: Option<Vec<BlockedUser>>,
 }
 /// Blocked user struct
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct BlockedUser {
     pub user_id: UserId,
@@ -585,7 +585,7 @@ pub struct BlockedUser {
 /// Request for method [`SendMessagesAPIMethods::ChatsBlockUser`]
 ///
 /// [`SendMessagesAPIMethods::ChatsBlockUser`]: enum.SendMessagesAPIMethods.html#variant.ChatsBlockUser
-#[derive(Serialize)]
+#[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestChatsGetPendingUsers {
     pub chat_id: ChatId,
@@ -593,19 +593,19 @@ pub struct RequestChatsGetPendingUsers {
 /// Response for method [`SendMessagesAPIMethods::ChatsBlockUser`]
 ///
 /// [`SendMessagesAPIMethods::ChatsBlockUser`]: enum.SendMessagesAPIMethods.html#variant.ChatsBlockUser
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsGetPendingUsers {
     pub users: Option<Vec<PendingUser>>,
 }
 ///Pending user struct
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PendingUser {
     pub user_id: UserId,
 }
 /// Member struct
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Member {
     pub user_id: UserId,
@@ -615,7 +615,7 @@ pub struct Member {
 /// Request for method [`SendMessagesAPIMethods::ChatsBlockUser`]
 ///
 /// [`SendMessagesAPIMethods::ChatsBlockUser`]: enum.SendMessagesAPIMethods.html#variant.ChatsBlockUser
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestChatsBlockUser {
     pub chat_id: ChatId,
@@ -625,7 +625,7 @@ pub struct RequestChatsBlockUser {
 /// Response for method [`SendMessagesAPIMethods::ChatsBlockUser`]
 ///
 /// [`SendMessagesAPIMethods::ChatsBlockUser`]: enum.SendMessagesAPIMethods.html#variant.ChatsBlockUser
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsBlockUser {
     pub ok: bool,
@@ -633,7 +633,7 @@ pub struct ResponseChatsBlockUser {
 /// Request for method [`SendMessagesAPIMethods::ChatsUnblockUser`]
 ///
 /// [`SendMessagesAPIMethods::ChatsResolvePending`]: enum.SendMessagesAPIMethods.html#variant.ChatsUnblockUser
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestChatsUnblockUser {
     pub chat_id: ChatId,
@@ -642,7 +642,7 @@ pub struct RequestChatsUnblockUser {
 /// Response for method [`SendMessagesAPIMethods::ChatsUnblockUser`]
 ///
 /// [`SendMessagesAPIMethods::ChatsResolvePending`]: enum.SendMessagesAPIMethods.html#variant.ChatsUnblockUser
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsUnblockUser {
     pub ok: bool,
@@ -650,7 +650,7 @@ pub struct ResponseChatsUnblockUser {
 /// Request for method [`SendMessagesAPIMethods::ChatsResolvePending`]
 ///
 /// [`SendMessagesAPIMethods::ChatsResolvePending`]: enum.SendMessagesAPIMethods.html#variant.ChatsResolvePending
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestChatsResolvePending {
     pub chat_id: ChatId,
@@ -661,7 +661,7 @@ pub struct RequestChatsResolvePending {
 /// Response for method [`SendMessagesAPIMethods::ChatsResolvePending`]
 ///
 /// [`SendMessagesAPIMethods::ChatsResolvePending`]: enum.SendMessagesAPIMethods.html#variant.ChatsResolvePending
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsResolvePending {
     pub ok: bool,
@@ -669,7 +669,7 @@ pub struct ResponseChatsResolvePending {
 /// Request for method [`SendMessagesAPIMethods::ChatsMembersDelete`]
 ///
 /// [`SendMessagesAPIMethods::ChatsMembersDelete`]: enum.SendMessagesAPIMethods.html#variant.ChatsMembersDelete
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestChatsMembersDelete {
     pub chat_id: ChatId,
@@ -677,7 +677,7 @@ pub struct RequestChatsMembersDelete {
     pub members: Vec<Sn>,
 }
 /// Sn struct for members
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Sn {
     pub sn: String,
@@ -686,14 +686,14 @@ pub struct Sn {
 /// Response for method [`SendMessagesAPIMethods::ChatsMembersDelete`]
 ///
 /// [`SendMessagesAPIMethods::ChatsMembersDelete`]: enum.SendMessagesAPIMethods.html#variant.ChatsMembersDelete
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ResponseChatsMembersDelete {
     pub ok: bool,
 }
 /// Request for method [`SendMessagesAPIMethods::ChatsSetTitle`]
 ///
 /// [`SendMessagesAPIMethods::ChatsSetTitle`]: enum.SendMessagesAPIMethods.html#variant.ChatsSetTitle
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestChatsSetTitle {
     pub chat_id: ChatId,
@@ -702,7 +702,7 @@ pub struct RequestChatsSetTitle {
 /// Response for method [`SendMessagesAPIMethods::ChatsSetTitle`]
 ///
 /// [`SendMessagesAPIMethods::ChatsSetTitle`]: enum.SendMessagesAPIMethods.html#variant.ChatsSetTitle
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsSetTitle {
     pub ok: bool,
@@ -710,7 +710,7 @@ pub struct ResponseChatsSetTitle {
 /// Request for method [`SendMessagesAPIMethods::ChatsSetAbout`]
 ///
 /// [`SendMessagesAPIMethods::ChatsSetAbout`]: enum.SendMessagesAPIMethods.html#variant.ChatsSetAbout
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestChatsSetAbout {
     pub chat_id: ChatId,
@@ -719,16 +719,15 @@ pub struct RequestChatsSetAbout {
 /// Response for method [`SendMessagesAPIMethods::ChatsSetAbout`]
 ///
 /// [`SendMessagesAPIMethods::ChatsSetAbout`]: enum.SendMessagesAPIMethods.html#variant.ChatsSetAbout
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
-
 pub struct ResponseChatsSetAbout {
     pub ok: bool,
 }
 /// Request for method [`SendMessagesAPIMethods::ChatsSetRules`]
 ///
 /// [`SendMessagesAPIMethods::ChatsSetRules`]: enum.SendMessagesAPIMethods.html#variant.ChatsSetRules
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestChatsSetRules {
     pub chat_id: ChatId,
@@ -737,7 +736,7 @@ pub struct RequestChatsSetRules {
 /// Response for method [`SendMessagesAPIMethods::ChatsSetRules`]
 ///
 /// [`SendMessagesAPIMethods::ChatsSetRules`]: enum.SendMessagesAPIMethods.html#variant.ChatsSetRules
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsSetRules {
     pub ok: bool,
@@ -745,7 +744,7 @@ pub struct ResponseChatsSetRules {
 /// Request for method [`SendMessagesAPIMethods::ChatsPinMessage`]
 ///
 /// [`SendMessagesAPIMethods::ChatsPinMessage`]: enum.SendMessagesAPIMethods.html#variant.ChatsPinMessage
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestChatsPinMessage {
     pub chat_id: ChatId,
@@ -754,7 +753,7 @@ pub struct RequestChatsPinMessage {
 /// Response for method [`SendMessagesAPIMethods::ChatsPinMessage`]
 ///
 /// [`SendMessagesAPIMethods::ChatsPinMessage`]: enum.SendMessagesAPIMethods.html#variant.ChatsPinMessage
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsPinMessage {
     pub ok: bool,
@@ -762,7 +761,7 @@ pub struct ResponseChatsPinMessage {
 /// Request for method [`SendMessagesAPIMethods::ChatsUnpinMessage`]
 ///
 /// [`SendMessagesAPIMethods::ChatsUnpinMessage`]: enum.SendMessagesAPIMethods.html#variant.ChatsUnpinMessage
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestChatsUnpinMessage {
     pub chat_id: ChatId,
@@ -771,7 +770,7 @@ pub struct RequestChatsUnpinMessage {
 /// Response for method [`SendMessagesAPIMethods::ChatsUnpinMessage`]
 ///
 /// [`SendMessagesAPIMethods::ChatsUnpinMessage`]: enum.SendMessagesAPIMethods.html#variant.ChatsUnpinMessage
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsUnpinMessage {
     pub ok: bool,
@@ -779,12 +778,12 @@ pub struct ResponseChatsUnpinMessage {
 /// Request for method [`SendMessagesAPIMethods::SelfGet`]
 ///
 /// [`SendMessagesAPIMethods::SelfGet`]: enum.SendMessagesAPIMethods.html#variant.SelfGet
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Clone, Debug)]
 pub struct RequestSelfGet {}
 /// Response for method [`SendMessagesAPIMethods::SelfGet`]
 ///
 /// [`SendMessagesAPIMethods::SelfGet`]: enum.SendMessagesAPIMethods.html#variant.SelfGet
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseSelfGet {
     pub user_id: UserId,
@@ -795,14 +794,14 @@ pub struct ResponseSelfGet {
     pub ok: bool,
 }
 /// Photo url struct
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct PhotoUrl {
     pub url: String,
 }
 /// Request for method [`SendMessagesAPIMethods::MessagesAnswerCallbackQuery`]
 ///
 /// [`SendMessagesAPIMethods::MessagesAnswerCallbackQuery`]: enum.SendMessagesAPIMethods.html#variant.MessagesAnswerCallbackQuery
-#[derive(Serialize)]
+#[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestMessagesAnswerCallbackQuery {
     pub query_id: String,
@@ -810,19 +809,19 @@ pub struct RequestMessagesAnswerCallbackQuery {
     pub show_alert: Option<ShowAlert>,
     pub url: Option<String>,
 }
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ShowAlert(pub bool);
 /// Response for method [`SendMessagesAPIMethods::MessagesAnswerCallbackQuery`]
 ///
 /// [`SendMessagesAPIMethods::MessagesAnswerCallbackQuery`]: enum.SendMessagesAPIMethods.html#variant.MessagesAnswerCallbackQuery
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ResponseMessagesAnswerCallbackQuery {
     pub ok: bool,
 }
 /// Request for method [`SendMessagesAPIMethods::MessagesSendFile`]
 ///
 /// [`SendMessagesAPIMethods::MessagesSendFile`]: enum.SendMessagesAPIMethods.html#variant.MessagesSendFile
-#[derive(Serialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestMessagesSendFile {
     pub chat_id: ChatId,
@@ -837,14 +836,14 @@ pub struct RequestMessagesSendFile {
 /// Response for method [`SendMessagesAPIMethods::MessagesSendFile`]
 ///
 /// [`SendMessagesAPIMethods::MessagesSendFile`]: enum.SendMessagesAPIMethods.html#variant.MessagesSendFile
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseMessagesSendFile {
     pub msg_id: Option<MsgId>,
     pub file_id: Option<String>,
     pub ok: bool,
 }
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 /// Request for method [`SendMessagesAPIMethods::MessagesSendVoice`]
 ///
@@ -859,7 +858,7 @@ pub struct RequestMessagesSendVoice {
     pub format: Option<MessageFormat>,
     pub parse_mode: Option<ParseMode>,
 }
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 /// Response for method [`SendMessagesAPIMethods::MessagesSendVoice`]
 ///
@@ -872,7 +871,7 @@ pub struct ResponseMessagesSendVoice {
 /// Request for method [`SendMessagesAPIMethods::ChatsSendActions`]
 ///
 /// [`SendMessagesAPIMethods::ChatsSendActions`]: enum.SendMessagesAPIMethods.html#variant.ChatsSendActions
-#[derive(Serialize)]
+#[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestChatsSendAction {
     pub chat_id: ChatId,
@@ -881,14 +880,14 @@ pub struct RequestChatsSendAction {
 /// Response for method [`SendMessagesAPIMethods::ChatsSendActions`]
 ///
 /// [`SendMessagesAPIMethods::ChatsSendActions`]: enum.SendMessagesAPIMethods.html#variant.ChatsSendActions
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ResponseChatsSendAction {
     pub ok: bool,
 }
 /// Request for method [`SendMessagesAPIMethods::ChatsGetInfo`]
 ///
 /// [`SendMessagesAPIMethods::ChatsGetInfo`]: enum.SendMessagesAPIMethods.html#variant.ChatsGetInfo
-#[derive(Serialize)]
+#[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestChatsGetInfo {
     pub chat_id: ChatId,
@@ -896,7 +895,7 @@ pub struct RequestChatsGetInfo {
 /// Response for method [`SendMessagesAPIMethods::ChatsGetInfo`]
 ///
 /// [`SendMessagesAPIMethods::ChatsGetInfo`]: enum.SendMessagesAPIMethods.html#variant.ChatsGetInfo
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsGetInfo {
     #[serde(rename = "type")]
@@ -917,7 +916,7 @@ pub struct ResponseChatsGetInfo {
 /// Request for method [`SendMessagesAPIMethods::FilesGetInfo`]
 ///
 /// [`SendMessagesAPIMethods::FilesGetInfo`]: enum.SendMessagesAPIMethods.html#variant.FilesGetInfo
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestFilesGetInfo {
     pub file_id: String,
@@ -925,7 +924,7 @@ pub struct RequestFilesGetInfo {
 /// Response for method [`SendMessagesAPIMethods::FilesGetInfo`]
 ///
 /// [`SendMessagesAPIMethods::FilesGetInfo`]: enum.SendMessagesAPIMethods.html#variant.FilesGetInfo
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseFilesGetInfo {
     #[serde(rename = "type")]
