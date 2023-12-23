@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tokio::fs::File;
 // pub mod db; //TODO: Add db module
 pub mod net;
@@ -56,7 +56,7 @@ impl Bot {
             // Set default path depending on API version
             base_api_path: set_default_path(&version),
             // Default event id is 0
-            event_id: Arc::new(0),
+            event_id: Arc::new(Mutex::new(0)),
         }
     }
     /// Get chat events
@@ -68,9 +68,12 @@ impl Bot {
     ///
     /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/events/get_events_get
     pub async fn get_events(&self) -> Result<ResponseEventsGet> {
+        // Get last event id
+        let counter: Arc<Mutex<u64>> = Arc::clone(&self.event_id);
+        let event = *counter.lock().unwrap();
         self.send_get_request::<RequestEventsGet, ResponseEventsGet>(
             RequestEventsGet {
-                last_event_id: Arc::clone(&self.event_id).to_string(),
+                last_event_id: event,
                 poll_time: POLL_TIME.to_string(),
             },
             MultipartName::None,

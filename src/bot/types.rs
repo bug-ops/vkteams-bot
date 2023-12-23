@@ -2,7 +2,7 @@ use reqwest::{Client, Url};
 use serde::{Deserialize, Serialize};
 use std::fmt::*;
 use std::string::String;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::fs::File;
 /// Environment variable name for bot API URL
@@ -45,7 +45,7 @@ pub struct Bot {
     pub(crate) token: String,
     pub(crate) base_api_url: Url,
     pub(crate) base_api_path: String,
-    pub(crate) event_id: Arc<u64>,
+    pub(crate) event_id: Arc<Mutex<u64>>,
 }
 /// API possible methods
 pub enum SendMessagesAPIMethods {
@@ -304,7 +304,7 @@ pub struct ResponseMessagesEditText {
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestEventsGet {
-    pub last_event_id: String,
+    pub last_event_id: u64,
     pub poll_time: String,
 }
 /// Response for method [`SendMessagesAPIMethods::EventsGet`]

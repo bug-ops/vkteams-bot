@@ -1,5 +1,7 @@
 use crate::types::*;
+use core::ops::Fn;
 use std::convert::From;
+use std::sync::Arc; // Import the crate containing the `execute` macro
 /// Keyboard with simple logic
 /// Create new [`Keyboard`] with empty rows
 /// ## Example
@@ -18,6 +20,32 @@ use std::convert::From;
 ///     ButtonStyle::Attention,
 /// ));
 /// ```
+impl Bot {
+    pub async fn event_listener<F>(&self, func: F)
+    where
+        F: Fn(ResponseEventsGet),
+    {
+        loop {
+            let events = self.get_events().await;
+            match events {
+                Ok(res) => {
+                    if !res.events.is_empty() {
+                        // Get last event id
+                        let counter = Arc::clone(&self.event_id);
+                        let mut event = counter.lock().unwrap();
+                        *event = res.events[res.events.len() - 1].event_id;
+                        // Execute callback function
+                        func(res);
+                    }
+                }
+                Err(e) => {
+                    error!("{:?}", e);
+                }
+            }
+        }
+    }
+}
+
 impl Default for Keyboard {
     fn default() -> Self {
         Self {
