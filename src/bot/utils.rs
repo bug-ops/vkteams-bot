@@ -1,52 +1,80 @@
 use crate::types::*;
+use anyhow::Result;
 use core::ops::Fn;
 use std::convert::From;
-use std::sync::Arc; // Import the crate containing the `execute` macro
-/// Keyboard with simple logic
-/// Create new [`Keyboard`] with empty rows
-/// ## Example
-/// ```rust
-/// use vkteams_bot::{Keyboard, ButtonKeyboard, ButtonStyle};
-/// // Make keyboard with two buttons
-/// let mut kb:Keyboard = Default::default();
-/// kb.add_button(&ButtonKeyboard::cb(  
-///     String::from("test"),
-///     String::from("test_callback_data"),
-///     ButtonStyle::Primary,
-/// ))
-/// .add_button(&ButtonKeyboard::url(
-///     String::from("Example"),
-///     String::from("https://example.com"),
-///     ButtonStyle::Attention,
-/// ));
-/// ```
+use std::sync::Arc;
 impl Bot {
+    /// Listen for events and execute callback function
+    /// ## Example
+    ///```rust
+    /// #[macro_use]
+    /// extern crate log;
+    /// use anyhow::Result;
+    /// use std::convert::From;
+    /// use vkteams_bot::{bot::types::*};
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     // Check .env file and init logger
+    ///     dotenvy::dotenv().expect("Unable to load .env file");
+    ///     pretty_env_logger::init();
+    ///
+    ///     info!("Starting...");
+    ///     // Start bot with API version 1
+    ///     let bot: Bot = Default::default();
+    ///     // Start event listener
+    ///     bot.event_listener(print_out).await;
+    /// }
+    ///
+    /// fn print_out(res: &Result<ResponseEventsGet>) {
+    ///     println!("{:?}", res);
+    /// }
+    /// ```
     pub async fn event_listener<F>(&self, func: F)
     where
-        F: Fn(ResponseEventsGet),
+        F: Fn(&Result<ResponseEventsGet>),
     {
         loop {
-            let events = self.get_events().await;
-            match events {
-                Ok(res) => {
-                    if !res.events.is_empty() {
+            let res = self.get_events().await;
+            match &res {
+                Ok(events) => {
+                    if !events.events.is_empty() {
                         // Get last event id
                         let counter = Arc::clone(&self.event_id);
                         let mut event = counter.lock().unwrap();
-                        *event = res.events[res.events.len() - 1].event_id;
-                        // Execute callback function
-                        func(res);
+                        *event = events.events[events.events.len() - 1].event_id;
                     }
                 }
                 Err(e) => {
                     error!("{:?}", e);
                 }
             }
+            // Execute callback function
+            func(&res);
         }
     }
 }
 
 impl Default for Keyboard {
+    /// Keyboard with simple logic
+    /// Create new [`Keyboard`] with empty rows
+    /// ## Example
+    /// ```rust
+    /// use vkteams_bot::{Keyboard, ButtonKeyboard, ButtonStyle};
+    /// // Make keyboard with two buttons
+    /// let mut kb:Keyboard = Default::default();
+    /// kb.add_button(&ButtonKeyboard::cb(  
+    ///     String::from("test"),
+    ///     String::from("test_callback_data"),
+    ///     ButtonStyle::Primary,
+    /// ))
+    /// .add_button(&ButtonKeyboard::url(
+    ///     String::from("Example"),
+    ///     String::from("https://example.com"),
+    ///     ButtonStyle::Attention,
+    /// ));
+    /// ```
+    ///
     fn default() -> Self {
         Self {
             buttons: vec![vec![]],
