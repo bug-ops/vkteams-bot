@@ -157,11 +157,17 @@ impl Display for SendMessagesAPIMethods {
 pub struct RequestMessagesSendText {
     pub chat_id: ChatId,
     pub text: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reply_msg_id: Option<MsgId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub forward_chat_id: Option<ChatId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub forward_msg_id: Option<MsgId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub inline_keyboard_markup: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<MessageFormat>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub parse_mode: Option<ParseMode>,
 }
 /// Message text struct
@@ -232,7 +238,9 @@ pub enum ParseMode {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseMessagesSendText {
-    pub msg_id: Option<MsgId>,       //ok = True
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub msg_id: Option<MsgId>, //ok = True
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>, //ok = False
     pub ok: bool,
 }
@@ -244,11 +252,17 @@ pub struct ResponseMessagesSendText {
 pub struct RequestMessagesSendTextWithDeepLink {
     pub chat_id: ChatId,
     pub text: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reply_msg_id: Option<MsgId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub forward_chat_id: Option<ChatId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub forward_msg_id: Option<MsgId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub inline_keyboard_markup: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<MessageFormat>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub parse_mode: Option<ParseMode>,
     pub deep_link: String,
 }
@@ -258,7 +272,9 @@ pub struct RequestMessagesSendTextWithDeepLink {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseMessagesSendTextWithDeepLink {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub msg_id: Option<MsgId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     pub ok: bool,
 }
@@ -287,8 +303,11 @@ pub struct RequestMessagesEditText {
     pub chat_id: ChatId,
     pub msg_id: MsgId,
     pub text: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub inline_keyboard_markup: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<MessageFormat>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub parse_mode: Option<ParseMode>,
 }
 /// Response for method [`SendMessagesAPIMethods::MessagesEditText`]
@@ -328,18 +347,27 @@ pub struct EventMessage {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct EventPayload {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub msg_id: Option<MsgId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub query_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub timestamp: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub chat: Option<Chat>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub new_members: Option<Vec<From>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub from: Option<From>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub added_by: Option<From>,
-    #[serde(rename = "format")]
+    #[serde(rename = "format", skip_serializing_if = "Option::is_none")]
     pub message_format: Option<MessageFormat>,
-    #[serde(rename = "parts")]
+    #[serde(rename = "parts", skip_serializing_if = "Option::is_none")]
     pub message_parts: Option<Vec<MessageParts>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub edited_timestamp: Option<u64>,
 }
 /// Message parts
@@ -354,29 +382,46 @@ pub struct MessageParts {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct MessagePartsPayload {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub file_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub user_id: Option<UserId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub first_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_name: Option<String>,
-    #[serde(rename = "type")]
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
     pub file_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub caption: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<MessageFormat>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<MessagePayload>,
 }
 /// Array of message formats
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageFormat {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bold: Option<Vec<MessageFormatStruct>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub italic: Option<Vec<MessageFormatStruct>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub underline: Option<Vec<MessageFormatStruct>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub strikethrough: Option<Vec<MessageFormatStruct>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub link: Option<Vec<MessageFormatStruct>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub mention: Option<Vec<MessageFormatStruct>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub inline_code: Option<Vec<MessageFormatStruct>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pre: Option<Vec<MessageFormatStruct>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub ordered_list: Option<Vec<MessageFormatStruct>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub quote: Option<Vec<MessageFormatStruct>>,
 }
 /// Message format struct
@@ -388,8 +433,10 @@ pub struct MessageFormatStruct {
     /// length - required for every format
     pub length: i32,
     /// url is only for [`MessageFormat::link`]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
     /// code is only for [`MessageFormat::pre`]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub code: Option<String>,
 }
 /// Event message payload
@@ -421,6 +468,7 @@ pub struct UserId(pub String);
 #[serde(rename_all = "camelCase")]
 pub struct Chat {
     pub chat_id: ChatId,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
     #[serde(rename = "type")]
     pub chat_type: String,
@@ -430,6 +478,7 @@ pub struct Chat {
 #[serde(rename_all = "camelCase")]
 pub struct From {
     pub first_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_name: Option<String>, //if its a bot, then it will be EMPTY
     pub user_id: UserId,
 }
@@ -534,12 +583,14 @@ pub struct RequestChatsGetAdmins {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsGetAdmins {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub admins: Option<Vec<Admin>>,
 }
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Admin {
     pub user_id: UserId,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub creator: Option<bool>,
 }
 /// Request for method [`SendMessagesAPIMethods::ChatsGetMembers`]
@@ -549,6 +600,7 @@ pub struct Admin {
 #[serde(rename_all = "camelCase")]
 pub struct RequestChatsGetMembers {
     pub chat_id: ChatId,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cursor: Option<u64>,
 }
 /// Response for method [`SendMessagesAPIMethods::ChatsGetMembers`]
@@ -557,7 +609,9 @@ pub struct RequestChatsGetMembers {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsGetMembers {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub members: Option<Vec<Member>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cursor: Option<u64>,
 }
 /// Request for method [`SendMessagesAPIMethods::ChatsGetBlockedUsers`]
@@ -574,6 +628,7 @@ pub struct RequestChatsGetBlockedUsers {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsGetBlockedUsers {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub users: Option<Vec<BlockedUser>>,
 }
 /// Blocked user struct
@@ -596,6 +651,7 @@ pub struct RequestChatsGetPendingUsers {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsGetPendingUsers {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub users: Option<Vec<PendingUser>>,
 }
 ///Pending user struct
@@ -609,7 +665,9 @@ pub struct PendingUser {
 #[serde(rename_all = "camelCase")]
 pub struct Member {
     pub user_id: UserId,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub creator: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub admin: Option<bool>,
 }
 /// Request for method [`SendMessagesAPIMethods::ChatsBlockUser`]
@@ -654,8 +712,10 @@ pub struct ResponseChatsUnblockUser {
 #[serde(rename_all = "camelCase")]
 pub struct RequestChatsResolvePending {
     pub chat_id: ChatId,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub user_id: Option<UserId>,
     pub approve: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub everyone: Option<bool>,
 }
 /// Response for method [`SendMessagesAPIMethods::ChatsResolvePending`]
@@ -789,7 +849,9 @@ pub struct ResponseSelfGet {
     pub user_id: UserId,
     pub nick: String,
     pub first_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub about: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub photo: Option<Vec<PhotoUrl>>,
     pub ok: bool,
 }
@@ -805,8 +867,11 @@ pub struct PhotoUrl {
 #[serde(rename_all = "camelCase")]
 pub struct RequestMessagesAnswerCallbackQuery {
     pub query_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub show_alert: Option<ShowAlert>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
 }
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -825,12 +890,19 @@ pub struct ResponseMessagesAnswerCallbackQuery {
 #[serde(rename_all = "camelCase")]
 pub struct RequestMessagesSendFile {
     pub chat_id: ChatId,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub caption: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reply_msg_id: Option<MsgId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub forward_chat_id: Option<ChatId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub forward_msg_id: Option<MsgId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub inline_keyboard_markup: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<MessageFormat>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub parse_mode: Option<ParseMode>,
 }
 /// Response for method [`SendMessagesAPIMethods::MessagesSendFile`]
@@ -839,7 +911,9 @@ pub struct RequestMessagesSendFile {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseMessagesSendFile {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub msg_id: Option<MsgId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub file_id: Option<String>,
     pub ok: bool,
 }
@@ -850,12 +924,19 @@ pub struct ResponseMessagesSendFile {
 /// [`SendMessagesAPIMethods::MessagesSendVoice`]: enum.SendMessagesAPIMethods.html#variant.MessagesSendVoice
 pub struct RequestMessagesSendVoice {
     pub chat_id: ChatId,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub caption: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reply_msg_id: Option<MsgId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub forward_chat_id: Option<ChatId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub forward_msg_id: Option<MsgId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub inline_keyboard_markup: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<MessageFormat>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub parse_mode: Option<ParseMode>,
 }
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -864,7 +945,9 @@ pub struct RequestMessagesSendVoice {
 ///
 /// [`SendMessagesAPIMethods::MessagesSendVoice`]: enum.SendMessagesAPIMethods.html#variant.MessagesSendVoice
 pub struct ResponseMessagesSendVoice {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub msg_id: Option<MsgId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub file_id: Option<String>,
     pub ok: bool,
 }
@@ -902,15 +985,22 @@ pub struct ResponseChatsGetInfo {
     pub chat_type: ChatType,
     pub first_name: String,
     pub last_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub nick: Option<String>,
     pub about: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub is_bot: Option<bool>,
     pub language: Languages,
     // FIXME: Separate this struct for different chat types
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rules: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub invite_link: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub public: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub join_moderation: Option<bool>,
 }
 /// Request for method [`SendMessagesAPIMethods::FilesGetInfo`]
