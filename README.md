@@ -37,7 +37,7 @@ $ set VKTEAMS_PROXY=<Proxy> #optional
 3. Put lines in you `Cargo.toml` file
 ```toml
 [dependencies]
-vkteams_bot = "0.1"
+vkteams_bot = "0.3"
 log = "0.4"
 ```
 
@@ -46,7 +46,7 @@ log = "0.4"
 ```rust
 #[macro_use]
 extern crate log;
-use vkteams_bot::{self, bot::types::*};
+use vkteams_bot::{self, api::types::*};
 
 #[tokio::main]
 async fn main() {
@@ -101,13 +101,14 @@ async fn send_text_msg(bot: &Bot) {
                     ]))
                     .next_line()
                     .add(MessageTextFormat::Mention(chat.chat_id.to_owned()));
-                // Build reply message with keyboard
-                let msg = RequestMessagesSendTExt::new(chat.chat_id.to_owned())
-                    .set_keyboard(kb)
-                    .set_reply_msg_id(event.payload.msg_id.unwrap())
-                    .set_text(html_parser.parse());
                 // Send message to chat
-                bot.messages_send_text(msg).await.unwrap();
+                bot.messages_send_text(
+                    chat.chat_id.to_owned(),
+                    Some(html_parser),
+                    Some(kb),
+                    None,
+                    None,
+                    None,).await.unwrap();
             }
             EventType::NewChatMembers => {
                 // Remember self data
@@ -117,21 +118,14 @@ async fn send_text_msg(bot: &Bot) {
                     // Check if self user is new chat member
                     if self_user_id == member.user_id.0 {
                         // Get chat admins list
-                        let res = bot
-                            .chats_get_admins(RequestChatsGetAdmins {
-                                chat_id: chat.chat_id.to_owned(),
-                            })
-                            .await
-                            .unwrap();
+                        let res = bot.chats_get_admins(chat.chat_id.to_owned()).await.unwrap();
                         // Check if self user is admin
                         for admin in res.admins.unwrap() {
                             if self_user_id == admin.user_id.0 {
                                 // If self user is admin, set chat avatar
                                 bot.chats_avatar_set(
-                                    RequestChatsAvatarSet {
-                                        chat_id: chat.chat_id.to_owned(),
-                                    },
-                                    String::from("tests/test.png"),// Avatar logo
+                                    chat.chat_id.to_owned(),
+                                    String::from("tests/test.jpg"),
                                 )
                                 .await
                                 .unwrap();

@@ -1,14 +1,26 @@
-use anyhow::{anyhow, Result};
-use std::path::Path;
+use crate::api::types::*;
+use anyhow::Result;
+use reqwest::{self, Client, Url};
+use serde::Serialize;
 use std::sync::{Arc, Mutex};
-use tokio::fs::File;
-// pub mod db; //TODO: Add db module
-pub mod net;
-pub mod types;
-pub mod utils;
-use crate::net::*;
-use crate::types::*;
 
+/// Bot class with attributes
+/// - `client`: [`reqwest::Client`]
+/// - `token`: String
+/// - `base_api_url`: [`reqwest::Url`]
+/// - `base_api_path`: String
+/// - `evtent_id`: [`std::sync::Arc<_>`]
+///
+/// [`reqwest::Client`]: https://docs.rs/reqwest/0.11.4/reqwest/struct.Client.html
+/// [`reqwest::Url`]: https://docs.rs/reqwest/0.11.4/reqwest/struct.Url.html
+/// [`std::sync::Arc<_>`]: https://doc.rust-lang.org/std/sync/struct.Arc.html
+pub struct Bot {
+    pub(crate) client: Client,
+    pub(crate) token: String,
+    pub(crate) base_api_url: Url,
+    pub(crate) base_api_path: String,
+    pub(crate) event_id: Arc<Mutex<u64>>,
+}
 impl Default for Bot {
     // default API version V1
     fn default() -> Self {
@@ -59,535 +71,401 @@ impl Bot {
             event_id: Arc::new(Mutex::new(0)),
         }
     }
-    /// Get chat events
-    /// HTTP Method `GET`
-    /// path `/events/get`
-    /// query {`token`,`lastEventId`,`pollTime`}
-    ///
-    /// See the details in [VKTeams Bot API]
-    ///
-    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/events/get_events_get
-    pub async fn get_events(&self) -> Result<ResponseEventsGet> {
-        // Get last event id
-        let counter: Arc<Mutex<u64>> = Arc::clone(&self.event_id);
-        let event = *counter.lock().unwrap();
-        self.send_get_request::<RequestEventsGet, ResponseEventsGet>(
-            RequestEventsGet {
-                last_event_id: event,
-                poll_time: POLL_TIME.to_string(),
-            },
-            MultipartName::None,
-            Methods::EventsGet,
-        )
-        .await
+    /// Get last event id
+    pub fn get_last_event_id(&self) -> u64 {
+        *self.event_id.lock().unwrap()
     }
-    /// Get bot info
-    /// HTTP Method `GET`
-    /// path `/self/get`
-    /// query {`token`}
-    ///
-    /// See the details in [VKTeams Bot API]
-    ///
-    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/self/get_self_get
-    pub async fn self_get(&self) -> Result<ResponseSelfGet> {
-        self.send_get_request::<RequestSelfGet, ResponseSelfGet>(
-            RequestSelfGet {},
-            MultipartName::None,
-            Methods::SelfGet,
-        )
-        .await
+    /// Set last event id
+    pub fn set_last_event_id(&self, id: u64) {
+        *self.event_id.lock().unwrap() = id;
     }
-    /// Send text message to chat
-    /// HTTP Metthod `GET`
-    /// path `/messages/sendText`
-    /// query {`token`,`chatId`,`text`,`replyMsgId`,`forwardChatId`,`forwardMsgId`,`inlineKeyboardMarkup`,`format`,`parseMode`}
+    /// Listen for events and execute callback function
+    /// ## Example
+    ///```rust
+    /// #[macro_use]
+    /// extern crate log;
+    /// use anyhow::Result;
+    /// use vkteams_bot::{api::types::*};
     ///
-    /// See the details in [VKTeams Bot API]
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     // Check .env file and init logger
+    ///     dotenvy::dotenv().expect("Unable to load .env file");
+    ///     pretty_env_logger::init();
     ///
-    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/messages/get_messages_sendText
-    pub async fn messages_send_text(
-        &self,
-        request_message: RequestMessagesSendText,
-    ) -> Result<ResponseMessagesSendText> {
-        self.send_get_request::<RequestMessagesSendText, ResponseMessagesSendText>(
-            request_message,
-            MultipartName::None,
-            Methods::MessagesSendText,
-        )
-        .await
-    }
-    /// Send text message with deeplink to chat
-    /// HTTP Method `GET`
-    /// path `/messages/sendTextWithDeeplink`
-    /// query {`token`,`chatId`,`text`,`replyMsgId`,`forwardChatId`,`forwardMsgId`,`inlineKeyboardMarkup`,`format`,`parseMode`,`deeplink`}
+    ///     info!("Starting...");
+    ///     // Start bot with API version 1
+    ///     let bot: Bot = Default::default();
+    ///     // Start event listener
+    ///     bot.event_listener(print_out).await;
+    /// }
     ///
-    /// See the details in [VKTeams Bot API]
-    ///
-    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/messages/get_messages_sendTextWithDeeplink
-    pub async fn request_messages_send_text_with_deeplink(
-        &self,
-        request_message: RequestMessagesSendTextWithDeepLink,
-    ) -> Result<ResponseMessagesSendTextWithDeepLink> {
-        self.send_get_request::<
-            RequestMessagesSendTextWithDeepLink,
-            ResponseMessagesSendTextWithDeepLink,
-        >(
-            request_message,
-            MultipartName::None,
-            Methods::MessagesSendTextWithDeepLink,
-        )
-        .await
-    }
-    /// Edit text message in chat
-    /// HTTP Method `GET`
-    /// path `/messages/editText`
-    /// query {`token`,`chatId`,`msgId`,`text`,`inlineKeyboardMarkup`,`format`,`parseMode`}
-    ///
-    /// See the details in [VKTeams Bot API]
-    ///
-    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/messages/get_messages_editText
-    pub async fn messages_edit_text(
-        &self,
-        request_message: RequestMessagesEditText,
-    ) -> Result<ResponseMessagesEditText> {
-        self.send_get_request::<RequestMessagesEditText, ResponseMessagesEditText>(
-            request_message,
-            MultipartName::None,
-            Methods::MessagesEditText,
-        )
-        .await
-    }
-    /// Delete text message in chat
-    /// HTTP Method `GET`
-    /// path /messages/deleteMessages
-    /// query {`token`,`chatId`,`msgId`}
-    ///
-    /// See the details in [VKTeams Bot API]
-    ///
-    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/messages/get_messages_deleteMessages
-    pub async fn messages_delete_messages(
-        &self,
-        request_message: RequestMessagesDeleteMessages,
-    ) -> Result<ResponseMessagesDeleteMessages> {
-        self.send_get_request::<RequestMessagesDeleteMessages, ResponseMessagesDeleteMessages>(
-            request_message,
-            MultipartName::None,
-            Methods::MessagesDeleteMessages,
-        )
-        .await
-    }
-    /// Answer callback query
-    /// HTTP Method `GET`
-    /// path `/messages/answerCallbackQuery`
-    /// query {`queryId`,`text`,`showAlert`,`url`}
-    ///
-    /// See the details in [VKTeams Bot API]
-    ///
-    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/messages/get_messages_answerCallbackQuery
-    pub async fn messages_answer_callback_query(
-        &self,
-        request_message: RequestMessagesAnswerCallbackQuery,
-    ) -> Result<ResponseMessagesAnswerCallbackQuery> {
-        self.send_get_request::<RequestMessagesAnswerCallbackQuery, ResponseMessagesAnswerCallbackQuery>(
-            request_message,
-            MultipartName::None,
-            Methods::MessagesAnswerCallbackQuery,
-        )
-        .await
-    }
-    /// Send file to chat
-    /// HTTP Method `POST`
-    /// path `/messages/sendFile`
-    /// query {`token`,`chatId`, `caption`,`replyMsgId`,`forwardChatId`,`forwardMsgId`,`inlineKeyboardMarkup`,`format`,`parseMode`}
-    ///
-    /// See the details in [VKTeams Bot API]
-    ///
-    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/messages/post_messages_sendFile
-    pub async fn messages_send_file(
-        &self,
-        request_message: RequestMessagesSendFile,
-        file_path: String,
-    ) -> Result<ResponseMessagesSendFile> {
-        let path = Path::new(&file_path);
-        let file = File::open(path.to_owned()).await;
-        match file {
-            Ok(f) => {
-                self.send_get_request::<RequestMessagesSendFile, ResponseMessagesSendFile>(
-                    request_message,
-                    MultipartName::File {
-                        name: path.file_name().unwrap().to_string_lossy().to_string(),
-                        file: f,
-                    },
-                    Methods::MessagesSendFile,
-                )
-                .await
+    /// fn print_out(res: &Result<ResponseEventsGet>) {
+    ///     match res {
+    ///         Ok(r) => match serde_json::to_string(r) {
+    ///             Ok(s) => println!("{}", s),
+    ///             Err(e) => println!("{}", e),
+    ///     },
+    ///         Err(e) => {
+    ///             println!("{:?}", e);
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    pub async fn event_listener(&self, func: impl Fn(&Result<ResponseEventsGet>)) {
+        loop {
+            // Make a request to the API
+            let req = RequestEventsGet::new(&Methods::EventsGet(self.get_last_event_id()));
+            // Get response
+            let res = self.send::<RequestEventsGet>(req).await;
+            // Execute callback function
+            func(&res);
+            // Update last event id
+            match &res {
+                Ok(events) => {
+                    let evt = events.events.clone();
+                    // If at least one event read
+                    if !evt.is_empty() {
+                        // Update last event id
+                        self.set_last_event_id(evt[evt.len() - 1].event_id);
+                    }
+                }
+                Err(e) => {
+                    debug!("Error: {:?}", e);
+                }
             }
-            Err(e) => Err(anyhow!(e)),
         }
     }
-    /// Send voice message to chat
-    /// HTTP Method `POST`
-    /// path `/messages/sendVoice`
-    /// query {`token`,`chatId`,`replyMsgId`,`forwardChatId`,`forwardMsgId`,`inlineKeyboardMarkup`,`format`,`parseMode`}
+    /// Append method path to `base_api_path`
+    pub fn set_path(&self, path: String) -> String {
+        // Get base API path
+        let mut full_path = self.base_api_path.clone();
+        // Append method path
+        full_path.push_str(&path);
+        // Return full path
+        full_path
+    }
+    /// Build full URL with optional query parameters
+    /// Append path to [`base_api_url`]
+    /// Append `token` query parameter to URL
+    /// Parse with [`Url::parse`]
     ///
-    /// See the details in [VKTeams Bot API]
-    ///
-    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/messages/post_messages_sendVoice
-    pub async fn messages_send_voice(
-        &self,
-        request_message: RequestMessagesSendVoice,
-        file_path: String,
-    ) -> Result<ResponseMessagesSendVoice> {
-        let path = Path::new(&file_path);
-        let file = File::open(path.to_owned()).await;
-        match file {
-            Ok(f) => {
-                self.send_get_request::<RequestMessagesSendVoice, ResponseMessagesSendVoice>(
-                    request_message,
-                    MultipartName::File {
-                        name: path.file_name().unwrap().to_string_lossy().to_string(),
-                        file: f,
-                    },
-                    Methods::MessagesSendVoice,
-                )
-                .await
+    /// [`base_api_url`]: #structfield.base_api_url
+    pub fn get_parsed_url(&self, path: String, query: String) -> Result<Url> {
+        // Make URL with base API path
+        let url = Url::parse(self.base_api_url.as_str());
+        match url {
+            Ok(mut u) => {
+                // Append path to URL
+                u.set_path(&path);
+                //Set bound query
+                u.set_query(Some(&query));
+                // Append default query query
+                u.query_pairs_mut().append_pair("token", &self.token);
+                Ok(u)
             }
-            Err(e) => Err(anyhow!(e)),
+            // Error with URL
+            Err(e) => {
+                error!("Error parse URL: {}", e);
+                Err(e.into())
+            }
         }
     }
-    /// Set chat avatar
-    /// HTTP Method `POST`
-    /// path `/chats/avatar/set`
-    /// query {`token`,`chatId`}
-    /// file `image`
+    /// Send request, get response
     ///
-    /// See the details in [VKTeams Bot API]
+    /// Serialize request type `Rq` with [`serde_url_params::to_string`] into query string
     ///
-    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/chats/post_chats_avatar_set
+    /// Get response body with [`response`]
+    ///
+    /// Deserialize response with [`serde_json::from_str`]
+    ///
+    /// [`response`]: #method.response
+    pub async fn send<Rq>(&self, message: Rq) -> Result<<Rq>::ResponseType>
+    where
+        Rq: BotRequest + Serialize,
+    {
+        // Serialize request type `Rq` with serde_url_params::to_string into query string
+        match serde_url_params::to_string(&message) {
+            Ok(query) => {
+                // Try to parse URL
+                match self.get_parsed_url(self.set_path(<Rq>::METHOD.to_string()), query.to_owned())
+                {
+                    Ok(url) => {
+                        // Get response body
+                        let body = match <Rq>::HTTP_METHOD {
+                            HTTPMethod::POST => {
+                                // For POST method get multipart form from file name
+                                match file_to_multipart(message.get_file()).await {
+                                    Ok(f) => {
+                                        // Send file POST request wit hmultipart form
+                                        post_response_file(
+                                            self.client.clone(),
+                                            self.get_parsed_url(
+                                                self.set_path(<Rq>::METHOD.to_string()),
+                                                query,
+                                            )
+                                            .unwrap(),
+                                            f,
+                                        )
+                                        .await
+                                    }
+                                    // Error with file
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                            HTTPMethod::GET => {
+                                // Simple GET request
+                                get_response(self.client.clone(), url).await
+                            }
+                        };
+                        // Deserialize response with serde_json::from_str
+                        match body {
+                            Ok(b) => {
+                                let rs = serde_json::from_str::<<Rq>::ResponseType>(b.as_str());
+                                match rs {
+                                    Ok(r) => Ok(r),
+                                    Err(e) => Err(e.into()),
+                                }
+                            }
+                            // Error with response
+                            Err(e) => Err(e),
+                        }
+                    }
+                    // Error with URL
+                    Err(e) => {
+                        error!("Error parse URL: {}", e);
+                        Err(e)
+                    }
+                }
+            }
+            // Error with parse query
+            Err(e) => {
+                error!("Error serialize request: {}", e);
+                Err(e.into())
+            }
+        }
+    }
+    /// Method `chats/avatarSet`
     pub async fn chats_avatar_set(
         &self,
-        request_message: RequestChatsAvatarSet,
-        file_path: String,
+        chat_id: ChatId,
+        file: String,
     ) -> Result<ResponseChatsAvatarSet> {
-        let path = Path::new(&file_path);
-        let file = File::open(path.to_owned()).await;
-        match file {
-            Ok(f) => {
-                self.send_get_request::<RequestChatsAvatarSet, ResponseChatsAvatarSet>(
-                    request_message,
-                    MultipartName::Image {
-                        name: path.file_name().unwrap().to_string_lossy().to_string(),
-                        file: f,
-                    },
-                    Methods::ChatsAvatarSet,
-                )
-                .await
-            }
-            Err(e) => Err(anyhow!(e)),
-        }
+        let rq = RequestChatsAvatarSet::new(&Methods::ChatsAvatarSet(
+            chat_id,
+            MultipartName::Image(file),
+        ));
+        self.send(rq).await
     }
-    /// Send typing action to chat
-    /// HTTP Method `GET`
-    /// path `/chats/sendAction`
-    /// query {`token`,`chatId`,`action`}
-    ///
-    /// See the details in [VKTeams Bot API]
-    ///
-    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/chats/get_chats_sendActions
-    pub async fn chats_send_action(
-        &self,
-        request_message: RequestChatsSendAction,
-    ) -> Result<ResponseChatsSendAction> {
-        self.send_get_request::<RequestChatsSendAction, ResponseChatsSendAction>(
-            request_message,
-            MultipartName::None,
-            Methods::ChatsSendActions,
-        )
-        .await
-    }
-    /// Get chat info
-    /// HTTP Method `GET`
-    /// path `/chats/getInfo`
-    /// query {`token`,`chatId`}
-    ///
-    /// See the details in [VKTeams Bot API]
-    ///
-    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/chats/get_chats_getInfo
-    pub async fn chats_get_info(
-        &self,
-        request_message: RequestChatsGetInfo,
-    ) -> Result<ResponseChatsGetInfo> {
-        self.send_get_request::<RequestChatsGetInfo, ResponseChatsGetInfo>(
-            request_message,
-            MultipartName::None,
-            Methods::ChatsGetInfo,
-        )
-        .await
-    }
-    /// Get chat admins
-    /// HTTP Method 'GET'
-    /// path `/chats/getAdmins`
-    /// query {`token`,`chatId`}
-    ///
-    /// See the details in [VKTeams Bot API]
-    ///
-    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/chats/get_chats_getInfo
-    pub async fn chats_get_admins(
-        &self,
-        request_message: RequestChatsGetAdmins,
-    ) -> Result<ResponseChatsGetAdmins> {
-        self.send_get_request::<RequestChatsGetAdmins, ResponseChatsGetAdmins>(
-            request_message,
-            MultipartName::None,
-            Methods::ChatsGetAdmins,
-        )
-        .await
-    }
-    /// Get chat members
-    /// HTTP Method `GET`
-    /// path `/chats/getMembers`
-    /// query {`token`,`chatId`,`cursor`}
-    ///
-    /// See the details in [VKTeams Bot API]
-    ///
-    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/chats/get_chats_getMembers
-    pub async fn chats_get_members(
-        &self,
-        request_message: RequestChatsGetMembers,
-    ) -> Result<ResponseChatsGetMembers> {
-        self.send_get_request::<RequestChatsGetMembers, ResponseChatsGetMembers>(
-            request_message,
-            MultipartName::None,
-            Methods::ChatsGetMembers,
-        )
-        .await
-    }
-    /// Delete chat members
-    /// HTTP Method `GET`
-    /// path `/chats/members/delete`
-    /// query {`token`,`chatId`,`members`}
-    ///
-    /// See the details in [VKTeams Bot API]
-    ///
-    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/chats/get_chats_members_delete
-    pub async fn chats_members_delete(
-        &self,
-        request_message: RequestChatsMembersDelete,
-    ) -> Result<ResponseChatsMembersDelete> {
-        self.send_get_request::<RequestChatsMembersDelete, ResponseChatsMembersDelete>(
-            request_message,
-            MultipartName::None,
-            Methods::ChatsMembersDelete,
-        )
-        .await
-    }
-    /// Set chat title
-    /// HTTP Method `GET`
-    /// path `/chats/setTitle`
-    /// query {`token`,`chatId`,`title`}
-    ///
-    /// See the details in [VKTeams Bot API]
-    ///
-    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/chats/get_chats_setTitle
-    pub async fn chats_set_title(
-        &self,
-        request_message: RequestChatsSetTitle,
-    ) -> Result<ResponseChatsSetTitle> {
-        self.send_get_request::<RequestChatsSetTitle, ResponseChatsSetTitle>(
-            request_message,
-            MultipartName::None,
-            Methods::ChatsSetTitle,
-        )
-        .await
-    }
-    /// Set chat about
-    /// HTTP Method `GET`
-    /// path `/chats/setAbout`
-    /// query {`token`,`chatId`,`about`}
-    ///
-    /// See the details in [VKTeams Bot API]
-    ///
-    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/chats/get_chats_setAbout
-    pub async fn chats_set_about(
-        &self,
-        request_message: RequestChatsSetAbout,
-    ) -> Result<ResponseChatsSetAbout> {
-        self.send_get_request::<RequestChatsSetAbout, ResponseChatsSetAbout>(
-            request_message,
-            MultipartName::None,
-            Methods::ChatsSetAbout,
-        )
-        .await
-    }
-    /// Set chat rules
-    /// HTTP Method `GET`
-    /// path `/chats/setRules`
-    /// query {`token`,`chatId`,`rules`}
-    ///
-    /// See the details in [VKTeams Bot API]
-    ///
-    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/chats/get_chats_setRules
-    pub async fn chats_set_rules(
-        &self,
-        request_message: RequestChatsSetRules,
-    ) -> Result<ResponseChatsSetRules> {
-        self.send_get_request::<RequestChatsSetRules, ResponseChatsSetRules>(
-            request_message,
-            MultipartName::None,
-            Methods::ChatsSetRules,
-        )
-        .await
-    }
-    /// Pin message in chat
-    /// HTTP Method `GET`
-    /// path `/chats/pinMessage`
-    /// query {`token`,`chatId`,`msgId`}
-    ///
-    /// See the details in [VKTeams Bot API]
-    ///
-    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/chats/get_chats_pinMessage
-    pub async fn chats_pin_message(
-        &self,
-        request_message: RequestChatsPinMessage,
-    ) -> Result<ResponseChatsPinMessage> {
-        self.send_get_request::<RequestChatsPinMessage, ResponseChatsPinMessage>(
-            request_message,
-            MultipartName::None,
-            Methods::ChatsPinMessage,
-        )
-        .await
-    }
-    /// Unpin message in chat
-    /// HTTP Method `GET`
-    /// path `/chats/unpinMessage`
-    /// query {`token`,`chatId`,`msgId`}
-    ///
-    /// See the details in [VKTeams Bot API]
-    ///
-    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/chats/get_chats_unpinMessage
-    pub async fn chats_unpin_message(
-        &self,
-        request_message: RequestChatsUnpinMessage,
-    ) -> Result<ResponseChatsUnpinMessage> {
-        self.send_get_request::<RequestChatsUnpinMessage, ResponseChatsUnpinMessage>(
-            request_message,
-            MultipartName::None,
-            Methods::ChatsUnpinMessage,
-        )
-        .await
-    }
-    /// Files get info
-    /// HTTP Method `GET`
-    /// path `/files/getInfo`
-    /// query {`token`,`fileId`}
-    ///
-    /// See the details in [VKTeams Bot API]
-    ///
-    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/files/get_files_getInfo
-    pub async fn files_get_info(
-        &self,
-        request_message: RequestFilesGetInfo,
-    ) -> Result<ResponseFilesGetInfo> {
-        self.send_get_request::<RequestFilesGetInfo, ResponseFilesGetInfo>(
-            request_message,
-            MultipartName::None,
-            Methods::FilesGetInfo,
-        )
-        .await
-    }
-    /// Get blocked users
-    /// HTTP Method `GET`
-    /// path `/chats/getBlockedUsers`
-    /// query {`token`,`chatId`,`
-    ///
-    /// See the details in [VKTeams Bot API]
-    ///
-    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/chats/get_chats_getBlockedUsers}
-    pub async fn chats_get_blocked_users(
-        &self,
-        request_message: RequestChatsGetBlockedUsers,
-    ) -> Result<ResponseChatsGetBlockedUsers> {
-        self.send_get_request::<RequestChatsGetBlockedUsers, ResponseChatsGetBlockedUsers>(
-            request_message,
-            MultipartName::None,
-            Methods::ChatsGetBlockedUsers,
-        )
-        .await
-    }
-    /// Get pending users
-    /// HTTP Method `GET`
-    /// path `/chats/getPendingUsers`
-    /// query {`token`,`chatId`}
-    ///
-    /// See the details in [VKTeams Bot API]
-    ///
-    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/chats/get_chats_getPendingUsers
-    pub async fn chats_get_pending_users(
-        &self,
-        request_message: RequestChatsGetPendingUsers,
-    ) -> Result<ResponseChatsGetPendingUsers> {
-        self.send_get_request::<RequestChatsGetPendingUsers, ResponseChatsGetPendingUsers>(
-            request_message,
-            MultipartName::None,
-            Methods::ChatsGetPendingUsers,
-        )
-        .await
-    }
-    /// Block user
-    /// HTTP Method `GET`
-    /// path `/chats/blockUser`
-    /// query {`token`, `chatId`, `userId`, `delLastMessages`}
-    ///
-    /// See the details in [VKTeams Bot API]
-    ///
-    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/chats/get_chats_blockUser
     pub async fn chats_block_user(
         &self,
-        request_message: RequestChatsBlockUser,
+        chat_id: ChatId,
+        user_id: UserId,
+        del_last_message: bool,
     ) -> Result<ResponseChatsBlockUser> {
-        self.send_get_request::<RequestChatsBlockUser, ResponseChatsBlockUser>(
-            request_message,
-            MultipartName::None,
-            Methods::ChatsBlockUser,
-        )
-        .await
+        let rq = RequestChatsBlockUser::new(&Methods::ChatsBlockUser(
+            chat_id,
+            user_id,
+            del_last_message,
+        ));
+        self.send(rq).await
     }
-    /// Unblock user
-    /// HTTP Method `GET`
-    /// path `/chats/unblockUser`
-    /// query {`token`,`chatId`,`userId`}
-    ///
-    /// See the details in [VKTeams Bot API]
-    ///
-    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/chats/get_chats_unblockUser
-    pub async fn chats_unblock_user(
+    pub async fn chats_get_admins(&self, chat_id: ChatId) -> Result<ResponseChatsGetAdmins> {
+        let rq = RequestChatsGetAdmins::new(&Methods::ChatsGetAdmins(chat_id));
+        self.send(rq).await
+    }
+    pub async fn chats_get_blocked_users(
         &self,
-        request_message: RequestChatsUnblockUser,
-    ) -> Result<ResponseChatsUnblockUser> {
-        self.send_get_request::<RequestChatsUnblockUser, ResponseChatsUnblockUser>(
-            request_message,
-            MultipartName::None,
-            Methods::ChatsUnblockUser,
-        )
-        .await
+        chat_id: ChatId,
+    ) -> Result<ResponseChatsGetBlockedUsers> {
+        let rq = RequestChatsGetBlockedUsers::new(&Methods::ChatsGetBlockedUsers(chat_id));
+        self.send(rq).await
     }
-    /// Resolve pending
-    /// HTTP Method `GET`
-    /// path `/chats/resolvePending`
-    /// query {`token`,`chatId`,`approve`,`userId`,`everyone`}
-    ///
-    /// See the details in [VKTeams Bot API]
-    ///
-    /// [VKTeams Bot API]: https://teams.vk.com/botapi/?lang=en#/chats/get_chats_resolvePending
+    pub async fn chats_get_info(&self, chat_id: ChatId) -> Result<ResponseChatsGetInfo> {
+        let rq = RequestChatsGetInfo::new(&Methods::ChatsGetInfo(chat_id));
+        self.send(rq).await
+    }
+    pub async fn chats_get_members(&self, chat_id: ChatId) -> Result<ResponseChatsGetMembers> {
+        let rq = RequestChatsGetMembers::new(&Methods::ChatsGetMembers(chat_id));
+        self.send(rq).await
+    }
+    pub async fn chats_get_pending_users(
+        &self,
+        chat_id: ChatId,
+    ) -> Result<ResponseChatsGetPendingUsers> {
+        let rq = RequestChatsGetPendingUsers::new(&Methods::ChatsGetPendingUsers(chat_id));
+        self.send(rq).await
+    }
+    pub async fn chats_members_delete(
+        &self,
+        chat_id: ChatId,
+        user_id: UserId,
+    ) -> Result<ResponseChatsMembersDelete> {
+        let rq = RequestChatsMembersDelete::new(&Methods::ChatsMembersDelete(chat_id, user_id));
+        self.send(rq).await
+    }
+    pub async fn chats_pin_message(
+        &self,
+        chat_id: ChatId,
+        msg_id: MsgId,
+    ) -> Result<ResponseChatsPinMessage> {
+        let rq = RequestChatsPinMessage::new(&Methods::ChatsPinMessage(chat_id, msg_id));
+        self.send(rq).await
+    }
     pub async fn chats_resolve_pending(
         &self,
-        request_message: RequestChatsResolvePending,
+        chat_id: ChatId,
+        approve: bool,
+        user_id: Option<UserId>,
+        everyone: Option<bool>,
     ) -> Result<ResponseChatsResolvePending> {
-        self.send_get_request::<RequestChatsResolvePending, ResponseChatsResolvePending>(
-            request_message,
-            MultipartName::None,
-            Methods::ChatsResolvePending,
-        )
-        .await
+        let rq = RequestChatsResolvePending::new(&Methods::ChatsResolvePending(
+            chat_id, approve, user_id, everyone,
+        ));
+        self.send(rq).await
+    }
+    pub async fn chats_send_actions(
+        &self,
+        chat_id: ChatId,
+        action_type: ChatActions,
+    ) -> Result<ResponseChatsSendAction> {
+        let rq = RequestChatsSendAction::new(&Methods::ChatsSendAction(chat_id, action_type));
+        self.send(rq).await
+    }
+    pub async fn set_about(&self, chat_id: ChatId, about: String) -> Result<ResponseChatsSetAbout> {
+        let rq = RequestChatsSetAbout::new(&Methods::ChatsSetAbout(chat_id, about));
+        self.send(rq).await
+    }
+    pub async fn set_rules(&self, chat_id: ChatId, rules: String) -> Result<ResponseChatsSetRules> {
+        let rq = RequestChatsSetRules::new(&Methods::ChatsSetRules(chat_id, rules));
+        self.send(rq).await
+    }
+    pub async fn chats_set_title(
+        &self,
+        chat_id: ChatId,
+        title: String,
+    ) -> Result<ResponseChatsSetTitle> {
+        let rq = RequestChatsSetTitle::new(&Methods::ChatsSetTitle(chat_id, title));
+        self.send(rq).await
+    }
+    pub async fn chats_unblock_user(
+        &self,
+        chat_id: ChatId,
+        user_id: UserId,
+    ) -> Result<ResponseChatsUnblockUser> {
+        let rq = RequestChatsUnblockUser::new(&Methods::ChatsUnblockUser(chat_id, user_id));
+        self.send(rq).await
+    }
+    pub async fn chats_unpin_message(
+        &self,
+        chat_id: ChatId,
+        msg_id: MsgId,
+    ) -> Result<ResponseChatsUnpinMessage> {
+        let rq = RequestChatsUnpinMessage::new(&Methods::ChatsUnpinMessage(chat_id, msg_id));
+        self.send(rq).await
+    }
+    pub async fn events_get(&self) -> Result<ResponseEventsGet> {
+        let rq = RequestEventsGet::new(&Methods::EventsGet(self.get_last_event_id()));
+        self.send(rq).await
+    }
+    pub async fn files_get_info(&self, file_id: FileId) -> Result<ResponseFilesGetInfo> {
+        let rq = RequestFilesGetInfo::new(&Methods::FilesGetInfo(file_id));
+        self.send(rq).await
+    }
+    pub async fn messages_answer_callback_query(
+        &self,
+        query_id: QueryId,
+        text: Option<String>,
+        show_alert: Option<ShowAlert>,
+        url: Option<String>,
+    ) -> Result<ResponseMessagesAnswerCallbackQuery> {
+        let rq = RequestMessagesAnswerCallbackQuery::new(&Methods::MessagesAnswerCallbackQuery(
+            query_id, text, show_alert, url,
+        ));
+        self.send(rq).await
+    }
+    pub async fn messages_delete_messages(
+        &self,
+        chat_id: ChatId,
+        msg_id: MsgId,
+    ) -> Result<ResponseMessagesDeleteMessages> {
+        //TODO: Add delete for multiple messages
+        let rq =
+            RequestMessagesDeleteMessages::new(&Methods::MessagesDeleteMessages(chat_id, msg_id));
+        self.send(rq).await
+    }
+    pub async fn messages_edit_text(
+        &self,
+        chat_id: ChatId,
+        msg_id: MsgId,
+        parser: Option<MessageTextParser>,
+    ) -> Result<ResponseMessagesEditText> {
+        let rq = RequestMessagesEditText::new(&Methods::MessagesEditText(chat_id, msg_id))
+            .set_text(parser)
+            .to_owned();
+        self.send(rq).await
+    }
+    pub async fn messages_send_file(
+        &self,
+        chat_id: ChatId,
+        file: String,
+        parser: Option<MessageTextParser>,
+        keyboard: Option<Keyboard>,
+        forward_msg_id: Option<MsgId>,
+        forward_chat_id: Option<ChatId>,
+        reply_msg_id: Option<MsgId>,
+    ) -> Result<ResponseMessagesSendFile> {
+        let rq = RequestMessagesSendFile::new(&Methods::MessagesSendFile(
+            chat_id,
+            MultipartName::File(file),
+        ))
+        .set_text(parser)
+        .set_keyboard(keyboard)
+        .set_forward_msg_id(forward_chat_id, forward_msg_id)
+        .set_reply_msg_id(reply_msg_id)
+        .to_owned();
+        self.send(rq).await
+    }
+    pub async fn messages_send_voice(
+        &self,
+        chat_id: ChatId,
+        file: String,
+        parser: Option<MessageTextParser>,
+        keyboard: Option<Keyboard>,
+        forward_msg_id: Option<MsgId>,
+        forward_chat_id: Option<ChatId>,
+        reply_msg_id: Option<MsgId>,
+    ) -> Result<ResponseMessagesSendVoice> {
+        let rq = RequestMessagesSendVoice::new(&Methods::MessagesSendVoice(
+            chat_id,
+            MultipartName::File(file),
+        ))
+        .set_text(parser)
+        .set_keyboard(keyboard)
+        .set_forward_msg_id(forward_chat_id, forward_msg_id)
+        .set_reply_msg_id(reply_msg_id)
+        .to_owned();
+        self.send(rq).await
+    }
+    pub async fn messages_send_text(
+        &self,
+        chat_id: ChatId,
+        parser: Option<MessageTextParser>,
+        keyboard: Option<Keyboard>,
+        forward_msg_id: Option<MsgId>,
+        forward_chat_id: Option<ChatId>,
+        reply_msg_id: Option<MsgId>,
+    ) -> Result<ResponseMessagesSendText> {
+        let rq = RequestMessagesSendText::new(&Methods::MessagesSendText(chat_id))
+            .set_text(parser)
+            .set_keyboard(keyboard)
+            .set_forward_msg_id(forward_chat_id, forward_msg_id)
+            .set_reply_msg_id(reply_msg_id)
+            .to_owned();
+        self.send(rq).await
+    }
+    pub async fn self_get(&self) -> Result<ResponseSelfGet> {
+        let rq = RequestSelfGet::new(&Methods::SelfGet());
+        self.send(rq).await
     }
 }

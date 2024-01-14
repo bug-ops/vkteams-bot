@@ -32,8 +32,50 @@
 //! $ set VKTEAMS_BOT_API_URL=<Your base api url> #require
 //! $ set VKTEAMS_PROXY=<Proxy> #optional
 //! ```
+
 #[macro_use]
 extern crate log;
-
-pub use self::{bot::types::*, bot::*};
 pub mod bot;
+pub mod api {
+    pub mod default;
+    pub mod display;
+    pub mod net;
+    pub mod types;
+    pub mod utils;
+    pub mod chats {
+        pub mod avatar_set;
+        pub mod block_user;
+        pub mod get_admins;
+        pub mod get_blocked_users;
+        pub mod get_info;
+        pub mod get_members;
+        pub mod get_pending_users;
+        pub mod members_delete;
+        pub mod pin_message;
+        pub mod resolve_pendings;
+        pub mod send_action;
+        pub mod set_about;
+        pub mod set_rules;
+        pub mod set_title;
+        pub mod unblock_user;
+        pub mod unpin_message;
+    }
+    pub mod events {
+        pub mod get;
+    }
+    pub mod files {
+        pub mod get_info;
+    }
+    pub mod messages {
+        pub mod answer_callback_query;
+        pub mod delete_messages;
+        pub mod edit_text;
+        pub mod send_file;
+        pub mod send_text;
+        pub mod send_text_with_deep_link;
+        pub mod send_voice;
+    }
+    pub mod myself {
+        pub mod get;
+    }
+}
