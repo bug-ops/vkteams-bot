@@ -1,6 +1,6 @@
 use crate::api::types::*;
 use anyhow::Result;
-use reqwest::{self, Client, Url};
+use reqwest::{Client, Url};
 use serde::Serialize;
 use std::sync::{Arc, Mutex};
 
@@ -11,8 +11,8 @@ use std::sync::{Arc, Mutex};
 /// - `base_api_path`: String
 /// - `evtent_id`: [`std::sync::Arc<_>`]
 ///
-/// [`reqwest::Client`]: https://docs.rs/reqwest/0.11.4/reqwest/struct.Client.html
-/// [`reqwest::Url`]: https://docs.rs/reqwest/0.11.4/reqwest/struct.Url.html
+/// [`reqwest::Client`]: https://docs.rs/reqwest/latest/reqwest/struct.Client.html
+/// [`reqwest::Url`]: https://docs.rs/reqwest/latest/reqwest/struct.Url.html
 /// [`std::sync::Arc<_>`]: https://doc.rust-lang.org/std/sync/struct.Arc.html
 pub struct Bot {
     pub(crate) client: Client,
@@ -80,38 +80,7 @@ impl Bot {
         *self.event_id.lock().unwrap() = id;
     }
     /// Listen for events and execute callback function
-    /// ## Example
-    ///```rust
-    /// #[macro_use]
-    /// extern crate log;
-    /// use anyhow::Result;
-    /// use vkteams_bot::{api::types::*};
-    ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     // Check .env file and init logger
-    ///     dotenvy::dotenv().expect("Unable to load .env file");
-    ///     pretty_env_logger::init();
-    ///
-    ///     info!("Starting...");
-    ///     // Start bot with API version 1
-    ///     let bot: Bot = Default::default();
-    ///     // Start event listener
-    ///     bot.event_listener(print_out).await;
-    /// }
-    ///
-    /// fn print_out(res: &Result<ResponseEventsGet>) {
-    ///     match res {
-    ///         Ok(r) => match serde_json::to_string(r) {
-    ///             Ok(s) => println!("{}", s),
-    ///             Err(e) => println!("{}", e),
-    ///     },
-    ///         Err(e) => {
-    ///             println!("{:?}", e);
-    ///         }
-    ///     }
-    /// }
-    /// ```
+    /// - `func` - callback function with `Result<ResponseEventsGet>` as argument
     pub async fn event_listener(&self, func: impl Fn(&Result<ResponseEventsGet>)) {
         loop {
             // Make a request to the API
@@ -137,6 +106,7 @@ impl Bot {
         }
     }
     /// Append method path to `base_api_path`
+    /// - `path` - append path to `base_api_path`
     pub fn set_path(&self, path: String) -> String {
         // Get base API path
         let mut full_path = self.base_api_path.clone();
@@ -146,8 +116,8 @@ impl Bot {
         full_path
     }
     /// Build full URL with optional query parameters
-    /// Append path to [`base_api_url`]
-    /// Append `token` query parameter to URL
+    /// - `path` - append path to `base_api_path`
+    /// - `query` - append `token` query parameter to URL
     /// Parse with [`Url::parse`]
     ///
     /// [`base_api_url`]: #structfield.base_api_url
@@ -172,11 +142,8 @@ impl Bot {
         }
     }
     /// Send request, get response
-    ///
-    /// Serialize request type `Rq` with [`serde_url_params::to_string`] into query string
-    ///
+    /// Serialize request generic type `Rq` with [`serde_url_params::to_string`] into query string
     /// Get response body with [`response`]
-    ///
     /// Deserialize response with [`serde_json::from_str`]
     ///
     /// [`response`]: #method.response
@@ -197,7 +164,7 @@ impl Bot {
                                 // For POST method get multipart form from file name
                                 match file_to_multipart(message.get_file()).await {
                                     Ok(f) => {
-                                        // Send file POST request wit hmultipart form
+                                        // Send file POST request with multipart form
                                         post_response_file(
                                             self.client.clone(),
                                             self.get_parsed_url(
@@ -245,7 +212,8 @@ impl Bot {
             }
         }
     }
-    /// Method `chats/avatarSet`
+    /// Method `chats/avatarSet` for upload avatar image
+    /// - `file` - local file name path for upload
     pub async fn chats_avatar_set(
         &self,
         chat_id: ChatId,
@@ -257,6 +225,8 @@ impl Bot {
         ));
         self.send(rq).await
     }
+    /// Method `chats/blockUser` for block user in chat
+    /// - `del_last_message` - delete last message send by user
     pub async fn chats_block_user(
         &self,
         chat_id: ChatId,
@@ -270,10 +240,12 @@ impl Bot {
         ));
         self.send(rq).await
     }
+    /// Method `chats/getAdmins` for get chat admins
     pub async fn chats_get_admins(&self, chat_id: ChatId) -> Result<ResponseChatsGetAdmins> {
         let rq = RequestChatsGetAdmins::new(&Methods::ChatsGetAdmins(chat_id));
         self.send(rq).await
     }
+    /// Method `chats/getBlockedUsers` for get blocked users in chat
     pub async fn chats_get_blocked_users(
         &self,
         chat_id: ChatId,
@@ -281,14 +253,17 @@ impl Bot {
         let rq = RequestChatsGetBlockedUsers::new(&Methods::ChatsGetBlockedUsers(chat_id));
         self.send(rq).await
     }
+    /// Method `chats/getInfo` for get chat info
     pub async fn chats_get_info(&self, chat_id: ChatId) -> Result<ResponseChatsGetInfo> {
         let rq = RequestChatsGetInfo::new(&Methods::ChatsGetInfo(chat_id));
         self.send(rq).await
     }
+    /// Method `chats/getMembers` for get chat members
     pub async fn chats_get_members(&self, chat_id: ChatId) -> Result<ResponseChatsGetMembers> {
         let rq = RequestChatsGetMembers::new(&Methods::ChatsGetMembers(chat_id));
         self.send(rq).await
     }
+    /// Method `chats/getPendingUsers` for get pending users in chat
     pub async fn chats_get_pending_users(
         &self,
         chat_id: ChatId,
@@ -296,6 +271,7 @@ impl Bot {
         let rq = RequestChatsGetPendingUsers::new(&Methods::ChatsGetPendingUsers(chat_id));
         self.send(rq).await
     }
+    /// Method `chats/membersDelete` for delete user from chat
     pub async fn chats_members_delete(
         &self,
         chat_id: ChatId,
@@ -304,6 +280,7 @@ impl Bot {
         let rq = RequestChatsMembersDelete::new(&Methods::ChatsMembersDelete(chat_id, user_id));
         self.send(rq).await
     }
+    /// Method `chats/pinMessage` for pin message in chat
     pub async fn chats_pin_message(
         &self,
         chat_id: ChatId,
@@ -312,6 +289,9 @@ impl Bot {
         let rq = RequestChatsPinMessage::new(&Methods::ChatsPinMessage(chat_id, msg_id));
         self.send(rq).await
     }
+    /// Method `chats/resolverPending` for resolve pending users in chat
+    /// - `approve` - approve or decline
+    /// - `everyone` - approve or decline all
     pub async fn chats_resolve_pending(
         &self,
         chat_id: ChatId,
@@ -324,6 +304,7 @@ impl Bot {
         ));
         self.send(rq).await
     }
+    /// Method `chats/sendActions` for send chat actions
     pub async fn chats_send_actions(
         &self,
         chat_id: ChatId,
@@ -332,14 +313,20 @@ impl Bot {
         let rq = RequestChatsSendAction::new(&Methods::ChatsSendAction(chat_id, action_type));
         self.send(rq).await
     }
+    /// Method `chats/setAbout` for set chat about
+    /// - `about` - text chat about
     pub async fn set_about(&self, chat_id: ChatId, about: String) -> Result<ResponseChatsSetAbout> {
         let rq = RequestChatsSetAbout::new(&Methods::ChatsSetAbout(chat_id, about));
         self.send(rq).await
     }
+    /// Method `chats/setRules` for set chat rules
+    /// - `rules` - text chat rules
     pub async fn set_rules(&self, chat_id: ChatId, rules: String) -> Result<ResponseChatsSetRules> {
         let rq = RequestChatsSetRules::new(&Methods::ChatsSetRules(chat_id, rules));
         self.send(rq).await
     }
+    /// Method `chats/setTitle` for set chat title
+    /// - `title` - text chat title
     pub async fn chats_set_title(
         &self,
         chat_id: ChatId,
@@ -348,6 +335,7 @@ impl Bot {
         let rq = RequestChatsSetTitle::new(&Methods::ChatsSetTitle(chat_id, title));
         self.send(rq).await
     }
+    /// Method `chats/unblockUser` for unblock user in chat
     pub async fn chats_unblock_user(
         &self,
         chat_id: ChatId,
@@ -356,6 +344,7 @@ impl Bot {
         let rq = RequestChatsUnblockUser::new(&Methods::ChatsUnblockUser(chat_id, user_id));
         self.send(rq).await
     }
+    /// Method `chats/unpinMessage` for unpin message in chat
     pub async fn chats_unpin_message(
         &self,
         chat_id: ChatId,
@@ -364,14 +353,21 @@ impl Bot {
         let rq = RequestChatsUnpinMessage::new(&Methods::ChatsUnpinMessage(chat_id, msg_id));
         self.send(rq).await
     }
+    /// Method `events/get` for get bot API events
     pub async fn events_get(&self) -> Result<ResponseEventsGet> {
         let rq = RequestEventsGet::new(&Methods::EventsGet(self.get_last_event_id()));
         self.send(rq).await
     }
+    /// Method `files/getInfo` for get file info
     pub async fn files_get_info(&self, file_id: FileId) -> Result<ResponseFilesGetInfo> {
-        let rq = RequestFilesGetInfo::new(&Methods::FilesGetInfo(file_id));
-        self.send(rq).await
+        self.send(RequestFilesGetInfo::new(&Methods::FilesGetInfo(file_id)))
+            .await
     }
+    /// Method `messages/answerCallbackQuery`
+    /// - `query_id` - identifier callback query received by the bot
+    /// - `text` - the text of the notification to be displayed to the user. If the text is not specified, nothing will be displayed.
+    /// - `show_alert` - if `true` show alert instead of notification
+    /// - `url` - URL to be opened by the client application
     pub async fn messages_answer_callback_query(
         &self,
         query_id: QueryId,
@@ -384,6 +380,7 @@ impl Bot {
         ));
         self.send(rq).await
     }
+    /// Method `messages/deleteMessages` for delete messages in chat
     pub async fn messages_delete_messages(
         &self,
         chat_id: ChatId,
@@ -394,6 +391,7 @@ impl Bot {
             RequestMessagesDeleteMessages::new(&Methods::MessagesDeleteMessages(chat_id, msg_id));
         self.send(rq).await
     }
+    /// Method `messages/editText` for edit message text
     pub async fn messages_edit_text(
         &self,
         chat_id: ChatId,
@@ -405,6 +403,8 @@ impl Bot {
             .to_owned();
         self.send(rq).await
     }
+    /// Method `messages/sendFile` for send file with text caption, keyboard, forward or reply messages
+    #[allow(clippy::too_many_arguments)]
     pub async fn messages_send_file(
         &self,
         chat_id: ChatId,
@@ -426,6 +426,8 @@ impl Bot {
         .to_owned();
         self.send(rq).await
     }
+    /// Method `messages/sendVoice` for send voice message with text caption, keyboard, forward or reply messages
+    #[allow(clippy::too_many_arguments)]
     pub async fn messages_send_voice(
         &self,
         chat_id: ChatId,
@@ -447,6 +449,7 @@ impl Bot {
         .to_owned();
         self.send(rq).await
     }
+    /// Method `messages/sendText` for send text message with keyboard, forward or reply messages
     pub async fn messages_send_text(
         &self,
         chat_id: ChatId,
@@ -464,6 +467,7 @@ impl Bot {
             .to_owned();
         self.send(rq).await
     }
+    /// Method `self/get` for get bot info
     pub async fn self_get(&self) -> Result<ResponseSelfGet> {
         let rq = RequestSelfGet::new(&Methods::SelfGet());
         self.send(rq).await

@@ -9,7 +9,7 @@ impl From<Keyboard> for String {
 }
 /// Create new [`Keyboard`] and check params
 impl Keyboard {
-    /// Append row with with buttons to [`Keyboard`]
+    /// Append row with buttons to [`Keyboard`]
     pub fn add_row(&mut self) -> &mut Self {
         self.buttons.push(vec![]);
         self
@@ -55,12 +55,14 @@ impl ButtonKeyboard {
         }
     }
 }
+/// Trait [`MessageTextHTMLParser`]
 pub trait MessageTextHTMLParser {
     fn add(&mut self, text: MessageTextFormat) -> &mut Self;
     fn next_line(&mut self) -> &mut Self;
     fn space(&mut self) -> &mut Self;
     fn parse(&self) -> (String, ParseMode);
 }
+/// Implement [`MessageTextParser`]
 impl MessageTextParser {
     /// Parse [`MessageTextFormat`] types to HTML string
     fn parse_html(&self, text: &MessageTextFormat) -> String {
@@ -117,8 +119,9 @@ impl MessageTextParser {
         }
     }
 }
+/// Implement [`MessageTextHTMLParser`] for [`MessageTextParser`]
 impl MessageTextHTMLParser for MessageTextParser {
-    /// Add plain text to [`MessageText`]
+    /// Add plain text to [`MessageTextFormat`]
     fn add(&mut self, text: MessageTextFormat) -> &mut Self {
         self.text.push(text);
         self
@@ -133,7 +136,7 @@ impl MessageTextHTMLParser for MessageTextParser {
         self.text.push(MessageTextFormat::Plain(String::from(" ")));
         self
     }
-    /// Parse [`MessageText`] to string
+    /// Parse [`MessageTextFormat`] to string
     fn parse(&self) -> (String, ParseMode) {
         let mut result = String::new();
         for txt in &self.text {
@@ -147,7 +150,7 @@ impl MessageTextHTMLParser for MessageTextParser {
         (result, self.parse_mode)
     }
 }
-
+/// Setters
 pub trait MessageTextSetters {
     fn set_text(&mut self, parser: Option<MessageTextParser>) -> &mut Self;
     fn set_reply_msg_id(&mut self, msg_id: Option<MsgId>) -> &mut Self;

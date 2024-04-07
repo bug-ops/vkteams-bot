@@ -1,7 +1,11 @@
-/target
-/tests
-/.env
+target
+tests
+examples/.env
+.env
 .devcontainer
 .vscode
 .idea
 Cargo.lock
+.yaml
+Dockerfile
+compose.yaml

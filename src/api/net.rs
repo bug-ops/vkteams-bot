@@ -1,21 +1,18 @@
 use crate::api::types::*;
 use anyhow::{anyhow, Result};
 use reqwest::{
-    self,
     multipart::{Form, Part},
     Body, Client, Url,
 };
 use std::time::Duration;
 use tokio::fs::File;
 use tokio_util::codec::{BytesCodec, FramedRead};
-
 // use super::types::Response;
 /// Get raw response from API
-/// Send request with [`Client`] `get` method and get body with [`Response`] `text` method
+/// Send request with [`Client`] `get` method and get body with [`reqwest::Response`] `text` method
 pub async fn get_response(client: Client, url: Url) -> Result<String> {
     debug!("Get response from API path {}...", url.to_string());
-    let response = client.get(url.as_str()).send().await;
-    match response {
+    match client.get(url.as_str()).send().await {
         Ok(r) => {
             debug!("Response status: OK");
             Ok(r.text().await?)
@@ -63,7 +60,7 @@ async fn make_stream(name: String) -> Result<Body> {
     }
 }
 /// Get raw response from API
-/// Send request with [`Client`] `post` method with body file streaming and get body with [`Response`] `text` method
+/// Send request with [`Client`] `post` method with body file streaming and get body with [`reqwest::Response`] `text` method
 pub async fn post_response_file<'a>(
     client: Client,
     url: Url,
@@ -82,8 +79,11 @@ pub async fn post_response_file<'a>(
     }
 }
 /// Set default request settings: timeout, tcp
+///
 /// Set connection timeout to [`POLL_DURATION`] constant
+///
 /// Set `timeout` to 5 secs
+///
 /// Set `tcp_nodelay` to true
 pub fn default_reqwest_settings() -> reqwest::ClientBuilder {
     Client::builder()
@@ -92,8 +92,11 @@ pub fn default_reqwest_settings() -> reqwest::ClientBuilder {
         .tcp_nodelay(true)
 }
 /// Set default path depending on API version
+///
 /// default is [`APIVersionUrl::V1`]
+///
 /// ## Panics
+///
 /// - Another API version is not supported
 pub fn set_default_path(version: &APIVersionUrl) -> String {
     // Choose path depending on API version
@@ -104,14 +107,19 @@ pub fn set_default_path(version: &APIVersionUrl) -> String {
     }
 }
 /// Get token from [`VKTEAMS_BOT_API_TOKEN`] environment variable
+///
 /// ## Panics
+///
 /// - Unable to find environment variable
 pub fn get_env_token() -> String {
     std::env::var(VKTEAMS_BOT_API_TOKEN).expect("Unable to find VKTEAMS_BOT_API_TOKEN in .env file")
 }
 /// Get base api url from [`VKTEAMS_BOT_API_URL`] environment variable
+///
 /// ## Panics
+///
 /// - Unable to find environment variable
+///
 /// - Unable to parse url
 pub fn get_env_url() -> Url {
     Url::parse(

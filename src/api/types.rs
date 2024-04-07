@@ -10,7 +10,7 @@ pub use crate::api::messages::{
     send_text_with_deep_link::*, send_voice::*,
 };
 pub use crate::api::myself::get::*;
-pub use crate::api::{default::*, display::*, net::*, utils::*};
+pub use crate::api::{net::*, utils::*};
 pub use crate::bot::*;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::fmt::*;
@@ -26,7 +26,7 @@ pub const VKTEAMS_PROXY: &str = "VKTEAMS_PROXY";
 pub const POLL_TIME: u64 = 30;
 /// Global timeout for [`reqwest::Client`]
 ///
-/// [`reqwest::Client`]: https://docs.rs/reqwest/0.11.4/reqwest/struct.Client.html
+/// [`reqwest::Client`]: https://docs.rs/reqwest/latest/reqwest/struct.Client.html
 pub const POLL_DURATION: &Duration = &Duration::from_secs(POLL_TIME + 1);
 /// Supported API versions
 pub enum APIVersionUrl {
@@ -91,12 +91,14 @@ pub enum SendMessagesAPIMethods {
     #[default]
     None,
 }
+/// Supported API HTTP methods
 #[derive(Debug, Default)]
 pub enum HTTPMethod {
     #[default]
     GET,
     POST,
 }
+/// Bot request trait
 pub trait BotRequest {
     const METHOD: &'static str;
     const HTTP_METHOD: HTTPMethod = HTTPMethod::GET;
@@ -107,41 +109,51 @@ pub trait BotRequest {
         None
     }
 }
-// pub trait BotMessageTrait {}
 
-// #[derive(Debug, Default)]
-// pub struct BotMessage<Rq: BotRequest> {
-//     pub request: Rq,
-//     pub multipart: MultipartName,
-// }
 pub type Methods = SendMessagesAPIMethods;
 /// Message text struct
 #[derive(Serialize, Clone, Debug)]
 pub enum MessageTextFormat {
-    Plain(String),                // Plain text
-    Bold(String),                 // Bold text
-    Italic(String),               // Italic text
-    Underline(String),            // Underline text
-    Strikethrough(String),        // Strikethrough text
-    Link(String, String),         // inline URL, text
-    Mention(ChatId),              // inline mention of a user
-    Code(String),                 // inline fixed-width code
-    Pre(String, Option<String>),  //pre-formatted fixed-width code block
-    OrderedList(Vec<String>),     // ordered (numbered) list
-    UnOrdereredList(Vec<String>), // unordered (bulleted) list
-    Quote(String),                // quote text
+    /// Plain text
+    Plain(String),
+    /// Bold text
+    Bold(String),
+    /// Italic text
+    Italic(String),
+    /// Underline text
+    Underline(String),
+    /// Strikethrough text
+    Strikethrough(String),
+    /// Inline URL
+    Link(String, String),
+    /// Inline mention of a user
+    Mention(ChatId),
+    /// Code formatted text
+    Code(String),
+    /// Pre-formatted fixed-width test block
+    Pre(String, Option<String>),
+    /// Ordered list
+    OrderedList(Vec<String>),
+    /// Unordered list
+    UnOrdereredList(Vec<String>),
+    /// Quote text
+    Quote(String),
     None,
 }
 /// Message text parse struct
 #[derive(Serialize, Clone, Debug)]
 pub struct MessageTextParser {
+    /// Array of text formats
     pub(crate) text: Vec<MessageTextFormat>,
+    /// ## Parse mode
+    /// - `HTML` - HTML
+    /// - `MarkdownV2` - Markdown
     pub(crate) parse_mode: ParseMode,
 }
 /// Keyboard for method [`SendMessagesAPIMethods::MessagesSendText`]
 /// One of variants must be set:
-/// - {`text`: String,`url`: String,`style`: [`KeyboardStyle`]} - simple buttons
-/// - {`text`: String,`callback_data`: String,`style`: [`KeyboardStyle`]} - buttons with callback
+/// - {`text`: String,`url`: String,`style`: [`ButtonStyle`]} - simple buttons
+/// - {`text`: String,`callback_data`: String,`style`: [`ButtonStyle`]} - buttons with callback
 ///
 /// [`SendMessagesAPIMethods::MessagesSendText`]: enum.SendMessagesAPIMethods.html#variant.MessagesSendText
 #[derive(Serialize, Clone, Debug)]
@@ -381,6 +393,7 @@ pub enum MultipartName {
     #[default]
     None,
 }
+/// Admin struct
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Admin {
@@ -388,6 +401,7 @@ pub struct Admin {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub creator: Option<bool>,
 }
+/// User struct
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Users {
@@ -415,5 +429,6 @@ pub struct Sn {
 pub struct PhotoUrl {
     pub url: String,
 }
+/// Show alert struct
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ShowAlert(pub bool);
