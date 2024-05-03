@@ -5,7 +5,9 @@ examples/.env
 .devcontainer
 .vscode
 .idea
+.zed
 Cargo.lock
+.cargo
 .yaml
 Dockerfile
 compose.yaml

@@ -309,7 +309,7 @@ pub struct ChatId(pub String);
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct MsgId(pub String);
 /// User id struct
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 pub struct UserId(pub String);
 /// File id struct
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
@@ -348,7 +348,7 @@ pub enum MessagePartsType {
     Reply,
 }
 /// Event types
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum EventType {
     NewMessage,

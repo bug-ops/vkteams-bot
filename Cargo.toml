@@ -1,11 +1,11 @@
 [package]
 name = "vkteams-bot"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 authors = ["Andrei G. <k05h31@gmail.com>"]
 description = "VK Teams Bot API client"
 license = "MIT"
-repository = "https://github.com/k05h31/vkteams-bot/tree/master"
+repository = "https://github.com/bug-ops/vkteams-bot/tree/master"
 readme = "README.md"
 keywords = ["vk", "teams", "bot", "api", "client"]
 categories = ["asynchronous", "api-bindings", "web-programming::http-client"]

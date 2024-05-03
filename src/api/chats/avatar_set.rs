@@ -17,9 +17,11 @@ pub struct RequestChatsAvatarSet {
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsAvatarSet {
     pub ok: bool,
+    pub description: Option<String>,
 }
 impl BotRequest for RequestChatsAvatarSet {
-    const METHOD: &'static str = "chats/avatarSet";
+    const METHOD: &'static str = "chats/avatar/set";
+    const HTTP_METHOD: HTTPMethod = HTTPMethod::POST;
     type RequestType = Self;
     type ResponseType = ResponseChatsAvatarSet;
     fn new(method: &Methods) -> Self {
