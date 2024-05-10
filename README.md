@@ -51,3 +51,4 @@ log = "0.4"
 - [event listener](examples/event_listener.rs)
 - [new message / edit message](examples/emul_chat_gpt.rs)
 - [chat admin - avatar set](examples/chat_admin_avatar_set.rs)
+- [chat - download files](examples/chat_get_file.rs)

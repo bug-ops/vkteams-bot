@@ -237,7 +237,7 @@ pub struct MessageParts {
 #[serde(rename_all = "camelCase")]
 pub struct MessagePartsPayload {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub file_id: Option<String>,
+    pub file_id: Option<FileId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user_id: Option<UserId>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -337,7 +337,7 @@ pub struct From {
     pub user_id: UserId,
 }
 /// Message parts type
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum MessagePartsType {
     Sticker,

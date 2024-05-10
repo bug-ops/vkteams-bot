@@ -212,6 +212,25 @@ impl Bot {
             }
         }
     }
+    /// Download file from URL
+    pub async fn files_download(&self, url: String) -> Result<Vec<u8>> {
+        match Url::parse(url.as_str()) {
+            Ok(u) => match self.client.get(u.as_str()).send().await {
+                Ok(r) => {
+                    debug!("Response status: OK");
+                    match r.bytes().await {
+                        Ok(b) => Ok(b.to_vec()),
+                        Err(e) => Err(e.into()),
+                    }
+                }
+                Err(e) => {
+                    error!("Response status: {}", e);
+                    Err(e.into())
+                }
+            },
+            Err(e) => Err(e.into()),
+        }
+    }
     /// Method `chats/avatarSet` for upload avatar image
     /// - `file` - local file name path for upload
     pub async fn chats_avatar_set(
