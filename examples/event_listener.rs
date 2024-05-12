@@ -1,7 +1,6 @@
 #[macro_use]
 extern crate log;
 
-use anyhow::Result;
 use vkteams_bot::{self, api::types::*};
 
 #[tokio::main]
@@ -17,17 +16,11 @@ async fn main() {
     bot.event_listener(print_out).await;
 }
 // Callback function to print out the result
-pub fn print_out(res: &Result<ResponseEventsGet>) {
-    match res {
-        // If the result is Ok, convert it to a string and print it out
-        Ok(r) => match serde_json::to_string(r) {
-            Ok(s) => println!("{}", s),
-            // If the result is an error, print error message
-            Err(e) => println!("{}", e),
-        },
+pub async fn print_out(_: Bot, res: ResponseEventsGet) {
+    // If the result is Ok, convert it to a string and print it out
+    match serde_json::to_string(&res) {
+        Ok(s) => println!("{}", s),
         // If the result is an error, print error message
-        Err(e) => {
-            println!("{:?}", e);
-        }
+        Err(e) => println!("{}", e),
     }
 }

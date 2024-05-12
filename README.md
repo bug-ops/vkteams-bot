@@ -27,12 +27,12 @@ VK Teams Bot API client written in Rust.
 
 ```bash
 # Unix-like
-$ export VKTEAMS_VKTEAMS_BOT_API_TOKEN=<Your token here> #require
+$ export VKTEAMS_BOT_API_TOKEN=<Your token here> #require
 $ export VKTEAMS_BOT_API_URL=<Your base api url> #require
 $ export VKTEAMS_PROXY=<Proxy> #optional
 
 # Windows
-$ set VKTEAMS_VKTEAMS_BOT_API_TOKEN=<Your token here> #require
+$ set VKTEAMS_BOT_API_TOKEN=<Your token here> #require
 $ set VKTEAMS_BOT_API_URL=<Your base api url> #require
 $ set VKTEAMS_PROXY=<Proxy> #optional
 ```
@@ -41,7 +41,7 @@ $ set VKTEAMS_PROXY=<Proxy> #optional
 
 ```toml
 [dependencies]
-vkteams_bot = "0.3"
+vkteams_bot = "0.4"
 log = "0.4"
 ```
 
@@ -49,6 +49,7 @@ log = "0.4"
 
 [Examples:](examples)
 - [event listener](examples/event_listener.rs)
+- [answer calback query](examples/callback_query.rs)
 - [new message / edit message](examples/emul_chat_gpt.rs)
 - [chat admin - avatar set](examples/chat_admin_avatar_set.rs)
 - [chat - download files](examples/chat_get_file.rs)

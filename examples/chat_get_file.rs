@@ -25,40 +25,30 @@ async fn main() {
     });
 
     for event in events {
-        match event
-            .payload
-            .message_parts
-            .unwrap()
-            .iter()
-            .find(|&parts| parts.part_type == MessagePartsType::File)
-        {
+        match event.payload.message_parts.unwrap().iter().find(|&parts| {
+            parts.part_type == MessagePartsType::File && parts.payload.file_id.is_some()
+        }) {
             Some(parts) => {
-                get_file(&bot, parts).await;
+                download_files(&bot, parts).await;
             }
             _ => {}
         }
     }
 }
 // Download files from messages
-pub async fn get_file(bot: &Bot, parts: &MessageParts) {
+pub async fn download_files(bot: &Bot, parts: &MessageParts) {
     // Get file id from the message
     let file_id = parts.payload.file_id.to_owned().unwrap();
     // Get file info from the API
     match bot.files_get_info(file_id).await {
-        Ok(file_info) => {
-            let file_url = file_info.url.to_owned();
-            let file_name = file_info.file_name.to_owned();
-            let file_data = bot.files_download(file_url).await.unwrap();
-            let file_path = format!("tests/{}", file_name);
-            match tokio::fs::write(file_path.to_owned(), file_data).await {
-                Ok(_) => {
-                    info!("File saved: {}", file_path);
-                }
-                Err(e) => {
-                    error!("Error: {}", e);
-                }
+        // Download file data
+        Ok(file_info) => match file_info.download(reqwest::Client::new()).await {
+            // Save file to the disk
+            Ok(file_data) => file_save(&file_info.file_name, file_data).await,
+            Err(e) => {
+                error!("Error: {}", e);
             }
-        }
+        },
         Err(e) => {
             error!("Error: {}", e);
         }
@@ -72,4 +62,16 @@ pub async fn iter_get_events(bot: &Bot) -> IntoIter<EventMessage> {
         .events
         .to_owned()
         .into_iter()
+}
+// Save file to the disk
+pub async fn file_save(file_name: &str, file_data: Vec<u8>) {
+    let file_path = format!("tests/{}", file_name);
+    match tokio::fs::write(file_path.to_owned(), file_data).await {
+        Ok(_) => {
+            info!("File saved: {}", file_path);
+        }
+        Err(e) => {
+            error!("Error: {}", e);
+        }
+    }
 }

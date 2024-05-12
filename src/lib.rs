@@ -6,9 +6,8 @@
 //!
 //! ```toml
 //! [dependencies]
-//! vkteams = "0.3"
+//! vkteams = "0.4"
 //! ```
-//!  _Compiler support: requires rustc 1.67+_.
 //!
 //! [VK Teams Bot API]: https://teams.vk.com/botapi/?lang=en
 //! [`reqwest`]: https://docs.rs/reqwest

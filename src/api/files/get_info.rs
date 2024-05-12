@@ -1,4 +1,6 @@
 use crate::api::types::*;
+use anyhow::Result;
+use reqwest::Url;
 use serde::{Deserialize, Serialize};
 /// Request for method [`SendMessagesAPIMethods::FilesGetInfo`]
 ///
@@ -32,6 +34,16 @@ impl BotRequest for RequestFilesGetInfo {
                 file_id: file_id.to_owned(),
             },
             _ => panic!("Wrong API method for RequestFilesGetInfo"),
+        }
+    }
+}
+impl ResponseFilesGetInfo {
+    /// Download file data
+    /// - `client` - reqwest client
+    pub async fn download(&self, client: reqwest::Client) -> Result<Vec<u8>> {
+        match Url::parse(&self.url) {
+            Ok(url) => get_bytes_response(client, url).await,
+            Err(e) => Err(e.into()),
         }
     }
 }

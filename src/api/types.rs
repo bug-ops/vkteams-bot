@@ -27,7 +27,7 @@ pub const POLL_TIME: u64 = 30;
 /// Global timeout for [`reqwest::Client`]
 ///
 /// [`reqwest::Client`]: https://docs.rs/reqwest/latest/reqwest/struct.Client.html
-pub const POLL_DURATION: &Duration = &Duration::from_secs(POLL_TIME + 1);
+pub const POLL_DURATION: &Duration = &Duration::from_secs(POLL_TIME + 10);
 /// Supported API versions
 pub enum APIVersionUrl {
     /// default V1
@@ -204,7 +204,7 @@ pub struct EventPayload {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub msg_id: Option<MsgId>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub query_id: Option<String>,
+    pub query_id: Option<QueryId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -223,6 +223,8 @@ pub struct EventPayload {
     pub message_parts: Option<Vec<MessageParts>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub edited_timestamp: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub callback_data: Option<String>,
 }
 /// Message parts
 #[derive(Serialize, Deserialize, Clone, Debug)]

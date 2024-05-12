@@ -7,15 +7,36 @@ use reqwest::{
 use std::time::Duration;
 use tokio::fs::File;
 use tokio_util::codec::{BytesCodec, FramedRead};
-// use super::types::Response;
-/// Get raw response from API
+/// Get text response from API
 /// Send request with [`Client`] `get` method and get body with [`reqwest::Response`] `text` method
-pub async fn get_response(client: Client, url: Url) -> Result<String> {
+/// - `url` - file URL
+pub async fn get_text_response(client: Client, url: Url) -> Result<String> {
     debug!("Get response from API path {}...", url.to_string());
     match client.get(url.as_str()).send().await {
         Ok(r) => {
             debug!("Response status: OK");
-            Ok(r.text().await?)
+            match r.text().await {
+                Ok(t) => Ok(t),
+                Err(e) => Err(e.into()),
+            }
+        }
+        Err(e) => {
+            error!("Response status: {}", e);
+            Err(e.into())
+        }
+    }
+}
+/// Get bytes response from API
+/// Send request with [`Client`] `get` method and get body with [`reqwest::Response`] `bytes` method
+/// - `url` - file URL
+pub async fn get_bytes_response(client: Client, url: Url) -> Result<Vec<u8>> {
+    match client.get(url.as_str()).send().await {
+        Ok(r) => {
+            debug!("Response status: OK");
+            match r.bytes().await {
+                Ok(b) => Ok(b.to_vec()),
+                Err(e) => Err(e.into()),
+            }
         }
         Err(e) => {
             error!("Response status: {}", e);
@@ -24,6 +45,7 @@ pub async fn get_response(client: Client, url: Url) -> Result<String> {
     }
 }
 /// Upload file stream to API in multipart form
+/// - `file` - file name
 pub async fn file_to_multipart(file: Option<MultipartName>) -> Result<Form> {
     match file {
         Some(multipart) => {
@@ -45,16 +67,17 @@ pub async fn file_to_multipart(file: Option<MultipartName>) -> Result<Form> {
     }
 }
 /// Create stream from file
-async fn make_stream(name: String) -> Result<Body> {
+/// - `path` - file path
+async fn make_stream(path: String) -> Result<Body> {
     //Open file and check if it exists
-    match File::open(name.to_owned()).await {
+    match File::open(path.to_owned()).await {
         Ok(file) => {
             //Create stream from file
             let file_stream = Body::wrap_stream(FramedRead::new(file, BytesCodec::new()));
             Ok(file_stream)
         }
         Err(e) => {
-            error!("Unable to open file {}: {}", name.to_owned(), e);
+            error!("Unable to open file {}: {}", path.to_owned(), e);
             Err(e.into())
         }
     }
@@ -70,7 +93,10 @@ pub async fn post_response_file<'a>(
     match response {
         Ok(r) => {
             debug!("Response status: OK");
-            Ok(r.text().await?)
+            match r.text().await {
+                Ok(t) => Ok(t),
+                Err(e) => Err(e.into()),
+            }
         }
         Err(e) => {
             error!("Response status: {}", e);
