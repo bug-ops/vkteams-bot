@@ -8,6 +8,7 @@ examples/.env
 .zed
 Cargo.lock
 .cargo
+.ron
 .yaml
 Dockerfile
 compose.yaml

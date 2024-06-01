@@ -89,8 +89,7 @@ pub async fn post_response_file<'a>(
     url: Url,
     form: Form, // part: MultipartName,
 ) -> Result<String> {
-    let response = client.post(url.as_str()).multipart(form).send().await;
-    match response {
+    match client.post(url.as_str()).multipart(form).send().await {
         Ok(r) => {
             debug!("Response status: OK");
             match r.text().await {

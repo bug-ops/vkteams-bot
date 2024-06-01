@@ -1,6 +1,6 @@
 //! # VK Teams Bot API client
 //! This crate provides a client for the [VK Teams Bot API] V1.
-//! Asyncronous request is based on [`reqwest`] and [`tokio`].
+//! Asynchronous request is based on [`reqwest`] and [`tokio`].
 //! JSON Serialization and Deserialization [`serde_json`].
 //! Serialization Url query is based on [`serde_url_params`].
 //!

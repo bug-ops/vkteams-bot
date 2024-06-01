@@ -1,3 +1,8 @@
+use std::fmt::*;
+use std::time::Duration;
+
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+
 pub use crate::api::chats::{
     avatar_set::*, block_user::*, get_admins::*, get_blocked_users::*, get_info::*, get_members::*,
     get_pending_users::*, members_delete::*, pin_message::*, resolve_pendings::*, send_action::*,
@@ -12,9 +17,6 @@ pub use crate::api::messages::{
 pub use crate::api::myself::get::*;
 pub use crate::api::{net::*, utils::*};
 pub use crate::bot::*;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use std::fmt::*;
-use std::time::Duration;
 
 /// Environment variable name for bot API URL
 pub const VKTEAMS_BOT_API_URL: &str = "VKTEAMS_BOT_API_URL";
@@ -98,13 +100,21 @@ pub enum HTTPMethod {
     GET,
     POST,
 }
+
+#[derive(Debug, Default)]
+pub enum HTTPBody {
+    // JSON,
+    MultiPart(MultipartName),
+    #[default]
+    None,
+}
 /// Bot request trait
 pub trait BotRequest {
     const METHOD: &'static str;
     const HTTP_METHOD: HTTPMethod = HTTPMethod::GET;
     type RequestType: Serialize + Debug + Default;
     type ResponseType: Serialize + DeserializeOwned + Debug + Default;
-    fn new(method: &Methods) -> Self;
+    fn new(method: &Methods) -> Self::RequestType;
     fn get_file(&self) -> Option<MultipartName> {
         None
     }
@@ -135,7 +145,7 @@ pub enum MessageTextFormat {
     /// Ordered list
     OrderedList(Vec<String>),
     /// Unordered list
-    UnOrdereredList(Vec<String>),
+    UnOrderedList(Vec<String>),
     /// Quote text
     Quote(String),
     None,

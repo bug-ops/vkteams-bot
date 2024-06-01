@@ -25,13 +25,12 @@ async fn main() {
     });
 
     for event in events {
-        match event.payload.message_parts.unwrap().iter().find(|&parts| {
+        if let Some(parts) = event.payload.message_parts.unwrap().iter().find(|&parts| {
             parts.part_type == MessagePartsType::File && parts.payload.file_id.is_some()
         }) {
-            Some(parts) => {
+            {
                 download_files(&bot, parts).await;
             }
-            _ => {}
         }
     }
 }
@@ -42,13 +41,19 @@ pub async fn download_files(bot: &Bot, parts: &MessageParts) {
     // Get file info from the API
     match bot.files_get_info(file_id).await {
         // Download file data
-        Ok(file_info) => match file_info.download(reqwest::Client::new()).await {
-            // Save file to the disk
-            Ok(file_data) => file_save(&file_info.file_name, file_data).await,
-            Err(e) => {
-                error!("Error: {}", e);
+        Ok(file_info) => {
+            if !file_info.ok {
+                error!("Error: {:?}", file_info.description);
+                return;
             }
-        },
+            match file_info.download(reqwest::Client::new()).await {
+                // Save file to the disk
+                Ok(file_data) => file_save(&file_info.file_name, file_data).await,
+                Err(e) => {
+                    error!("Error: {}", e);
+                }
+            }
+        }
         Err(e) => {
             error!("Error: {}", e);
         }

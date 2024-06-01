@@ -1,12 +1,12 @@
 <div>
 <a href="https://docs.rs/vkteams-bot/latest/vkteams_bot/">
-    <img src="https://img.shields.io/docsrs/vkteams-bot/latest">
+    <img src="https://img.shields.io/docsrs/vkteams-bot/latest" alt="docs.rs">
 </a>
 <a href="https://crates.io/crates/vkteams-bot">
-    <img src="https://img.shields.io/crates/v/vkteams-bot">
+    <img src="https://img.shields.io/crates/v/vkteams-bot" alt="crates.io">
 </a>
  <a href="https://github.com/k05h31/vkteams-bot/actions">
-    <img src="https://github.com/k05h31/vkteams-bot/workflows/Rust/badge.svg">
+    <img src="https://github.com/k05h31/vkteams-bot/workflows/Rust/badge.svg" alt="github.com">
 </a>
 </div>
 
@@ -17,7 +17,7 @@ VK Teams Bot API client written in Rust.
 ## Table of Contents
 
 - [Environment](#environment)
-- [Usage](#usage)
+- [Usage](#usage-examples)
 
 ## Environment
 
@@ -48,8 +48,9 @@ log = "0.4"
 ## Usage examples
 
 [Examples:](examples)
+
 - [event listener](examples/event_listener.rs)
-- [answer calback query](examples/callback_query.rs)
+- [answer callback query](examples/callback_query.rs)
 - [new message / edit message](examples/emul_chat_gpt.rs)
 - [chat admin - avatar set](examples/chat_admin_avatar_set.rs)
 - [chat - download files](examples/chat_get_file.rs)

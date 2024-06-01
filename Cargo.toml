@@ -1,10 +1,10 @@
 [package]
+license = "MIT OR Apache-2.0"
 name = "vkteams-bot"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 authors = ["Andrei G. <k05h31@gmail.com>"]
 description = "VK Teams Bot API client"
-license = "MIT"
 repository = "https://github.com/bug-ops/vkteams-bot/tree/master"
 readme = "README.md"
 keywords = ["vk", "teams", "bot", "api", "client"]

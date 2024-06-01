@@ -108,7 +108,7 @@ impl MessageTextParser {
                 }
                 format!("<ol>{}</ol>", result)
             }
-            MessageTextFormat::UnOrdereredList(list) => {
+            MessageTextFormat::UnOrderedList(list) => {
                 let mut result = String::new();
                 for item in list {
                     result.push_str(&format!("<li>{}</li>", item));
