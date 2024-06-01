@@ -48,7 +48,9 @@ pub async fn download_files(bot: &Bot, parts: &MessageParts) {
             }
             match file_info.download(reqwest::Client::new()).await {
                 // Save file to the disk
-                Ok(file_data) => file_save(&file_info.file_name, file_data).await,
+                Ok(file_data) => {
+                    file_save(&file_info.file_name.to_owned().unwrap(), file_data).await
+                }
                 Err(e) => {
                     error!("Error: {}", e);
                 }

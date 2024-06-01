@@ -17,12 +17,12 @@ pub struct RequestFilesGetInfo {
 #[serde(rename_all = "camelCase")]
 pub struct ResponseFilesGetInfo {
     #[serde(rename = "type")]
-    pub file_type: String,
+    pub file_type: Option<String>,
     #[serde(rename = "size")]
-    pub file_size: u64,
+    pub file_size: Option<u64>,
     #[serde(rename = "filename")]
-    pub file_name: String,
-    pub url: String,
+    pub file_name: Option<String>,
+    pub url: Option<String>,
     pub ok: bool,
     pub description: Option<String>,
 }
@@ -46,7 +46,7 @@ impl ResponseFilesGetInfo {
         if !self.ok {
             return Err(anyhow!(self.description.to_owned().unwrap_or_default()));
         }
-        match Url::parse(&self.url) {
+        match Url::parse(&self.url.to_owned().unwrap()) {
             Ok(url) => get_bytes_response(client, url).await,
             Err(e) => Err(e.into()),
         }
