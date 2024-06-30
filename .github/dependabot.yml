@@ -1,0 +1,14 @@
+version: 2
+updates:
+  - package-ecosystem: "cargo"
+    directory: "/" 
+    versioning-strategy: "lockfile-only"
+    schedule:
+      interval: "weekly"
+    groups:
+      lock:
+        patterns: ["*"]
+    allow:
+      - dependency-type: "all"
+    labels: ["A-dependencies"]
+    open-pull-requests-limit: 1
