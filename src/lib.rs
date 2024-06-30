@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! # VK Teams Bot API client
 //! This crate provides a client for the [VK Teams Bot API] V1.
 //! Asynchronous request is based on [`reqwest`] and [`tokio`].
@@ -31,7 +32,6 @@
 //! $ set VKTEAMS_BOT_API_URL=<Your base api url> #require
 //! $ set VKTEAMS_PROXY=<Proxy> #optional
 //! ```
-
 #[macro_use]
 extern crate log;
 pub mod bot;

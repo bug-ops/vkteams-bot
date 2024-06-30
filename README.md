@@ -8,6 +8,9 @@
  <a href="https://github.com/k05h31/vkteams-bot/actions">
     <img src="https://github.com/k05h31/vkteams-bot/workflows/Rust/badge.svg" alt="github.com">
 </a>
+ <a href="https://github.com/rust-secure-code/safety-dance/">
+    <img src="https://img.shields.io/badge/unsafe-forbidden-success.svg" alt="Unsafe forbidden">
+</a>
 </div>
 
 # VK Teams Bot API client

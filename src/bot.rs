@@ -126,6 +126,7 @@ impl Bot {
     /// Build full URL with optional query parameters
     /// - `path`: [`String`] - append path to `base_api_path`
     /// - `query`: [`String`] - append `token` query parameter to URL
+    ///
     /// Parse with [`Url::parse`]
     pub fn get_parsed_url(&self, path: String, query: String) -> Result<Url> {
         // Make URL with base API path
