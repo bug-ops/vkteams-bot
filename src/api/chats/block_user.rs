@@ -18,19 +18,24 @@ pub struct RequestChatsBlockUser {
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsBlockUser {
     pub ok: bool,
+    #[serde(default)]
+    pub description: String,
 }
 impl BotRequest for RequestChatsBlockUser {
     const METHOD: &'static str = "chats/blockUser";
     type RequestType = Self;
     type ResponseType = ResponseChatsBlockUser;
-    fn new(method: &Methods) -> Self {
-        match method {
-            Methods::ChatsBlockUser(chat_id, user_id, del_last_messages) => Self {
-                chat_id: chat_id.to_owned(),
-                user_id: user_id.to_owned(),
-                del_last_messages: *del_last_messages,
-            },
-            _ => panic!("Wrong API method for RequestChatsBlockUser"),
+}
+impl RequestChatsBlockUser {
+    /// Create a new RequestChatsBlockUser with the chat_id, user_id and del_last_messages
+    /// - `chat_id` - [`ChatId`]
+    /// - `user_id` - [`UserId`]
+    /// - `del_last_messages` - [`bool`]
+    pub fn new(chat_id: ChatId, user_id: UserId, del_last_messages: bool) -> Self {
+        Self {
+            chat_id,
+            user_id,
+            del_last_messages,
         }
     }
 }

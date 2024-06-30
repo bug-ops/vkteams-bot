@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct RequestMessagesSendFile {
     pub chat_id: ChatId,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub caption: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "caption")]
+    pub text: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reply_msg_id: Option<MsgId>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -41,16 +41,7 @@ impl BotRequest for RequestMessagesSendFile {
     const HTTP_METHOD: HTTPMethod = HTTPMethod::POST;
     type RequestType = Self;
     type ResponseType = ResponseMessagesSendFile;
-    fn new(method: &Methods) -> Self {
-        match method {
-            Methods::MessagesSendFile(chat_id, multipart) => Self {
-                chat_id: chat_id.to_owned(),
-                multipart: multipart.to_owned(),
-                ..Default::default()
-            },
-            _ => panic!("Wrong API method for RequestMessagesSendFile"),
-        }
-    }
+    /// Get the file from the multipart
     fn get_file(&self) -> Option<MultipartName> {
         match self.multipart {
             MultipartName::File(..) | MultipartName::Image(..) => Some(self.multipart.to_owned()),
@@ -58,34 +49,36 @@ impl BotRequest for RequestMessagesSendFile {
         }
     }
 }
+impl RequestMessagesSendFile {
+    /// Create a new RequestMessagesSendFile with the chat_id and multipart
+    /// - `chat_id` - [`ChatId`]
+    /// - `multipart` - [`MultipartName`]
+    pub fn new(chat_id: ChatId, multipart: MultipartName) -> Self {
+        Self {
+            chat_id,
+            multipart,
+            ..Default::default()
+        }
+    }
+}
 impl MessageTextSetters for RequestMessagesSendFile {
-    fn set_text(&mut self, parser: Option<MessageTextParser>) -> &mut Self {
-        match parser {
-            Some(p) => {
-                let (text, parse_mode) = p.parse();
-                self.caption = Some(text);
-                self.parse_mode = Some(parse_mode);
-                self
-            }
-            None => self,
-        }
+    fn set_text(&mut self, parser: MessageTextParser) -> Self {
+        let (text, parse_mode) = parser.parse();
+        self.text = Some(text);
+        self.parse_mode = Some(parse_mode);
+        self.to_owned()
     }
-    fn set_reply_msg_id(&mut self, msg_id: Option<MsgId>) -> &mut Self {
-        self.reply_msg_id = msg_id;
-        self
+    fn set_reply_msg_id(&mut self, msg_id: MsgId) -> Self {
+        self.reply_msg_id = Some(msg_id);
+        self.to_owned()
     }
-    fn set_forward_msg_id(&mut self, chat_id: Option<ChatId>, msg_id: Option<MsgId>) -> &mut Self {
-        self.forward_chat_id = chat_id;
-        self.forward_msg_id = msg_id;
-        self
+    fn set_forward_msg_id(&mut self, chat_id: ChatId, msg_id: MsgId) -> Self {
+        self.forward_chat_id = Some(chat_id);
+        self.forward_msg_id = Some(msg_id);
+        self.to_owned()
     }
-    fn set_keyboard(&mut self, keyboard: Option<Keyboard>) -> &mut Self {
-        match keyboard {
-            Some(k) => {
-                self.inline_keyboard_markup = Some(k.into());
-                self
-            }
-            None => self,
-        }
+    fn set_keyboard(&mut self, keyboard: Keyboard) -> Self {
+        self.inline_keyboard_markup = Some(keyboard.into());
+        self.to_owned()
     }
 }

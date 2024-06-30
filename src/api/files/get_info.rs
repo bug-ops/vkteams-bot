@@ -16,37 +16,38 @@ pub struct RequestFilesGetInfo {
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseFilesGetInfo {
-    #[serde(rename = "type")]
-    pub file_type: Option<String>,
-    #[serde(rename = "size")]
-    pub file_size: Option<u64>,
-    #[serde(rename = "filename")]
-    pub file_name: Option<String>,
-    pub url: Option<String>,
+    #[serde(rename = "type", default)]
+    pub file_type: String,
+    #[serde(rename = "size", default)]
+    pub file_size: u32,
+    #[serde(rename = "filename", default)]
+    pub file_name: String,
+    #[serde(default)]
+    pub url: String,
     pub ok: bool,
-    pub description: Option<String>,
+    #[serde(default)]
+    pub description: String,
 }
 impl BotRequest for RequestFilesGetInfo {
     const METHOD: &'static str = "files/getInfo";
     type RequestType = Self;
     type ResponseType = ResponseFilesGetInfo;
-    fn new(method: &Methods) -> Self {
-        match method {
-            Methods::FilesGetInfo(file_id) => Self {
-                file_id: file_id.to_owned(),
-            },
-            _ => panic!("Wrong API method for RequestFilesGetInfo"),
-        }
+}
+impl RequestFilesGetInfo {
+    /// Create a new RequestFilesGetInfo with the file_id
+    /// - `file_id` - [`FileId`]
+    pub fn new(file_id: FileId) -> Self {
+        Self { file_id }
     }
 }
 impl ResponseFilesGetInfo {
     /// Download file data
-    /// - `client` - reqwest client
+    /// - `client`: [`reqwest::Client`] - reqwest client
     pub async fn download(&self, client: reqwest::Client) -> Result<Vec<u8>> {
         if !self.ok {
-            return Err(anyhow!(self.description.to_owned().unwrap_or_default()));
+            return Err(anyhow!(self.description.to_owned()));
         }
-        match Url::parse(&self.url.to_owned().unwrap()) {
+        match Url::parse(&self.url.to_owned()) {
             Ok(url) => get_bytes_response(client, url).await,
             Err(e) => Err(e.into()),
         }

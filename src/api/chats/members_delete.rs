@@ -21,14 +21,24 @@ impl BotRequest for RequestChatsMembersDelete {
     const METHOD: &'static str = "chats/members/delete";
     type RequestType = Self;
     type ResponseType = ResponseChatsMembersDelete;
-    fn new(method: &Methods) -> Self {
-        match method {
-            Methods::ChatsMembersDelete(chat_id, user_id) => Self {
-                chat_id: chat_id.to_owned(),
-                user_id: user_id.to_owned(),
-                ..Default::default()
-            },
-            _ => panic!("Wrong API method for RequestChatsMembersDelete"),
+}
+/// Add members to the chat
+impl RequestChatsMembersDelete {
+    /// Create a new RequestChatsMembersDelete with the chat_id and user_id
+    /// - `chat_id` - [`ChatId`]
+    /// - `user_id` - [`UserId`]
+    pub fn new(chat_id: ChatId, user_id: UserId) -> Self {
+        Self {
+            chat_id,
+            user_id,
+            ..Default::default()
         }
+    }
+    /// Create a new RequestChatsMembersDelete with the chat_id and user_id
+    /// - `chat_id` - [`ChatId`]
+    /// - `user_id` - [`UserId`]
+    pub fn add_member(&mut self, member: Sn) -> &mut Self {
+        self.members.push(member);
+        self
     }
 }

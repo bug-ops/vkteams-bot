@@ -21,13 +21,12 @@ impl BotRequest for RequestChatsSetRules {
     const METHOD: &'static str = "chats/setRules";
     type RequestType = Self;
     type ResponseType = ResponseChatsSetRules;
-    fn new(method: &Methods) -> Self {
-        match method {
-            Methods::ChatsSetRules(chat_id, rules) => Self {
-                chat_id: chat_id.to_owned(),
-                rules: rules.to_owned(),
-            },
-            _ => panic!("Wrong API method for RequestChatsSetRules"),
-        }
+}
+impl RequestChatsSetRules {
+    /// Create a new RequestChatsSetRules with the chat_id and rules
+    /// - `chat_id` - [`ChatId`]
+    /// - `rules` - [`String`]
+    pub fn new(chat_id: ChatId, rules: String) -> Self {
+        Self { chat_id, rules }
     }
 }

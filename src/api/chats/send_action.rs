@@ -20,13 +20,12 @@ impl BotRequest for RequestChatsSendAction {
     const METHOD: &'static str = "chats/sendActions";
     type RequestType = Self;
     type ResponseType = ResponseChatsSendAction;
-    fn new(method: &Methods) -> Self {
-        match method {
-            Methods::ChatsSendAction(chat_id, actions) => Self {
-                chat_id: chat_id.to_owned(),
-                actions: actions.to_owned(),
-            },
-            _ => panic!("Wrong API method for RequestChatsSendAction"),
-        }
+}
+impl RequestChatsSendAction {
+    /// Create a new RequestChatsSendAction with the chat_id and actions
+    /// - `chat_id` - [`ChatId`]
+    /// - `actions` - [`ChatActions`]
+    pub fn new(chat_id: ChatId, actions: ChatActions) -> Self {
+        Self { chat_id, actions }
     }
 }

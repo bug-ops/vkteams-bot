@@ -41,7 +41,7 @@ $ set VKTEAMS_PROXY=<Proxy> #optional
 
 ```toml
 [dependencies]
-vkteams_bot = "0.4"
+vkteams_bot = "0.5"
 log = "0.4"
 ```
 
@@ -49,6 +49,7 @@ log = "0.4"
 
 [Examples:](examples)
 
+- [new message](examples/new_message.rs)
 - [event listener](examples/event_listener.rs)
 - [answer callback query](examples/callback_query.rs)
 - [new message / edit message](examples/emul_chat_gpt.rs)

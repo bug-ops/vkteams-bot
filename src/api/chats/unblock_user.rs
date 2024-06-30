@@ -21,13 +21,12 @@ impl BotRequest for RequestChatsUnblockUser {
     const METHOD: &'static str = "chats/unblockUser";
     type RequestType = Self;
     type ResponseType = ResponseChatsUnblockUser;
-    fn new(method: &Methods) -> Self {
-        match method {
-            Methods::ChatsUnblockUser(chat_id, user_id) => Self {
-                chat_id: chat_id.to_owned(),
-                user_id: user_id.to_owned(),
-            },
-            _ => panic!("Wrong API method for RequestChatsUnblockUser"),
-        }
+}
+impl RequestChatsUnblockUser {
+    /// Create a new RequestChatsUnblockUser with the chat_id and user_id
+    /// - `chat_id` - [`ChatId`]
+    /// - `user_id` - [`UserId`]
+    pub fn new(chat_id: ChatId, user_id: UserId) -> Self {
+        Self { chat_id, user_id }
     }
 }

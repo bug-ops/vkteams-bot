@@ -14,19 +14,18 @@ pub struct RequestChatsGetPendingUsers {
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsGetPendingUsers {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub users: Option<Vec<Users>>,
+    #[serde(default)]
+    pub users: Vec<Users>,
 }
 impl BotRequest for RequestChatsGetPendingUsers {
     const METHOD: &'static str = "chats/getPendingUsers";
     type RequestType = Self;
     type ResponseType = ResponseChatsGetPendingUsers;
-    fn new(method: &Methods) -> Self {
-        match method {
-            Methods::ChatsGetPendingUsers(chat_id) => Self {
-                chat_id: chat_id.to_owned(),
-            },
-            _ => panic!("Wrong API method for RequestChatsGetPendingUsers"),
-        }
+}
+impl RequestChatsGetPendingUsers {
+    /// Create a new RequestChatsGetPendingUsers with the chat_id
+    /// - `chat_id` - [`ChatId`]
+    pub fn new(chat_id: ChatId) -> Self {
+        Self { chat_id }
     }
 }

@@ -21,13 +21,12 @@ impl BotRequest for RequestChatsUnpinMessage {
     const METHOD: &'static str = "chats/unpinMessage";
     type RequestType = Self;
     type ResponseType = ResponseChatsUnpinMessage;
-    fn new(method: &Methods) -> Self {
-        match method {
-            Methods::ChatsUnpinMessage(chat_id, msg_id) => Self {
-                chat_id: chat_id.to_owned(),
-                msg_id: msg_id.to_owned(),
-            },
-            _ => panic!("Wrong API method for RequestChatsUnpinMessage"),
-        }
+}
+impl RequestChatsUnpinMessage {
+    /// Create a new RequestChatsUnpinMessage with the chat_id and msg_id
+    /// - `chat_id` - [`ChatId`]
+    /// - `msg_id` - [`MsgId`]
+    pub fn new(chat_id: ChatId, msg_id: MsgId) -> Self {
+        Self { chat_id, msg_id }
     }
 }

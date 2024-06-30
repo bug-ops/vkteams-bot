@@ -1,3 +1,6 @@
+use anyhow::{anyhow, Result};
+use reqwest::Url;
+
 use crate::api::types::*;
 use std::convert::From;
 
@@ -9,10 +12,15 @@ impl From<Keyboard> for String {
 }
 /// Create new [`Keyboard`] and check params
 impl Keyboard {
+    pub fn new() -> Self {
+        Self {
+            ..Default::default()
+        }
+    }
     /// Append row with buttons to [`Keyboard`]
-    pub fn add_row(&mut self) -> &mut Self {
+    pub fn add_row(&mut self) -> Self {
         self.buttons.push(vec![]);
-        self
+        self.to_owned()
     }
     /// Get index of last row of [`Keyboard`]
     pub fn get_row_index(&self) -> usize {
@@ -20,14 +28,14 @@ impl Keyboard {
     }
     /// Append button to last row of [`Keyboard`]
     /// Maximum buttons in row is 8. If row is full, add new row
-    pub fn add_button(&mut self, button: &ButtonKeyboard) -> &mut Self {
+    pub fn add_button(&mut self, button: &ButtonKeyboard) -> Self {
         // IF row is full, add new row
         if self.buttons[self.get_row_index()].len() >= 8 {
             self.add_row();
         }
         let row_index = self.get_row_index();
         self.buttons[row_index].push(button.clone());
-        self
+        self.to_owned()
     }
     /// Get keyboard as JSON string
     fn get_keyboard(&self) -> String {
@@ -57,92 +65,108 @@ impl ButtonKeyboard {
 }
 /// Trait [`MessageTextHTMLParser`]
 pub trait MessageTextHTMLParser {
-    fn add(&mut self, text: MessageTextFormat) -> &mut Self;
-    fn next_line(&mut self) -> &mut Self;
-    fn space(&mut self) -> &mut Self;
+    fn new() -> Self
+    where
+        Self: Sized + Default,
+    {
+        Self::default()
+    }
+    fn add(&mut self, text: MessageTextFormat) -> Self;
+    fn next_line(&mut self) -> Self;
+    fn space(&mut self) -> Self;
     fn parse(&self) -> (String, ParseMode);
 }
 /// Implement [`MessageTextParser`]
 impl MessageTextParser {
     /// Parse [`MessageTextFormat`] types to HTML string
-    fn parse_html(&self, text: &MessageTextFormat) -> String {
+    fn parse_html(&self, text: &MessageTextFormat) -> Result<String> {
         match text {
-            MessageTextFormat::Plain(text) => text.to_string(),
+            MessageTextFormat::Plain(text) => Ok(self.replace_chars(text)),
             MessageTextFormat::Link(url, text) => {
-                format!("<a href=\"{}\">{}</a>", url, text)
+                let parsed_url = match Url::parse(&self.replace_chars(url)) {
+                    Ok(url) => url,
+                    Err(e) => return Err(e.into()),
+                };
+                Ok(format!(
+                    "<a href=\"{}\">{}</a>",
+                    parsed_url,
+                    self.replace_chars(text)
+                ))
             }
-            MessageTextFormat::Bold(text) => {
-                format!("<b>{}</b>", text)
-            }
-            MessageTextFormat::Italic(text) => {
-                format!("<i>{}</i>", text)
-            }
+            MessageTextFormat::Bold(text) => Ok(format!("<b>{}</b>", self.replace_chars(text))),
+            MessageTextFormat::Italic(text) => Ok(format!("<i>{}</i>", self.replace_chars(text))),
             MessageTextFormat::Code(text) => {
-                format!("<code>{}</code>", text)
+                Ok(format!("<code>{}</code>", self.replace_chars(text)))
             }
             MessageTextFormat::Pre(text, class) => match class {
-                //TODO add class enum
-                Some(class) => {
-                    format!("<pre class=\"{}\">{}</pre>", class, text)
-                }
-                None => {
-                    format!("<pre>{}</pre>", text)
-                }
+                Some(class) => Ok(format!(
+                    "<pre class=\"{}\">{}</pre>",
+                    self.replace_chars(class),
+                    self.replace_chars(text)
+                )),
+                None => Ok(format!("<pre>{}</pre>", self.replace_chars(text))),
             },
-            MessageTextFormat::Mention(text) => {
-                format!("<a>@[{}]</a>", text)
-            }
+            MessageTextFormat::Mention(chat_id) => Ok(format!("<a>@[{}]</a>", chat_id)),
             MessageTextFormat::Strikethrough(text) => {
-                format!("<s>{}</s>", text)
+                Ok(format!("<s>{}</s>", self.replace_chars(text)))
             }
             MessageTextFormat::Underline(text) => {
-                format!("<u>{}</u>", text)
+                Ok(format!("<u>{}</u>", self.replace_chars(text)))
             }
-            MessageTextFormat::Quote(text) => {
-                format!("<blockquote>{}</blockquote>", text)
-            }
+            MessageTextFormat::Quote(text) => Ok(format!(
+                "<blockquote>{}</blockquote>",
+                self.replace_chars(text)
+            )),
             MessageTextFormat::OrderedList(list) => {
                 let mut result = String::new();
                 for item in list {
-                    result.push_str(&format!("<li>{}</li>", item));
+                    result.push_str(&format!("<li>{}</li>", self.replace_chars(item)));
                 }
-                format!("<ol>{}</ol>", result)
+                Ok(format!("<ol>{}</ol>", result))
             }
             MessageTextFormat::UnOrderedList(list) => {
                 let mut result = String::new();
                 for item in list {
-                    result.push_str(&format!("<li>{}</li>", item));
+                    result.push_str(&format!("<li>{}</li>", self.replace_chars(item)));
                 }
-                format!("<ul>{}</ul>", result)
+                Ok(format!("<ul>{}</ul>", result))
             }
-            MessageTextFormat::None => String::new(),
+            MessageTextFormat::None => Err(anyhow!("MessageTextFormat::None is not supported")),
         }
+    }
+    fn replace_chars(&self, text: &str) -> String {
+        text.replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
     }
 }
 /// Implement [`MessageTextHTMLParser`] for [`MessageTextParser`]
 impl MessageTextHTMLParser for MessageTextParser {
     /// Add plain text to [`MessageTextFormat`]
-    fn add(&mut self, text: MessageTextFormat) -> &mut Self {
+    fn add(&mut self, text: MessageTextFormat) -> Self {
         self.text.push(text);
-        self
+        self.to_owned()
     }
     /// Line feed
-    fn next_line(&mut self) -> &mut Self {
+    fn next_line(&mut self) -> Self {
         self.text.push(MessageTextFormat::Plain(String::from("\n")));
-        self
+        self.to_owned()
     }
     /// Space
-    fn space(&mut self) -> &mut Self {
+    fn space(&mut self) -> Self {
         self.text.push(MessageTextFormat::Plain(String::from(" ")));
-        self
+        self.to_owned()
     }
     /// Parse [`MessageTextFormat`] to string
     fn parse(&self) -> (String, ParseMode) {
         let mut result = String::new();
-        for txt in &self.text {
+        for item in &self.text {
+            if let MessageTextFormat::None = item {
+                continue;
+            }
             match self.parse_mode {
                 ParseMode::HTML => {
-                    result.push_str(&self.parse_html(txt));
+                    result.push_str(&self.parse_html(item).unwrap());
                 }
                 _ => todo!("Not implemented parse mode: {:?}", self.parse_mode),
             }
@@ -151,9 +175,34 @@ impl MessageTextHTMLParser for MessageTextParser {
     }
 }
 /// Setters
+#[allow(unused_variables)]
 pub trait MessageTextSetters {
-    fn set_text(&mut self, parser: Option<MessageTextParser>) -> &mut Self;
-    fn set_reply_msg_id(&mut self, msg_id: Option<MsgId>) -> &mut Self;
-    fn set_forward_msg_id(&mut self, chat_id: Option<ChatId>, msg_id: Option<MsgId>) -> &mut Self;
-    fn set_keyboard(&mut self, keyboard: Option<Keyboard>) -> &mut Self;
+    fn set_text(&mut self, parser: MessageTextParser) -> Self
+    where
+        Self: Sized + Clone,
+    {
+        warn!("Method not implemented");
+        self.to_owned()
+    }
+    fn set_reply_msg_id(&mut self, msg_id: MsgId) -> Self
+    where
+        Self: Sized + Clone,
+    {
+        warn!("Method not implemented");
+        self.to_owned()
+    }
+    fn set_forward_msg_id(&mut self, chat_id: ChatId, msg_id: MsgId) -> Self
+    where
+        Self: Sized + Clone,
+    {
+        warn!("Method not implemented");
+        self.to_owned()
+    }
+    fn set_keyboard(&mut self, keyboard: Keyboard) -> Self
+    where
+        Self: Sized + Clone,
+    {
+        warn!("Method not implemented");
+        self.to_owned()
+    }
 }

@@ -9,9 +9,9 @@ use std::{
 #[derive(Debug, Clone)]
 /// Bot class with attributes
 /// - `client`: [`reqwest::Client`]
-/// - `token`: String
+/// - `token`: [`String`]
 /// - `base_api_url`: [`reqwest::Url`]
-/// - `base_api_path`: String
+/// - `base_api_path`: [`String`]
 /// - `evtent_id`: [`std::sync::Arc<_>`]
 ///
 /// [`reqwest::Client`]: https://docs.rs/reqwest/latest/reqwest/struct.Client.html
@@ -22,7 +22,7 @@ pub struct Bot {
     pub(crate) token: String,
     pub(crate) base_api_url: Url,
     pub(crate) base_api_path: String,
-    pub(crate) event_id: Arc<Mutex<u64>>,
+    pub(crate) event_id: Arc<Mutex<EventId>>,
 }
 impl Default for Bot {
     // default API version V1
@@ -75,15 +75,16 @@ impl Bot {
         }
     }
     /// Get last event id
-    pub fn get_last_event_id(&self) -> u64 {
+    pub fn get_last_event_id(&self) -> EventId {
         *self.event_id.lock().unwrap()
     }
     /// Set last event id
-    pub fn set_last_event_id(&self, id: u64) {
+    /// - `id`: [`EventId`] - last event id
+    pub fn set_last_event_id(&self, id: EventId) {
         *self.event_id.lock().unwrap() = id;
     }
     /// Listen for events and execute callback function
-    /// - `func` - callback function with `Result<ResponseEventsGet>` as argument
+    /// - `func` - callback function with [`Result`] type [`ResponseEventsGet`] as argument
     pub async fn event_listener<F, X>(&self, func: F)
     where
         F: Fn(Bot, ResponseEventsGet) -> X,
@@ -91,7 +92,7 @@ impl Bot {
     {
         loop {
             // Make a request to the API
-            let req = RequestEventsGet::new(&Methods::EventsGet(self.get_last_event_id()));
+            let req = RequestEventsGet::new(self.get_last_event_id());
             // Get response
             let res = self.send_api_request::<RequestEventsGet>(req).await;
             // Update last event id
@@ -113,7 +114,7 @@ impl Bot {
         }
     }
     /// Append method path to `base_api_path`
-    /// - `path` - append path to `base_api_path`
+    /// - `path`: [`String`] - append path to `base_api_path`
     pub fn set_path(&self, path: String) -> String {
         // Get base API path
         let mut full_path = self.base_api_path.clone();
@@ -123,11 +124,9 @@ impl Bot {
         full_path
     }
     /// Build full URL with optional query parameters
-    /// - `path` - append path to `base_api_path`
-    /// - `query` - append `token` query parameter to URL
+    /// - `path`: [`String`] - append path to `base_api_path`
+    /// - `query`: [`String`] - append `token` query parameter to URL
     /// Parse with [`Url::parse`]
-    ///
-    /// [`base_api_url`]: #structfield.base_api_url
     pub fn get_parsed_url(&self, path: String, query: String) -> Result<Url> {
         // Make URL with base API path
         let url = Url::parse(self.base_api_url.as_str());
@@ -152,6 +151,15 @@ impl Bot {
     /// Serialize request generic type `Rq` with [`serde_url_params::to_string`] into query string
     /// Get response body with [`response`]
     /// Deserialize response with [`serde_json::from_str`]
+    /// - `message`: generic type `Rq` - request type
+    /// ## Panics
+    /// - Unable to serialize request
+    /// - Unable to parse URL
+    /// - Unable to get response body
+    /// - Unable to deserialize response
+    /// - Unable to send request
+    /// - Unable to get response
+    /// - Unable to get response status
     ///
     /// [`response`]: #method.response
     pub async fn send_api_request<Rq>(&self, message: Rq) -> Result<<Rq>::ResponseType>
@@ -218,301 +226,5 @@ impl Bot {
                 Err(e.into())
             }
         }
-    }
-    /// Method `chats/avatarSet` for upload avatar image
-    /// - `file` - local file name path for upload
-    pub async fn chats_avatar_set(
-        &self,
-        chat_id: ChatId,
-        file: String,
-    ) -> Result<ResponseChatsAvatarSet> {
-        self.send_api_request(RequestChatsAvatarSet::new(&Methods::ChatsAvatarSet(
-            chat_id,
-            MultipartName::Image(file),
-        )))
-        .await
-    }
-    /// Method `chats/blockUser` for block user in chat
-    /// - `del_last_message` - delete last message send by user
-    pub async fn chats_block_user(
-        &self,
-        chat_id: ChatId,
-        user_id: UserId,
-        del_last_message: bool,
-    ) -> Result<ResponseChatsBlockUser> {
-        self.send_api_request(RequestChatsBlockUser::new(&Methods::ChatsBlockUser(
-            chat_id,
-            user_id,
-            del_last_message,
-        )))
-        .await
-    }
-    /// Method `chats/getAdmins` for get chat admins
-    pub async fn chats_get_admins(&self, chat_id: ChatId) -> Result<ResponseChatsGetAdmins> {
-        self.send_api_request(RequestChatsGetAdmins::new(&Methods::ChatsGetAdmins(
-            chat_id,
-        )))
-        .await
-    }
-    /// Method `chats/getBlockedUsers` for get blocked users in chat
-    pub async fn chats_get_blocked_users(
-        &self,
-        chat_id: ChatId,
-    ) -> Result<ResponseChatsGetBlockedUsers> {
-        self.send_api_request(RequestChatsGetBlockedUsers::new(
-            &Methods::ChatsGetBlockedUsers(chat_id),
-        ))
-        .await
-    }
-    /// Method `chats/getInfo` for get chat info
-    pub async fn chats_get_info(&self, chat_id: ChatId) -> Result<ResponseChatsGetInfo> {
-        self.send_api_request(RequestChatsGetInfo::new(&Methods::ChatsGetInfo(chat_id)))
-            .await
-    }
-    /// Method `chats/getMembers` for get chat members
-    pub async fn chats_get_members(&self, chat_id: ChatId) -> Result<ResponseChatsGetMembers> {
-        self.send_api_request(RequestChatsGetMembers::new(&Methods::ChatsGetMembers(
-            chat_id,
-        )))
-        .await
-    }
-    /// Method `chats/getPendingUsers` for get pending users in chat
-    pub async fn chats_get_pending_users(
-        &self,
-        chat_id: ChatId,
-    ) -> Result<ResponseChatsGetPendingUsers> {
-        self.send_api_request(RequestChatsGetPendingUsers::new(
-            &Methods::ChatsGetPendingUsers(chat_id),
-        ))
-        .await
-    }
-    /// Method `chats/membersDelete` for delete user from chat
-    pub async fn chats_members_delete(
-        &self,
-        chat_id: ChatId,
-        user_id: UserId,
-    ) -> Result<ResponseChatsMembersDelete> {
-        self.send_api_request(RequestChatsMembersDelete::new(
-            &Methods::ChatsMembersDelete(chat_id, user_id),
-        ))
-        .await
-    }
-    /// Method `chats/pinMessage` for pin message in chat
-    pub async fn chats_pin_message(
-        &self,
-        chat_id: ChatId,
-        msg_id: MsgId,
-    ) -> Result<ResponseChatsPinMessage> {
-        self.send_api_request(RequestChatsPinMessage::new(&Methods::ChatsPinMessage(
-            chat_id, msg_id,
-        )))
-        .await
-    }
-    /// Method `chats/resolverPending` for resolve pending users in chat
-    /// - `approve` - approve or decline
-    /// - `everyone` - approve or decline all
-    pub async fn chats_resolve_pending(
-        &self,
-        chat_id: ChatId,
-        approve: bool,
-        user_id: Option<UserId>,
-        everyone: Option<bool>,
-    ) -> Result<ResponseChatsResolvePending> {
-        self.send_api_request(RequestChatsResolvePending::new(
-            &Methods::ChatsResolvePending(chat_id, approve, user_id, everyone),
-        ))
-        .await
-    }
-    /// Method `chats/sendActions` for send chat actions
-    pub async fn chats_send_actions(
-        &self,
-        chat_id: ChatId,
-        action_type: ChatActions,
-    ) -> Result<ResponseChatsSendAction> {
-        self.send_api_request(RequestChatsSendAction::new(&Methods::ChatsSendAction(
-            chat_id,
-            action_type,
-        )))
-        .await
-    }
-    /// Method `chats/setAbout` for set chat about
-    /// - `about` - text chat about
-    pub async fn set_about(&self, chat_id: ChatId, about: String) -> Result<ResponseChatsSetAbout> {
-        self.send_api_request(RequestChatsSetAbout::new(&Methods::ChatsSetAbout(
-            chat_id, about,
-        )))
-        .await
-    }
-    /// Method `chats/setRules` for set chat rules
-    /// - `rules` - text chat rules
-    pub async fn set_rules(&self, chat_id: ChatId, rules: String) -> Result<ResponseChatsSetRules> {
-        self.send_api_request(RequestChatsSetRules::new(&Methods::ChatsSetRules(
-            chat_id, rules,
-        )))
-        .await
-    }
-    /// Method `chats/setTitle` for set chat title
-    /// - `title` - text chat title
-    pub async fn chats_set_title(
-        &self,
-        chat_id: ChatId,
-        title: String,
-    ) -> Result<ResponseChatsSetTitle> {
-        self.send_api_request(RequestChatsSetTitle::new(&Methods::ChatsSetTitle(
-            chat_id, title,
-        )))
-        .await
-    }
-    /// Method `chats/unblockUser` for unblock user in chat
-    pub async fn chats_unblock_user(
-        &self,
-        chat_id: ChatId,
-        user_id: UserId,
-    ) -> Result<ResponseChatsUnblockUser> {
-        self.send_api_request(RequestChatsUnblockUser::new(&Methods::ChatsUnblockUser(
-            chat_id, user_id,
-        )))
-        .await
-    }
-    /// Method `chats/unpinMessage` for unpin message in chat
-    pub async fn chats_unpin_message(
-        &self,
-        chat_id: ChatId,
-        msg_id: MsgId,
-    ) -> Result<ResponseChatsUnpinMessage> {
-        self.send_api_request(RequestChatsUnpinMessage::new(&Methods::ChatsUnpinMessage(
-            chat_id, msg_id,
-        )))
-        .await
-    }
-    /// Method `events/get` for get bot API events
-    pub async fn events_get(&self) -> Result<ResponseEventsGet> {
-        self.send_api_request(RequestEventsGet::new(&Methods::EventsGet(
-            self.get_last_event_id(),
-        )))
-        .await
-    }
-    /// Method `files/getInfo` for get file info
-    pub async fn files_get_info(&self, file_id: FileId) -> Result<ResponseFilesGetInfo> {
-        self.send_api_request(RequestFilesGetInfo::new(&Methods::FilesGetInfo(file_id)))
-            .await
-    }
-    /// Method `messages/answerCallbackQuery`
-    /// - `query_id` - identifier callback query received by the bot
-    /// - `text` - the text of the notification to be displayed to the user. If the text is not specified, nothing will be displayed.
-    /// - `show_alert` - if `true` show alert instead of notification
-    /// - `url` - URL to be opened by the client application
-    pub async fn messages_answer_callback_query(
-        &self,
-        query_id: QueryId,
-        text: Option<String>,
-        show_alert: Option<ShowAlert>,
-        url: Option<String>,
-    ) -> Result<ResponseMessagesAnswerCallbackQuery> {
-        self.send_api_request(RequestMessagesAnswerCallbackQuery::new(
-            &Methods::MessagesAnswerCallbackQuery(query_id, text, show_alert, url),
-        ))
-        .await
-    }
-    /// Method `messages/deleteMessages` for delete messages in chat
-    pub async fn messages_delete_messages(
-        &self,
-        chat_id: ChatId,
-        msg_id: MsgId,
-    ) -> Result<ResponseMessagesDeleteMessages> {
-        //TODO: Add delete for multiple messages
-        self.send_api_request(RequestMessagesDeleteMessages::new(
-            &Methods::MessagesDeleteMessages(chat_id, msg_id),
-        ))
-        .await
-    }
-    /// Method `messages/editText` for edit message text
-    pub async fn messages_edit_text(
-        &self,
-        chat_id: ChatId,
-        msg_id: MsgId,
-        parser: Option<MessageTextParser>,
-    ) -> Result<ResponseMessagesEditText> {
-        self.send_api_request(
-            RequestMessagesEditText::new(&Methods::MessagesEditText(chat_id, msg_id))
-                .set_text(parser)
-                .to_owned(),
-        )
-        .await
-    }
-    /// Method `messages/sendFile` for send file with text caption, keyboard, forward or reply messages
-    #[allow(clippy::too_many_arguments)]
-    pub async fn messages_send_file(
-        &self,
-        chat_id: ChatId,
-        file: String,
-        parser: Option<MessageTextParser>,
-        keyboard: Option<Keyboard>,
-        forward_msg_id: Option<MsgId>,
-        forward_chat_id: Option<ChatId>,
-        reply_msg_id: Option<MsgId>,
-    ) -> Result<ResponseMessagesSendFile> {
-        self.send_api_request(
-            RequestMessagesSendFile::new(&Methods::MessagesSendFile(
-                chat_id,
-                MultipartName::File(file),
-            ))
-            .set_text(parser)
-            .set_keyboard(keyboard)
-            .set_forward_msg_id(forward_chat_id, forward_msg_id)
-            .set_reply_msg_id(reply_msg_id)
-            .to_owned(),
-        )
-        .await
-    }
-    /// Method `messages/sendVoice` for send voice message with text caption, keyboard, forward or reply messages
-    #[allow(clippy::too_many_arguments)]
-    pub async fn messages_send_voice(
-        &self,
-        chat_id: ChatId,
-        file: String,
-        parser: Option<MessageTextParser>,
-        keyboard: Option<Keyboard>,
-        forward_msg_id: Option<MsgId>,
-        forward_chat_id: Option<ChatId>,
-        reply_msg_id: Option<MsgId>,
-    ) -> Result<ResponseMessagesSendVoice> {
-        self.send_api_request(
-            RequestMessagesSendVoice::new(&Methods::MessagesSendVoice(
-                chat_id,
-                MultipartName::File(file),
-            ))
-            .set_text(parser)
-            .set_keyboard(keyboard)
-            .set_forward_msg_id(forward_chat_id, forward_msg_id)
-            .set_reply_msg_id(reply_msg_id)
-            .to_owned(),
-        )
-        .await
-    }
-    /// Method `messages/sendText` for send text message with keyboard, forward or reply messages
-    pub async fn messages_send_text(
-        &self,
-        chat_id: ChatId,
-        parser: Option<MessageTextParser>,
-        keyboard: Option<Keyboard>,
-        forward_msg_id: Option<MsgId>,
-        forward_chat_id: Option<ChatId>,
-        reply_msg_id: Option<MsgId>,
-    ) -> Result<ResponseMessagesSendText> {
-        self.send_api_request(
-            RequestMessagesSendText::new(&Methods::MessagesSendText(chat_id))
-                .set_text(parser)
-                .set_keyboard(keyboard)
-                .set_forward_msg_id(forward_chat_id, forward_msg_id)
-                .set_reply_msg_id(reply_msg_id)
-                .to_owned(),
-        )
-        .await
-    }
-    /// Method `self/get` for get bot info
-    pub async fn self_get(&self) -> Result<ResponseSelfGet> {
-        self.send_api_request(RequestSelfGet::new(&Methods::SelfGet()))
-            .await
     }
 }

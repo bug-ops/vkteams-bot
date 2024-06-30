@@ -39,45 +39,37 @@ impl BotRequest for RequestMessagesSendTextWithDeepLink {
     const METHOD: &'static str = "messages/sendTextWithDeepLink";
     type RequestType = Self;
     type ResponseType = ResponseMessagesSendTextWithDeepLink;
-    fn new(method: &Methods) -> Self {
-        match method {
-            Methods::MessagesSendTextWithDeepLink(chat_id, deep_link) => Self {
-                chat_id: chat_id.to_owned(),
-                deep_link: deep_link.to_owned(),
-                ..Default::default()
-            },
-            _ => panic!("Wrong API method for RequestMessagesSendTextWithDeepLink"),
+}
+impl RequestMessagesSendTextWithDeepLink {
+    /// Create a new RequestMessagesSendTextWithDeepLink with the chat_id and deep_link
+    /// - `chat_id` - [`ChatId`]
+    /// - `deep_link` - `String`
+    pub fn new(chat_id: ChatId, deep_link: String) -> Self {
+        Self {
+            chat_id,
+            deep_link,
+            ..Default::default()
         }
     }
 }
 impl MessageTextSetters for RequestMessagesSendTextWithDeepLink {
-    fn set_text(&mut self, parser: Option<MessageTextParser>) -> &mut Self {
-        match parser {
-            Some(p) => {
-                let (text, parse_mode) = p.parse();
-                self.text = Some(text);
-                self.parse_mode = Some(parse_mode);
-                self
-            }
-            None => self,
-        }
+    fn set_text(&mut self, parser: MessageTextParser) -> Self {
+        let (text, parse_mode) = parser.parse();
+        self.text = Some(text);
+        self.parse_mode = Some(parse_mode);
+        self.to_owned()
     }
-    fn set_reply_msg_id(&mut self, msg_id: Option<MsgId>) -> &mut Self {
-        self.reply_msg_id = msg_id;
-        self
+    fn set_reply_msg_id(&mut self, msg_id: MsgId) -> Self {
+        self.reply_msg_id = Some(msg_id);
+        self.to_owned()
     }
-    fn set_forward_msg_id(&mut self, chat_id: Option<ChatId>, msg_id: Option<MsgId>) -> &mut Self {
-        self.forward_chat_id = chat_id;
-        self.forward_msg_id = msg_id;
-        self
+    fn set_forward_msg_id(&mut self, chat_id: ChatId, msg_id: MsgId) -> Self {
+        self.forward_chat_id = Some(chat_id);
+        self.forward_msg_id = Some(msg_id);
+        self.to_owned()
     }
-    fn set_keyboard(&mut self, keyboard: Option<Keyboard>) -> &mut Self {
-        match keyboard {
-            Some(k) => {
-                self.inline_keyboard_markup = Some(k.into());
-                self
-            }
-            None => self,
-        }
+    fn set_keyboard(&mut self, keyboard: Keyboard) -> Self {
+        self.inline_keyboard_markup = Some(keyboard.into());
+        self.to_owned()
     }
 }

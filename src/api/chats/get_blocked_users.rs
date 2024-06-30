@@ -14,19 +14,18 @@ pub struct RequestChatsGetBlockedUsers {
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsGetBlockedUsers {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub users: Option<Vec<Users>>,
+    #[serde(default)]
+    pub users: Vec<Users>,
 }
 impl BotRequest for RequestChatsGetBlockedUsers {
     const METHOD: &'static str = "chats/getBlockedUsers";
     type RequestType = Self;
     type ResponseType = ResponseChatsGetBlockedUsers;
-    fn new(method: &Methods) -> Self {
-        match method {
-            Methods::ChatsGetBlockedUsers(chat_id) => Self {
-                chat_id: chat_id.to_owned(),
-            },
-            _ => panic!("Wrong API method for RequestChatsGetBlockedUsers"),
-        }
+}
+impl RequestChatsGetBlockedUsers {
+    /// Create a new RequestChatsGetBlockedUsers with the chat_id
+    /// - `chat_id` - [`ChatId`]
+    pub fn new(chat_id: ChatId) -> Self {
+        Self { chat_id }
     }
 }

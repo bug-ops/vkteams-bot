@@ -25,15 +25,28 @@ impl BotRequest for RequestChatsResolvePending {
     const METHOD: &'static str = "chats/resolvePending";
     type RequestType = Self;
     type ResponseType = ResponseChatsResolvePending;
-    fn new(method: &Methods) -> Self {
-        match method {
-            Methods::ChatsResolvePending(chat_id, approve, user_id, everyone) => Self {
-                chat_id: chat_id.to_owned(),
-                approve: approve.to_owned(),
-                user_id: user_id.to_owned(),
-                everyone: everyone.to_owned(),
-            },
-            _ => panic!("Wrong API method for RequestChatsResolvePending"),
+}
+impl RequestChatsResolvePending {
+    /// Create a new RequestChatsResolvePending with the chat_id and approve
+    /// - `chat_id` - [`ChatId`]
+    /// - `approve` - [`bool`]
+    pub fn new(chat_id: ChatId, approve: bool) -> Self {
+        Self {
+            chat_id,
+            approve,
+            ..Default::default()
         }
+    }
+    /// Set user_id for the request
+    /// - `user_id` - [`UserId`]
+    pub fn set_user(&mut self, user_id: UserId) -> &mut Self {
+        self.user_id = Some(user_id);
+        self
+    }
+    /// Set everyone for the request
+    /// - `everyone` - `bool`
+    pub fn set_everyone(&mut self, everyone: bool) -> &mut Self {
+        self.everyone = Some(everyone);
+        self
     }
 }

@@ -6,7 +6,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! vkteams = "0.4"
+//! vkteams = "0.5"
 //! ```
 //!
 //! [VK Teams Bot API]: https://teams.vk.com/botapi/?lang=en

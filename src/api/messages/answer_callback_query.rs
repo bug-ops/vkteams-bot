@@ -10,7 +10,7 @@ pub struct RequestMessagesAnswerCallbackQuery {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub show_alert: Option<ShowAlert>,
+    pub show_alert: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
 }
@@ -25,15 +25,29 @@ impl BotRequest for RequestMessagesAnswerCallbackQuery {
     const METHOD: &'static str = "messages/answerCallbackQuery";
     type RequestType = Self;
     type ResponseType = ResponseMessagesAnswerCallbackQuery;
-    fn new(method: &Methods) -> Self {
-        match method {
-            Methods::MessagesAnswerCallbackQuery(query_id, text, show_alert, url) => Self {
-                query_id: query_id.to_owned(),
-                text: text.to_owned(),
-                show_alert: show_alert.to_owned(),
-                url: url.to_owned(),
-            },
-            _ => panic!("Wrong API method for RequestMessagesAnswerCallbackQuery"),
+}
+impl RequestMessagesAnswerCallbackQuery {
+    /// Create a new RequestMessagesAnswerCallbackQuery with the query_id
+    /// - `query_id` - [`QueryId`]
+    pub fn new(query_id: QueryId) -> Self {
+        Self {
+            query_id,
+            ..Default::default()
         }
+    }
+    /// Set text
+    pub fn set_text(mut self, text: String) -> Self {
+        self.text = Some(text);
+        self.to_owned()
+    }
+    /// Set show_alert
+    pub fn set_alert(mut self, show_alert: bool) -> Self {
+        self.show_alert = Some(show_alert);
+        self.to_owned()
+    }
+    /// Set url
+    pub fn set_url(mut self, url: String) -> Self {
+        self.url = Some(url);
+        self.to_owned()
     }
 }

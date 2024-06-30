@@ -16,7 +16,10 @@ pub async fn get_text_response(client: Client, url: Url) -> Result<String> {
         Ok(r) => {
             debug!("Response status: OK");
             match r.text().await {
-                Ok(t) => Ok(t),
+                Ok(t) => {
+                    debug!("Response BODY: {}", t);
+                    Ok(t)
+                }
                 Err(e) => Err(e.into()),
             }
         }
@@ -93,7 +96,10 @@ pub async fn post_response_file<'a>(
         Ok(r) => {
             debug!("Response status: OK");
             match r.text().await {
-                Ok(t) => Ok(t),
+                Ok(t) => {
+                    debug!("Response BODY: {}", t);
+                    Ok(t)
+                }
                 Err(e) => Err(e.into()),
             }
         }

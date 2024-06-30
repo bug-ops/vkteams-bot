@@ -20,13 +20,12 @@ impl BotRequest for RequestMessagesDeleteMessages {
     const METHOD: &'static str = "messages/deleteMessages";
     type RequestType = Self;
     type ResponseType = ResponseMessagesDeleteMessages;
-    fn new(method: &Methods) -> Self {
-        match method {
-            Methods::MessagesDeleteMessages(chat_id, msg_id) => Self {
-                chat_id: chat_id.to_owned(),
-                msg_id: msg_id.to_owned(),
-            },
-            _ => panic!("Wrong API method for RequestMessagesDeleteMessages"),
-        }
+}
+impl RequestMessagesDeleteMessages {
+    /// Create a new RequestMessagesDeleteMessages with the chat_id and msg_id
+    /// - `chat_id` - [`ChatId`]
+    /// - `msg_id` - [`MsgId`]
+    pub fn new(chat_id: ChatId, msg_id: MsgId) -> Self {
+        Self { chat_id, msg_id }
     }
 }

@@ -28,44 +28,28 @@ impl BotRequest for RequestMessagesEditText {
     const METHOD: &'static str = "messages/editText";
     type RequestType = Self;
     type ResponseType = ResponseMessagesEditText;
-    fn new(method: &Methods) -> Self {
-        match method {
-            Methods::MessagesEditText(chat_id, msg_id) => Self {
-                chat_id: chat_id.to_owned(),
-                msg_id: msg_id.to_owned(),
-                ..Default::default()
-            },
-            _ => panic!("Wrong API method for RequestMessagesEditText"),
+}
+impl RequestMessagesEditText {
+    /// Create a new RequestMessagesEditText with the chat_id and msg_id
+    /// - `chat_id` - [`ChatId`]
+    /// - `msg_id` - [`MsgId`]
+    pub fn new(chat_id: ChatId, msg_id: MsgId) -> Self {
+        Self {
+            chat_id,
+            msg_id,
+            ..Default::default()
         }
     }
 }
 impl MessageTextSetters for RequestMessagesEditText {
-    fn set_text(&mut self, parser: Option<MessageTextParser>) -> &mut Self {
-        match parser {
-            Some(p) => {
-                let (text, parse_mode) = p.parse();
-                self.text = Some(text);
-                self.parse_mode = Some(parse_mode);
-                self
-            }
-            None => self,
-        }
+    fn set_text(&mut self, parser: MessageTextParser) -> Self {
+        let (text, parse_mode) = parser.parse();
+        self.text = Some(text);
+        self.parse_mode = Some(parse_mode);
+        self.to_owned()
     }
-    fn set_reply_msg_id(&mut self, _: Option<MsgId>) -> &mut Self {
-        warn!("Reply message ID is not supported for edit message");
-        self
-    }
-    fn set_forward_msg_id(&mut self, _: Option<ChatId>, _: Option<MsgId>) -> &mut Self {
-        warn!("Forward message ID is not supported for edit message");
-        self
-    }
-    fn set_keyboard(&mut self, keyboard: Option<Keyboard>) -> &mut Self {
-        match keyboard {
-            Some(k) => {
-                self.inline_keyboard_markup = Some(k.into());
-                self
-            }
-            None => self,
-        }
+    fn set_keyboard(&mut self, keyboard: Keyboard) -> Self {
+        self.inline_keyboard_markup = Some(keyboard.into());
+        self.to_owned()
     }
 }

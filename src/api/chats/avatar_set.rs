@@ -17,26 +17,20 @@ pub struct RequestChatsAvatarSet {
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsAvatarSet {
     pub ok: bool,
-    pub description: Option<String>,
+    #[serde(default)]
+    pub description: String,
 }
 impl BotRequest for RequestChatsAvatarSet {
     const METHOD: &'static str = "chats/avatar/set";
     const HTTP_METHOD: HTTPMethod = HTTPMethod::POST;
     type RequestType = Self;
     type ResponseType = ResponseChatsAvatarSet;
-    fn new(method: &Methods) -> Self {
-        match method {
-            Methods::ChatsAvatarSet(chat_id, multipart) => Self {
-                chat_id: chat_id.to_owned(),
-                multipart: multipart.to_owned(),
-            },
-            _ => panic!("Wrong API method for RequestChatsAvatarSet"),
-        }
-    }
-    fn get_file(&self) -> Option<MultipartName> {
-        match self.multipart {
-            MultipartName::File(..) | MultipartName::Image(..) => Some(self.multipart.to_owned()),
-            _ => None,
-        }
+}
+impl RequestChatsAvatarSet {
+    /// Create a new RequestChatsAvatarSet with the chat_id and multipart
+    /// - `chat_id` - [`ChatId`]
+    /// - `multipart` - [`MultipartName`]
+    pub fn new(chat_id: ChatId, multipart: MultipartName) -> Self {
+        Self { chat_id, multipart }
     }
 }
