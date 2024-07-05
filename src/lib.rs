@@ -34,13 +34,16 @@
 //! ```
 #[macro_use]
 extern crate log;
+/// Bot client
 pub mod bot;
+/// API methods
 pub mod api {
     pub mod default;
     pub mod display;
     pub mod net;
     pub mod types;
     pub mod utils;
+    /// API `/chats/` methods
     pub mod chats {
         pub mod avatar_set;
         pub mod block_user;
@@ -59,21 +62,25 @@ pub mod api {
         pub mod unblock_user;
         pub mod unpin_message;
     }
+    /// API `/events/` methods
     pub mod events {
         pub mod get;
     }
+    /// API `/files/` methods
     pub mod files {
         pub mod get_info;
     }
+    /// API `/messages/` methods
     pub mod messages {
         pub mod answer_callback_query;
         pub mod delete_messages;
         pub mod edit_text;
         pub mod send_file;
         pub mod send_text;
-        pub mod send_text_with_deep_link;
+        // pub mod send_text_with_deep_link;
         pub mod send_voice;
     }
+    /// API `/myself/` methods
     pub mod myself {
         pub mod get;
     }

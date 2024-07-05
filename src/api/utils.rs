@@ -1,32 +1,32 @@
+//! Module with traits for [`Keyboard`], [`MessageTextParser`], etc.
+use crate::api::types::*;
 use anyhow::{anyhow, Result};
 use reqwest::Url;
-
-use crate::api::types::*;
 use std::convert::From;
 
 impl From<Keyboard> for String {
-    /// Convert [`Keyboard`] to JSON string
+    /// # Convert [`Keyboard`] to JSON string
     fn from(val: Keyboard) -> Self {
         val.get_keyboard()
     }
 }
-/// Create new [`Keyboard`] and check params
 impl Keyboard {
+    /// # Create new [`Keyboard`]
     pub fn new() -> Self {
         Self {
             ..Default::default()
         }
     }
-    /// Append row with buttons to [`Keyboard`]
+    /// # Append row with buttons to [`Keyboard`]
     pub fn add_row(&mut self) -> Self {
         self.buttons.push(vec![]);
         self.to_owned()
     }
-    /// Get index of last row of [`Keyboard`]
+    /// # Get index of last row of [`Keyboard`]
     pub fn get_row_index(&self) -> usize {
         self.buttons.len() - 1
     }
-    /// Append button to last row of [`Keyboard`]
+    /// # Append button to last row of [`Keyboard`]
     /// Maximum buttons in row is 8. If row is full, add new row
     pub fn add_button(&mut self, button: &ButtonKeyboard) -> Self {
         // IF row is full, add new row
@@ -37,14 +37,17 @@ impl Keyboard {
         self.buttons[row_index].push(button.clone());
         self.to_owned()
     }
-    /// Get keyboard as JSON string
+    /// # Get keyboard as JSON string
     fn get_keyboard(&self) -> String {
         serde_json::to_string(&self.buttons).unwrap()
     }
 }
-/// Create new [`ButtonKeyboard`] and check params
 impl ButtonKeyboard {
     /// Create new [`ButtonKeyboard`] with URL
+    /// ## Parameters
+    /// - `text`: [`String`] - Button text
+    /// - `url`: [`String`] - URL
+    /// - `style`: [`ButtonStyle`] - Button style
     pub fn url(text: String, url: String, style: ButtonStyle) -> Self {
         ButtonKeyboard {
             text,
@@ -54,6 +57,10 @@ impl ButtonKeyboard {
         }
     }
     /// Create new [`ButtonKeyboard`] with callback data
+    /// ## Parameters
+    /// - `text`: [`String`] - Button text
+    /// - `cb`: [`String`] - Callback data
+    /// - `style`: [`ButtonStyle`] - Button style
     pub fn cb(text: String, cb: String, style: ButtonStyle) -> Self {
         ButtonKeyboard {
             text,
@@ -63,20 +70,23 @@ impl ButtonKeyboard {
         }
     }
 }
-/// Trait [`MessageTextHTMLParser`]
 pub trait MessageTextHTMLParser {
+    /// Create new parser
     fn new() -> Self
     where
         Self: Sized + Default,
     {
         Self::default()
     }
+    /// Add formatted text to parser
     fn add(&mut self, text: MessageTextFormat) -> Self;
+    /// Add new row to parser
     fn next_line(&mut self) -> Self;
+    /// Add space to parser
     fn space(&mut self) -> Self;
+    /// Parse text to HTML
     fn parse(&self) -> (String, ParseMode);
 }
-/// Implement [`MessageTextParser`]
 impl MessageTextParser {
     /// Parse [`MessageTextFormat`] types to HTML string
     fn parse_html(&self, text: &MessageTextFormat) -> Result<String> {
@@ -134,15 +144,17 @@ impl MessageTextParser {
             MessageTextFormat::None => Err(anyhow!("MessageTextFormat::None is not supported")),
         }
     }
+    /// Replace special characters with HTML entities
     fn replace_chars(&self, text: &str) -> String {
         text.replace('&', "&amp;")
             .replace('<', "&lt;")
             .replace('>', "&gt;")
     }
 }
-/// Implement [`MessageTextHTMLParser`] for [`MessageTextParser`]
 impl MessageTextHTMLParser for MessageTextParser {
     /// Add plain text to [`MessageTextFormat`]
+    /// ## Parameters
+    /// - `text`: [`String`] - Text
     fn add(&mut self, text: MessageTextFormat) -> Self {
         self.text.push(text);
         self.to_owned()
@@ -174,9 +186,11 @@ impl MessageTextHTMLParser for MessageTextParser {
         (result, self.parse_mode)
     }
 }
-/// Setters
 #[allow(unused_variables)]
 pub trait MessageTextSetters {
+    /// Set text
+    /// ## Parameters
+    /// - `parser`: [`MessageTextParser`] - Text parser
     fn set_text(&mut self, parser: MessageTextParser) -> Self
     where
         Self: Sized + Clone,
@@ -184,6 +198,9 @@ pub trait MessageTextSetters {
         warn!("Method not implemented");
         self.to_owned()
     }
+    /// Set reply message ID
+    /// ## Parameters
+    /// - `msg_id`: [`MsgId`] - Message ID
     fn set_reply_msg_id(&mut self, msg_id: MsgId) -> Self
     where
         Self: Sized + Clone,
@@ -191,6 +208,10 @@ pub trait MessageTextSetters {
         warn!("Method not implemented");
         self.to_owned()
     }
+    /// Set forward message ID
+    /// ## Parameters
+    /// - `chat_id`: [`ChatId`] - Chat ID
+    /// - `msg_id`: [`MsgId`] - Message ID
     fn set_forward_msg_id(&mut self, chat_id: ChatId, msg_id: MsgId) -> Self
     where
         Self: Sized + Clone,
@@ -198,6 +219,9 @@ pub trait MessageTextSetters {
         warn!("Method not implemented");
         self.to_owned()
     }
+    /// Set keyboard
+    /// ## Parameters
+    /// - `keyboard`: [`Keyboard`] - Keyboard
     fn set_keyboard(&mut self, keyboard: Keyboard) -> Self
     where
         Self: Sized + Clone,

@@ -1,3 +1,4 @@
+//! Default trait implementations
 use crate::api::types::*;
 /// Default values for [`Keyboard`]
 impl Default for Keyboard {
@@ -15,7 +16,7 @@ impl Default for MessageTextParser {
     fn default() -> Self {
         Self {
             // Empty vector of [`MessageTextFormat`]
-            text: vec![MessageTextFormat::None],
+            text: vec![],
             // Default parse mode is [`ParseMode::HTML`]
             parse_mode: ParseMode::HTML,
         }

@@ -1,8 +1,8 @@
+//! Send voice messages to a chat method `messages/sendVoice`
+//! [More info](https://teams.vk.com/botapi/#/messages/get_messages_sendVoice)
 use crate::api::types::*;
 use serde::{Deserialize, Serialize};
-/// Request for method [`SendMessagesAPIMethods::MessagesSendVoice`]
-///
-/// [`SendMessagesAPIMethods::MessagesSendVoice`]: enum.SendMessagesAPIMethods.html#variant.MessagesSendVoice
+/// Send voice messages to a chat method `messages/sendVoice`
 #[derive(Serialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestMessagesSendVoice {
@@ -26,9 +26,7 @@ pub struct RequestMessagesSendVoice {
 }
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
-/// Response for method [`SendMessagesAPIMethods::MessagesSendVoice`]
-///
-/// [`SendMessagesAPIMethods::MessagesSendVoice`]: enum.SendMessagesAPIMethods.html#variant.MessagesSendVoice
+/// Send voice messages to a chat method `messages/sendVoice`
 pub struct ResponseMessagesSendVoice {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub msg_id: Option<MsgId>,
@@ -41,17 +39,18 @@ impl BotRequest for RequestMessagesSendVoice {
     const HTTP_METHOD: HTTPMethod = HTTPMethod::POST;
     type RequestType = Self;
     type ResponseType = ResponseMessagesSendVoice;
-    /// Get the file from the multipart
-    fn get_file(&self) -> Option<MultipartName> {
+    /// Get the file [`MultipartName`]
+    fn get_file(&self) -> MultipartName {
         match self.multipart {
-            MultipartName::File(..) | MultipartName::Image(..) => Some(self.multipart.to_owned()),
-            _ => None,
+            MultipartName::File(..) | MultipartName::Image(..) => self.multipart.to_owned(),
+            _ => MultipartName::None,
         }
     }
 }
 impl RequestMessagesSendVoice {
-    /// Create a new RequestMessagesSendVoice with the chat_id
-    /// - `chat_id` - [`ChatId`]
+    /// Create a new [`RequestMessagesSendVoice`]
+    /// ## Parameters
+    /// - `chat_id`: [`ChatId`]
     pub fn new(chat_id: ChatId) -> Self {
         Self {
             chat_id,
@@ -60,21 +59,34 @@ impl RequestMessagesSendVoice {
     }
 }
 impl MessageTextSetters for RequestMessagesSendVoice {
+    /// Set the text of the message
+    /// ## Parameters
+    /// - `parser`: [`MessageTextParser`]
     fn set_text(&mut self, parser: MessageTextParser) -> Self {
         let (text, parse_mode) = parser.parse();
         self.text = Some(text);
         self.parse_mode = Some(parse_mode);
         self.to_owned()
     }
+    /// Set the reply message id
+    /// ## Parameters
+    /// - `msg_id`: [`MsgId`]
     fn set_reply_msg_id(&mut self, msg_id: MsgId) -> Self {
         self.reply_msg_id = Some(msg_id);
         self.to_owned()
     }
+    /// Set the forward message id
+    /// ## Parameters
+    /// - `chat_id`: [`ChatId`]
+    /// - `msg_id`: [`MsgId`]
     fn set_forward_msg_id(&mut self, chat_id: ChatId, msg_id: MsgId) -> Self {
         self.forward_chat_id = Some(chat_id);
         self.forward_msg_id = Some(msg_id);
         self.to_owned()
     }
+    /// Set the keyboard
+    /// ## Parameters
+    /// - `keyboard`: [`Keyboard`]
     fn set_keyboard(&mut self, keyboard: Keyboard) -> Self {
         self.inline_keyboard_markup = Some(keyboard.into());
         self.to_owned()

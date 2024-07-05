@@ -1,16 +1,18 @@
+//! Get information about a chat method `chats/getInfo`
+//! [More info](https://teams.vk.com/botapi/#/chats/get_chats_getInfo)
 use crate::api::types::*;
 use serde::{Deserialize, Serialize};
-/// Request for method [`SendMessagesAPIMethods::ChatsGetInfo`]
-///
-/// [`SendMessagesAPIMethods::ChatsGetInfo`]: enum.SendMessagesAPIMethods.html#variant.ChatsGetInfo
+/// # Chats get info request method `chats/getInfo`
 #[derive(Serialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestChatsGetInfo {
     pub chat_id: ChatId,
 }
-/// Response for method [`SendMessagesAPIMethods::ChatsGetInfo`]
-///
-/// [`SendMessagesAPIMethods::ChatsGetInfo`]: enum.SendMessagesAPIMethods.html#variant.ChatsGetInfo
+/// # Chats get info response method `chats/getInfo`
+/// Response can be one of the following types:
+/// - `private`: [`ResponseChatsPrivateGetInfo`]
+/// - `group`: [`ResponseChatsGroupGetInfo`]
+/// - `channel`: [`ResponseChatsChannelGetInfo`]
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum ResponseChatsGetInfo {
@@ -23,9 +25,7 @@ pub enum ResponseChatsGetInfo {
     #[default]
     None,
 }
-/// Response for method [`SendMessagesAPIMethods::ChatsGetInfo`]
-///
-/// [`SendMessagesAPIMethods::ChatsGetInfo`]: enum.SendMessagesAPIMethods.html#variant.ChatsGetInfo
+/// # Chats get info response method `chats/getInfo` for private chat
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsPrivateGetInfo {
@@ -36,9 +36,7 @@ pub struct ResponseChatsPrivateGetInfo {
     pub is_bot: bool,
     pub language: Languages,
 }
-/// Response for method [`SendMessagesAPIMethods::ChatsGetInfo`]
-///
-/// [`SendMessagesAPIMethods::ChatsGetInfo`]: enum.SendMessagesAPIMethods.html#variant.ChatsGetInfo
+/// # Chats get info response method `chats/getInfo` for group chat
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsGroupGetInfo {
@@ -49,9 +47,7 @@ pub struct ResponseChatsGroupGetInfo {
     pub public: bool,
     pub join_moderation: bool,
 }
-/// Response for method [`SendMessagesAPIMethods::ChatsGetInfo`]
-///
-/// [`SendMessagesAPIMethods::ChatsGetInfo`]: enum.SendMessagesAPIMethods.html#variant.ChatsGetInfo
+/// # Chats get info response method `chats/getInfo` for channel chat
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsChannelGetInfo {
@@ -62,14 +58,14 @@ pub struct ResponseChatsChannelGetInfo {
     pub public: bool,
     pub join_moderation: bool,
 }
-
 impl BotRequest for RequestChatsGetInfo {
     const METHOD: &'static str = "chats/getInfo";
     type RequestType = Self;
     type ResponseType = ResponseChatsGetInfo;
 }
 impl RequestChatsGetInfo {
-    /// Create a new RequestChatsGetInfo with the chat_id
+    /// Create a new [`RequestChatsGetInfo`] with the chat_id
+    /// ## Parameters
     /// - `chat_id` - [`ChatId`]
     pub fn new(chat_id: ChatId) -> Self {
         Self { chat_id }

@@ -1,8 +1,8 @@
+//! Avatar set method `chats/avatar/set`
+//! [More info](https://teams.vk.com/botapi/#/chats/post_chats_avatar_set)
 use crate::api::types::*;
 use serde::{Deserialize, Serialize};
-/// Request for method [`SendMessagesAPIMethods::ChatsAvatarSet`]
-///
-/// [`SendMessagesAPIMethods::ChatsAvatarSet`]: enum.SendMessagesAPIMethods.html#variant.ChatsAvatarSet
+/// # Chat avatar set request
 #[derive(Serialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestChatsAvatarSet {
@@ -10,9 +10,7 @@ pub struct RequestChatsAvatarSet {
     #[serde(skip)]
     pub multipart: MultipartName,
 }
-/// Response for method [`SendMessagesAPIMethods::ChatsAvatarSet`]
-///
-/// [`SendMessagesAPIMethods::ChatsAvatarSet`]: enum.SendMessagesAPIMethods.html#variant.ChatsAvatarSet
+/// # Chat avatar set response
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsAvatarSet {
@@ -27,9 +25,11 @@ impl BotRequest for RequestChatsAvatarSet {
     type ResponseType = ResponseChatsAvatarSet;
 }
 impl RequestChatsAvatarSet {
-    /// Create a new RequestChatsAvatarSet with the chat_id and multipart
-    /// - `chat_id` - [`ChatId`]
-    /// - `multipart` - [`MultipartName`]
+    /// Create a new [`RequestChatsAvatarSet`]
+    /// ## Parameters
+    /// - `chat_id`: [`ChatId`]
+    /// ## Body
+    /// - `multipart`: [`MultipartName`]
     pub fn new(chat_id: ChatId, multipart: MultipartName) -> Self {
         Self { chat_id, multipart }
     }

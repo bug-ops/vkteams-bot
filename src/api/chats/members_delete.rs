@@ -1,8 +1,8 @@
+//! Delete members from the chat method `chats/members/delete`
+//! [More info](https://teams.vk.com/botapi/#/chats/get_chats_members_delete)
 use crate::api::types::*;
 use serde::{Deserialize, Serialize};
-/// Request for method [`SendMessagesAPIMethods::ChatsMembersDelete`]
-///
-/// [`SendMessagesAPIMethods::ChatsMembersDelete`]: enum.SendMessagesAPIMethods.html#variant.ChatsMembersDelete
+/// # Delete members from the chat request method `chats/members/delete`
 #[derive(Serialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestChatsMembersDelete {
@@ -10,9 +10,7 @@ pub struct RequestChatsMembersDelete {
     pub user_id: UserId,
     pub members: Vec<Sn>,
 }
-/// Response for method [`SendMessagesAPIMethods::ChatsMembersDelete`]
-///
-/// [`SendMessagesAPIMethods::ChatsMembersDelete`]: enum.SendMessagesAPIMethods.html#variant.ChatsMembersDelete
+/// # Delete members from the chat response method `chats/members/delete`
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct ResponseChatsMembersDelete {
     pub ok: bool,
@@ -22,9 +20,9 @@ impl BotRequest for RequestChatsMembersDelete {
     type RequestType = Self;
     type ResponseType = ResponseChatsMembersDelete;
 }
-/// Add members to the chat
 impl RequestChatsMembersDelete {
-    /// Create a new RequestChatsMembersDelete with the chat_id and user_id
+    /// Create a new [`RequestChatsMembersDelete`]
+    /// ## Parameters
     /// - `chat_id` - [`ChatId`]
     /// - `user_id` - [`UserId`]
     pub fn new(chat_id: ChatId, user_id: UserId) -> Self {
@@ -34,9 +32,9 @@ impl RequestChatsMembersDelete {
             ..Default::default()
         }
     }
-    /// Create a new RequestChatsMembersDelete with the chat_id and user_id
-    /// - `chat_id` - [`ChatId`]
-    /// - `user_id` - [`UserId`]
+    /// Create a new [`RequestChatsMembersDelete`]
+    /// ## Parameters
+    /// - `Sn` - [`Sn`]
     pub fn add_member(&mut self, member: Sn) -> &mut Self {
         self.members.push(member);
         self

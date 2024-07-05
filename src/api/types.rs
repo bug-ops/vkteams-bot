@@ -1,3 +1,4 @@
+//! API types
 use std::fmt::*;
 use std::time::Duration;
 
@@ -11,8 +12,13 @@ pub use crate::api::chats::{
 pub use crate::api::events::get::*;
 pub use crate::api::files::get_info::*;
 pub use crate::api::messages::{
-    answer_callback_query::*, delete_messages::*, edit_text::*, send_file::*, send_text::*,
-    send_text_with_deep_link::*, send_voice::*,
+    answer_callback_query::*,
+    delete_messages::*,
+    edit_text::*,
+    send_file::*,
+    send_text::*,
+    // send_text_with_deep_link::*,
+    send_voice::*,
 };
 pub use crate::api::myself::get::*;
 pub use crate::api::{net::*, utils::*};
@@ -56,8 +62,8 @@ pub trait BotRequest {
     const HTTP_METHOD: HTTPMethod = HTTPMethod::GET;
     type RequestType: Serialize + Debug + Default;
     type ResponseType: Serialize + DeserializeOwned + Debug + Default;
-    fn get_file(&self) -> Option<MultipartName> {
-        None
+    fn get_file(&self) -> MultipartName {
+        MultipartName::None
     }
 }
 /// API event id type
@@ -101,12 +107,10 @@ pub struct MessageTextParser {
     /// - `MarkdownV2` - Markdown
     pub(crate) parse_mode: ParseMode,
 }
-/// Keyboard for method [`SendMessagesAPIMethods::MessagesSendText`]
+/// Keyboard for send message methods
 /// One of variants must be set:
 /// - {`text`: String,`url`: String,`style`: [`ButtonStyle`]} - simple buttons
 /// - {`text`: String,`callback_data`: String,`style`: [`ButtonStyle`]} - buttons with callback
-///
-/// [`SendMessagesAPIMethods::MessagesSendText`]: enum.SendMessagesAPIMethods.html#variant.MessagesSendText
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ButtonKeyboard {
@@ -152,14 +156,14 @@ pub struct EventMessage {
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 #[serde(rename_all = "camelCase", tag = "type", content = "payload")]
 pub enum EventType {
-    NewMessage(EventPayloadNewMessage),
+    NewMessage(Box<EventPayloadNewMessage>),
     EditedMessage(Box<EventPayloadEditedMessage>),
-    DeleteMessage(EventPayloadDeleteMessage),
-    PinnedMessage(EventPayloadPinnedMessage),
-    UnpinnedMessage(EventPayloadUnpinnedMessage),
+    DeleteMessage(Box<EventPayloadDeleteMessage>),
+    PinnedMessage(Box<EventPayloadPinnedMessage>),
+    UnpinnedMessage(Box<EventPayloadUnpinnedMessage>),
     NewChatMembers(Box<EventPayloadNewChatMembers>),
-    LeftChatMembers(EventPayloadLeftChatMembers),
-    CallbackQuery(EventPayloadCallbackQuery),
+    LeftChatMembers(Box<EventPayloadLeftChatMembers>),
+    CallbackQuery(Box<EventPayloadCallbackQuery>),
     #[default]
     None,
 }

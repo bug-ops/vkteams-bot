@@ -1,13 +1,11 @@
+//! Get information about the current user method `self/get`
+//! [More info](https://teams.vk.com/botapi/#/self/get_self_get)
 use crate::api::types::*;
 use serde::{Deserialize, Serialize};
-/// Request for method [`SendMessagesAPIMethods::SelfGet`]
-///
-/// [`SendMessagesAPIMethods::SelfGet`]: enum.SendMessagesAPIMethods.html#variant.SelfGet
+/// # Get information about the current user method `self/get`
 #[derive(Serialize, Clone, Debug, Default)]
 pub struct RequestSelfGet;
-/// Response for method [`SendMessagesAPIMethods::SelfGet`]
-///
-/// [`SendMessagesAPIMethods::SelfGet`]: enum.SendMessagesAPIMethods.html#variant.SelfGet
+/// # Get information about the current user method `self/get`
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseSelfGet {
@@ -26,7 +24,7 @@ impl BotRequest for RequestSelfGet {
     type ResponseType = ResponseSelfGet;
 }
 impl RequestSelfGet {
-    /// Create a new RequestSelfGet
+    /// Create a new [`RequestSelfGet`]
     pub fn new() -> Self {
         Self
     }

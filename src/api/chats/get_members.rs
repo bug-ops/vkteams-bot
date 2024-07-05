@@ -1,8 +1,8 @@
+//! # Get chat members method `chats/getMembers`
+//! [More info](https://teams.vk.com/botapi/#/chats/get_chats_getMembers)
 use crate::api::types::*;
 use serde::{Deserialize, Serialize};
-/// Request for method [`SendMessagesAPIMethods::ChatsGetMembers`]
-///
-/// [`SendMessagesAPIMethods::ChatsGetMembers`]: enum.SendMessagesAPIMethods.html#variant.ChatsGetMembers
+/// # Chats get members request method `chats/getMembers`
 #[derive(Serialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestChatsGetMembers {
@@ -10,9 +10,7 @@ pub struct RequestChatsGetMembers {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cursor: Option<u32>,
 }
-/// Response for method [`SendMessagesAPIMethods::ChatsGetMembers`]
-///
-/// [`SendMessagesAPIMethods::ChatsGetMembers`]: enum.SendMessagesAPIMethods.html#variant.ChatsGetMembers
+/// # Chats get members response method `chats/getMembers`
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsGetMembers {
@@ -27,7 +25,8 @@ impl BotRequest for RequestChatsGetMembers {
     type ResponseType = ResponseChatsGetMembers;
 }
 impl RequestChatsGetMembers {
-    /// Create a new RequestChatsGetMembers with the chat_id
+    /// Create a new [`RequestChatsGetMembers`]
+    /// ## Parameters
     /// - `chat_id` - [`ChatId`]
     pub fn new(chat_id: ChatId) -> Self {
         Self {
@@ -35,7 +34,8 @@ impl RequestChatsGetMembers {
             ..Default::default()
         }
     }
-    /// Set cursor for the request
+    /// Set cursor for the request [`RequestChatsGetMembers`]
+    /// ## Parameters
     /// - `cursor` - `u32`
     pub fn set_cursor(&mut self, cursor: u32) -> &mut Self {
         self.cursor = Some(cursor);

@@ -1,18 +1,16 @@
+//! File get info method `files/getInfo`
+//! [More info](https://teams.vk.com/botapi/#/files/get_files_getInfo)
 use crate::api::types::*;
 use anyhow::{anyhow, Result};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
-/// Request for method [`SendMessagesAPIMethods::FilesGetInfo`]
-///
-/// [`SendMessagesAPIMethods::FilesGetInfo`]: enum.SendMessagesAPIMethods.html#variant.FilesGetInfo
+/// File get info method `files/getInfo`
 #[derive(Serialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestFilesGetInfo {
     pub file_id: FileId,
 }
-/// Response for method [`SendMessagesAPIMethods::FilesGetInfo`]
-///
-/// [`SendMessagesAPIMethods::FilesGetInfo`]: enum.SendMessagesAPIMethods.html#variant.FilesGetInfo
+/// File get info method `files/getInfo`
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseFilesGetInfo {
@@ -34,7 +32,8 @@ impl BotRequest for RequestFilesGetInfo {
     type ResponseType = ResponseFilesGetInfo;
 }
 impl RequestFilesGetInfo {
-    /// Create a new RequestFilesGetInfo with the file_id
+    /// Create a new RequestFilesGetInfo
+    /// ## Parameters
     /// - `file_id` - [`FileId`]
     pub fn new(file_id: FileId) -> Self {
         Self { file_id }
@@ -42,6 +41,7 @@ impl RequestFilesGetInfo {
 }
 impl ResponseFilesGetInfo {
     /// Download file data
+    /// ## Parameters
     /// - `client`: [`reqwest::Client`] - reqwest client
     pub async fn download(&self, client: reqwest::Client) -> Result<Vec<u8>> {
         if !self.ok {

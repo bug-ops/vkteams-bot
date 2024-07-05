@@ -1,3 +1,4 @@
+//! Display thait implementations
 use crate::api::types::*;
 use std::fmt::{Display, Formatter, Result};
 /// Display trait for [`ChatId`]

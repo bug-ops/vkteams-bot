@@ -79,11 +79,13 @@ impl Bot {
         *self.event_id.lock().unwrap()
     }
     /// Set last event id
+    /// ## Parameters
     /// - `id`: [`EventId`] - last event id
     pub fn set_last_event_id(&self, id: EventId) {
         *self.event_id.lock().unwrap() = id;
     }
     /// Listen for events and execute callback function
+    /// ## Parameters
     /// - `func` - callback function with [`Result`] type [`ResponseEventsGet`] as argument
     pub async fn event_listener<F, X>(&self, func: F)
     where

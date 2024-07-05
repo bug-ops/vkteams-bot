@@ -1,16 +1,14 @@
+//! Get chat admins method `chats/getAdmins`
+//! [More info](https://teams.vk.com/botapi/#/chats/get_chats_getAdmins)
 use crate::api::types::*;
 use serde::{Deserialize, Serialize};
-/// Request for method [`SendMessagesAPIMethods::ChatsGetAdmins`]
-///
-/// [`SendMessagesAPIMethods::ChatsGetAdmins`]: enum.SendMessagesAPIMethods.html#variant.ChatsGetAdmins
+/// # Chats get admins request method `chats/getAdmins`
 #[derive(Serialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestChatsGetAdmins {
     pub chat_id: ChatId,
 }
-/// Response for method [`SendMessagesAPIMethods::ChatsGetAdmins`]
-///
-/// [`SendMessagesAPIMethods::ChatsGetAdmins`]: enum.SendMessagesAPIMethods.html#variant.ChatsGetAdmins
+/// # Chats get admins response method `chats/getAdmins`
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsGetAdmins {
@@ -23,8 +21,9 @@ impl BotRequest for RequestChatsGetAdmins {
     type ResponseType = ResponseChatsGetAdmins;
 }
 impl RequestChatsGetAdmins {
-    /// Create a new RequestChatsGetAdmins with the chat_id
-    /// - `chat_id` - [`ChatId`]
+    /// # Create a new [`RequestChatsGetAdmins`]
+    /// ## Parameters
+    /// - `chat_id`: [`ChatId`]
     pub fn new(chat_id: ChatId) -> Self {
         Self { chat_id }
     }

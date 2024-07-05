@@ -1,16 +1,14 @@
+//! Get blocked users method `chats/getBlockedUsers`
+//! [More info](https://teams.vk.com/botapi/#/chats/get_chats_getBlockedUsers)
 use crate::api::types::*;
 use serde::{Deserialize, Serialize};
-/// Request for method [`SendMessagesAPIMethods::ChatsGetBlockedUsers`]
-///
-/// [`SendMessagesAPIMethods::ChatsGetBlockedUsers`]: enum.SendMessagesAPIMethods.html#variant.ChatsGetBlockedUsers
+/// # Chats get blocked users request method `chats/getBlockedUsers`
 #[derive(Serialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestChatsGetBlockedUsers {
     pub chat_id: ChatId,
 }
-/// Response for method [`SendMessagesAPIMethods::ChatsGetBlockedUsers`]
-///
-/// [`SendMessagesAPIMethods::ChatsGetBlockedUsers`]: enum.SendMessagesAPIMethods.html#variant.ChatsGetBlockedUsers
+/// # Chats get blocked users response method `chats/getBlockedUsers`
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsGetBlockedUsers {
@@ -23,8 +21,9 @@ impl BotRequest for RequestChatsGetBlockedUsers {
     type ResponseType = ResponseChatsGetBlockedUsers;
 }
 impl RequestChatsGetBlockedUsers {
-    /// Create a new RequestChatsGetBlockedUsers with the chat_id
-    /// - `chat_id` - [`ChatId`]
+    /// Create a new [`RequestChatsGetBlockedUsers`] with the chat_id
+    /// ## Parameters
+    /// - `chat_id`: [`ChatId`]
     pub fn new(chat_id: ChatId) -> Self {
         Self { chat_id }
     }

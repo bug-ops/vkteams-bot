@@ -1,17 +1,15 @@
+//! Set chat title method `chats/setTitle`
+//! [More Info](https://teams.vk.com/botapi/#/chats/get_chats_setTitle)
 use crate::api::types::*;
 use serde::{Deserialize, Serialize};
-/// Request for method [`SendMessagesAPIMethods::ChatsSetTitle`]
-///
-/// [`SendMessagesAPIMethods::ChatsSetTitle`]: enum.SendMessagesAPIMethods.html#variant.ChatsSetTitle
+/// # Set chat title method `chats/setTitle`
 #[derive(Serialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestChatsSetTitle {
     pub chat_id: ChatId,
     pub title: String,
 }
-/// Response for method [`SendMessagesAPIMethods::ChatsSetTitle`]
-///
-/// [`SendMessagesAPIMethods::ChatsSetTitle`]: enum.SendMessagesAPIMethods.html#variant.ChatsSetTitle
+/// # Set chat title method `chats/setTitle`
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsSetTitle {
@@ -23,7 +21,8 @@ impl BotRequest for RequestChatsSetTitle {
     type ResponseType = ResponseChatsSetTitle;
 }
 impl RequestChatsSetTitle {
-    /// Create a new RequestChatsSetTitle with the chat_id and title
+    /// Create a new [`RequestChatsSetTitle`]
+    /// ## Parameters
     /// - `chat_id` - [`ChatId`]
     /// - `title` - [`String`]
     pub fn new(chat_id: ChatId, title: String) -> Self {

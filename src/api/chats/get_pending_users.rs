@@ -1,16 +1,14 @@
+//! Get pending users method `chats/getPendingUsers`
+//! [More info](https://teams.vk.com/botapi/#/chats/get_chats_getPendingUsers)
 use crate::api::types::*;
 use serde::{Deserialize, Serialize};
-/// Request for method [`SendMessagesAPIMethods::ChatsBlockUser`]
-///
-/// [`SendMessagesAPIMethods::ChatsBlockUser`]: enum.SendMessagesAPIMethods.html#variant.ChatsBlockUser
+/// # Chats get pending users request method `chats/getPendingUsers`
 #[derive(Serialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestChatsGetPendingUsers {
     pub chat_id: ChatId,
 }
-/// Response for method [`SendMessagesAPIMethods::ChatsBlockUser`]
-///
-/// [`SendMessagesAPIMethods::ChatsBlockUser`]: enum.SendMessagesAPIMethods.html#variant.ChatsBlockUser
+/// # Chats get pending users response method `chats/getPendingUsers`
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsGetPendingUsers {
@@ -23,7 +21,8 @@ impl BotRequest for RequestChatsGetPendingUsers {
     type ResponseType = ResponseChatsGetPendingUsers;
 }
 impl RequestChatsGetPendingUsers {
-    /// Create a new RequestChatsGetPendingUsers with the chat_id
+    /// Create a new [`RequestChatsGetPendingUsers`]
+    /// ## Parameters
     /// - `chat_id` - [`ChatId`]
     pub fn new(chat_id: ChatId) -> Self {
         Self { chat_id }

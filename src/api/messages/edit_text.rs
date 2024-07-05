@@ -1,8 +1,8 @@
+//! Edit text messages method `messages/editText`
+//! [More info](https://teams.vk.com/botapi/#/messages/get_messages_editText)
 use crate::api::types::*;
 use serde::{Deserialize, Serialize};
-/// Request for method [`SendMessagesAPIMethods::MessagesEditText`]
-///
-/// [`SendMessagesAPIMethods::MessagesEditText`]: enum.SendMessagesAPIMethods.html#variant.MessagesEditText
+/// Edit text messages method `messages/editText`
 #[derive(Serialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestMessagesEditText {
@@ -17,9 +17,7 @@ pub struct RequestMessagesEditText {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parse_mode: Option<ParseMode>,
 }
-/// Response for method [`SendMessagesAPIMethods::MessagesEditText`]
-///
-/// [`SendMessagesAPIMethods::MessagesEditText`]: enum.SendMessagesAPIMethods.html#variant.MessagesEditText
+/// Edit text messages method `messages/editText`
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct ResponseMessagesEditText {
     pub ok: bool,
@@ -30,9 +28,10 @@ impl BotRequest for RequestMessagesEditText {
     type ResponseType = ResponseMessagesEditText;
 }
 impl RequestMessagesEditText {
-    /// Create a new RequestMessagesEditText with the chat_id and msg_id
-    /// - `chat_id` - [`ChatId`]
-    /// - `msg_id` - [`MsgId`]
+    /// Create a new [`RequestMessagesEditText`]
+    /// ## Parameters
+    /// - `chat_id`: [`ChatId`]
+    /// - `msg_id`: [`MsgId`]
     pub fn new(chat_id: ChatId, msg_id: MsgId) -> Self {
         Self {
             chat_id,
@@ -42,12 +41,18 @@ impl RequestMessagesEditText {
     }
 }
 impl MessageTextSetters for RequestMessagesEditText {
+    /// Set text
+    /// ## Parameters
+    /// - `parser`: [`MessageTextParser`]
     fn set_text(&mut self, parser: MessageTextParser) -> Self {
         let (text, parse_mode) = parser.parse();
         self.text = Some(text);
         self.parse_mode = Some(parse_mode);
         self.to_owned()
     }
+    /// Set format
+    /// ## Parameters
+    /// - `format`: [`MessageFormat`]
     fn set_keyboard(&mut self, keyboard: Keyboard) -> Self {
         self.inline_keyboard_markup = Some(keyboard.into());
         self.to_owned()

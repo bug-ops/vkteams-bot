@@ -9,6 +9,7 @@ async fn main() {
     // Initialize logger
     pretty_env_logger::init();
     info!("Starting...");
+    const CODE_STRING: &str = "<!DOCTYPE html>\n<html>\n<head>\n<title>Page Title</title>\n</head>\n<body>\n</body>\n</html>";
     // Send message like text generation
     let bot = Bot::default();
     // Get chat_id from .env
@@ -28,14 +29,15 @@ async fn main() {
     match bot
         .send_api_request(
             RequestMessagesSendText::new(chat_id.to_owned())
-                .set_text(MessageTextParser::new()
-        .add(MessageTextFormat::Plain("Code below:".to_string()))
-        .next_line()
-        .add(MessageTextFormat::Pre(
-            "<!DOCTYPE html>\n<html>\n<head>\n<title>Page Title</title>\n</head>\n<body>\n</body>\n</html>"
-                .to_string(),
-            Some("html".to_string()),
-        )))
+                .set_text(
+                    MessageTextParser::new()
+                        .add(MessageTextFormat::Plain("Code below:".to_string()))
+                        .next_line()
+                        .add(MessageTextFormat::Pre(
+                            CODE_STRING.to_string(),
+                            Some("html".to_string()),
+                        )),
+                )
                 .set_keyboard(
                     Keyboard::new()
                         .add_button(&ButtonKeyboard::url(

@@ -1,17 +1,15 @@
+//! Set a chat's about text method `chats/setAbout`
+//! [Nore info](https://teams.vk.com/botapi/#/chats/get_chats_setAbout)
 use crate::api::types::*;
 use serde::{Deserialize, Serialize};
-/// Request for method [`SendMessagesAPIMethods::ChatsSetAbout`]
-///
-/// [`SendMessagesAPIMethods::ChatsSetAbout`]: enum.SendMessagesAPIMethods.html#variant.ChatsSetAbout
+/// # Chat's about text method `chats/setAbout`
 #[derive(Serialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestChatsSetAbout {
     pub chat_id: ChatId,
     pub about: String,
 }
-/// Response for method [`SendMessagesAPIMethods::ChatsSetAbout`]
-///
-/// [`SendMessagesAPIMethods::ChatsSetAbout`]: enum.SendMessagesAPIMethods.html#variant.ChatsSetAbout
+/// # Chat's about text method `chats/setAbout`
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsSetAbout {
@@ -23,7 +21,8 @@ impl BotRequest for RequestChatsSetAbout {
     type ResponseType = ResponseChatsSetAbout;
 }
 impl RequestChatsSetAbout {
-    /// Create a new RequestChatsSetAbout with the chat_id and about
+    /// Create a new [`RequestChatsSetAbout`]
+    /// ## Parameters
     /// - `chat_id` - [`ChatId`]
     /// - `about` - [`String`]
     pub fn new(chat_id: ChatId, about: String) -> Self {

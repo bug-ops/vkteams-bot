@@ -1,8 +1,8 @@
+//! Resolve pendings in chat method `chats/resolvePending`
+//! [More info](https://teams.vk.com/botapi/#/chats/get_chats_resolvePending)
 use crate::api::types::*;
 use serde::{Deserialize, Serialize};
-/// Request for method [`SendMessagesAPIMethods::ChatsResolvePending`]
-///
-/// [`SendMessagesAPIMethods::ChatsResolvePending`]: enum.SendMessagesAPIMethods.html#variant.ChatsResolvePending
+/// #Resolve pendings request method `chats/resolvePending`
 #[derive(Serialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestChatsResolvePending {
@@ -13,9 +13,7 @@ pub struct RequestChatsResolvePending {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub everyone: Option<bool>,
 }
-/// Response for method [`SendMessagesAPIMethods::ChatsResolvePending`]
-///
-/// [`SendMessagesAPIMethods::ChatsResolvePending`]: enum.SendMessagesAPIMethods.html#variant.ChatsResolvePending
+/// # Resolve pendings response method `chats/resolvePending`
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseChatsResolvePending {
@@ -27,7 +25,8 @@ impl BotRequest for RequestChatsResolvePending {
     type ResponseType = ResponseChatsResolvePending;
 }
 impl RequestChatsResolvePending {
-    /// Create a new RequestChatsResolvePending with the chat_id and approve
+    /// Create a new [`RequestChatsResolvePending`]
+    /// ## Parameters
     /// - `chat_id` - [`ChatId`]
     /// - `approve` - [`bool`]
     pub fn new(chat_id: ChatId, approve: bool) -> Self {
@@ -37,13 +36,15 @@ impl RequestChatsResolvePending {
             ..Default::default()
         }
     }
-    /// Set user_id for the request
+    /// Set user_id for the request [`RequestChatsResolvePending`]
+    /// ## Parameters
     /// - `user_id` - [`UserId`]
     pub fn set_user(&mut self, user_id: UserId) -> &mut Self {
         self.user_id = Some(user_id);
         self
     }
-    /// Set everyone for the request
+    /// Set everyone for the request [`RequestChatsResolvePending`]
+    /// ## Parameters
     /// - `everyone` - `bool`
     pub fn set_everyone(&mut self, everyone: bool) -> &mut Self {
         self.everyone = Some(everyone);

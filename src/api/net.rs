@@ -1,5 +1,6 @@
+//! Network module
 use crate::api::types::*;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use reqwest::{
     multipart::{Form, Part},
     Body, Client, Url,
@@ -49,25 +50,20 @@ pub async fn get_bytes_response(client: Client, url: Url) -> Result<Vec<u8>> {
 }
 /// Upload file stream to API in multipart form
 /// - `file` - file name
-pub async fn file_to_multipart(file: Option<MultipartName>) -> Result<Form> {
-    match file {
-        Some(multipart) => {
-            //Get name of the form part
-            let name = multipart.to_string();
-            //Get filename
-            let filename = match multipart {
-                MultipartName::File(name) | MultipartName::Image(name) => name,
-                _ => panic!("No file"),
-            };
-            //Create stream from file
-            let file_stream = make_stream(filename.to_owned()).await?;
-            //Create part from stream
-            let part = Part::stream(file_stream).file_name(filename.to_owned());
-            //Create multipart form
-            Ok(Form::new().part(name, part))
-        }
-        None => Err(anyhow!("No file")),
-    }
+pub async fn file_to_multipart(file: MultipartName) -> Result<Form> {
+    //Get name of the form part
+    let name = file.to_string();
+    //Get filename
+    let filename = match file {
+        MultipartName::File(name) | MultipartName::Image(name) => name,
+        _ => panic!("No file"),
+    };
+    //Create stream from file
+    let file_stream = make_stream(filename.to_owned()).await?;
+    //Create part from stream
+    let part = Part::stream(file_stream).file_name(filename.to_owned());
+    //Create multipart form
+    Ok(Form::new().part(name, part))
 }
 /// Create stream from file
 /// - `path` - file path
