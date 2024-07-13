@@ -53,8 +53,9 @@ log = "0.4"
 [Examples:](examples)
 
 - [new message](examples/new_message.rs)
+- [new message / edit message](examples/emul_chat_gpt.rs)
 - [event listener](examples/event_listener.rs)
 - [answer callback query](examples/callback_query.rs)
-- [new message / edit message](examples/emul_chat_gpt.rs)
+- [chat - get info](examples/chat_get_info.rs)
 - [chat admin - avatar set](examples/chat_admin_avatar_set.rs)
 - [chat - download files](examples/chat_get_file.rs)
