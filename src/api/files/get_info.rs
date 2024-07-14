@@ -1,6 +1,7 @@
 //! File get info method `files/getInfo`
 //! [More info](https://teams.vk.com/botapi/#/files/get_files_getInfo)
 use crate::api::types::*;
+use crate::bot::net::*;
 use anyhow::{anyhow, Result};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};

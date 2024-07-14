@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate log;
 use std::vec::IntoIter;
-use vkteams_bot::{self, api::types::*};
+use vkteams_bot::prelude::*;
 
 #[tokio::main]
 async fn main() {

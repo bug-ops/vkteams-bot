@@ -1,6 +1,6 @@
 //! Edit text messages method `messages/editText`
 //! [More info](https://teams.vk.com/botapi/#/messages/get_messages_editText)
-use crate::api::types::*;
+use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 /// Edit text messages method `messages/editText`
 #[derive(Serialize, Clone, Debug, Default)]

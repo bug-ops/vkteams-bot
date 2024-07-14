@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate log;
 
-use vkteams_bot::{self, api::types::*};
+use vkteams_bot::prelude::*;
 
 const CALLBACK_DATA: &str = "callback_button_#1";
 const CALLBACK_TEXT: &str = "callback_text";

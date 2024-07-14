@@ -1,6 +1,6 @@
 //! Send a file to a chat method `messages/sendFile`
 //! [More info](https://teams.vk.com/botapi/#/messages/get_messages_sendFile)
-use crate::api::types::*;
+use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 /// Send a file to a chat method `messages/sendFile`
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]

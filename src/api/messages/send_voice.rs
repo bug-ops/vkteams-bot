@@ -1,6 +1,6 @@
 //! Send voice messages to a chat method `messages/sendVoice`
 //! [More info](https://teams.vk.com/botapi/#/messages/get_messages_sendVoice)
-use crate::api::types::*;
+use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 /// Send voice messages to a chat method `messages/sendVoice`
 #[derive(Serialize, Clone, Debug, Default)]

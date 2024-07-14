@@ -1,6 +1,6 @@
 //! Send text messages to the chat method `messages/sendText`
 //! [More info](https://teams.vk.com/botapi/#/messages/get_messages_sendText)
-use crate::api::types::*;
+use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 /// # Send text messages to the chat method `messages/sendText`
 #[derive(Serialize, Clone, Debug, Default)]

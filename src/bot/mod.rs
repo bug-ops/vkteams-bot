@@ -1,11 +1,13 @@
-use crate::api::types::*;
+#[cfg(feature = "longpoll")]
+pub mod longpoll;
+pub mod net;
+
+use crate::prelude::*;
 use anyhow::Result;
+pub use net::*;
 use reqwest::{Client, Url};
 use serde::Serialize;
-use std::{
-    future::Future,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 #[derive(Debug, Clone)]
 /// Bot class with attributes
 /// - `client`: [`reqwest::Client`]
@@ -83,37 +85,6 @@ impl Bot {
     /// - `id`: [`EventId`] - last event id
     pub fn set_last_event_id(&self, id: EventId) {
         *self.event_id.lock().unwrap() = id;
-    }
-    /// Listen for events and execute callback function
-    /// ## Parameters
-    /// - `func` - callback function with [`Result`] type [`ResponseEventsGet`] as argument
-    pub async fn event_listener<F, X>(&self, func: F)
-    where
-        F: Fn(Bot, ResponseEventsGet) -> X,
-        X: Future<Output = ()> + Send + Sync + 'static,
-    {
-        loop {
-            // Make a request to the API
-            let req = RequestEventsGet::new(self.get_last_event_id());
-            // Get response
-            let res = self.send_api_request::<RequestEventsGet>(req).await;
-            // Update last event id
-            match res {
-                Ok(events) => {
-                    let evt = events.events.clone();
-                    // If at least one event read
-                    if !evt.is_empty() {
-                        // Update last event id
-                        self.set_last_event_id(evt[evt.len() - 1].event_id);
-                        // Execute callback function
-                        func(self.clone(), events).await;
-                    }
-                }
-                Err(e) => {
-                    error!("Error: {:?}", e);
-                }
-            }
-        }
     }
     /// Append method path to `base_api_path`
     /// - `path`: [`String`] - append path to `base_api_path`

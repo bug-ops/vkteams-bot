@@ -4,26 +4,6 @@ use std::time::Duration;
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-pub use crate::api::chats::{
-    avatar_set::*, block_user::*, get_admins::*, get_blocked_users::*, get_info::*, get_members::*,
-    get_pending_users::*, members_delete::*, pin_message::*, resolve_pendings::*, send_action::*,
-    set_about::*, set_rules::*, set_title::*, unblock_user::*, unpin_message::*,
-};
-pub use crate::api::events::get::*;
-pub use crate::api::files::get_info::*;
-pub use crate::api::messages::{
-    answer_callback_query::*,
-    delete_messages::*,
-    edit_text::*,
-    send_file::*,
-    send_text::*,
-    // send_text_with_deep_link::*,
-    send_voice::*,
-};
-pub use crate::api::myself::get::*;
-pub use crate::api::{net::*, utils::*};
-pub use crate::bot::*;
-
 /// Environment variable name for bot API URL
 pub const VKTEAMS_BOT_API_URL: &str = "VKTEAMS_BOT_API_URL";
 /// Environment variable name for bot API token

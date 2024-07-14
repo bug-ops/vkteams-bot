@@ -2,7 +2,7 @@
 extern crate log;
 
 use tokio::time::*;
-use vkteams_bot::{self, api::types::*};
+use vkteams_bot::prelude::*;
 
 #[tokio::main]
 async fn main() {
