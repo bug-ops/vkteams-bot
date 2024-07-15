@@ -34,7 +34,7 @@
 //! ```
 #[macro_use]
 extern crate log;
-mod bot;
+pub mod bot;
 pub mod prelude;
 /// API methods
 mod api {
