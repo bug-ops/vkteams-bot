@@ -1,21 +1,40 @@
 #[macro_use]
 extern crate log;
-
 use anyhow::Result;
+use async_trait::async_trait;
+use axum::extract::FromRef;
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::fmt::*;
 use vkteams_bot::bot::webhook::*;
 use vkteams_bot::prelude::*;
 // Environment variable for the chat id
 const CHAT_ID: &str = "VKTEAMS_CHAT_ID";
-// State for the webhook
+
 #[derive(Debug, Clone)]
-struct ApiState {
+pub struct ExtendState {
     bot: Bot,
     chat_id: ChatId,
     path: String,
 }
+impl FromRef<AppState<ExtendState>> for ExtendState {
+    fn from_ref(state: &AppState<ExtendState>) -> Self {
+        state.ext.to_owned()
+    }
+}
+
+impl Default for ExtendState {
+    fn default() -> Self {
+        let bot = Bot::default();
+        let chat_id = ChatId(
+            std::env::var(CHAT_ID)
+                .expect("Unable to find VKTEAMS_CHAT_ID in .env file")
+                .to_string(),
+        );
+        let path = format!("/alert/{chat_id}");
+        Self { bot, chat_id, path }
+    }
+}
+
 #[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PrometheusMessage {
@@ -46,31 +65,22 @@ pub enum AlertStatus {
     Resolved,
     Firing,
 }
-
-impl WebhookState for ApiState {
+#[async_trait]
+impl WebhookState for ExtendState {
     type WebhookType = PrometheusMessage;
 
-    fn new(bot: Bot) -> Self {
-        let chat_id = ChatId(
-            std::env::var(CHAT_ID)
-                .expect("Unable to find VKTEAMS_CHAT_ID in .env file")
-                .to_string(),
-        );
-        Self {
-            bot,
-            chat_id: chat_id.to_owned(),
-            path: format!("/alert/{chat_id}"),
-        }
-    }
     fn get_path(&self) -> String {
         self.path.clone()
     }
-    fn handler(&self, json: Self::WebhookType) -> Result<()> {
-        let message = format!("Prometheus Alert: {:?}", json);
+    async fn handler(&self, msg: Self::WebhookType) -> Result<()> {
+        let message = format!("Prometheus Alert: {:?}", msg);
+
         let parser = MessageTextParser::default().add(MessageTextFormat::Plain(message));
         let req = RequestMessagesSendText::new(self.chat_id.to_owned()).set_text(parser);
-        move || async { self.bot.send_api_request(req).await };
-        Ok(())
+        match self.bot.send_api_request(req).await {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e.into()),
+        }
     }
 }
 
@@ -82,6 +92,5 @@ pub async fn main() -> Result<()> {
     pretty_env_logger::init();
     info!("Starting...");
     // Make bot
-    let state = ApiState::new(Bot::default());
-    webhook(state).await
+    run_app_webhook(ExtendState::default()).await
 }

@@ -15,7 +15,8 @@ reqwest = { version = "0.12", features = ["json", "stream", "multipart"] }
 tokio = { version = "1.38.0", features = ["full"] }
 tokio-util = { version = "0.7", features = ["codec"] }
 tower-http = { version = "0.5", features = ["timeout", "trace", "cors"] }
-axum = "0.7"
+async-trait = "0.1"
+axum = { version = "0.7", features = ["macros"] }
 serde = { version = "1", features = ["derive"] }
 serde_url_params = "0.2"
 serde_json = "1"
@@ -26,5 +27,6 @@ anyhow = "1"
 
 [features]
 default = ["longpoll"]
+full = ["webhook", "longpoll"]
 longpoll = []
 webhook = []

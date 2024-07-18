@@ -1,12 +1,14 @@
-use crate::prelude::*;
 use anyhow::Result;
+use async_trait::async_trait;
+use axum::extract::FromRef;
 use axum::{
-    extract::{Json, State},
+    extract::State,
     http::{Method, StatusCode},
     response::IntoResponse,
     routing::post,
     Router,
 };
+use serde::de::DeserializeOwned;
 use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::signal;
@@ -14,34 +16,51 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
 /// Environment variable for the port
-const PORT: &str = "VKTEAMS_BOT_SERVER_PORT";
-/// Trait for the webhook state
-pub trait WebhookState {
-    type WebhookType: Clone + Send + Sync + 'static;
-    fn new(bot: Bot) -> Self;
-    fn get_path(&self) -> String;
-    async fn handler(&self, json: Self::WebhookType) -> Result<()>;
-}
-// impl WebhookHandler for Bot {
-pub async fn webhook<S>(state: S) -> Result<(), anyhow::Error>
+const DEFAULT_TCP_PORT: &str = "VKTEAMS_BOT_SERVER_PORT";
+const DEFAULT_BIND_IP: &str = "0.0.0.0";
+const TIMEOUT_SECS: u64 = 10;
+// State for the webhook
+#[derive(Default, Debug, Clone)]
+pub struct AppState<T>
 where
-    S: WebhookState + Clone + Send + Sync + 'static,
+    T: Default + WebhookState + Clone + Send + Sync + 'static,
+{
+    pub ext: T,
+}
+/// Trait for the webhook state
+#[async_trait]
+pub trait WebhookState: Clone + Send + Sync + 'static {
+    type WebhookType: DeserializeOwned;
+    fn get_path(&self) -> String;
+    fn deserialize(&self, json: String) -> Result<Self::WebhookType> {
+        serde_json::from_str(&json).map_err(|e| e.into())
+    }
+    async fn handler(&self, msg: Self::WebhookType) -> Result<()>;
+}
+/// Run the webhook consumer server
+pub async fn run_app_webhook<T>(ext: T) -> Result<()>
+where
+    T: WebhookState + FromRef<AppState<T>> + Default + 'static,
 {
     // Get the port from the environment variable or use the default port 3000
-    let tcp_port = std::env::var(PORT).unwrap_or_else(|_| "3000".to_string());
+    let tcp_port = std::env::var(DEFAULT_TCP_PORT).unwrap_or_else(|_| "3000".to_string());
+    // Bind the server to the port
+    let listener = TcpListener::bind(format!("{DEFAULT_BIND_IP}:{tcp_port}")).await?;
     // build our application with a single route
+    trace!(
+        "Listening...: {DEFAULT_BIND_IP}:{tcp_port}{}",
+        ext.get_path()
+    );
     let app = Router::new()
-        .route(state.get_path().as_str(), post(webhook_handler::<S>))
+        .route(ext.get_path().as_str(), post(webhook_handler::<T>))
         .layer((
             TraceLayer::new_for_http(),
-            TimeoutLayer::new(Duration::from_secs(10)),
+            TimeoutLayer::new(Duration::from_secs(TIMEOUT_SECS)),
             CorsLayer::new()
                 .allow_origin(AllowOrigin::predicate(|_, _| true))
                 .allow_methods([Method::POST]),
-        ));
-    // .with_state(state);
-    // Bind the server to the port
-    let listener = TcpListener::bind(format!("0.0.0.0:{tcp_port}")).await?;
+        ))
+        .with_state(AppState { ext });
     // Start the server
     axum::serve(listener, app.into_make_service())
         .with_graceful_shutdown(shutdown_signal())
@@ -49,22 +68,25 @@ where
 
     Ok(())
 }
-struct PrometheusMessage {}
 /// Handler for the webhook
-async fn webhook_handler<S>(
-    State(state): State<S>,
-    Json(json): Json<<S as WebhookState>::WebhookType>,
-) -> impl IntoResponse
+async fn webhook_handler<T>(State(state): State<T>, json: String) -> impl IntoResponse
 where
-    S: WebhookState + Clone + Send + Sync + 'static,
+    T: WebhookState + Default + Clone + Send + Sync + 'static,
 {
-    match state.handler(json).await {
-        Ok(_) => StatusCode::OK,
-        Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
-    }
+    trace!("Received webhook. Trying to deserialize");
+    let msg = match state.deserialize(json) {
+        Ok(msg) => msg,
+        Err(_) => return StatusCode::BAD_REQUEST,
+    };
+    trace!("Deserialized webhook. Handling");
+    state
+        .handler(msg)
+        .await
+        .map(|_| StatusCode::OK)
+        .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
 }
 /// Graceful shutdown signal
-pub async fn shutdown_signal() {
+async fn shutdown_signal() {
     let ctrl_c = async {
         signal::ctrl_c()
             .await

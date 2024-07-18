@@ -1,7 +1,7 @@
 #[cfg(feature = "longpoll")]
 pub mod longpoll;
 pub mod net;
-// #[cfg(feature = "webhook")]
+#[cfg(feature = "webhook")]
 pub mod webhook;
 
 use crate::prelude::*;
