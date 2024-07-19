@@ -44,7 +44,7 @@ $ set VKTEAMS_PROXY=<Proxy> #optional
 
 ```toml
 [dependencies]
-vkteams_bot = "0.5"
+vkteams_bot = { version = "0.6", feature = ["full"] }
 log = "0.4"
 ```
 
@@ -59,3 +59,4 @@ log = "0.4"
 - [chat - get info](examples/chat_get_info.rs)
 - [chat admin - avatar set](examples/chat_admin_avatar_set.rs)
 - [chat - download files](examples/chat_get_file.rs)
+- [bot - webhook handler](examples/prometheus_webhook.rs)
