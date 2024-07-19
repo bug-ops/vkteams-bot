@@ -16,6 +16,7 @@ pub struct ExtendState {
     chat_id: ChatId,
     path: String,
 }
+// Must implement FromRef trait to extract the substate
 impl FromRef<AppState<ExtendState>> for ExtendState {
     fn from_ref(state: &AppState<ExtendState>) -> Self {
         state.ext.to_owned()
@@ -42,9 +43,9 @@ pub struct PrometheusMessage {
     pub common_annotations: Option<HashMap<String, String>>,
     pub common_labels: Option<HashMap<String, String>>,
     pub external_url: Option<String>,
-    pub group_key: Option<String>,
+    pub group_key: Option<f32>,
     pub group_labels: Option<HashMap<String, String>>,
-    pub truncated_alerts: Option<u32>,
+    pub truncated_alerts: Option<f32>,
     pub receiver: String,
     pub status: AlertStatus,
     pub version: String,
@@ -65,6 +66,7 @@ pub enum AlertStatus {
     Resolved,
     Firing,
 }
+// Must implement WebhookState trait to handle the webhook
 #[async_trait]
 impl WebhookState for ExtendState {
     type WebhookType = PrometheusMessage;
@@ -72,6 +74,7 @@ impl WebhookState for ExtendState {
     fn get_path(&self) -> String {
         self.path.clone()
     }
+
     async fn handler(&self, msg: Self::WebhookType) -> Result<()> {
         let message = format!("Prometheus Alert: {:?}", msg);
 
@@ -91,6 +94,6 @@ pub async fn main() -> Result<()> {
     // Initialize logger
     pretty_env_logger::init();
     info!("Starting...");
-    // Make bot
+    // Run the app
     run_app_webhook(ExtendState::default()).await
 }

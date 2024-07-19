@@ -98,7 +98,10 @@ where
     trace!("Received webhook. Trying to deserialize");
     let msg = match state.deserialize(json) {
         Ok(msg) => msg,
-        Err(_) => return StatusCode::BAD_REQUEST,
+        Err(e) => {
+            error!("Failed to deserialize webhook: {}", e);
+            return StatusCode::BAD_REQUEST;
+        }
     };
     trace!("Deserialized webhook. Handling");
     state
