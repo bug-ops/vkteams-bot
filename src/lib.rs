@@ -7,7 +7,8 @@
 //!
 //! ```toml
 //! [dependencies]
-//! vkteams = "0.5"
+//! vkteams_bot = "0.6"
+//! log = "0.4"
 //! ```
 //!
 //! [VK Teams Bot API]: https://teams.vk.com/botapi/?lang=en
@@ -15,6 +16,7 @@
 //! [`tokio`]: https://docs.rs/tokio
 //! [`serde_json`]: https://docs.rs/serde_json
 //! [`serde_url_params`]: https://docs.rs/serde_url_params
+//! [`axum`]: https://docs.rs/axum
 //! # Environment
 //! - `RUST_LOG` - log level (default: `info`)
 //! - `VKTEAMS_BOT_API_TOKEN` - bot token

@@ -1,3 +1,25 @@
+//! # Webhook consumer server
+//! This module provides a webhook consumer server for the VK Teams Bot API.
+//! This crate provides a client for the [VK Teams Bot API] V1.
+//! Asynchronous request is based on [`reqwest`] and [`tokio`].
+//! Server webhook consumer is based on [`axum`].
+//! JSON Serialization and Deserialization [`serde_json`].
+//!
+//! ```toml
+//! [dependencies]
+//! vkteams_bot = { version = "0.6", features = ["webhook"] }
+//! log = "0.4"
+//! ```
+//!
+//! [VK Teams Bot API]: https://teams.vk.com/botapi/?lang=en
+//! [`axum`]: https://docs.rs/axum
+//! # Environment
+//! - `RUST_LOG` - log level (default: `info`)
+//! - `VKTEAMS_BOT_API_TOKEN` - bot token
+//! - `VKTEAMS_BOT_API_URL` - bot api url
+//! - `VKTEAMS_PROXY` - proxy url (optional)
+//! - `VKTEAMS_BOT_SERVER_PORT` - server port (default: 3000)
+
 use anyhow::Result;
 use async_trait::async_trait;
 use axum::extract::FromRef;
