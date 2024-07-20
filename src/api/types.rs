@@ -90,6 +90,9 @@ pub struct MessageTextParser {
     // Context for templates
     #[cfg(feature = "templates")]
     pub(crate) ctx: Context,
+    // Template name
+    #[cfg(feature = "templates")]
+    pub(crate) name: String,
     // Tera template engine
     #[cfg(feature = "templates")]
     pub(crate) tmpl: Tera,

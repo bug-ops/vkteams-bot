@@ -7,15 +7,17 @@ use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tera::Tera;
-// use vkteams_bot::api::utils::parser::*;
 use vkteams_bot::bot::webhook::*;
 use vkteams_bot::prelude::*;
 // Environment variable for the chat id
 const CHAT_ID: &str = "VKTEAMS_CHAT_ID";
+const TMPL_NAME: &str = "alert";
+// Initialize the Tera template
 lazy_static! {
     static ref TEMPLATES: Tera = {
         let mut tera = Tera::default();
-        tera.add_template_file("./alert.tera", None).unwrap();
+        tera.add_template_file("examples/templates/alert.tmpl", Some(TMPL_NAME))
+            .unwrap();
         tera
     };
 }
@@ -86,7 +88,7 @@ impl WebhookState for ExtendState {
 
     async fn handler(&self, msg: Self::WebhookType) -> Result<()> {
         // Parse the webhook message and render inti template
-        let parser = MessageTextParser::from_tmpl(TEMPLATES.to_owned()).set_ctx(msg);
+        let parser = MessageTextParser::from_tmpl(TEMPLATES.to_owned()).set_ctx(msg, TMPL_NAME);
         // Make request for bot API
         let req = RequestMessagesSendText::new(self.chat_id.to_owned()).set_text(parser);
         // Send request to the bot API

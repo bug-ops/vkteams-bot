@@ -17,16 +17,17 @@ impl MessageTextParser {
         }
     }
     pub fn parse_tmpl(&self) -> Result<String> {
-        match self.tmpl.render("alert", &self.ctx) {
+        match self.tmpl.render(&self.name.as_str(), &self.ctx) {
             Ok(text) => Ok(text),
             Err(e) => Err(e.into()),
         }
     }
-    pub fn set_ctx<T>(&mut self, msg: T) -> Self
+    pub fn set_ctx<T>(&mut self, msg: T, name: &str) -> Self
     where
         T: Serialize,
     {
         self.ctx = Context::from_serialize(msg).unwrap();
+        self.name = name.to_string();
         self.to_owned()
     }
 }

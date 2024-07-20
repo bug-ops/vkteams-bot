@@ -112,13 +112,21 @@ impl MessageTextHTMLParser for MessageTextParser {
                     }
                     result.push_str(&self.parse_html(item).unwrap());
                 }
+                (result, self.parse_mode)
             }
             #[cfg(feature = "templates")]
             ParseMode::Template => {
-                result.push_str(&self.parse_tmpl().unwrap());
+                let str = match &self.parse_tmpl() {
+                    Ok(text) => text.to_owned(),
+                    Err(e) => {
+                        error!("Error: {}", e);
+                        return (String::new(), ParseMode::HTML);
+                    }
+                };
+                result.push_str(str.as_str());
+                (result, ParseMode::HTML)
             }
             _ => todo!("Not implemented parse mode: {:?}", self.parse_mode),
         }
-        (result, self.parse_mode)
     }
 }
