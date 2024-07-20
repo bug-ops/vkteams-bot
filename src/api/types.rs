@@ -1,8 +1,12 @@
 //! API types
 use std::fmt::*;
 use std::time::Duration;
+#[cfg(feature = "templates")]
+use tera::Context;
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+#[cfg(feature = "templates")]
+use tera::Tera;
 
 /// Environment variable name for bot API URL
 pub const VKTEAMS_BOT_API_URL: &str = "VKTEAMS_BOT_API_URL";
@@ -78,10 +82,17 @@ pub enum MessageTextFormat {
     None,
 }
 /// Message text parse struct
-#[derive(Serialize, Clone, Debug)]
+#[derive(Default, Clone, Debug)]
 pub struct MessageTextParser {
     /// Array of text formats
+    //TODO: Add support for multiple text formats in one row
     pub(crate) text: Vec<MessageTextFormat>,
+    // Context for templates
+    #[cfg(feature = "templates")]
+    pub(crate) ctx: Context,
+    // Tera template engine
+    #[cfg(feature = "templates")]
+    pub(crate) tmpl: Tera,
     /// ## Parse mode
     /// - `HTML` - HTML
     /// - `MarkdownV2` - Markdown
@@ -122,6 +133,8 @@ pub enum ParseMode {
     MarkdownV2,
     #[default]
     HTML,
+    #[cfg(feature = "templates")]
+    Template,
 }
 /// Event message
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]

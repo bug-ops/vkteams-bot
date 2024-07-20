@@ -1,5 +1,5 @@
 //! Network module
-use crate::prelude::*;
+use crate::api::types::*;
 use anyhow::Result;
 use reqwest::{
     multipart::{Form, Part},

@@ -6,4 +6,5 @@ pub use crate::api::messages::*;
 pub use crate::api::myself::get::*;
 pub use crate::api::types::*;
 pub use crate::api::utils::*;
+pub use crate::api::*;
 pub use crate::bot::*;
