@@ -10,15 +10,15 @@ impl Default for Keyboard {
         }
     }
 }
-/// Default values for [`MessageTextParser`]
-impl Default for MessageTextParser {
-    /// Create new [`MessageTextParser`] with required params
-    fn default() -> Self {
-        Self {
-            // Empty vector of [`MessageTextFormat`]
-            text: vec![],
-            // Default parse mode is [`ParseMode::HTML`]
-            parse_mode: ParseMode::HTML,
-        }
-    }
-}
+// /// Default values for [`MessageTextParser`]
+// impl Default for MessageTextParser {
+//     /// Create new [`MessageTextParser`] with required params
+//     fn default() -> Self {
+//         Self {
+//             // Empty vector of [`MessageTextFormat`]
+//             text: vec![],
+//             parse_mode: ParseMode::HTML,
+
+//         }
+//     }
+// }

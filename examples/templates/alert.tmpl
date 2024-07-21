@@ -1,0 +1,16 @@
+{#https://teams.vk.com/botapi/tutorial/#Format_HTML#}
+<b>Scada UUID:</b>{{commonLabels.scada_uuid}}
+<b>Grouped for:</b>
+{%if status == "firing"%}
+Status: <b>{{status|upper}} 🔥</b>
+{%endif%}
+{%if status == "resolved"%}
+Status: <b>{{status|upper}} ✅</b>
+{%endif%}
+{%for alert in alerts%}
+<blockquote>
+{%for key,value in alert.labels%}
+<b>{{key}}:</b>{{value}}
+{%endfor%}
+</blockquote>
+{%endfor%}

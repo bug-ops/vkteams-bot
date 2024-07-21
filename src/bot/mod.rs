@@ -4,9 +4,9 @@ pub mod net;
 #[cfg(feature = "webhook")]
 pub mod webhook;
 
-use crate::prelude::*;
+use crate::api::types::*;
 use anyhow::Result;
-pub use net::*;
+use net::*;
 use reqwest::{Client, Url};
 use serde::Serialize;
 use std::sync::{Arc, Mutex};

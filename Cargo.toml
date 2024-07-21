@@ -1,7 +1,7 @@
 [package]
 license = "MIT OR Apache-2.0"
 name = "vkteams-bot"
-version = "0.6.1"
+version = "0.6.2"
 edition = "2021"
 authors = ["Andrei G. <k05h31@gmail.com>"]
 description = "VK Teams Bot API client"
@@ -26,12 +26,15 @@ serde_url_params = "0.2"
 serde_json = "1"
 anyhow = "1"
 log = "0.4"
+tera = { version = "1", default-features = false, optional = true }
+lazy_static = { version = "1.5.0", optional = true }
 
 [features]
 default = ["longpoll"]
-full = ["webhook", "longpoll"]
+full = ["webhook", "longpoll", "templates"]
 longpoll = []
 webhook = ["dep:axum", "dep:tower-http", "dep:async-trait"]
+templates = ["dep:tera", "dep:lazy_static"]
 
 [dev-dependencies]
 vkteams-bot = { path = ".", features = ["full"] }

@@ -54,6 +54,7 @@ impl MessageTextSetters for RequestMessagesSendText {
     /// - `parser`: [`MessageTextParser`]
     fn set_text(&mut self, parser: MessageTextParser) -> Self {
         let (text, parse_mode) = parser.parse();
+        trace!("Text: {}", text);
         self.text = Some(text);
         self.parse_mode = Some(parse_mode);
         self.to_owned()

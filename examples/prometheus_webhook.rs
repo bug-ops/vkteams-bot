@@ -3,13 +3,24 @@ extern crate log;
 use anyhow::Result;
 use async_trait::async_trait;
 use axum::extract::FromRef;
-use serde::Deserialize;
+use lazy_static::lazy_static;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use tera::Tera;
 use vkteams_bot::bot::webhook::*;
 use vkteams_bot::prelude::*;
 // Environment variable for the chat id
 const CHAT_ID: &str = "VKTEAMS_CHAT_ID";
-
+const TMPL_NAME: &str = "alert";
+// Initialize the Tera template
+lazy_static! {
+    static ref TEMPLATES: Tera = {
+        let mut tera = Tera::default();
+        tera.add_template_file("examples/templates/alert.tmpl", Some(TMPL_NAME))
+            .unwrap();
+        tera
+    };
+}
 #[derive(Debug, Clone)]
 pub struct ExtendState {
     bot: Bot,
@@ -36,31 +47,41 @@ impl Default for ExtendState {
     }
 }
 
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PrometheusMessage {
     pub alerts: Vec<Alert>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub common_annotations: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub common_labels: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub external_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub group_key: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub group_labels: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub truncated_alerts: Option<f32>,
     pub receiver: String,
     pub status: AlertStatus,
     pub version: String,
 }
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Alert {
     pub annotations: HashMap<String, String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub ends_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fingerprint: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub starts_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<AlertStatus>,
     pub labels: HashMap<String, String>,
 }
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub enum AlertStatus {
     Resolved,
@@ -76,10 +97,11 @@ impl WebhookState for ExtendState {
     }
 
     async fn handler(&self, msg: Self::WebhookType) -> Result<()> {
-        let message = format!("Prometheus Alert: {:?}", msg);
-
-        let parser = MessageTextParser::default().add(MessageTextFormat::Plain(message));
+        // Parse the webhook message and render inti template
+        let parser = MessageTextParser::from_tmpl(TEMPLATES.to_owned()).set_ctx(msg, TMPL_NAME);
+        // Make request for bot API
         let req = RequestMessagesSendText::new(self.chat_id.to_owned()).set_text(parser);
+        // Send request to the bot API
         match self.bot.send_api_request(req).await {
             Ok(_) => Ok(()),
             Err(e) => Err(e.into()),
