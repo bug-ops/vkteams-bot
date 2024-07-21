@@ -51,11 +51,17 @@ impl Default for ExtendState {
 #[serde(rename_all = "camelCase")]
 pub struct PrometheusMessage {
     pub alerts: Vec<Alert>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub common_annotations: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub common_labels: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub external_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub group_key: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub group_labels: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub truncated_alerts: Option<f32>,
     pub receiver: String,
     pub status: AlertStatus,
@@ -65,9 +71,13 @@ pub struct PrometheusMessage {
 #[serde(rename_all = "camelCase")]
 pub struct Alert {
     pub annotations: HashMap<String, String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub ends_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fingerprint: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub starts_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<AlertStatus>,
     pub labels: HashMap<String, String>,
 }
