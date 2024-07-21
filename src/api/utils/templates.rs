@@ -17,7 +17,7 @@ impl MessageTextParser {
         }
     }
     pub fn parse_tmpl(&self) -> Result<String> {
-        match self.tmpl.render(&self.name.as_str(), &self.ctx) {
+        match self.tmpl.render(self.name.as_str(), &self.ctx) {
             Ok(text) => Ok(text),
             Err(e) => Err(e.into()),
         }
