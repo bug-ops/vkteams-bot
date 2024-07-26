@@ -1,6 +1,8 @@
 #[cfg(feature = "longpoll")]
 pub mod longpoll;
 pub mod net;
+#[cfg(feature = "storage")]
+pub mod storage;
 #[cfg(feature = "webhook")]
 pub mod webhook;
 
