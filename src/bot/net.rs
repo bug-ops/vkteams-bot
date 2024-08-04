@@ -7,6 +7,7 @@ use reqwest::{
 };
 use std::time::Duration;
 use tokio::fs::File;
+use tokio::signal;
 use tokio_util::codec::{BytesCodec, FramedRead};
 /// Get text response from API
 /// Send request with [`Client`] `get` method and get body with [`reqwest::Response`] `text` method
@@ -155,4 +156,28 @@ pub fn get_env_url() -> Url {
             .as_str(),
     )
     .expect("Unable to parse VKTEAMS_BOT_API_URL")
+}
+/// Graceful shutdown signal
+pub async fn shutdown_signal() {
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
 }

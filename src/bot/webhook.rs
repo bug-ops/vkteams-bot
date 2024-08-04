@@ -20,6 +20,7 @@
 //! - `VKTEAMS_PROXY` - proxy url (optional)
 //! - `VKTEAMS_BOT_SERVER_PORT` - server port (default: 3000)
 
+use crate::bot::net::shutdown_signal;
 use anyhow::Result;
 use async_trait::async_trait;
 use axum::extract::FromRef;
@@ -33,13 +34,11 @@ use axum::{
 use serde::de::DeserializeOwned;
 use std::time::Duration;
 use tokio::net::TcpListener;
-use tokio::signal;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
 /// Environment variable for the port
-const DEFAULT_TCP_PORT: &str = "VKTEAMS_BOT_SERVER_PORT";
-const DEFAULT_BIND_IP: &str = "0.0.0.0";
+const DEFAULT_TCP_PORT: &str = "VKTEAMS_BOT_HTTP_PORT";
 const TIMEOUT_SECS: u64 = 10;
 // State for the webhook
 #[derive(Default, Debug, Clone)]
@@ -60,19 +59,16 @@ pub trait WebhookState: Clone + Send + Sync + 'static {
     async fn handler(&self, msg: Self::WebhookType) -> Result<()>;
 }
 /// Run the webhook consumer server
-pub async fn run_app_webhook<T>(ext: T) -> Result<()>
+pub async fn run_app<T>(ext: T) -> Result<()>
 where
     T: WebhookState + FromRef<AppState<T>> + Default + 'static,
 {
     // Get the port from the environment variable or use the default port 3000
-    let tcp_port = std::env::var(DEFAULT_TCP_PORT).unwrap_or_else(|_| "3000".to_string());
+    let tcp_port = std::env::var(DEFAULT_TCP_PORT).unwrap_or_else(|_| "3333".to_string());
     // Bind the server to the port
-    let listener = TcpListener::bind(format!("{DEFAULT_BIND_IP}:{tcp_port}")).await?;
+    let listener = TcpListener::bind(format!("[::]:{tcp_port}")).await?;
     // build our application with a single route
-    trace!(
-        "Listening...: {DEFAULT_BIND_IP}:{tcp_port}{}",
-        ext.get_path()
-    );
+    trace!("Listening localhost:{tcp_port}{}", ext.get_path());
     let app = Router::new()
         .route(ext.get_path().as_str(), post(webhook_handler::<T>))
         .layer((
@@ -109,28 +105,4 @@ where
         .await
         .map(|_| StatusCode::OK)
         .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
-}
-/// Graceful shutdown signal
-async fn shutdown_signal() {
-    let ctrl_c = async {
-        signal::ctrl_c()
-            .await
-            .expect("failed to install Ctrl+C handler");
-    };
-
-    #[cfg(unix)]
-    let terminate = async {
-        signal::unix::signal(signal::unix::SignalKind::terminate())
-            .expect("failed to install signal handler")
-            .recv()
-            .await;
-    };
-
-    #[cfg(not(unix))]
-    let terminate = std::future::pending::<()>();
-
-    tokio::select! {
-        _ = ctrl_c => {},
-        _ = terminate => {},
-    }
 }
