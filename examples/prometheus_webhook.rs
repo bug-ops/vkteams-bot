@@ -1,23 +1,25 @@
 #[macro_use]
 extern crate log;
 use anyhow::Result;
-use async_trait::async_trait;
-use axum::extract::FromRef;
-use lazy_static::lazy_static;
+use axum::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tera::Tera;
-use vkteams_bot::bot::webhook::*;
+use vkteams_bot::bot::webhook::{AppState, WebhookState};
 use vkteams_bot::prelude::*;
+// Environment variable for the gRPC port
+const DEFAULT_TCP_PORT: &str = "VKTEAMS_BOT_GRPC_PORT";
 // Environment variable for the chat id
 const CHAT_ID: &str = "VKTEAMS_CHAT_ID";
 const TMPL_NAME: &str = "alert";
-// Initialize the Tera template
-lazy_static! {
-    static ref TEMPLATES: Tera = {
-        let mut tera = Tera::default();
-        tera.add_template_file("examples/templates/alert.tmpl", Some(TMPL_NAME))
-            .unwrap();
+// define the Tera template
+lazy_static::lazy_static! {
+    static ref TEMPLATES:tera::Tera = {
+        let mut tera = tera::Tera::default();
+        tera.add_template_file(
+            format!("examples/templates/{TMPL_NAME}.tmpl"),
+            Some(TMPL_NAME),
+        )
+        .unwrap();
         tera
     };
 }
@@ -28,12 +30,12 @@ pub struct ExtendState {
     path: String,
 }
 // Must implement FromRef trait to extract the substate
-impl FromRef<AppState<ExtendState>> for ExtendState {
+impl axum::extract::FromRef<AppState<ExtendState>> for ExtendState {
     fn from_ref(state: &AppState<ExtendState>) -> Self {
         state.ext.to_owned()
     }
 }
-
+// Default implementation for the ExtendState
 impl Default for ExtendState {
     fn default() -> Self {
         let bot = Bot::default();
@@ -116,6 +118,35 @@ pub async fn main() -> Result<()> {
     // Initialize logger
     pretty_env_logger::init();
     info!("Starting...");
-    // Run the app
-    run_app_webhook(ExtendState::default()).await
+    // Run the web app
+    tokio::spawn(async move {
+        vkteams_bot::bot::webhook::run_app(ExtendState::default())
+            .await
+            .unwrap();
+    });
+    // Run the gRPC health reporter
+    run_probe_app().await?;
+
+    Ok(())
+}
+// Make health reporter for gRPC
+// https://github.com/grpc/grpc/blob/master/doc/health-checking.md
+//
+// supported in Kubernetes by default
+// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#define-a-grpc-liveness-probe
+pub async fn run_probe_app() -> Result<()> {
+    use vkteams_bot::bot::net::shutdown_signal;
+    // Create gRPC health reporter and service
+    let (_, health_service) = tonic_health::server::health_reporter();
+    // Get the port from the environment variable or use the default port 50555
+    let tcp_port = std::env::var(DEFAULT_TCP_PORT).unwrap_or_else(|_| "50555".to_string());
+    // Start gRPC server
+    tonic::transport::Server::builder()
+        .add_service(health_service)
+        .serve_with_shutdown(
+            format!("[::]:{tcp_port}").parse().unwrap(),
+            shutdown_signal(),
+        )
+        .await?;
+    Ok(())
 }

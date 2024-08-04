@@ -1,3 +1,5 @@
+#[cfg(feature = "grpc")]
+pub mod grpc;
 #[cfg(feature = "longpoll")]
 pub mod longpoll;
 pub mod net;
