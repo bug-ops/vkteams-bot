@@ -119,34 +119,9 @@ pub async fn main() -> Result<()> {
     pretty_env_logger::init();
     info!("Starting...");
     // Run the web app
-    tokio::spawn(async move {
-        vkteams_bot::bot::webhook::run_app(ExtendState::default())
-            .await
-            .unwrap();
-    });
-    // Run the gRPC health reporter
-    run_probe_app().await?;
+    vkteams_bot::bot::webhook::run_app(ExtendState::default())
+        .await
+        .unwrap();
 
-    Ok(())
-}
-// Make health reporter for gRPC
-// https://github.com/grpc/grpc/blob/master/doc/health-checking.md
-//
-// supported in Kubernetes by default
-// https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#define-a-grpc-liveness-probe
-pub async fn run_probe_app() -> Result<()> {
-    use vkteams_bot::bot::net::shutdown_signal;
-    // Create gRPC health reporter and service
-    let (_, health_service) = tonic_health::server::health_reporter();
-    // Get the port from the environment variable or use the default port 50555
-    let tcp_port = std::env::var(DEFAULT_TCP_PORT).unwrap_or_else(|_| "50555".to_string());
-    // Start gRPC server
-    tonic::transport::Server::builder()
-        .add_service(health_service)
-        .serve_with_shutdown(
-            format!("[::]:{tcp_port}").parse().unwrap(),
-            shutdown_signal(),
-        )
-        .await?;
     Ok(())
 }
