@@ -18,14 +18,15 @@
 //! - `VKTEAMS_BOT_API_TOKEN` - bot token
 //! - `VKTEAMS_BOT_API_URL` - bot api url
 //! - `VKTEAMS_PROXY` - proxy url (optional)
-//! - `VKTEAMS_BOT_SERVER_PORT` - server port (default: 3000)
-
+//! - `VKTEAMS_BOT_SERVER_PORT` - server port (default: 3333)
+#[cfg(feature = "grpc")]
+use crate::bot::grpc::GRPCRouter;
 use crate::bot::net::shutdown_signal;
 use anyhow::Result;
 use async_trait::async_trait;
 use axum::extract::FromRef;
 use axum::{
-    extract::State,
+    extract::{DefaultBodyLimit, State},
     http::{Method, StatusCode},
     response::IntoResponse,
     routing::post,
@@ -35,8 +36,10 @@ use serde::de::DeserializeOwned;
 use std::time::Duration;
 use tokio::net::TcpListener;
 use tower_http::cors::{AllowOrigin, CorsLayer};
+use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
+
 /// Environment variable for the port
 const DEFAULT_TCP_PORT: &str = "VKTEAMS_BOT_HTTP_PORT";
 const TIMEOUT_SECS: u64 = 10;
@@ -58,6 +61,22 @@ pub trait WebhookState: Clone + Send + Sync + 'static {
     }
     async fn handler(&self, msg: Self::WebhookType) -> Result<()>;
 }
+/// Inherit Router
+pub trait BotRouter<S> {
+    fn route_bot(self) -> Self;
+}
+impl<S> BotRouter<S> for Router<S>
+where
+    S: Clone + Send + Sync + 'static,
+{
+    fn route_bot(self) -> Self {
+        if cfg!(feature = "grpc") {
+            self.route_grpc_probe()
+        } else {
+            self
+        }
+    }
+}
 /// Run the webhook consumer server
 pub async fn run_app<T>(ext: T) -> Result<()>
 where
@@ -68,9 +87,16 @@ where
     // Bind the server to the port
     let listener = TcpListener::bind(format!("[::]:{tcp_port}")).await?;
     // build our application with a single route
-    trace!("Listening localhost:{tcp_port}{}", ext.get_path());
+    info!("Listening localhost:{tcp_port}{}", ext.get_path());
     let app = Router::new()
-        .route(ext.get_path().as_str(), post(webhook_handler::<T>))
+        .route(
+            ext.get_path().as_str(),
+            post(webhook_handler::<T>).layer((
+                DefaultBodyLimit::disable(),
+                RequestBodyLimitLayer::new(1024 * 5_000 /* ~5mb */),
+            )),
+        )
+        .route_bot()
         .layer((
             TraceLayer::new_for_http(),
             TimeoutLayer::new(Duration::from_secs(TIMEOUT_SECS)),
