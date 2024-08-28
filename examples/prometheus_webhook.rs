@@ -6,8 +6,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use vkteams_bot::bot::webhook::{AppState, WebhookState};
 use vkteams_bot::prelude::*;
-// Environment variable for the gRPC port
-const DEFAULT_TCP_PORT: &str = "VKTEAMS_BOT_GRPC_PORT";
 // Environment variable for the chat id
 const CHAT_ID: &str = "VKTEAMS_CHAT_ID";
 const TMPL_NAME: &str = "alert";
