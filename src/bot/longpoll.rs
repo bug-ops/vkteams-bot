@@ -22,6 +22,16 @@ impl Bot {
                     if !evt.is_empty() {
                         // Update last event id
                         self.set_last_event_id(evt[evt.len() - 1].event_id);
+                        // Save event to storage
+                        #[cfg(feature = "storage")]
+                        {
+                            match self.store_events(evt.clone()) {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    error!("Error: {:?}", e);
+                                }
+                            }
+                        }
                         // Execute callback function
                         func(self.clone(), events).await;
                     }

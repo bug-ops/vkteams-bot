@@ -31,6 +31,8 @@ pub struct Bot {
     pub(crate) base_api_url: Url,
     pub(crate) base_api_path: String,
     pub(crate) event_id: Arc<Mutex<EventId>>,
+    #[cfg(feature = "storage")]
+    pub(crate) conn: storage::Tnt,
 }
 impl Default for Bot {
     // default API version V1
@@ -80,6 +82,9 @@ impl Bot {
             base_api_path: set_default_path(&version),
             // Default event id is 0
             event_id: Arc::new(Mutex::new(0)),
+            // Default storage connection
+            #[cfg(feature = "storage")]
+            conn: storage::Tnt::default(),
         }
     }
     /// Get last event id
@@ -160,10 +165,14 @@ impl Bot {
                                 match file_to_multipart(message.get_file()).await {
                                     Ok(f) => {
                                         // Send file POST request with multipart form
-                                        post_response_file(self.client.clone(), self.get_parsed_url(
+                                        post_response_file(
+                                            self.client.clone(),
+                                            self.get_parsed_url(
                                                 self.set_path(<Rq>::METHOD.to_string()),
                                                 query,
-                                            )?, f,)
+                                            )?,
+                                            f,
+                                        )
                                         .await
                                     }
                                     // Error with file
