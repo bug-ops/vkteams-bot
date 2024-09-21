@@ -30,6 +30,7 @@ anyhow = "1"
 log = "0.4"
 tera = { version = "1", default-features = false, optional = true }
 lazy_static = { version = "1.5", optional = true }
+tonic = { version = "0.12", optional = true }
 tonic-health = { version = "0.12", optional = true }
 
 [features]
@@ -38,8 +39,7 @@ full = ["webhook", "longpoll", "templates", "storage", "grpc"]
 longpoll = []
 webhook = ["dep:axum", "dep:tower-http", "dep:async-trait"]
 templates = ["dep:tera", "dep:lazy_static"]
-storage = ["dep:tarantool"]
-grpc = ["dep:tonic-health"]
+grpc = ["dep:tonic-health", "dep:tonic"]
 
 [dev-dependencies]
 vkteams-bot = { path = ".", features = ["full"] }
