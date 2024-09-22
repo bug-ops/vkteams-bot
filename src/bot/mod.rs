@@ -32,7 +32,7 @@ pub struct Bot {
     pub(crate) base_api_path: String,
     pub(crate) event_id: Arc<Mutex<EventId>>,
     #[cfg(feature = "storage")]
-    pub(crate) conn: storage::Tnt,
+    pub(crate) conn: Arc<storage::Tnt>,
 }
 impl Default for Bot {
     // default API version V1
@@ -84,7 +84,7 @@ impl Bot {
             event_id: Arc::new(Mutex::new(0)),
             // Default storage connection
             #[cfg(feature = "storage")]
-            conn: storage::Tnt::default(),
+            conn: Arc::new(storage::Tnt::default()),
         }
     }
     /// Get last event id

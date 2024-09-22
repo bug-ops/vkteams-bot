@@ -1,16 +1,13 @@
 //! Storage module
 //! using Tarantool SDK for Rust
 use std::fmt::Debug;
+use std::sync::Arc;
 
 use crate::prelude::*;
 use anyhow::Result;
-// use serde::Serialize;
 use tarantool::{
     net_box::{self, ConnOptions, Options},
     tuple::Tuple,
-    // proc,
-    // space::Space,
-    // tuple::{Encode, ToTupleBuffer, Tuple},
 };
 
 const VKTEAMS_TNT_URL: &str = "VKTEAMS_TNT_URL";
@@ -33,6 +30,10 @@ impl Clone for Tnt {
     }
 }
 
+unsafe impl Send for Tnt {}
+
+unsafe impl Sync for Tnt {}
+
 impl Tnt {
     pub fn new() -> Self {
         let addr = std::env::var(VKTEAMS_TNT_URL).unwrap_or_else(|_| "[::1]:3301".to_string());
@@ -51,7 +52,7 @@ impl Tnt {
 
 impl Bot {
     pub fn store_events(&self, events: Vec<EventMessage>) -> Result<()> {
-        let tnt = self.conn.clone();
+        let tnt = Arc::clone(&self.conn);
         let opt = Options {
             timeout: Some(std::time::Duration::from_secs(1)),
             ..Default::default()
@@ -70,10 +71,7 @@ impl Bot {
                 _ => ChatId(String::new()),
             };
             let tuple = Tuple::new(&(chat_id, event.event_id, msg))?;
-            match tnt.conn.call("func", &tuple, &opt) {
-                Ok(_) => {}
-                Err(e) => panic!("Error: {}", e),
-            }
+            tnt.conn.call("event_save", &tuple, &opt)?;
         }
         Ok(())
     }

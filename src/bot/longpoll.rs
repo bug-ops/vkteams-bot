@@ -7,7 +7,7 @@ impl Bot {
     pub async fn event_listener<F, X>(&self, func: F)
     where
         F: Fn(Bot, ResponseEventsGet) -> X,
-        X: Future<Output = ()> + Send + Sync + 'static,
+        X: Future<Output = ()> + 'static,
     {
         loop {
             // Make a request to the API
@@ -25,7 +25,7 @@ impl Bot {
                         // Save event to storage
                         #[cfg(feature = "storage")]
                         {
-                            match self.store_events(evt.clone()) {
+                            match self.store_events(evt) {
                                 Ok(_) => {}
                                 Err(e) => {
                                     error!("Error: {:?}", e);
