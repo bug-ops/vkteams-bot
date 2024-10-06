@@ -88,7 +88,20 @@ where
     let listener = TcpListener::bind(format!("[::]:{tcp_port}")).await?;
     // build our application with a single route
     info!("Listening localhost:{tcp_port}{}", ext.get_path());
-    let app = Router::new()
+    let app = build_router(ext);
+    // Start the server
+    axum::serve(listener, app.into_make_service())
+        .with_graceful_shutdown(shutdown_signal())
+        .await?;
+
+    Ok(())
+}
+/// Build router for the webhook
+pub fn build_router<T>(ext: T) -> Router
+where
+    T: WebhookState + FromRef<AppState<T>> + Default + 'static,
+{
+    Router::new()
         .route(
             ext.get_path().as_str(),
             post(webhook_handler::<T>).layer((
@@ -104,14 +117,9 @@ where
                 .allow_origin(AllowOrigin::predicate(|_, _| true))
                 .allow_methods([Method::POST]),
         ))
-        .with_state(AppState { ext });
-    // Start the server
-    axum::serve(listener, app.into_make_service())
-        .with_graceful_shutdown(shutdown_signal())
-        .await?;
-
-    Ok(())
+        .with_state(AppState { ext })
 }
+
 /// Handler for the webhook
 async fn webhook_handler<T>(State(state): State<T>, json: String) -> impl IntoResponse
 where

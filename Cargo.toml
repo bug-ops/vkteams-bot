@@ -1,7 +1,7 @@
 [package]
 license = "MIT OR Apache-2.0"
 name = "vkteams-bot"
-version = "0.6.4"
+version = "0.6.5"
 edition = "2021"
 authors = ["Andrei G. <k05h31@gmail.com>"]
 description = "VK Teams Bot API client"
@@ -29,7 +29,6 @@ anyhow = "1"
 log = "0.4"
 tera = { version = "1", default-features = false, optional = true }
 lazy_static = { version = "1.5", optional = true }
-tonic = { version = "0.12", optional = true }
 tonic-health = { version = "0.12", optional = true }
 
 [features]
@@ -38,9 +37,10 @@ full = ["webhook", "longpoll", "templates", "grpc"]
 longpoll = []
 webhook = ["dep:axum", "dep:tower-http", "dep:async-trait"]
 templates = ["dep:tera", "dep:lazy_static"]
-grpc = ["dep:tonic-health", "dep:tonic"]
+grpc = ["dep:tonic-health"]
 
 [dev-dependencies]
 vkteams-bot = { path = ".", features = ["full"] }
+tonic = "0.12"
 dotenvy = "0.15"
 pretty_env_logger = "0.5"
