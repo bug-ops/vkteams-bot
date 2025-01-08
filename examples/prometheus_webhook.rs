@@ -1,26 +1,25 @@
 #[macro_use]
 extern crate log;
 use anyhow::Result;
-use axum::async_trait;
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::LazyLock;
 use vkteams_bot::bot::webhook::{AppState, WebhookState};
 use vkteams_bot::prelude::*;
 // Environment variable for the chat id
 const CHAT_ID: &str = "VKTEAMS_CHAT_ID";
 const TMPL_NAME: &str = "alert";
 // define the Tera template
-lazy_static::lazy_static! {
-    static ref TEMPLATES:tera::Tera = {
-        let mut tera = tera::Tera::default();
-        tera.add_template_file(
-            format!("examples/templates/{TMPL_NAME}.tmpl"),
-            Some(TMPL_NAME),
-        )
-        .unwrap();
-        tera
-    };
-}
+pub static TEMPLATES: LazyLock<tera::Tera> =
+    LazyLock::new(|| match tera::Tera::new("templates/**/*") {
+        Ok(t) => t,
+        Err(e) => {
+            error!("Error parsing templates: {}", e);
+            std::process::exit(1);
+        }
+    });
+// }
 #[derive(Debug, Clone)]
 pub struct ExtendState {
     bot: Bot,
