@@ -29,6 +29,7 @@ anyhow = "1"
 log = "0.4"
 tera = { version = "1", default-features = false, optional = true }
 tonic-health = { version = "0.12", optional = true }
+paste = "1"
 
 [features]
 default = ["longpoll"]

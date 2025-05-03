@@ -13,7 +13,7 @@ use tokio_util::codec::{BytesCodec, FramedRead};
 /// Send request with [`Client`] `get` method and get body with [`reqwest::Response`] `text` method
 /// - `url` - file URL
 pub async fn get_text_response(client: Client, url: Url) -> Result<String> {
-    debug!("Get response from API path {}...", url.to_string());
+    debug!("Get response from API path {}...", url);
     match client.get(url.as_str()).send().await {
         Ok(r) => {
             debug!("Response status: OK");
@@ -84,7 +84,7 @@ async fn make_stream(path: String) -> Result<Body> {
 }
 /// Get raw response from API
 /// Send request with [`Client`] `post` method with body file streaming and get body with [`reqwest::Response`] `text` method
-pub async fn post_response_file<'a>(
+pub async fn post_response_file(
     client: Client,
     url: Url,
     form: Form, // part: MultipartName,

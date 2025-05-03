@@ -1,4 +1,5 @@
 //! Commonly used imports and re-exports.
+pub use crate::api::chats::get_info::*;
 pub use crate::api::chats::*;
 pub use crate::api::events::get::*;
 pub use crate::api::files::get_info::*;

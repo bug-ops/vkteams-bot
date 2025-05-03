@@ -36,6 +36,62 @@
 //! ```
 #[macro_use]
 extern crate log;
+macro_rules! bot_api_method {
+    (
+        method = $method:literal,
+        request = $Req:ident {
+            required {
+                $( $req_f:ident : $ReqT:ty ),* $(,)?
+            },
+            optional {
+                $( $(#[$opt_attr:meta])* $opt_f:ident : $OptT:ty ),* $(,)?
+            }
+        },
+        response = $Res:ident {
+            $( $(#[$res_attr:meta])* $res_f:ident : $ResT:ty ),* $(,)?
+        },
+    ) => {
+        #[derive(Serialize, Clone, Debug, Default)]
+        #[serde(rename_all = "camelCase")]
+        pub struct $Req {
+            $( pub $req_f : $ReqT, )*
+            $( $(#[$opt_attr])* pub $opt_f : Option<$OptT>, )*
+        }
+
+        #[derive(Serialize, Deserialize, Clone, Debug, Default)]
+        #[serde(rename_all = "camelCase")]
+        pub struct $Res {
+            $( $(#[$res_attr])* pub $res_f : $ResT, )*
+        }
+
+        impl crate::api::types::BotRequest for $Req {
+            type Args = ($($ReqT),*);
+            const METHOD: &'static str = $method;
+            type RequestType = Self;
+            type ResponseType = $Res;
+
+            fn new(($($req_f),*): ($($ReqT),*)) -> Self {
+                Self {
+                    $( $req_f, )*
+                    ..Default::default()
+                }
+            }
+        }
+
+        impl $Req {
+            paste::paste! {
+                $(
+                    #[doc = concat!("Устанавливает поле `", stringify!($opt_f), "`")]
+                    pub fn [<with_ $opt_f>](mut self, value: $OptT) -> Self {
+                        self.$opt_f = Some(value);
+                        self
+                    }
+                )*
+            }
+        }
+    };
+}
+
 pub mod bot;
 pub mod prelude;
 /// API methods

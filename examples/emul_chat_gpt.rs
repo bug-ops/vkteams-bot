@@ -47,7 +47,7 @@ async fn send(bot: &Bot) {
         } else {
             // Next words add by editing previous message
             bot.send_api_request(
-                RequestMessagesEditText::new(chat_id.to_owned(), id.to_owned())
+                RequestMessagesEditText::new((chat_id.to_owned(), id.to_owned()))
                     .set_text(html_parser.to_owned()),
             )
             .await
@@ -55,10 +55,10 @@ async fn send(bot: &Bot) {
         };
         // Bot action typing
         match bot
-            .send_api_request(RequestChatsSendAction::new(
+            .send_api_request(RequestChatsSendAction::new((
                 chat_id.to_owned(),
                 ChatActions::Typing,
-            ))
+            )))
             .await
         {
             Ok(_) => {}
@@ -70,10 +70,10 @@ async fn send(bot: &Bot) {
         sleep(Duration::from_millis(300)).await;
     }
     // Bot action looking for message
-    bot.send_api_request(RequestChatsSendAction::new(
+    bot.send_api_request(RequestChatsSendAction::new((
         chat_id.to_owned(),
         ChatActions::Looking,
-    ))
+    )))
     .await
     .unwrap();
 }

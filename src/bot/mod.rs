@@ -158,10 +158,14 @@ impl Bot {
                                 match file_to_multipart(message.get_file()).await {
                                     Ok(f) => {
                                         // Send file POST request with multipart form
-                                        post_response_file(self.client.clone(), self.get_parsed_url(
+                                        post_response_file(
+                                            self.client.clone(),
+                                            self.get_parsed_url(
                                                 self.set_path(<Rq>::METHOD.to_string()),
                                                 query,
-                                            )?, f,)
+                                            )?,
+                                            f,
+                                        )
                                         .await
                                     }
                                     // Error with file

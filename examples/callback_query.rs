@@ -58,14 +58,14 @@ pub async fn callback(bot: Bot, res: ResponseEventsGet) {
         match bot
             .send_api_request(
                 RequestMessagesAnswerCallbackQuery::new(payload.query_id)
-                    .set_text(
+                    .with_text(
                         match payload.callback_data.as_str() {
                             CALLBACK_DATA => "Button pressed!",
                             _ => "WRONG button pressed!",
                         }
                         .to_string(),
                     )
-                    .set_alert(true),
+                    .with_show_alert(true),
             )
             .await
         {

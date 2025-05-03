@@ -42,6 +42,8 @@ pub enum HTTPBody {
 }
 /// Bot request trait
 pub trait BotRequest {
+    type Args;
+
     const METHOD: &'static str;
     const HTTP_METHOD: HTTPMethod = HTTPMethod::GET;
     type RequestType: Serialize + Debug + Default;
@@ -49,6 +51,7 @@ pub trait BotRequest {
     fn get_file(&self) -> MultipartName {
         MultipartName::None
     }
+    fn new(args: Self::Args) -> Self;
 }
 /// API event id type
 pub type EventId = u32;
@@ -448,7 +451,7 @@ pub enum ChatActions {
     Typing,
 }
 /// Multipart name
-#[derive(Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub enum MultipartName {
     File(String),
     Image(String),

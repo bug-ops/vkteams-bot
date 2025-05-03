@@ -13,7 +13,7 @@ async fn main() {
     let bot = Bot::new(APIVersionUrl::V1);
     // Remember self user_id
     let self_user_id = bot
-        .send_api_request(RequestSelfGet::new())
+        .send_api_request(RequestSelfGet::new(()))
         .await
         .unwrap()
         .to_owned()
@@ -38,8 +38,9 @@ async fn main() {
             .send_api_request(RequestChatsGetInfo::new(chat.chat_id.to_owned()))
             .await
             .unwrap()
+            .res
         {
-            ResponseChatsGetInfo::Group(chat_info) => {
+            EnumChatsGetInfo::Group(chat_info) => {
                 info!("Chat info: {:?}", chat_info);
             }
             _ => continue,
@@ -77,10 +78,10 @@ pub async fn iter_get_admins(bot: &Bot, chat_id: ChatId) -> IntoIter<Admin> {
 pub async fn avatar_set(bot: &Bot, chat_id: ChatId) {
     match bot
         // tests folder contains test.jpg file
-        .send_api_request(RequestChatsAvatarSet::new(
+        .send_api_request(RequestChatsAvatarSet::new((
             chat_id,
             MultipartName::Image(String::from("tests/test.jpg")),
-        ))
+        )))
         .await
     {
         Ok(res) => info!("{:?}", res),

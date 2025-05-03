@@ -18,10 +18,10 @@ async fn main() {
             .to_string(),
     );
     // Bot action typing
-    bot.send_api_request(RequestChatsSendAction::new(
+    bot.send_api_request(RequestChatsSendAction::new((
         chat_id.to_owned(),
         ChatActions::Typing,
-    ))
+    )))
     .await
     .unwrap();
     // Send message
@@ -29,21 +29,21 @@ async fn main() {
         .send_api_request(RequestChatsGetInfo::new(chat_id.to_owned()))
         .await
     {
-        Ok(res) => match res {
-            ResponseChatsGetInfo::Channel(chat) => {
+        Ok(res) => match res.res {
+            EnumChatsGetInfo::Channel(chat) => {
                 info!("Channel: {:?}", chat.title.unwrap());
             }
-            ResponseChatsGetInfo::Group(chat) => {
+            EnumChatsGetInfo::Group(chat) => {
                 info!("Group: {:?}", chat.title.unwrap());
             }
-            ResponseChatsGetInfo::Private(chat) => {
+            EnumChatsGetInfo::Private(chat) => {
                 info!(
                     "Private: {} {}",
                     chat.first_name.unwrap(),
                     chat.last_name.unwrap()
                 );
             }
-            ResponseChatsGetInfo::None => {
+            EnumChatsGetInfo::None => {
                 debug!("None");
             }
         },

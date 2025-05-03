@@ -19,10 +19,10 @@ async fn main() {
             .to_string(),
     );
     // Bot action typing
-    bot.send_api_request(RequestChatsSendAction::new(
+    bot.send_api_request(RequestChatsSendAction::new((
         chat_id.to_owned(),
         ChatActions::Typing,
-    ))
+    )))
     .await
     .unwrap();
     // Send message
@@ -58,10 +58,10 @@ async fn main() {
         Ok(res) => {
             if res.ok {
                 debug!("Message id: {:?}", res.msg_id);
-                bot.send_api_request(RequestChatsSendAction::new(
+                bot.send_api_request(RequestChatsSendAction::new((
                     chat_id.to_owned(),
                     ChatActions::Looking,
-                ))
+                )))
                 .await
                 .unwrap();
             } else {
