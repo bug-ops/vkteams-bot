@@ -54,6 +54,7 @@ macro_rules! bot_api_method {
     ) => {
         #[derive(Serialize, Clone, Debug, Default)]
         #[serde(rename_all = "camelCase")]
+        #[non_exhaustive]
         pub struct $Req {
             $( pub $req_f : $ReqT, )*
             $( $(#[$opt_attr])* pub $opt_f : Option<$OptT>, )*
