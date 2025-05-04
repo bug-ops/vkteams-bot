@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate log;
 
-use anyhow::Result;
+use vkteams_bot::error::Result;
 use vkteams_bot::prelude::*;
 
 #[tokio::main]

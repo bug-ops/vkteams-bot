@@ -1,5 +1,5 @@
 use crate::api::types::*;
-use anyhow::{Result, anyhow};
+use crate::error::{BotError, Result};
 use reqwest::Url;
 use std::convert::From;
 pub trait MessageTextHTMLParser {
@@ -25,10 +25,7 @@ impl MessageTextParser {
         match text {
             MessageTextFormat::Plain(text) => Ok(self.replace_chars(text)),
             MessageTextFormat::Link(url, text) => {
-                let parsed_url = match Url::parse(&self.replace_chars(url)) {
-                    Ok(url) => url,
-                    Err(e) => return Err(e.into()),
-                };
+                let parsed_url = Url::parse(&self.replace_chars(url))?;
                 Ok(format!(
                     "<a href=\"{}\">{}</a>",
                     parsed_url,
@@ -73,7 +70,9 @@ impl MessageTextParser {
                 }
                 Ok(format!("<ul>{}</ul>", result))
             }
-            MessageTextFormat::None => Err(anyhow!("MessageTextFormat::None is not supported")),
+            MessageTextFormat::None => Err(BotError::Validation(
+                "MessageTextFormat::None не поддерживается".to_string(),
+            )),
         }
     }
     /// Replace special characters with HTML entities
@@ -110,7 +109,7 @@ impl MessageTextHTMLParser for MessageTextParser {
                     if let MessageTextFormat::None = item {
                         continue;
                     }
-                    result.push_str(&self.parse_html(item).unwrap());
+                    result.push_str(&self.parse_html(item).unwrap_or_default());
                 }
                 (result, self.parse_mode)
             }
@@ -119,14 +118,14 @@ impl MessageTextHTMLParser for MessageTextParser {
                 let str = match &self.parse_tmpl() {
                     Ok(text) => text.to_owned(),
                     Err(e) => {
-                        error!("Error: {}", e);
+                        error!("Ошибка: {}", e);
                         return (String::new(), ParseMode::HTML);
                     }
                 };
                 result.push_str(str.as_str());
                 (result, ParseMode::HTML)
             }
-            _ => todo!("Not implemented parse mode: {:?}", self.parse_mode),
+            _ => todo!("Не реализован режим парсинга: {:?}", self.parse_mode),
         }
     }
 }

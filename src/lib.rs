@@ -95,6 +95,7 @@ macro_rules! bot_api_method {
 }
 
 pub mod bot;
+pub mod error;
 pub mod prelude;
 /// API methods
 mod api {

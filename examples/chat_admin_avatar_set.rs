@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate log;
-use anyhow::{Result, anyhow};
 use std::vec::IntoIter;
+use vkteams_bot::error::{BotError, Result};
 use vkteams_bot::prelude::*;
 
 #[tokio::main]
@@ -15,9 +15,9 @@ async fn main() -> Result<()> {
     // Remember self user_id
     let self_user_id = match bot.send_api_request(RequestSelfGet::new(())).await? {
         ApiResult::Success(res) => res.user_id,
-        ApiResult::Error { ok: _, description } => {
-            error!("Error: {:?}", description);
-            return Err(anyhow!("Error: {:?}", description));
+        ApiResult::Error(e) => {
+            error!("Error: {:?}", e.description);
+            return Err(BotError::Api(e));
         }
     };
 
@@ -69,9 +69,9 @@ pub async fn iter_get_events(bot: &Bot) -> Result<IntoIter<EventMessage>> {
         .await?
     {
         ApiResult::Success(res) => Ok(res.events.into_iter()),
-        ApiResult::Error { ok: _, description } => {
-            error!("Error: {:?}", description);
-            return Err(anyhow!("Error: {:?}", description));
+        ApiResult::Error(e) => {
+            error!("Error: {:?}", e.description);
+            return Err(BotError::Api(e));
         }
     }
 }
@@ -82,9 +82,9 @@ pub async fn iter_get_admins(bot: &Bot, chat_id: ChatId) -> Result<IntoIter<Admi
         .await?
     {
         ApiResult::Success(res) => Ok(res.admins.into_iter()),
-        ApiResult::Error { ok: _, description } => {
-            error!("Error: {:?}", description);
-            return Err(anyhow!("Error: {:?}", description));
+        ApiResult::Error(e) => {
+            error!("Error: {:?}", e.description);
+            return Err(BotError::Api(e));
         }
     }
 }
@@ -99,6 +99,6 @@ pub async fn avatar_set(bot: &Bot, chat_id: ChatId) -> Result<()> {
         .await?
     {
         ApiResult::Success(_) => Ok(()),
-        ApiResult::Error { ok: _, description } => Err(anyhow!("Error: {}", description)),
+        ApiResult::Error(e) => Err(BotError::Api(e)),
     }
 }

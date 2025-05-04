@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate log;
 
-use anyhow::{Result, anyhow};
+use vkteams_bot::error::{BotError, Result};
 use vkteams_bot::prelude::*;
 
 const CALLBACK_DATA: &str = "callback_button_#1";
@@ -46,9 +46,9 @@ async fn main() -> Result<()> {
         .await?
     {
         ApiResult::Success(_) => info!("Message sent"),
-        ApiResult::Error { ok: _, description } => {
-            error!("Error: {}", description);
-            return Err(anyhow!("Error: {}", description));
+        ApiResult::Error(e) => {
+            error!("Error: {}", e.description);
+            return Err(BotError::Api(e));
         }
     };
     // Start event listener and pass result to a callback function
@@ -80,9 +80,9 @@ pub async fn callback(bot: Bot, res: ResponseEventsGet) -> Result<()> {
             .await?
         {
             ApiResult::Success(_) => info!("Callback query answered"),
-            ApiResult::Error { ok: _, description } => {
-                error!("Error: {}", description);
-                return Err(anyhow!("Error: {}", description));
+            ApiResult::Error(e) => {
+                error!("Error: {}", e.description);
+                return Err(BotError::Api(e));
             }
         }
     }

@@ -1,6 +1,6 @@
 #[macro_use]
 extern crate log;
-use anyhow::{Result, anyhow};
+use vkteams_bot::error::{BotError, Result};
 use vkteams_bot::prelude::*;
 
 #[tokio::main]
@@ -35,9 +35,9 @@ async fn main() -> Result<()> {
                 }
             }
         }
-        ApiResult::Error { ok: _, description } => {
-            error!("Error: {}", description);
-            return Err(anyhow!("Error: {}", description));
+        ApiResult::Error(e) => {
+            error!("Error: {}", e.description);
+            return Err(BotError::Api(e));
         }
     }
     Ok(())
@@ -55,9 +55,9 @@ pub async fn download_files(bot: &Bot, file_id: FileId) -> Result<()> {
             // Save file to the disk
             file_save(&file_info.file_name.to_owned(), file_data).await?;
         }
-        ApiResult::Error { ok: _, description } => {
-            error!("Error: {}", description);
-            return Err(anyhow!("Error: {}", description));
+        ApiResult::Error(e) => {
+            error!("Error: {}", e.description);
+            return Err(BotError::Api(e));
         }
     }
     Ok(())

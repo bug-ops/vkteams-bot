@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate log;
-use anyhow::{Result, anyhow};
 use tokio::time::*;
+use vkteams_bot::error::{BotError, Result};
 use vkteams_bot::prelude::*;
 
 #[tokio::main]
@@ -45,9 +45,9 @@ async fn send(bot: &Bot) -> Result<()> {
                 .await?
             {
                 ApiResult::Success(res) => res.msg_id,
-                ApiResult::Error { ok: _, description } => {
-                    error!("Error: {}", description);
-                    return Err(anyhow!("Error: {}", description));
+                ApiResult::Error(e) => {
+                    error!("Error: {}", e.description);
+                    return Err(BotError::Api(e));
                 }
             };
         } else {
@@ -76,6 +76,6 @@ async fn send(bot: &Bot) -> Result<()> {
         .await?
     {
         ApiResult::Success(_) => Ok(()),
-        ApiResult::Error { ok: _, description } => Err(anyhow!("Error: {}", description)),
+        ApiResult::Error(e) => Err(BotError::Api(e)),
     }
 }

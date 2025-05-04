@@ -1,6 +1,6 @@
 #[macro_use]
 extern crate log;
-use anyhow::{Result, anyhow};
+use vkteams_bot::error::{BotError, Result};
 use vkteams_bot::prelude::*;
 
 #[tokio::main]
@@ -63,9 +63,9 @@ async fn main() -> Result<()> {
             )))
             .await?;
         }
-        ApiResult::Error { ok: _, description } => {
-            error!("Error: {}", description);
-            return Err(anyhow!("Error: {}", description));
+        ApiResult::Error(e) => {
+            error!("Error: {}", e.description);
+            return Err(BotError::Api(e));
         }
     }
     Ok(())

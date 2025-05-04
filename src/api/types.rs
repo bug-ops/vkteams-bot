@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 #[cfg(feature = "templates")]
 use tera::Tera;
 
+use crate::error::{ApiError, BotError, Result};
+
 /// Environment variable name for bot API URL
 pub const VKTEAMS_BOT_API_URL: &str = "VKTEAMS_BOT_API_URL";
 /// Environment variable name for bot API token
@@ -21,6 +23,7 @@ pub const POLL_TIME: u64 = 30;
 /// [`reqwest::Client`]: https://docs.rs/reqwest/latest/reqwest/struct.Client.html
 pub const POLL_DURATION: &Duration = &Duration::from_secs(POLL_TIME + 10);
 /// Supported API versions
+#[derive(Debug)]
 pub enum APIVersionUrl {
     /// default V1
     V1,
@@ -499,5 +502,14 @@ pub struct PhotoUrl {
 /// Обёртка результата API: Success(T) или Error { ok: false, description }
 pub enum ApiResult<T> {
     Success(T),
-    Error { ok: bool, description: String },
+    Error(ApiError),
+}
+
+impl<T> ApiResult<T> {
+    pub fn into_result(self) -> Result<T> {
+        match self {
+            ApiResult::Success(value) => Ok(value),
+            ApiResult::Error(error) => Err(BotError::Api(error)),
+        }
+    }
 }

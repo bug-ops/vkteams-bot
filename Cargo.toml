@@ -25,11 +25,11 @@ axum = { version = "0.8", features = ["macros", "http2"], optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_url_params = "0.2"
 serde_json = "1"
-anyhow = "1"
 log = "0.4"
 tera = { version = "1", default-features = false, optional = true }
 tonic-health = { version = "0.13", optional = true }
 paste = "1"
+url = "2.5"
 
 [features]
 default = ["longpoll"]

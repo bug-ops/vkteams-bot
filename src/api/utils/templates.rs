@@ -1,7 +1,7 @@
 //! This module contains the templates for the message text parser.
 //! https://teams.vk.com/botapi/tutorial/#Format_HTML
 use crate::api::types::*;
-use anyhow::Result;
+use crate::error::{BotError, Result};
 use serde::Serialize;
 use tera::Context;
 use tera::Tera;
@@ -19,7 +19,7 @@ impl MessageTextParser {
     pub fn parse_tmpl(&self) -> Result<String> {
         match self.tmpl.render(self.name.as_str(), &self.ctx) {
             Ok(text) => Ok(text),
-            Err(e) => Err(e.into()),
+            Err(e) => Err(BotError::Template(e)),
         }
     }
     pub fn set_ctx<T>(&mut self, msg: T, name: &str) -> Self
