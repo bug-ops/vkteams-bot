@@ -44,7 +44,7 @@ $ set VKTEAMS_PROXY=<Proxy> #optional
 
 ```toml
 [dependencies]
-vkteams_bot = { version = "0.6", feature = ["full"] }
+vkteams_bot = { version = "0.7", feature = ["full"] }
 log = "0.4"
 ```
 
