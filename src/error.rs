@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::error::Error as StdError;
 use std::fmt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -14,29 +13,30 @@ impl fmt::Display for ApiError {
     }
 }
 
-impl StdError for ApiError {}
+impl std::error::Error for ApiError {}
 
 #[derive(Debug)]
 pub enum BotError {
-    /// Ошибка API
+    /// API Error
     Api(ApiError),
-    /// Ошибка сети
+    /// Network Error
     Network(reqwest::Error),
-    /// Ошибка сериализации/десериализации
+    /// Serialization/Deserialization Error
     Serialization(serde_json::Error),
-    /// Ошибка URL
+    /// URL Error
     Url(url::ParseError),
-    /// Ошибка файловой системы
+    /// File System Error
     Io(std::io::Error),
-    /// Ошибка шаблона
+    /// Template Error
+    #[cfg(feature = "templates")]
     Template(tera::Error),
-    /// Ошибка конфигурации
+    /// Configuration Error
     Config(String),
-    /// Ошибка валидации
+    /// Validation Error
     Validation(String),
-    /// Ошибка параметров URL
+    /// URL Parameters Error
     UrlParams(serde_url_params::Error),
-    /// Системная ошибка
+    /// System Error
     System(String),
 }
 
@@ -48,6 +48,7 @@ impl fmt::Display for BotError {
             BotError::Serialization(e) => write!(f, "Serialization Error: {}", e),
             BotError::Url(e) => write!(f, "URL Error: {}", e),
             BotError::Io(e) => write!(f, "IO Error: {}", e),
+            #[cfg(feature = "templates")]
             BotError::Template(e) => write!(f, "Template Error: {}", e),
             BotError::Config(e) => write!(f, "Config Error: {}", e),
             BotError::Validation(e) => write!(f, "Validation Error: {}", e),
@@ -57,14 +58,15 @@ impl fmt::Display for BotError {
     }
 }
 
-impl StdError for BotError {
-    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+impl std::error::Error for BotError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             BotError::Api(e) => Some(e),
             BotError::Network(e) => Some(e),
             BotError::Serialization(e) => Some(e),
             BotError::Url(e) => Some(e),
             BotError::Io(e) => Some(e),
+            #[cfg(feature = "templates")]
             BotError::Template(e) => Some(e),
             BotError::Config(_) => None,
             BotError::Validation(_) => None,
@@ -98,6 +100,7 @@ impl From<std::io::Error> for BotError {
     }
 }
 
+#[cfg(feature = "templates")]
 impl From<tera::Error> for BotError {
     fn from(err: tera::Error) -> Self {
         BotError::Template(err)

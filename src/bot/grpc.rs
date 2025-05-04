@@ -6,7 +6,6 @@
 //! ```
 //! extern crate tonic_health;
 //! extern crate tonic;
-//! extern crate anyhow;
 //! use crate::vkteams_bot::bot::net::shutdown_signal;
 //!
 //! const DEFAULT_TCP_PORT: &str = "VKTEAMS_BOT_HTTP_PORT";

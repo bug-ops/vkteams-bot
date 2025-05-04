@@ -13,42 +13,42 @@ use tokio_util::codec::{BytesCodec, FramedRead};
 /// Send request with [`Client`] `get` method and get body with [`reqwest::Response`] `text` method
 /// - `url` - file URL
 ///
-/// ## Ошибки
-/// - `BotError::Network` - ошибка сети при отправке запроса или получении ответа
+/// ## Errors
+/// - `BotError::Network` - network error when sending request or receiving response
 pub async fn get_text_response(client: Client, url: Url) -> Result<String> {
-    debug!("Получение ответа от API по пути {}...", url);
+    debug!("Getting response from API at path {}...", url);
     let response = client.get(url.as_str()).send().await?;
-    debug!("Статус ответа: {}", response.status());
+    debug!("Response status: {}", response.status());
     let text = response.text().await?;
-    debug!("Тело ответа: {}", text);
+    debug!("Response body: {}", text);
     Ok(text)
 }
 /// Get bytes response from API
 /// Send request with [`Client`] `get` method and get body with [`reqwest::Response`] `bytes` method
 /// - `url` - file URL
 ///
-/// ## Ошибки
-/// - `BotError::Network` - ошибка сети при отправке запроса или получении ответа
+/// ## Errors
+/// - `BotError::Network` - network error when sending request or receiving response
 pub async fn get_bytes_response(client: Client, url: Url) -> Result<Vec<u8>> {
-    debug!("Получение бинарного ответа от API по пути {}...", url);
+    debug!("Getting binary response from API at path {}...", url);
     let response = client.get(url.as_str()).send().await?;
-    debug!("Статус ответа: {}", response.status());
+    debug!("Response status: {}", response.status());
     let bytes = response.bytes().await?;
     Ok(bytes.to_vec())
 }
 /// Upload file stream to API in multipart form
 /// - `file` - file name
 ///
-/// ## Ошибки
-/// - `BotError::Validation` - файл не указан
-/// - `BotError::Io` - ошибка при работе с файлом
+/// ## Errors
+/// - `BotError::Validation` - file not specified
+/// - `BotError::Io` - error working with file
 pub async fn file_to_multipart(file: MultipartName) -> Result<Form> {
     //Get name of the form part
     let name = file.to_string();
     //Get filename
     let filename = match file {
         MultipartName::File(name) | MultipartName::Image(name) => name,
-        _ => return Err(BotError::Validation("Файл не указан".to_string())),
+        _ => return Err(BotError::Validation("File not specified".to_string())),
     };
     //Create stream from file
     let file_stream = make_stream(filename.to_owned()).await?;
@@ -60,8 +60,8 @@ pub async fn file_to_multipart(file: MultipartName) -> Result<Form> {
 /// Create stream from file
 /// - `path` - file path
 ///
-/// ## Ошибки
-/// - `BotError::Io` - ошибка при открытии файла
+/// ## Errors
+/// - `BotError::Io` - error opening file
 async fn make_stream(path: String) -> Result<Body> {
     //Open file and check if it exists
     let file = File::open(path.to_owned()).await?;
@@ -72,14 +72,14 @@ async fn make_stream(path: String) -> Result<Body> {
 /// Get raw response from API
 /// Send request with [`Client`] `post` method with body file streaming and get body with [`reqwest::Response`] `text` method
 ///
-/// ## Ошибки
-/// - `BotError::Network` - ошибка сети при отправке запроса или получении ответа
+/// ## Errors
+/// - `BotError::Network` - network error when sending request or receiving response
 pub async fn post_response_file(client: Client, url: Url, form: Form) -> Result<String> {
-    debug!("Отправка файла на API по пути {}...", url);
+    debug!("Sending file to API at path {}...", url);
     let response = client.post(url.as_str()).multipart(form).send().await?;
-    debug!("Статус ответа: {}", response.status());
+    debug!("Response status: {}", response.status());
     let text = response.text().await?;
-    debug!("Тело ответа: {}", text);
+    debug!("Response body: {}", text);
     Ok(text)
 }
 /// Set default request settings: timeout, tcp
@@ -112,8 +112,8 @@ pub fn set_default_path(version: &APIVersionUrl) -> String {
 }
 /// Get token from [`VKTEAMS_BOT_API_TOKEN`] environment variable
 ///
-/// ## Ошибки
-/// - `BotError::Config` - не удалось найти переменную окружения
+/// ## Errors
+/// - `BotError::Config` - environment variable not found
 ///
 /// ## Panics
 ///
@@ -122,7 +122,7 @@ pub fn get_env_token() -> String {
     std::env::var(VKTEAMS_BOT_API_TOKEN)
         .map_err(|e| {
             BotError::Config(format!(
-                "Не удалось найти переменную окружения VKTEAMS_BOT_API_TOKEN: {}",
+                "Failed to find environment variable VKTEAMS_BOT_API_TOKEN: {}",
                 e
             ))
         })
@@ -130,8 +130,8 @@ pub fn get_env_token() -> String {
 }
 /// Get base api url from [`VKTEAMS_BOT_API_URL`] environment variable
 ///
-/// ## Ошибки
-/// - `BotError::Config` - не удалось найти или распарсить URL
+/// ## Errors
+/// - `BotError::Config` - failed to find or parse URL
 ///
 /// ## Panics
 ///
@@ -141,41 +141,32 @@ pub fn get_env_url() -> Url {
     let url_str = std::env::var(VKTEAMS_BOT_API_URL)
         .map_err(|e| {
             BotError::Config(format!(
-                "Не удалось найти переменную окружения VKTEAMS_BOT_API_URL: {}",
+                "Failed to find environment variable VKTEAMS_BOT_API_URL: {}",
                 e
             ))
         })
         .unwrap_or_else(|e| panic!("{}", e));
 
     Url::parse(&url_str)
-        .map_err(|e| {
-            BotError::Config(format!(
-                "Не удалось распарсить URL VKTEAMS_BOT_API_URL: {}",
-                e
-            ))
-        })
+        .map_err(|e| BotError::Config(format!("Failed to parse URL VKTEAMS_BOT_API_URL: {}", e)))
         .unwrap_or_else(|e| panic!("{}", e))
 }
 /// Graceful shutdown signal
 ///
-/// ## Ошибки
-/// - `BotError::System` - ошибка при установке обработчиков сигналов
+/// ## Errors
+/// - `BotError::System` - error setting up signal handlers
 pub async fn shutdown_signal() {
     let ctrl_c = async {
         signal::ctrl_c()
             .await
-            .map_err(|e| {
-                BotError::System(format!("Не удалось установить обработчик Ctrl+C: {}", e))
-            })
+            .map_err(|e| BotError::System(format!("Failed to set up Ctrl+C handler: {}", e)))
             .unwrap_or_else(|e| panic!("{}", e));
     };
 
     #[cfg(unix)]
     let terminate = async {
         signal::unix::signal(signal::unix::SignalKind::terminate())
-            .map_err(|e| {
-                BotError::System(format!("Не удалось установить обработчик сигнала: {}", e))
-            })
+            .map_err(|e| BotError::System(format!("Failed to set up signal handler: {}", e)))
             .unwrap_or_else(|e| panic!("{}", e))
             .recv()
             .await;

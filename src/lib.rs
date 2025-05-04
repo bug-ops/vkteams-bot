@@ -83,7 +83,7 @@ macro_rules! bot_api_method {
         impl $Req {
             paste::paste! {
                 $(
-                    #[doc = concat!("Устанавливает поле `", stringify!($opt_f), "`")]
+                    #[doc = concat!("Sets the field `", stringify!($opt_f), "`")]
                     pub fn [<with_ $opt_f>](mut self, value: $OptT) -> Self {
                         self.$opt_f = Some(value);
                         self
@@ -101,8 +101,6 @@ pub mod prelude;
 mod api {
     /// API `/chats/` methods
     pub mod chats;
-    pub mod default;
-    pub mod display;
     pub mod types;
     pub mod utils;
     /// API `/events/` methods

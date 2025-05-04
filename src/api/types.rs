@@ -4,11 +4,11 @@ use std::time::Duration;
 #[cfg(feature = "templates")]
 use tera::Context;
 
+use crate::error::{ApiError, BotError, Result};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use std::fmt::{Display, Formatter};
 #[cfg(feature = "templates")]
 use tera::Tera;
-
-use crate::error::{ApiError, BotError, Result};
 
 /// Environment variable name for bot API URL
 pub const VKTEAMS_BOT_API_URL: &str = "VKTEAMS_BOT_API_URL";
@@ -499,7 +499,7 @@ pub struct PhotoUrl {
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(untagged)]
-/// Обёртка результата API: Success(T) или Error { ok: false, description }
+/// API result wrapper: Success(T) or Error { ok: false, description }
 pub enum ApiResult<T> {
     Success(T),
     Error(ApiError),
@@ -511,5 +511,52 @@ impl<T> ApiResult<T> {
             ApiResult::Success(value) => Ok(value),
             ApiResult::Error(error) => Err(BotError::Api(error)),
         }
+    }
+}
+
+/// Display trait for [`ChatId`]
+impl Display for ChatId {
+    /// Format [`ChatId`] to string
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+/// Link basse path for API version
+impl Display for APIVersionUrl {
+    /// Format [`APIVersionUrl`] to string
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        match self {
+            APIVersionUrl::V1 => write!(f, "bot/v1/"),
+        }
+    }
+}
+/// Display trait for [`MultipartName`] enum
+impl Display for MultipartName {
+    /// Format [`MultipartName`] to string
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        match self {
+            MultipartName::File(..) => write!(f, "file"),
+            MultipartName::Image(..) => write!(f, "image"),
+            _ => write!(f, ""),
+        }
+    }
+}
+
+/// Default values for [`Keyboard`]
+impl Default for Keyboard {
+    /// Create new [`Keyboard`] with required params
+    fn default() -> Self {
+        Self {
+            // Empty vector of [`KeyboardButton`]
+            buttons: vec![vec![]],
+        }
+    }
+}
+impl<T> Default for ApiResult<T> {
+    fn default() -> Self {
+        ApiResult::Error(ApiError {
+            ok: false,
+            description: String::new(),
+        })
     }
 }

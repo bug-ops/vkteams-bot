@@ -9,3 +9,4 @@ pub use crate::api::types::*;
 pub use crate::api::utils::*;
 pub use crate::api::*;
 pub use crate::bot::*;
+pub use crate::error::*;

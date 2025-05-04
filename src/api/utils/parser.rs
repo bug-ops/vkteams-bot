@@ -71,7 +71,7 @@ impl MessageTextParser {
                 Ok(format!("<ul>{}</ul>", result))
             }
             MessageTextFormat::None => Err(BotError::Validation(
-                "MessageTextFormat::None не поддерживается".to_string(),
+                "MessageTextFormat::None is not supported".to_string(),
             )),
         }
     }
@@ -118,14 +118,14 @@ impl MessageTextHTMLParser for MessageTextParser {
                 let str = match &self.parse_tmpl() {
                     Ok(text) => text.to_owned(),
                     Err(e) => {
-                        error!("Ошибка: {}", e);
+                        error!("Error: {}", e);
                         return (String::new(), ParseMode::HTML);
                     }
                 };
                 result.push_str(str.as_str());
                 (result, ParseMode::HTML)
             }
-            _ => todo!("Не реализован режим парсинга: {:?}", self.parse_mode),
+            _ => todo!("Parse mode not implemented: {:?}", self.parse_mode),
         }
     }
 }

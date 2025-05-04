@@ -57,26 +57,26 @@ where
 pub trait WebhookState: Clone + Send + Sync + 'static {
     type WebhookType: DeserializeOwned;
 
-    /// Получить путь для webhook
+    /// Get webhook path
     ///
-    /// ## Ошибки
-    /// - `BotError::Config` - ошибка конфигурации
+    /// ## Errors
+    /// - `BotError::Config` - configuration error
     fn get_path(&self) -> Result<String>;
 
-    /// Десериализовать JSON в тип webhook
+    /// Deserialize JSON into webhook type
     ///
-    /// ## Ошибки
-    /// - `BotError::Serialization` - ошибка десериализации
+    /// ## Errors
+    /// - `BotError::Serialization` - deserialization error
     fn deserialize(&self, json: String) -> Result<Self::WebhookType> {
         serde_json::from_str(&json).map_err(BotError::Serialization)
     }
 
-    /// Обработать webhook сообщение
+    /// Process webhook message
     ///
-    /// ## Ошибки
-    /// - `BotError::Api` - ошибка API при обработке сообщения
-    /// - `BotError::Network` - ошибка сети при отправке запроса
-    /// - `BotError::Serialization` - ошибка сериализации/десериализации
+    /// ## Errors
+    /// - `BotError::Api` - API error when processing message
+    /// - `BotError::Network` - network error when sending request
+    /// - `BotError::Serialization` - serialization/deserialization error
     async fn handler(&self, msg: Self::WebhookType) -> Result<()>;
 }
 
@@ -100,20 +100,20 @@ where
 
 /// Run the webhook consumer server
 ///
-/// ## Ошибки
-/// - `BotError::Config` - ошибка конфигурации (неверный порт)
-/// - `BotError::Network` - ошибка сети при запуске сервера
-/// - `BotError::System` - ошибка при обработке сигналов завершения
+/// ## Errors
+/// - `BotError::Config` - configuration error (invalid port)
+/// - `BotError::Network` - network error when starting server
+/// - `BotError::System` - error when processing shutdown signals
 pub async fn run_app<T>(ext: T) -> Result<()>
 where
     T: WebhookState + FromRef<AppState<T>> + Default + 'static,
 {
     let tcp_port = std::env::var(DEFAULT_TCP_PORT)
-        .map_err(|e| BotError::Config(format!("Не удалось получить порт: {}", e)))
+        .map_err(|e| BotError::Config(format!("Failed to get port: {}", e)))
         .unwrap_or_else(|e| panic!("{}", e));
 
     let listener = tokio::net::TcpListener::bind(format!("[::]:{tcp_port}")).await?;
-    info!("Сервер запущен на localhost:{tcp_port}{}", ext.get_path()?);
+    info!("Server started on localhost:{tcp_port}{}", ext.get_path()?);
 
     let app = build_router(ext)?;
     axum::serve(listener, app.into_make_service())
@@ -125,8 +125,8 @@ where
 
 /// Build router for the webhook
 ///
-/// ## Ошибки
-/// - `BotError::Config` - ошибка конфигурации (неверный путь)
+/// ## Errors
+/// - `BotError::Config` - configuration error (invalid path)
 pub fn build_router<T>(ext: T) -> Result<Router>
 where
     T: WebhookState + FromRef<AppState<T>> + Default + 'static,
@@ -155,20 +155,20 @@ async fn webhook_handler<T>(State(state): State<T>, json: String) -> impl IntoRe
 where
     T: WebhookState + Default + Clone + Send + Sync + 'static,
 {
-    trace!("Получен webhook. Попытка десериализации");
+    trace!("Received webhook. Attempting deserialization");
     let msg = match state.deserialize(json) {
         Ok(msg) => msg,
         Err(e) => {
-            error!("Ошибка десериализации webhook: {}", e);
+            error!("Error deserializing webhook: {}", e);
             return StatusCode::BAD_REQUEST;
         }
     };
 
-    trace!("Webhook десериализован. Обработка");
+    trace!("Webhook deserialized. Processing");
     match state.handler(msg).await {
         Ok(_) => StatusCode::OK,
         Err(e) => {
-            error!("Ошибка обработки webhook: {}", e);
+            error!("Error processing webhook: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         }
     }
