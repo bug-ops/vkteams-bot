@@ -1,8 +1,8 @@
 [package]
 license = "MIT OR Apache-2.0"
 name = "vkteams-bot"
-version = "0.6.6"
-edition = "2021"
+version = "0.7.0"
+edition = "2024"
 authors = ["Andrei G. <k05h31@gmail.com>"]
 description = "VK Teams Bot API client"
 repository = "https://github.com/bug-ops/vkteams-bot/tree/master"
@@ -40,7 +40,7 @@ templates = ["dep:tera"]
 grpc = ["dep:tonic-health"]
 
 [dev-dependencies]
-vkteams-bot = { version = "0.6", path = ".", features = ["full"] }
+vkteams-bot = { version = "0.7", path = ".", features = ["full"] }
 tonic = "0.13"
 dotenvy = "0.15"
 pretty_env_logger = "0.5"
