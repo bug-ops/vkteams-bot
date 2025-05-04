@@ -1,3 +1,4 @@
+#![allow(unused_parens)]
 //! Answer callback query method `messages/answerCallbackQuery`
 //! [More info](https://teams.vk.com/botapi/#/messages/get_messages_answerCallbackQuery)
 use crate::prelude::*;

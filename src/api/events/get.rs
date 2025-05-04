@@ -1,3 +1,4 @@
+#![allow(unused_parens)]
 //! Get the events that have occurred since the last event id method `events/get`
 //! [More info](https://teams.vk.com/botapi/#/events/get_events_get)
 use crate::api::types::*;

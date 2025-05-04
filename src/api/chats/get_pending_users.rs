@@ -1,3 +1,4 @@
+#![allow(unused_parens)]
 //! Get pending users method `chats/getPendingUsers`
 //! [More info](https://teams.vk.com/botapi/#/chats/get_chats_getPendingUsers)
 use crate::api::types::*;

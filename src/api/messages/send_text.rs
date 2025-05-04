@@ -1,3 +1,4 @@
+#![allow(unused_parens)]
 //! Send text messages to the chat method `messages/sendText`
 //! [More info](https://teams.vk.com/botapi/#/messages/get_messages_sendText)
 use crate::prelude::*;

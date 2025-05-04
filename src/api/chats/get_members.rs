@@ -1,3 +1,4 @@
+#![allow(unused_parens)]
 //! # Get chat members method `chats/getMembers`
 //! [More info](https://teams.vk.com/botapi/#/chats/get_chats_getMembers)
 use crate::api::types::*;

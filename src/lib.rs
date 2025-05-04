@@ -36,6 +36,7 @@
 //! ```
 #[macro_use]
 extern crate log;
+
 macro_rules! bot_api_method {
     (
         method = $method:literal,

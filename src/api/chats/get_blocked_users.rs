@@ -1,3 +1,4 @@
+#![allow(unused_parens)]
 //! Get blocked users method `chats/getBlockedUsers`
 //! [More info](https://teams.vk.com/botapi/#/chats/get_chats_getBlockedUsers)
 use crate::api::types::*;

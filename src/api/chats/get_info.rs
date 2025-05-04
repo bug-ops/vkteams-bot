@@ -1,3 +1,4 @@
+#![allow(unused_parens)]
 //! Get information about a chat method `chats/getInfo`
 //! [More info](https://teams.vk.com/botapi/#/chats/get_chats_getInfo)
 use crate::api::types::*;
