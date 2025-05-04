@@ -11,7 +11,5 @@ bot_api_method! {
         },
         optional {}
     },
-    response = ResponseChatsUnpinMessage {
-        ok: bool,
-    },
+    response = ResponseChatsUnpinMessage {},
 }

@@ -13,8 +13,5 @@ bot_api_method! {
             del_last_messages: bool,
         }
     },
-    response = ResponseChatsBlockUser {
-        ok: bool,
-        description: String,
-    },
+    response = ResponseChatsBlockUser {},
 }

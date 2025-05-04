@@ -17,9 +17,7 @@ bot_api_method! {
             parse_mode: ParseMode,
         }
     },
-    response = ResponseMessagesEditText {
-        ok: bool,
-    },
+    response = ResponseMessagesEditText {},
 }
 
 impl MessageTextSetters for RequestMessagesEditText {

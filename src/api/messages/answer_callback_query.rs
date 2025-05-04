@@ -16,7 +16,5 @@ bot_api_method! {
             url: String,
         }
     },
-    response = ResponseMessagesAnswerCallbackQuery {
-        ok: bool,
-    },
+    response = ResponseMessagesAnswerCallbackQuery {},
 }

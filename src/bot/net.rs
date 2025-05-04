@@ -2,8 +2,8 @@
 use crate::api::types::*;
 use anyhow::Result;
 use reqwest::{
-    multipart::{Form, Part},
     Body, Client, Url,
+    multipart::{Form, Part},
 };
 use std::time::Duration;
 use tokio::fs::File;

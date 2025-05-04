@@ -1,10 +1,11 @@
 #[macro_use]
 extern crate log;
 
+use anyhow::Result;
 use vkteams_bot::prelude::*;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     // Load .env file
     dotenvy::dotenv().expect("unable to load .env file");
     // Initialize logger
@@ -13,14 +14,12 @@ async fn main() {
     // Make bot
     let bot = Bot::default();
     // Start event listener and pass result to a callback function
-    bot.event_listener(print_out).await;
+    bot.event_listener(print_out).await?;
+    Ok(())
 }
 // Callback function to print out the result
-pub async fn print_out(_: Bot, res: ResponseEventsGet) {
+pub async fn print_out(_: Bot, res: ResponseEventsGet) -> Result<()> {
     // If the result is Ok, convert it to a string and print it out
-    match serde_json::to_string(&res) {
-        Ok(s) => println!("{}", s),
-        // If the result is an error, print error message
-        Err(e) => println!("{}", e),
-    }
+    println!("{}", serde_json::to_string(&res)?);
+    Ok(())
 }

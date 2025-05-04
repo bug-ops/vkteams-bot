@@ -16,6 +16,5 @@ bot_api_method! {
     },
     response = ResponseEventsGet {
         events: Vec<EventMessage>,
-        ok: bool,
     },
 }

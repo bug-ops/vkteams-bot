@@ -11,8 +11,5 @@ bot_api_method! {
         },
         optional {}
     },
-    response = ResponseChatsAvatarSet {
-        ok: bool,
-        description: String,
-    },
+    response = ResponseChatsAvatarSet {},
 }

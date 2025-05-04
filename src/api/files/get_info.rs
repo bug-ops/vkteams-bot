@@ -3,7 +3,7 @@
 //! [More info](https://teams.vk.com/botapi/#/files/get_files_getInfo)
 use crate::api::types::*;
 use crate::bot::net::*;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
@@ -24,9 +24,6 @@ bot_api_method! {
         file_name: String,
         #[serde(default)]
         url: String,
-        ok: bool,
-        #[serde(default)]
-        description: String,
     },
 }
 
@@ -35,12 +32,9 @@ impl ResponseFilesGetInfo {
     /// ## Parameters
     /// - `client`: [`reqwest::Client`] - reqwest client
     pub async fn download(&self, client: reqwest::Client) -> Result<Vec<u8>> {
-        if !self.ok {
-            return Err(anyhow!(self.description.to_owned()));
+        if self.url.is_empty() {
+            return Err(anyhow!("URL is empty"));
         }
-        match Url::parse(&self.url.to_owned()) {
-            Ok(url) => get_bytes_response(client, url).await,
-            Err(e) => Err(e.into()),
-        }
+        get_bytes_response(client, Url::parse(&self.url)?).await
     }
 }

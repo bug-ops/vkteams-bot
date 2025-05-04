@@ -26,11 +26,11 @@ use anyhow::Result;
 use async_trait::async_trait;
 use axum::extract::FromRef;
 use axum::{
+    Router,
     extract::{DefaultBodyLimit, State},
     http::{Method, StatusCode},
     response::IntoResponse,
     routing::post,
-    Router,
 };
 use serde::de::DeserializeOwned;
 use std::time::Duration;

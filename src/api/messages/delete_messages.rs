@@ -12,7 +12,5 @@ bot_api_method! {
         },
         optional {}
     },
-    response = ResponseMessagesDeleteMessages {
-        ok: bool,
-    },
+    response = ResponseMessagesDeleteMessages {},
 }

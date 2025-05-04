@@ -1,5 +1,5 @@
 use crate::api::types::*;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use reqwest::Url;
 use std::convert::From;
 pub trait MessageTextHTMLParser {

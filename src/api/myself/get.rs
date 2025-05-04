@@ -15,6 +15,5 @@ bot_api_method! {
         first_name: String,
         about: String,
         photo: Vec<PhotoUrl>,
-        ok: bool,
     },
 }

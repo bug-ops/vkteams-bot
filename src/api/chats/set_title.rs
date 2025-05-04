@@ -11,7 +11,5 @@ bot_api_method! {
         },
         optional {}
     },
-    response = ResponseChatsSetTitle {
-        ok: bool,
-    },
+    response = ResponseChatsSetTitle {},
 }

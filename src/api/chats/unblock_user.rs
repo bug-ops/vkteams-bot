@@ -11,7 +11,5 @@ bot_api_method! {
         },
         optional {}
     },
-    response = ResponseChatsUnblockUser {
-        ok: bool,
-    },
+    response = ResponseChatsUnblockUser {},
 }

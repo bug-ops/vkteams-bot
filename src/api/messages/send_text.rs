@@ -22,8 +22,6 @@ bot_api_method! {
     },
     response = ResponseMessagesSendText {
         msg_id: MsgId,
-        description: String,
-        ok: bool,
     },
 }
 

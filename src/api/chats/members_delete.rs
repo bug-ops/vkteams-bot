@@ -12,7 +12,5 @@ bot_api_method! {
         },
         optional {}
     },
-    response = ResponseChatsMembersDelete {
-        ok: bool,
-    },
+    response = ResponseChatsMembersDelete {},
 }

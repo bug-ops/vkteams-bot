@@ -16,7 +16,5 @@ bot_api_method! {
             everyone: Option<bool>,
         }
     },
-    response = ResponseChatsResolvePending {
-        ok: bool,
-    },
+    response = ResponseChatsResolvePending {},
 }

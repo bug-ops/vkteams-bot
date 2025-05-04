@@ -23,7 +23,6 @@ bot_api_method! {
     response = ResponseMessagesSendVoice {
         msg_id: Option<MsgId>,
         file_id: Option<String>,
-        ok: bool,
     },
 }
 
