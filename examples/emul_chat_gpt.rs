@@ -68,10 +68,14 @@ async fn send(bot: &Bot) -> Result<()> {
         sleep(Duration::from_millis(300)).await;
     }
     // Bot action looking for message
-    bot.send_api_request(RequestChatsSendAction::new((
-        chat_id.to_owned(),
-        ChatActions::Looking,
-    )))
-    .await?;
-    Ok(())
+    match bot
+        .send_api_request(RequestChatsSendAction::new((
+            chat_id.to_owned(),
+            ChatActions::Looking,
+        )))
+        .await?
+    {
+        ApiResult::Success(_) => Ok(()),
+        ApiResult::Error { ok: _, description } => Err(anyhow!("Error: {}", description)),
+    }
 }

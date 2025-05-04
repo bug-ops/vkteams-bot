@@ -14,8 +14,7 @@ async fn main() -> Result<()> {
     // Make bot
     let bot = Bot::default();
     // Start event listener and pass result to a callback function
-    bot.event_listener(print_out).await?;
-    Ok(())
+    bot.event_listener(print_out).await
 }
 // Callback function to print out the result
 pub async fn print_out(_: Bot, res: ResponseEventsGet) -> Result<()> {

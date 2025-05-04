@@ -57,7 +57,7 @@ async fn main() -> Result<()> {
             .any(|admin| admin.user_id == self_user_id);
         if is_admin {
             // Set avatar for the chat
-            avatar_set(&bot, chat.chat_id.clone()).await;
+            avatar_set(&bot, chat.chat_id.clone()).await?;
         }
     }
     Ok(())
@@ -89,16 +89,16 @@ pub async fn iter_get_admins(bot: &Bot, chat_id: ChatId) -> Result<IntoIter<Admi
     }
 }
 // Set avatar for the chat
-pub async fn avatar_set(bot: &Bot, chat_id: ChatId) {
+pub async fn avatar_set(bot: &Bot, chat_id: ChatId) -> Result<()> {
     match bot
         // tests folder contains test.jpg file
         .send_api_request(RequestChatsAvatarSet::new((
             chat_id,
             MultipartName::Image(String::from("tests/test.jpg")),
         )))
-        .await
+        .await?
     {
-        Ok(res) => info!("{:?}", res),
-        Err(e) => error!("Error setting avatar: {:?}", e),
+        ApiResult::Success(_) => Ok(()),
+        ApiResult::Error { ok: _, description } => Err(anyhow!("Error: {}", description)),
     }
 }

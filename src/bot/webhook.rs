@@ -55,7 +55,7 @@ where
 #[async_trait]
 pub trait WebhookState: Clone + Send + Sync + 'static {
     type WebhookType: DeserializeOwned;
-    fn get_path(&self) -> String;
+    fn get_path(&self) -> Result<String>;
     fn deserialize(&self, json: String) -> Result<Self::WebhookType> {
         serde_json::from_str(&json).map_err(|e| e.into())
     }
@@ -87,8 +87,8 @@ where
     // Bind the server to the port
     let listener = TcpListener::bind(format!("[::]:{tcp_port}")).await?;
     // build our application with a single route
-    info!("Listening localhost:{tcp_port}{}", ext.get_path());
-    let app = build_router(ext);
+    info!("Listening localhost:{tcp_port}{}", ext.get_path()?);
+    let app = build_router(ext)?;
     // Start the server
     axum::serve(listener, app.into_make_service())
         .with_graceful_shutdown(shutdown_signal())
@@ -97,13 +97,13 @@ where
     Ok(())
 }
 /// Build router for the webhook
-pub fn build_router<T>(ext: T) -> Router
+pub fn build_router<T>(ext: T) -> Result<Router>
 where
     T: WebhookState + FromRef<AppState<T>> + Default + 'static,
 {
-    Router::new()
+    Ok(Router::new()
         .route(
-            ext.get_path().as_str(),
+            ext.get_path()?.as_str(),
             post(webhook_handler::<T>).layer((
                 DefaultBodyLimit::disable(),
                 RequestBodyLimitLayer::new(1024 * 5_000 /* ~5mb */),
@@ -117,7 +117,7 @@ where
                 .allow_origin(AllowOrigin::predicate(|_, _| true))
                 .allow_methods([Method::POST]),
         ))
-        .with_state(AppState { ext })
+        .with_state(AppState { ext }))
 }
 
 /// Handler for the webhook

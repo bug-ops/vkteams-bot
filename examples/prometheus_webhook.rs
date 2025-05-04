@@ -1,6 +1,6 @@
 #[macro_use]
 extern crate log;
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -91,8 +91,8 @@ pub enum AlertStatus {
 impl WebhookState for ExtendState {
     type WebhookType = PrometheusMessage;
 
-    fn get_path(&self) -> String {
-        self.path.clone()
+    fn get_path(&self) -> Result<String> {
+        Ok(self.path.clone())
     }
 
     async fn handler(&self, msg: Self::WebhookType) -> Result<()> {
@@ -101,9 +101,9 @@ impl WebhookState for ExtendState {
         // Make request for bot API
         let req = RequestMessagesSendText::new(self.chat_id.to_owned()).set_text(parser);
         // Send request to the bot API
-        match self.bot.send_api_request(req).await {
-            Ok(_) => Ok(()),
-            Err(e) => Err(e.into()),
+        match self.bot.send_api_request(req).await? {
+            ApiResult::Success(_) => Ok(()),
+            ApiResult::Error { ok: _, description } => Err(anyhow!("Error: {}", description)),
         }
     }
 }
@@ -116,9 +116,5 @@ pub async fn main() -> Result<()> {
     pretty_env_logger::init();
     info!("Starting...");
     // Run the web app
-    vkteams_bot::bot::webhook::run_app(ExtendState::default())
-        .await
-        .unwrap();
-
-    Ok(())
+    vkteams_bot::bot::webhook::run_app(ExtendState::default()).await
 }
