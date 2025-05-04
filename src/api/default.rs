@@ -10,3 +10,11 @@ impl Default for Keyboard {
         }
     }
 }
+impl<T> Default for ApiResult<T> {
+    fn default() -> Self {
+        ApiResult::Error {
+            ok: false,
+            description: String::new(),
+        }
+    }
+}

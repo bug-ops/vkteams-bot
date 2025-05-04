@@ -1,9 +1,10 @@
 #[macro_use]
 extern crate log;
+use anyhow::{Result, anyhow};
 use vkteams_bot::prelude::*;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     // Load .env file
     dotenvy::dotenv().expect("unable to load .env file");
     // Initialize logger
@@ -22,14 +23,13 @@ async fn main() {
         chat_id.to_owned(),
         ChatActions::Typing,
     )))
-    .await
-    .unwrap();
+    .await?;
     // Send message
     match bot
         .send_api_request(RequestChatsGetInfo::new(chat_id.to_owned()))
-        .await
+        .await?
     {
-        Ok(res) => match res.res {
+        ApiResult::Success(res) => match res.res {
             EnumChatsGetInfo::Channel(chat) => {
                 info!("Channel: {:?}", chat.title.unwrap());
             }
@@ -47,8 +47,10 @@ async fn main() {
                 debug!("None");
             }
         },
-        Err(e) => {
-            error!("Error: {}", e);
+        ApiResult::Error { ok: _, description } => {
+            error!("Error: {}", description);
+            return Err(anyhow!("Error: {}", description));
         }
     }
+    Ok(())
 }

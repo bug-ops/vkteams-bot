@@ -4,7 +4,7 @@ use std::time::Duration;
 #[cfg(feature = "templates")]
 use tera::Context;
 
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 #[cfg(feature = "templates")]
 use tera::Tera;
 
@@ -493,4 +493,11 @@ pub struct Sn {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct PhotoUrl {
     pub url: String,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(untagged)]
+/// Обёртка результата API: Success(T) или Error { ok: false, description }
+pub enum ApiResult<T> {
+    Success(T),
+    Error { ok: bool, description: String },
 }

@@ -70,7 +70,7 @@ macro_rules! bot_api_method {
             type Args = ($($ReqT),*);
             const METHOD: &'static str = $method;
             type RequestType = Self;
-            type ResponseType = $Res;
+            type ResponseType = crate::api::types::ApiResult<$Res>;
 
             fn new(($($req_f),*): ($($ReqT),*)) -> Self {
                 Self {

@@ -17,14 +17,23 @@ impl Bot {
             // Update last event id
             match res {
                 Ok(events) => {
-                    let evt = events.events.clone();
-                    // If at least one event read
-                    if !evt.is_empty() {
-                        // Update last event id
-                        self.set_last_event_id(evt[evt.len() - 1].event_id);
-                        // Execute callback function
-                        func(self.clone(), events).await;
-                    }
+                    match events {
+                        ApiResult::Success(events) => {
+                            // If at least one event read
+                            if !events.events.is_empty() {
+                                // Update last event id
+                                self.set_last_event_id(
+                                    events.events[events.events.len() - 1].event_id,
+                                );
+                                // Execute callback function
+                                func(self.clone(), events).await;
+                            }
+                        }
+                        ApiResult::Error { ok: _, description } => {
+                            error!("Error: {:?}", description);
+                            continue;
+                        }
+                    };
                 }
                 Err(e) => {
                     error!("Error: {:?}", e);

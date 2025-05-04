@@ -1,9 +1,10 @@
 #[macro_use]
 extern crate log;
+use anyhow::{Result, anyhow};
 use vkteams_bot::prelude::*;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     // Check .env file and init logger
     dotenvy::dotenv().expect("Unable to load .env file");
     pretty_env_logger::init();
@@ -13,9 +14,9 @@ async fn main() {
     // Get events from the API
     match bot
         .send_api_request(RequestEventsGet::new(bot.get_last_event_id()))
-        .await
+        .await?
     {
-        Ok(res) => {
+        ApiResult::Success(res) => {
             let events = res.events;
             // Check if there are any events with new messages event type
             for event in events {
@@ -24,7 +25,7 @@ async fn main() {
                     // Check if there are any files in the message
                     for part in parts {
                         if let MessagePartsType::File(p) = part.part_type {
-                            download_files(&bot, p.file_id).await;
+                            download_files(&bot, p.file_id).await?;
                         } else {
                             continue;
                         }
@@ -34,46 +35,36 @@ async fn main() {
                 }
             }
         }
-        Err(e) => {
-            error!("Error: {}", e);
+        ApiResult::Error { ok: _, description } => {
+            error!("Error: {}", description);
+            return Err(anyhow!("Error: {}", description));
         }
     }
+    Ok(())
 }
 // Download files from messages
-pub async fn download_files(bot: &Bot, file_id: FileId) {
+pub async fn download_files(bot: &Bot, file_id: FileId) -> Result<()> {
     // Get file info from the API
     match bot
         .send_api_request(RequestFilesGetInfo::new(file_id))
-        .await
+        .await?
     {
         // Download file data
-        Ok(file_info) => {
-            if !file_info.ok {
-                error!("Error: {:?}", file_info.description);
-                return;
-            }
-            match file_info.download(reqwest::Client::new()).await {
-                // Save file to the disk
-                Ok(file_data) => file_save(&file_info.file_name.to_owned(), file_data).await,
-                Err(e) => {
-                    error!("Error: {}", e);
-                }
-            }
+        ApiResult::Success(file_info) => {
+            let file_data = file_info.download(reqwest::Client::new()).await?;
+            // Save file to the disk
+            file_save(&file_info.file_name.to_owned(), file_data).await?;
         }
-        Err(e) => {
-            error!("Error: {}", e);
+        ApiResult::Error { ok: _, description } => {
+            error!("Error: {}", description);
+            return Err(anyhow!("Error: {}", description));
         }
     }
+    Ok(())
 }
 // Save file to the disk
-pub async fn file_save(file_name: &str, file_data: Vec<u8>) {
+pub async fn file_save(file_name: &str, file_data: Vec<u8>) -> Result<()> {
     let file_path = format!("tests/{}", file_name);
-    match tokio::fs::write(file_path.to_owned(), file_data).await {
-        Ok(_) => {
-            info!("File saved: {}", file_path);
-        }
-        Err(e) => {
-            error!("Error: {}", e);
-        }
-    }
+    tokio::fs::write(file_path.to_owned(), file_data).await?;
+    Ok(())
 }
