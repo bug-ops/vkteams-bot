@@ -45,7 +45,7 @@ fn init_traces() -> Result<SdkTracerProvider, Box<dyn std::error::Error>> {
 
     Ok(SdkTracerProvider::builder()
         .with_sampler(Sampler::ParentBased(Box::new(Sampler::TraceIdRatioBased(
-            cfg.ratio as f64,
+            cfg.ratio,
         ))))
         .with_id_generator(RandomIdGenerator::default())
         .with_resource(get_resource())
