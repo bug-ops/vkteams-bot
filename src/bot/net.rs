@@ -15,12 +15,13 @@ use tokio_util::codec::{BytesCodec, FramedRead};
 ///
 /// ## Errors
 /// - `BotError::Network` - network error when sending request or receiving response
+#[tracing::instrument(skip(client))]
 pub async fn get_text_response(client: Client, url: Url) -> Result<String> {
     debug!("Getting response from API at path {}...", url);
     let response = client.get(url.as_str()).send().await?;
-    debug!("Response status: {}", response.status());
+    trace!("Response status: {}", response.status());
     let text = response.text().await?;
-    debug!("Response body: {}", text);
+    trace!("Response body: {}", text);
     Ok(text)
 }
 /// Get bytes response from API
@@ -29,10 +30,11 @@ pub async fn get_text_response(client: Client, url: Url) -> Result<String> {
 ///
 /// ## Errors
 /// - `BotError::Network` - network error when sending request or receiving response
+#[tracing::instrument(skip(client))]
 pub async fn get_bytes_response(client: Client, url: Url) -> Result<Vec<u8>> {
     debug!("Getting binary response from API at path {}...", url);
     let response = client.get(url.as_str()).send().await?;
-    debug!("Response status: {}", response.status());
+    trace!("Response status: {}", response.status());
     let bytes = response.bytes().await?;
     Ok(bytes.to_vec())
 }
@@ -42,6 +44,7 @@ pub async fn get_bytes_response(client: Client, url: Url) -> Result<Vec<u8>> {
 /// ## Errors
 /// - `BotError::Validation` - file not specified
 /// - `BotError::Io` - error working with file
+#[tracing::instrument(skip(file))]
 pub async fn file_to_multipart(file: MultipartName) -> Result<Form> {
     //Get name of the form part
     let name = file.to_string();
@@ -62,6 +65,7 @@ pub async fn file_to_multipart(file: MultipartName) -> Result<Form> {
 ///
 /// ## Errors
 /// - `BotError::Io` - error opening file
+#[tracing::instrument(skip(path))]
 async fn make_stream(path: String) -> Result<Body> {
     //Open file and check if it exists
     let file = File::open(path.to_owned()).await?;
@@ -74,12 +78,13 @@ async fn make_stream(path: String) -> Result<Body> {
 ///
 /// ## Errors
 /// - `BotError::Network` - network error when sending request or receiving response
+#[tracing::instrument(skip(client, form))]
 pub async fn post_response_file(client: Client, url: Url, form: Form) -> Result<String> {
     debug!("Sending file to API at path {}...", url);
     let response = client.post(url.as_str()).multipart(form).send().await?;
-    debug!("Response status: {}", response.status());
+    trace!("Response status: {}", response.status());
     let text = response.text().await?;
-    debug!("Response body: {}", text);
+    trace!("Response body: {}", text);
     Ok(text)
 }
 /// Set default request settings: timeout, tcp

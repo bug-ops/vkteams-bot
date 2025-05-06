@@ -1,13 +1,13 @@
 #[macro_use]
 extern crate log;
-use vkteams_bot::error::{BotError, Result};
 use vkteams_bot::prelude::*;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     // Check .env file and init logger
     dotenvy::dotenv().expect("Unable to load .env file");
-    pretty_env_logger::init();
+    // Initialize logger
+    let _guard = otlp::init().map_err(|e| BotError::Otlp(e.into()))?;
     info!("Starting...");
     // Make bot instance
     let bot = Bot::default();

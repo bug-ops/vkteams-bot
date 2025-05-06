@@ -36,6 +36,7 @@ impl<S> GRPCRouter<S> for Router<S>
 where
     S: Clone + Send + Sync + 'static,
 {
+    #[tracing::instrument(skip(self))]
     fn route_grpc_probe(self) -> Self {
         let (_, health_service) = tonic_health::server::health_reporter();
         self.route_service("/grpc.health.v1.Health/Check", health_service)

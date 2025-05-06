@@ -1,14 +1,14 @@
 #[macro_use]
 extern crate log;
 use std::vec::IntoIter;
-use vkteams_bot::error::{BotError, Result};
 use vkteams_bot::prelude::*;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     // Check .env file and init logger
     dotenvy::dotenv().expect("Unable to load .env file");
-    pretty_env_logger::init();
+    // Initialize logger
+    let _guard = otlp::init().map_err(|e| BotError::Otlp(e.into()))?;
     info!("Starting...");
     // Start bot with API version 1
     let bot = Bot::new(APIVersionUrl::V1);

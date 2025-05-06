@@ -1,7 +1,5 @@
 #[macro_use]
 extern crate log;
-
-use vkteams_bot::error::{BotError, Result};
 use vkteams_bot::prelude::*;
 
 const CALLBACK_DATA: &str = "callback_button_#1";
@@ -13,7 +11,7 @@ async fn main() -> Result<()> {
     // Load .env file
     dotenvy::dotenv().expect("unable to load .env file");
     // Initialize logger
-    pretty_env_logger::init();
+    let _guard = otlp::init().map_err(|e| BotError::Otlp(e.into()))?;
     info!("Starting...");
     // Make bot
     let bot = Bot::default();

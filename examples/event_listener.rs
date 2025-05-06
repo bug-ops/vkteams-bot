@@ -9,7 +9,7 @@ async fn main() -> Result<()> {
     // Load .env file
     dotenvy::dotenv().expect("unable to load .env file");
     // Initialize logger
-    pretty_env_logger::init();
+    let _guard = otlp::init().map_err(|e| BotError::Otlp(e.into()))?;
     info!("Starting...");
     // Make bot
     let bot = Bot::default();

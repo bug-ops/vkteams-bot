@@ -8,7 +8,7 @@ async fn main() -> Result<()> {
     // Load .env file
     dotenvy::dotenv().expect("unable to load .env file");
     // Initialize logger
-    pretty_env_logger::init();
+    let _guard = otlp::init().map_err(|e| BotError::Otlp(e.into()))?;
     info!("Starting...");
     const CODE_STRING: &str = "<!DOCTYPE html>\n<html>\n<head>\n<title>Page Title</title>\n</head>\n<body>\n</body>\n</html>";
     // Send message like text generation
