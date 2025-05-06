@@ -22,9 +22,12 @@ fn get_resource() -> Resource {
         .with_service_name(cfg.instance_id.as_ref())
         .with_attributes(vec![
             KeyValue::new(SERVICE_NAMESPACE, "vkteams"),
-            KeyValue::new(SERVICE_INSTANCE_ID, CONFIG.otlp.instance_id.as_ref()),
+            KeyValue::new(SERVICE_INSTANCE_ID, cfg.instance_id.as_ref()),
             KeyValue::new(SERVICE_VERSION, env!("CARGO_PKG_VERSION")),
-            KeyValue::new(DEPLOYMENT_ENVIRONMENT_NAME, "develop"),
+            KeyValue::new(
+                DEPLOYMENT_ENVIRONMENT_NAME,
+                cfg.deployment_environment_name.as_ref(),
+            ),
         ])
         .build()
 }
@@ -42,7 +45,7 @@ fn init_traces() -> Result<SdkTracerProvider, Box<dyn std::error::Error>> {
 
     Ok(SdkTracerProvider::builder()
         .with_sampler(Sampler::ParentBased(Box::new(Sampler::TraceIdRatioBased(
-            1.0,
+            cfg.ratio as f64,
         ))))
         .with_id_generator(RandomIdGenerator::default())
         .with_resource(get_resource())
