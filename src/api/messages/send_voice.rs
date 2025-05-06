@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 bot_api_method! {
     method = "messages/sendVoice",
+    http_method = HTTPMethod::POST,
     request = RequestMessagesSendVoice {
         required {
             chat_id: ChatId,

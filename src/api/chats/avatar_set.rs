@@ -3,11 +3,12 @@
 use crate::api::types::*;
 use serde::{Deserialize, Serialize};
 bot_api_method! {
-    method   = "chats/avatar/set",
-    request  = RequestChatsAvatarSet {
+    method = "chats/avatar/set",
+    http_method = HTTPMethod::POST,
+    request = RequestChatsAvatarSet {
         required {
-        chat_id: ChatId,
-        multipart: MultipartName,
+            chat_id: ChatId,
+            multipart: MultipartName,
         },
         optional {}
     },

@@ -40,6 +40,7 @@ extern crate log;
 macro_rules! bot_api_method {
     (
         method = $method:literal,
+        $(http_method = $http_method:expr,)?
         request = $Req:ident {
             required {
                 $( $req_f:ident : $ReqT:ty ),* $(,)?
@@ -69,6 +70,7 @@ macro_rules! bot_api_method {
         impl crate::api::types::BotRequest for $Req {
             type Args = ($($ReqT),*);
             const METHOD: &'static str = $method;
+            $(const HTTP_METHOD: crate::api::types::HTTPMethod = $http_method;)?
             type RequestType = Self;
             type ResponseType = crate::api::types::ApiResult<$Res>;
 

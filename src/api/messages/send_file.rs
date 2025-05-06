@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 bot_api_method! {
     method = "messages/sendFile",
+    http_method = HTTPMethod::POST,
     request = RequestMessagesSendFile {
         required {
             chat_id: ChatId,
