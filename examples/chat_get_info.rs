@@ -8,7 +8,7 @@ async fn main() -> Result<()> {
     // Load .env file
     dotenvy::dotenv().map_err(|e| BotError::Config(e.to_string()))?;
     // Initialize logger
-    pretty_env_logger::init();
+    let _guard = otlp::init().map_err(|e| BotError::Otlp(e.into()))?;
     info!("Starting...");
     // Send message like text generation
     let bot = Bot::default();

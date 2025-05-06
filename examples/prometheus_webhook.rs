@@ -113,7 +113,7 @@ pub async fn main() -> Result<()> {
     // Load .env file
     dotenvy::dotenv().expect("unable to load .env file");
     // Initialize logger
-    pretty_env_logger::init();
+    let _guard = otlp::init().map_err(|e| BotError::Otlp(e.into()))?;
     info!("Starting...");
     // Run the web app
     vkteams_bot::bot::webhook::run_app(ExtendState::default()).await

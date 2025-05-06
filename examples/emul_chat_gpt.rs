@@ -9,7 +9,7 @@ async fn main() -> Result<()> {
     // Load .env file
     dotenvy::dotenv().expect("unable to load .env file");
     // Initialize logger
-    pretty_env_logger::init();
+    let _guard = otlp::init().map_err(|e| BotError::Otlp(e.into()))?;
     info!("Starting...");
     // Send message like text generation
     send(&Bot::default()).await?;
@@ -36,6 +36,7 @@ async fn send(bot: &Bot) -> Result<()> {
             .add(MessageTextFormat::Plain(word.to_string()))
             .space();
         if id.0.is_empty() {
+            info!("Sending first word...");
             // First word send by creating new message
             id = match bot
                 .send_api_request(
@@ -51,6 +52,7 @@ async fn send(bot: &Bot) -> Result<()> {
                 }
             };
         } else {
+            info!("Sending next word...");
             // Next words add by editing previous message
             bot.send_api_request(
                 RequestMessagesEditText::new((chat_id.to_owned(), id.to_owned()))

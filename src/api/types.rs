@@ -1,12 +1,11 @@
 //! API types
+use crate::error::{ApiError, BotError, Result};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::fmt::*;
+use std::fmt::{Display, Formatter};
 use std::time::Duration;
 #[cfg(feature = "templates")]
 use tera::Context;
-
-use crate::error::{ApiError, BotError, Result};
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use std::fmt::{Display, Formatter};
 #[cfg(feature = "templates")]
 use tera::Tera;
 
@@ -19,9 +18,10 @@ pub const VKTEAMS_PROXY: &str = "VKTEAMS_PROXY";
 /// Timeout for long polling
 pub const POLL_TIME: u64 = 30;
 /// Global timeout for [`reqwest::Client`]
-///
 /// [`reqwest::Client`]: https://docs.rs/reqwest/latest/reqwest/struct.Client.html
 pub const POLL_DURATION: &Duration = &Duration::from_secs(POLL_TIME + 10);
+
+pub const SERVICE_NAME: &str = "BOT";
 /// Supported API versions
 #[derive(Debug)]
 pub enum APIVersionUrl {

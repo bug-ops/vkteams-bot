@@ -10,3 +10,5 @@ pub use crate::api::utils::*;
 pub use crate::api::*;
 pub use crate::bot::*;
 pub use crate::error::*;
+#[cfg(feature = "otlp")]
+pub use crate::otlp::{self, OtelGuard, init};

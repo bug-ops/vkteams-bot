@@ -16,6 +16,33 @@ impl fmt::Display for ApiError {
 impl std::error::Error for ApiError {}
 
 #[derive(Debug)]
+pub struct OtlpError {
+    pub message: String,
+}
+
+impl fmt::Display for OtlpError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
+impl std::error::Error for OtlpError {}
+
+impl From<String> for OtlpError {
+    fn from(message: String) -> Self {
+        OtlpError { message }
+    }
+}
+
+impl From<Box<dyn std::error::Error>> for OtlpError {
+    fn from(err: Box<dyn std::error::Error>) -> Self {
+        OtlpError {
+            message: err.to_string(),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub enum BotError {
     /// API Error
     Api(ApiError),
@@ -41,6 +68,8 @@ pub enum BotError {
     UrlParams(serde_url_params::Error),
     /// System Error
     System(String),
+    /// Otlp Error
+    Otlp(OtlpError),
 }
 
 impl fmt::Display for BotError {
@@ -59,6 +88,7 @@ impl fmt::Display for BotError {
             BotError::Validation(e) => write!(f, "Validation Error: {}", e),
             BotError::UrlParams(e) => write!(f, "URL Parameters Error: {}", e),
             BotError::System(e) => write!(f, "System Error: {}", e),
+            BotError::Otlp(e) => write!(f, "Otlp Error: {}", e),
         }
     }
 }
@@ -79,6 +109,7 @@ impl std::error::Error for BotError {
             BotError::Validation(_) => None,
             BotError::UrlParams(e) => Some(e),
             BotError::System(_) => None,
+            BotError::Otlp(e) => Some(e),
         }
     }
 }

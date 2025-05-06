@@ -163,6 +163,7 @@ impl Bot {
     /// - Unable to get response status
     ///
     /// [`response`]: #method.response
+    #[tracing::instrument(skip(self, message))]
     pub async fn send_api_request<Rq>(&self, message: Rq) -> Result<<Rq>::ResponseType>
     where
         Rq: BotRequest + Serialize + std::fmt::Debug,
