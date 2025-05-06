@@ -27,6 +27,7 @@ serde_url_params = "0.2"
 serde_json = "1"
 log = "0.4"
 tera = { version = "1", default-features = false, optional = true }
+tonic = { version = "0.13", optional = true }
 tonic-health = { version = "0.13", optional = true }
 paste = "1"
 url = "2.5"
@@ -37,7 +38,7 @@ full = ["webhook", "longpoll", "templates", "grpc"]
 longpoll = []
 webhook = ["dep:axum", "dep:tower-http", "dep:async-trait"]
 templates = ["dep:tera"]
-grpc = ["dep:tonic-health"]
+grpc = ["dep:tonic-health", "dep:tonic"]
 
 [dev-dependencies]
 vkteams-bot = { version = "0.7", path = ".", features = ["full"] }

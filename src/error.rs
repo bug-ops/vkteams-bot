@@ -21,6 +21,9 @@ pub enum BotError {
     Api(ApiError),
     /// Network Error
     Network(reqwest::Error),
+    /// gRPC Error
+    /// #[cfg(feature = "grpc")]
+    Grpc(tonic::transport::Error),
     /// Serialization/Deserialization Error
     Serialization(serde_json::Error),
     /// URL Error
@@ -45,6 +48,8 @@ impl fmt::Display for BotError {
         match self {
             BotError::Api(e) => write!(f, "API Error: {}", e),
             BotError::Network(e) => write!(f, "Network Error: {}", e),
+            #[cfg(feature = "grpc")]
+            BotError::Grpc(e) => write!(f, "gRPC Error: {}", e),
             BotError::Serialization(e) => write!(f, "Serialization Error: {}", e),
             BotError::Url(e) => write!(f, "URL Error: {}", e),
             BotError::Io(e) => write!(f, "IO Error: {}", e),
@@ -63,6 +68,8 @@ impl std::error::Error for BotError {
         match self {
             BotError::Api(e) => Some(e),
             BotError::Network(e) => Some(e),
+            #[cfg(feature = "grpc")]
+            BotError::Grpc(e) => Some(e),
             BotError::Serialization(e) => Some(e),
             BotError::Url(e) => Some(e),
             BotError::Io(e) => Some(e),
@@ -110,6 +117,12 @@ impl From<tera::Error> for BotError {
 impl From<serde_url_params::Error> for BotError {
     fn from(err: serde_url_params::Error) -> Self {
         BotError::UrlParams(err)
+    }
+}
+#[cfg(feature = "grpc")]
+impl From<tonic::transport::Error> for BotError {
+    fn from(err: tonic::transport::Error) -> Self {
+        BotError::Grpc(err)
     }
 }
 
