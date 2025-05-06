@@ -22,7 +22,7 @@ pub enum BotError {
     /// Network Error
     Network(reqwest::Error),
     /// gRPC Error
-    /// #[cfg(feature = "grpc")]
+    #[cfg(feature = "grpc")]
     Grpc(tonic::transport::Error),
     /// Serialization/Deserialization Error
     Serialization(serde_json::Error),
