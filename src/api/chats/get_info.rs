@@ -1,21 +1,30 @@
+#![allow(unused_parens)]
 //! Get information about a chat method `chats/getInfo`
 //! [More info](https://teams.vk.com/botapi/#/chats/get_chats_getInfo)
 use crate::api::types::*;
 use serde::{Deserialize, Serialize};
-/// # Chats get info request method `chats/getInfo`
-#[derive(Serialize, Clone, Debug, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct RequestChatsGetInfo {
-    pub chat_id: ChatId,
+bot_api_method! {
+    method   = "chats/getInfo",
+    request  = RequestChatsGetInfo {
+        required {
+            chat_id: ChatId,
+        },
+        optional {}
+    },
+    response = ResponseChatsGetInfo {
+        #[serde(flatten)]
+        res: EnumChatsGetInfo
+    },
 }
+
 /// # Chats get info response method `chats/getInfo`
 /// Response can be one of the following types:
 /// - `private`: [`ResponseChatsPrivateGetInfo`]
 /// - `group`: [`ResponseChatsGroupGetInfo`]
 /// - `channel`: [`ResponseChatsChannelGetInfo`]
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(tag = "type", rename_all = "camelCase")]
-pub enum ResponseChatsGetInfo {
+pub enum EnumChatsGetInfo {
     /// Private chat
     Private(ResponseChatsPrivateGetInfo),
     /// Group chat
@@ -57,17 +66,4 @@ pub struct ResponseChatsChannelGetInfo {
     pub invite_link: Option<String>,
     pub public: Option<bool>,
     pub join_moderation: Option<bool>,
-}
-impl BotRequest for RequestChatsGetInfo {
-    const METHOD: &'static str = "chats/getInfo";
-    type RequestType = Self;
-    type ResponseType = ResponseChatsGetInfo;
-}
-impl RequestChatsGetInfo {
-    /// Create a new [`RequestChatsGetInfo`] with the chat_id
-    /// ## Parameters
-    /// - `chat_id` - [`ChatId`]
-    pub fn new(chat_id: ChatId) -> Self {
-        Self { chat_id }
-    }
 }

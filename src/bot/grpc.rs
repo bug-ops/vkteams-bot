@@ -6,11 +6,11 @@
 //! ```
 //! extern crate tonic_health;
 //! extern crate tonic;
-//! extern crate anyhow;
 //! use crate::vkteams_bot::bot::net::shutdown_signal;
-//! 
+//! use crate::vkteams_bot::error::Result;
+//!
 //! const DEFAULT_TCP_PORT: &str = "VKTEAMS_BOT_HTTP_PORT";
-//! pub async fn run_probe_app() -> anyhow::Result<()> {
+//! pub async fn run_probe_app() -> Result<()> {
 //!     // Create gRPC health reporter and service
 //!     let (_, health_service) = tonic_health::server::health_reporter();
 //!     // Get the port from the environment variable or use the default port 50555

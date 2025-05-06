@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate log;
 
+use vkteams_bot::error::{BotError, Result};
 use vkteams_bot::prelude::*;
 
 const CALLBACK_DATA: &str = "callback_button_#1";
@@ -8,7 +9,7 @@ const CALLBACK_TEXT: &str = "callback_text";
 const VKTEAMS_CHAT_ID: &str = "VKTEAMS_CHAT_ID";
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     // Load .env file
     dotenvy::dotenv().expect("unable to load .env file");
     // Initialize logger
@@ -35,19 +36,28 @@ async fn main() {
         ))
         .to_owned();
     // Send message
-    bot.send_api_request(
-        RequestMessagesSendText::new(chat_id)
-            .set_keyboard(keyboard)
-            .set_text(html_parser),
-    )
-    .await
-    .unwrap();
+    info!("Sending message...");
+    match bot
+        .send_api_request(
+            RequestMessagesSendText::new(chat_id)
+                .set_keyboard(keyboard)
+                .set_text(html_parser),
+        )
+        .await?
+    {
+        ApiResult::Success(_) => info!("Message sent"),
+        ApiResult::Error(e) => {
+            error!("Error: {}", e.description);
+            return Err(BotError::Api(e));
+        }
+    };
     // Start event listener and pass result to a callback function
-    bot.event_listener(callback).await;
+    bot.event_listener(callback).await?;
+    Ok(())
 }
 
 // Callback function to print out the result
-pub async fn callback(bot: Bot, res: ResponseEventsGet) {
+pub async fn callback(bot: Bot, res: ResponseEventsGet) -> Result<()> {
     // Answer callback query
     for event in res.events {
         // Check if event is a callback query and get payload
@@ -58,19 +68,23 @@ pub async fn callback(bot: Bot, res: ResponseEventsGet) {
         match bot
             .send_api_request(
                 RequestMessagesAnswerCallbackQuery::new(payload.query_id)
-                    .set_text(
+                    .with_text(
                         match payload.callback_data.as_str() {
                             CALLBACK_DATA => "Button pressed!",
                             _ => "WRONG button pressed!",
                         }
                         .to_string(),
                     )
-                    .set_alert(true),
+                    .with_show_alert(true),
             )
-            .await
+            .await?
         {
-            Ok(_) => info!("Callback query answered"),
-            Err(e) => error!("{:?}", e),
+            ApiResult::Success(_) => info!("Callback query answered"),
+            ApiResult::Error(e) => {
+                error!("Error: {}", e.description);
+                return Err(BotError::Api(e));
+            }
         }
     }
+    Ok(())
 }

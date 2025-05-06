@@ -1,11 +1,12 @@
 #[macro_use]
 extern crate log;
+use vkteams_bot::error::{BotError, Result};
 use vkteams_bot::prelude::*;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     // Load .env file
-    dotenvy::dotenv().expect("unable to load .env file");
+    dotenvy::dotenv().map_err(|e| BotError::Config(e.to_string()))?;
     // Initialize logger
     pretty_env_logger::init();
     info!("Starting...");
@@ -14,41 +15,37 @@ async fn main() {
     // Get chat_id from .env
     let chat_id = ChatId(
         std::env::var("VKTEAMS_CHAT_ID")
-            .expect("Unable to find VKTEAMS_CHAT_ID in .env file")
+            .map_err(|e| BotError::Config(e.to_string()))?
             .to_string(),
     );
     // Bot action typing
-    bot.send_api_request(RequestChatsSendAction::new(
+    bot.send_api_request(RequestChatsSendAction::new((
         chat_id.to_owned(),
         ChatActions::Typing,
-    ))
-    .await
-    .unwrap();
+    )))
+    .await?;
     // Send message
-    match bot
+    let response = bot
         .send_api_request(RequestChatsGetInfo::new(chat_id.to_owned()))
-        .await
-    {
-        Ok(res) => match res {
-            ResponseChatsGetInfo::Channel(chat) => {
-                info!("Channel: {:?}", chat.title.unwrap());
-            }
-            ResponseChatsGetInfo::Group(chat) => {
-                info!("Group: {:?}", chat.title.unwrap());
-            }
-            ResponseChatsGetInfo::Private(chat) => {
-                info!(
-                    "Private: {} {}",
-                    chat.first_name.unwrap(),
-                    chat.last_name.unwrap()
-                );
-            }
-            ResponseChatsGetInfo::None => {
-                debug!("None");
-            }
-        },
-        Err(e) => {
-            error!("Error: {}", e);
+        .await?;
+
+    match response.into_result()?.res {
+        EnumChatsGetInfo::Channel(chat) => {
+            info!("Channel: {:?}", chat.title.unwrap());
+        }
+        EnumChatsGetInfo::Group(chat) => {
+            info!("Group: {:?}", chat.title.unwrap());
+        }
+        EnumChatsGetInfo::Private(chat) => {
+            info!(
+                "Private: {} {}",
+                chat.first_name.unwrap(),
+                chat.last_name.unwrap()
+            );
+        }
+        EnumChatsGetInfo::None => {
+            debug!("None");
         }
     }
+    Ok(())
 }

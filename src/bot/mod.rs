@@ -7,11 +7,12 @@ pub mod net;
 pub mod webhook;
 
 use crate::api::types::*;
-use anyhow::Result;
+use crate::error::{BotError, Result};
 use net::*;
 use reqwest::{Client, Url};
 use serde::Serialize;
 use std::sync::{Arc, Mutex};
+
 #[derive(Debug, Clone)]
 /// Bot class with attributes
 /// - `client`: [`reqwest::Client`]
@@ -30,12 +31,7 @@ pub struct Bot {
     pub(crate) base_api_path: String,
     pub(crate) event_id: Arc<Mutex<EventId>>,
 }
-impl Default for Bot {
-    // default API version V1
-    fn default() -> Self {
-        Self::new(APIVersionUrl::V1)
-    }
-}
+
 impl Bot {
     /// Creates a new `Bot` with API version [`APIVersionUrl`]
     ///
@@ -48,6 +44,11 @@ impl Bot {
     /// Get base url from variable `VKTEAMS_BOT_API_URL` in .env file
     ///
     /// Set default path depending on API version
+    ///
+    /// ## Errors
+    /// - `BotError::Config` - configuration error (invalid token or URL)
+    /// - `BotError::Url` - URL parsing error
+    ///
     /// ## Panics
     /// - Unable to parse proxy if its bound in `VKTEAMS_PROXY` env variable
     /// - Unable to build [`reqwest::Client`]
@@ -57,79 +58,101 @@ impl Bot {
     /// [`reqwest::Client`]: https://docs.rs/reqwest/latest/reqwest/struct.Client.html
     /// [`reqwest::Proxy::all`]: https://docs.rs/reqwest/latest/reqwest/struct.Proxy.html#method.all
     pub fn new(version: APIVersionUrl) -> Self {
-        use reqwest::Proxy;
-        // Set default reqwest settings
-        let builder = default_reqwest_settings();
-        // Set proxy if it is bound
-        let client = match std::env::var(VKTEAMS_PROXY).ok() {
-            Some(proxy) => builder.proxy(Proxy::all(proxy).expect("Unable to parse proxy")),
-            None => builder,
-        }
-        .build()
-        .expect("Unable to build reqwest client");
+        debug!("Creating new bot with API version: {:?}", version);
+
+        let token = std::env::var(VKTEAMS_BOT_API_TOKEN)
+            .map_err(|e| BotError::Config(format!("Failed to get token: {}", e)))
+            .unwrap_or_else(|e| panic!("{}", e));
+        debug!("Token successfully obtained");
+
+        let base_api_url = std::env::var(VKTEAMS_BOT_API_URL)
+            .map_err(|e| BotError::Config(format!("Failed to get API URL: {}", e)))
+            .unwrap_or_else(|e| panic!("{}", e));
+        debug!("API URL successfully obtained");
+
+        let base_api_url = Url::parse(&base_api_url)
+            .map_err(|e| BotError::Config(format!("Invalid API URL format: {}", e)))
+            .unwrap_or_else(|e| panic!("{}", e));
+        debug!("API URL successfully parsed");
+
+        let base_api_path = match version {
+            APIVersionUrl::V1 => "/bot/v1/",
+        };
+        debug!("Set API base path: {}", base_api_path);
 
         Self {
-            client,
-            // Get token from .env file
-            token: get_env_token(),
-            // Get API URL from .env file
-            base_api_url: get_env_url(),
-            // Set default path depending on API version
-            base_api_path: set_default_path(&version),
-            // Default event id is 0
+            client: Client::new(),
+            token,
+            base_api_url,
+            base_api_path: base_api_path.to_string(),
             event_id: Arc::new(Mutex::new(0)),
         }
     }
+
     /// Get last event id
+    ///
+    /// ## Errors
+    /// - `BotError::System` - mutex lock error
     pub fn get_last_event_id(&self) -> EventId {
-        *self.event_id.lock().unwrap()
+        *self
+            .event_id
+            .lock()
+            .map_err(|e| BotError::System(format!("Mutex lock error: {}", e)))
+            .unwrap_or_else(|e| panic!("{}", e))
     }
+
     /// Set last event id
     /// ## Parameters
     /// - `id`: [`EventId`] - last event id
+    ///
+    /// ## Errors
+    /// - `BotError::System` - mutex lock error
     pub fn set_last_event_id(&self, id: EventId) {
-        *self.event_id.lock().unwrap() = id;
+        *self
+            .event_id
+            .lock()
+            .map_err(|e| BotError::System(format!("Mutex lock error: {}", e)))
+            .unwrap_or_else(|e| panic!("{}", e)) = id;
     }
+
     /// Append method path to `base_api_path`
     /// - `path`: [`String`] - append path to `base_api_path`
     pub fn set_path(&self, path: String) -> String {
-        // Get base API path
         let mut full_path = self.base_api_path.clone();
-        // Append method path
         full_path.push_str(&path);
-        // Return full path
         full_path
     }
+
     /// Build full URL with optional query parameters
     /// - `path`: [`String`] - append path to `base_api_path`
     /// - `query`: [`String`] - append `token` query parameter to URL
     ///
+    /// ## Errors
+    /// - `BotError::Url` - URL parsing error
+    ///
     /// Parse with [`Url::parse`]
     pub fn get_parsed_url(&self, path: String, query: String) -> Result<Url> {
-        // Make URL with base API path
-        let url = Url::parse(self.base_api_url.as_str());
-        match url {
-            Ok(mut u) => {
-                // Append path to URL
-                u.set_path(&path);
-                //Set bound query
-                u.set_query(Some(&query));
-                // Append default query query
-                u.query_pairs_mut().append_pair("token", &self.token);
-                Ok(u)
-            }
-            // Error with URL
-            Err(e) => {
-                error!("Error parse URL: {}", e);
-                Err(e.into())
-            }
-        }
+        let mut url = self.base_api_url.clone();
+        url.set_path(&path);
+        url.set_query(Some(&query));
+        url.query_pairs_mut().append_pair("token", &self.token);
+        Ok(url)
     }
+
     /// Send request, get response
     /// Serialize request generic type `Rq` with [`serde_url_params::to_string`] into query string
     /// Get response body with [`response`]
     /// Deserialize response with [`serde_json::from_str`]
     /// - `message`: generic type `Rq` - request type
+    ///
+    /// ## Errors
+    /// - `BotError::UrlParams` - URL parameters serialization error
+    /// - `BotError::Url` - URL parsing error
+    /// - `BotError::Network` - network error when sending request
+    /// - `BotError::Serialization` - response deserialization error
+    /// - `BotError::Io` - file operation error
+    /// - `BotError::Api` - API error when processing request
+    ///
     /// ## Panics
     /// - Unable to serialize request
     /// - Unable to parse URL
@@ -142,62 +165,40 @@ impl Bot {
     /// [`response`]: #method.response
     pub async fn send_api_request<Rq>(&self, message: Rq) -> Result<<Rq>::ResponseType>
     where
-        Rq: BotRequest + Serialize,
+        Rq: BotRequest + Serialize + std::fmt::Debug,
     {
-        // Serialize request type `Rq` with serde_url_params::to_string into query string
-        match serde_url_params::to_string(&message) {
-            Ok(query) => {
-                // Try to parse URL
-                match self.get_parsed_url(self.set_path(<Rq>::METHOD.to_string()), query.to_owned())
-                {
-                    Ok(url) => {
-                        // Get response body
-                        let body = match <Rq>::HTTP_METHOD {
-                            HTTPMethod::POST => {
-                                // For POST method get multipart form from file name
-                                match file_to_multipart(message.get_file()).await {
-                                    Ok(f) => {
-                                        // Send file POST request with multipart form
-                                        post_response_file(self.client.clone(), self.get_parsed_url(
-                                                self.set_path(<Rq>::METHOD.to_string()),
-                                                query,
-                                            )?, f,)
-                                        .await
-                                    }
-                                    // Error with file
-                                    Err(e) => return Err(e),
-                                }
-                            }
-                            HTTPMethod::GET => {
-                                // Simple GET request
-                                get_text_response(self.client.clone(), url).await
-                            }
-                        };
-                        // Deserialize response with serde_json::from_str
-                        match body {
-                            Ok(b) => {
-                                let rs = serde_json::from_str::<<Rq>::ResponseType>(b.as_str());
-                                match rs {
-                                    Ok(r) => Ok(r),
-                                    Err(e) => Err(e.into()),
-                                }
-                            }
-                            // Error with response
-                            Err(e) => Err(e),
-                        }
-                    }
-                    // Error with URL
-                    Err(e) => {
-                        error!("Error parse URL: {}", e);
-                        Err(e)
-                    }
-                }
+        debug!("Sending API request: {:?}", message);
+
+        let query = serde_url_params::to_string(&message)?;
+
+        let url = self.get_parsed_url(self.set_path(<Rq>::METHOD.to_string()), query.to_owned())?;
+
+        debug!("Request URL: {}", url);
+
+        let body = match <Rq>::HTTP_METHOD {
+            HTTPMethod::POST => {
+                debug!("Sending POST request with file");
+                let form = file_to_multipart(message.get_file()).await?;
+
+                post_response_file(self.client.clone(), url, form).await?
             }
-            // Error with parse query
-            Err(e) => {
-                error!("Error serialize request: {}", e);
-                Err(e.into())
+            HTTPMethod::GET => {
+                debug!("Sending GET request");
+                get_text_response(self.client.clone(), url).await?
             }
-        }
+        };
+
+        debug!("Received API response: {}", body);
+        let response = serde_json::from_str::<<Rq>::ResponseType>(&body)?;
+
+        debug!("Response successfully deserialized");
+
+        Ok(response)
+    }
+}
+
+impl Default for Bot {
+    fn default() -> Self {
+        Self::new(APIVersionUrl::V1)
     }
 }

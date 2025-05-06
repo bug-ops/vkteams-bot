@@ -1,9 +1,9 @@
 //! Network module
 use crate::api::types::*;
-use anyhow::Result;
+use crate::error::{BotError, Result};
 use reqwest::{
-    multipart::{Form, Part},
     Body, Client, Url,
+    multipart::{Form, Part},
 };
 use std::time::Duration;
 use tokio::fs::File;
@@ -12,52 +12,43 @@ use tokio_util::codec::{BytesCodec, FramedRead};
 /// Get text response from API
 /// Send request with [`Client`] `get` method and get body with [`reqwest::Response`] `text` method
 /// - `url` - file URL
+///
+/// ## Errors
+/// - `BotError::Network` - network error when sending request or receiving response
 pub async fn get_text_response(client: Client, url: Url) -> Result<String> {
-    debug!("Get response from API path {}...", url.to_string());
-    match client.get(url.as_str()).send().await {
-        Ok(r) => {
-            debug!("Response status: OK");
-            match r.text().await {
-                Ok(t) => {
-                    debug!("Response BODY: {}", t);
-                    Ok(t)
-                }
-                Err(e) => Err(e.into()),
-            }
-        }
-        Err(e) => {
-            error!("Response status: {}", e);
-            Err(e.into())
-        }
-    }
+    debug!("Getting response from API at path {}...", url);
+    let response = client.get(url.as_str()).send().await?;
+    debug!("Response status: {}", response.status());
+    let text = response.text().await?;
+    debug!("Response body: {}", text);
+    Ok(text)
 }
 /// Get bytes response from API
 /// Send request with [`Client`] `get` method and get body with [`reqwest::Response`] `bytes` method
 /// - `url` - file URL
+///
+/// ## Errors
+/// - `BotError::Network` - network error when sending request or receiving response
 pub async fn get_bytes_response(client: Client, url: Url) -> Result<Vec<u8>> {
-    match client.get(url.as_str()).send().await {
-        Ok(r) => {
-            debug!("Response status: OK");
-            match r.bytes().await {
-                Ok(b) => Ok(b.to_vec()),
-                Err(e) => Err(e.into()),
-            }
-        }
-        Err(e) => {
-            error!("Response status: {}", e);
-            Err(e.into())
-        }
-    }
+    debug!("Getting binary response from API at path {}...", url);
+    let response = client.get(url.as_str()).send().await?;
+    debug!("Response status: {}", response.status());
+    let bytes = response.bytes().await?;
+    Ok(bytes.to_vec())
 }
 /// Upload file stream to API in multipart form
 /// - `file` - file name
+///
+/// ## Errors
+/// - `BotError::Validation` - file not specified
+/// - `BotError::Io` - error working with file
 pub async fn file_to_multipart(file: MultipartName) -> Result<Form> {
     //Get name of the form part
     let name = file.to_string();
     //Get filename
     let filename = match file {
         MultipartName::File(name) | MultipartName::Image(name) => name,
-        _ => panic!("No file"),
+        _ => return Err(BotError::Validation("File not specified".to_string())),
     };
     //Create stream from file
     let file_stream = make_stream(filename.to_owned()).await?;
@@ -68,43 +59,28 @@ pub async fn file_to_multipart(file: MultipartName) -> Result<Form> {
 }
 /// Create stream from file
 /// - `path` - file path
+///
+/// ## Errors
+/// - `BotError::Io` - error opening file
 async fn make_stream(path: String) -> Result<Body> {
     //Open file and check if it exists
-    match File::open(path.to_owned()).await {
-        Ok(file) => {
-            //Create stream from file
-            let file_stream = Body::wrap_stream(FramedRead::new(file, BytesCodec::new()));
-            Ok(file_stream)
-        }
-        Err(e) => {
-            error!("Unable to open file {}: {}", path.to_owned(), e);
-            Err(e.into())
-        }
-    }
+    let file = File::open(path.to_owned()).await?;
+    //Create stream from file
+    let file_stream = Body::wrap_stream(FramedRead::new(file, BytesCodec::new()));
+    Ok(file_stream)
 }
 /// Get raw response from API
 /// Send request with [`Client`] `post` method with body file streaming and get body with [`reqwest::Response`] `text` method
-pub async fn post_response_file<'a>(
-    client: Client,
-    url: Url,
-    form: Form, // part: MultipartName,
-) -> Result<String> {
-    match client.post(url.as_str()).multipart(form).send().await {
-        Ok(r) => {
-            debug!("Response status: OK");
-            match r.text().await {
-                Ok(t) => {
-                    debug!("Response BODY: {}", t);
-                    Ok(t)
-                }
-                Err(e) => Err(e.into()),
-            }
-        }
-        Err(e) => {
-            error!("Response status: {}", e);
-            Err(e.into())
-        }
-    }
+///
+/// ## Errors
+/// - `BotError::Network` - network error when sending request or receiving response
+pub async fn post_response_file(client: Client, url: Url, form: Form) -> Result<String> {
+    debug!("Sending file to API at path {}...", url);
+    let response = client.post(url.as_str()).multipart(form).send().await?;
+    debug!("Response status: {}", response.status());
+    let text = response.text().await?;
+    debug!("Response body: {}", text);
+    Ok(text)
 }
 /// Set default request settings: timeout, tcp
 ///
@@ -114,10 +90,10 @@ pub async fn post_response_file<'a>(
 ///
 /// Set `tcp_nodelay` to true
 pub fn default_reqwest_settings() -> reqwest::ClientBuilder {
-    Client::builder()
-        .connect_timeout(Duration::from_secs(5))
+    reqwest::Client::builder()
         .timeout(*POLL_DURATION)
         .tcp_nodelay(true)
+        .connect_timeout(Duration::from_secs(5))
 }
 /// Set default path depending on API version
 ///
@@ -136,39 +112,62 @@ pub fn set_default_path(version: &APIVersionUrl) -> String {
 }
 /// Get token from [`VKTEAMS_BOT_API_TOKEN`] environment variable
 ///
+/// ## Errors
+/// - `BotError::Config` - environment variable not found
+///
 /// ## Panics
 ///
 /// - Unable to find environment variable
 pub fn get_env_token() -> String {
-    std::env::var(VKTEAMS_BOT_API_TOKEN).expect("Unable to find VKTEAMS_BOT_API_TOKEN in .env file")
+    std::env::var(VKTEAMS_BOT_API_TOKEN)
+        .map_err(|e| {
+            BotError::Config(format!(
+                "Failed to find environment variable VKTEAMS_BOT_API_TOKEN: {}",
+                e
+            ))
+        })
+        .unwrap_or_else(|e| panic!("{}", e))
 }
 /// Get base api url from [`VKTEAMS_BOT_API_URL`] environment variable
+///
+/// ## Errors
+/// - `BotError::Config` - failed to find or parse URL
 ///
 /// ## Panics
 ///
 /// - Unable to find environment variable
-///
 /// - Unable to parse url
 pub fn get_env_url() -> Url {
-    Url::parse(
-        std::env::var(VKTEAMS_BOT_API_URL)
-            .expect("Unable to find VKTEAMS_BOT_API_URL in .env file")
-            .as_str(),
-    )
-    .expect("Unable to parse VKTEAMS_BOT_API_URL")
+    let url_str = std::env::var(VKTEAMS_BOT_API_URL)
+        .map_err(|e| {
+            BotError::Config(format!(
+                "Failed to find environment variable VKTEAMS_BOT_API_URL: {}",
+                e
+            ))
+        })
+        .unwrap_or_else(|e| panic!("{}", e));
+
+    Url::parse(&url_str)
+        .map_err(|e| BotError::Config(format!("Failed to parse URL VKTEAMS_BOT_API_URL: {}", e)))
+        .unwrap_or_else(|e| panic!("{}", e))
 }
 /// Graceful shutdown signal
+///
+/// ## Errors
+/// - `BotError::System` - error setting up signal handlers
 pub async fn shutdown_signal() {
     let ctrl_c = async {
         signal::ctrl_c()
             .await
-            .expect("failed to install Ctrl+C handler");
+            .map_err(|e| BotError::System(format!("Failed to set up Ctrl+C handler: {}", e)))
+            .unwrap_or_else(|e| panic!("{}", e));
     };
 
     #[cfg(unix)]
     let terminate = async {
         signal::unix::signal(signal::unix::SignalKind::terminate())
-            .expect("failed to install signal handler")
+            .map_err(|e| BotError::System(format!("Failed to set up signal handler: {}", e)))
+            .unwrap_or_else(|e| panic!("{}", e))
             .recv()
             .await;
     };

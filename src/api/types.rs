@@ -4,7 +4,9 @@ use std::time::Duration;
 #[cfg(feature = "templates")]
 use tera::Context;
 
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use crate::error::{ApiError, BotError, Result};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use std::fmt::{Display, Formatter};
 #[cfg(feature = "templates")]
 use tera::Tera;
 
@@ -21,6 +23,7 @@ pub const POLL_TIME: u64 = 30;
 /// [`reqwest::Client`]: https://docs.rs/reqwest/latest/reqwest/struct.Client.html
 pub const POLL_DURATION: &Duration = &Duration::from_secs(POLL_TIME + 10);
 /// Supported API versions
+#[derive(Debug)]
 pub enum APIVersionUrl {
     /// default V1
     V1,
@@ -42,6 +45,8 @@ pub enum HTTPBody {
 }
 /// Bot request trait
 pub trait BotRequest {
+    type Args;
+
     const METHOD: &'static str;
     const HTTP_METHOD: HTTPMethod = HTTPMethod::GET;
     type RequestType: Serialize + Debug + Default;
@@ -49,6 +54,7 @@ pub trait BotRequest {
     fn get_file(&self) -> MultipartName {
         MultipartName::None
     }
+    fn new(args: Self::Args) -> Self;
 }
 /// API event id type
 pub type EventId = u32;
@@ -448,7 +454,7 @@ pub enum ChatActions {
     Typing,
 }
 /// Multipart name
-#[derive(Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub enum MultipartName {
     File(String),
     Image(String),
@@ -490,4 +496,67 @@ pub struct Sn {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct PhotoUrl {
     pub url: String,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(untagged)]
+/// API result wrapper: Success(T) or Error { ok: false, description }
+pub enum ApiResult<T> {
+    Success(T),
+    Error(ApiError),
+}
+
+impl<T> ApiResult<T> {
+    pub fn into_result(self) -> Result<T> {
+        match self {
+            ApiResult::Success(value) => Ok(value),
+            ApiResult::Error(error) => Err(BotError::Api(error)),
+        }
+    }
+}
+
+/// Display trait for [`ChatId`]
+impl Display for ChatId {
+    /// Format [`ChatId`] to string
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+/// Link basse path for API version
+impl Display for APIVersionUrl {
+    /// Format [`APIVersionUrl`] to string
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        match self {
+            APIVersionUrl::V1 => write!(f, "bot/v1/"),
+        }
+    }
+}
+/// Display trait for [`MultipartName`] enum
+impl Display for MultipartName {
+    /// Format [`MultipartName`] to string
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        match self {
+            MultipartName::File(..) => write!(f, "file"),
+            MultipartName::Image(..) => write!(f, "image"),
+            _ => write!(f, ""),
+        }
+    }
+}
+
+/// Default values for [`Keyboard`]
+impl Default for Keyboard {
+    /// Create new [`Keyboard`] with required params
+    fn default() -> Self {
+        Self {
+            // Empty vector of [`KeyboardButton`]
+            buttons: vec![vec![]],
+        }
+    }
+}
+impl<T> Default for ApiResult<T> {
+    fn default() -> Self {
+        ApiResult::Error(ApiError {
+            ok: false,
+            description: String::new(),
+        })
+    }
 }

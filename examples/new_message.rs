@@ -1,9 +1,10 @@
 #[macro_use]
 extern crate log;
+use vkteams_bot::error::{BotError, Result};
 use vkteams_bot::prelude::*;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     // Load .env file
     dotenvy::dotenv().expect("unable to load .env file");
     // Initialize logger
@@ -19,12 +20,11 @@ async fn main() {
             .to_string(),
     );
     // Bot action typing
-    bot.send_api_request(RequestChatsSendAction::new(
+    bot.send_api_request(RequestChatsSendAction::new((
         chat_id.to_owned(),
         ChatActions::Typing,
-    ))
-    .await
-    .unwrap();
+    )))
+    .await?;
     // Send message
     match bot
         .send_api_request(
@@ -53,23 +53,20 @@ async fn main() {
                         )),
                 ),
         )
-        .await
+        .await?
     {
-        Ok(res) => {
-            if res.ok {
-                debug!("Message id: {:?}", res.msg_id);
-                bot.send_api_request(RequestChatsSendAction::new(
-                    chat_id.to_owned(),
-                    ChatActions::Looking,
-                ))
-                .await
-                .unwrap();
-            } else {
-                error!("Error: {}", res.description);
-            }
+        ApiResult::Success(res) => {
+            debug!("Message id: {:?}", res.msg_id);
+            bot.send_api_request(RequestChatsSendAction::new((
+                chat_id.to_owned(),
+                ChatActions::Looking,
+            )))
+            .await?;
         }
-        Err(e) => {
-            error!("Error: {}", e);
+        ApiResult::Error(e) => {
+            error!("Error: {}", e.description);
+            return Err(BotError::Api(e));
         }
     }
+    Ok(())
 }
