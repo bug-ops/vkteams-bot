@@ -1,5 +1,4 @@
-#[macro_use]
-extern crate log;
+use tracing::{error, info};
 use vkteams_bot::prelude::*;
 
 #[tokio::main]
@@ -13,7 +12,7 @@ async fn main() -> Result<()> {
     let bot = Bot::default();
     // Get events from the API
     match bot
-        .send_api_request(RequestEventsGet::new(bot.get_last_event_id()))
+        .send_api_request(RequestEventsGet::new(bot.get_last_event_id().await))
         .await?
     {
         ApiResult::Success(res) => {

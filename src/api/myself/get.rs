@@ -1,8 +1,6 @@
 //! Get information about the current user method `self/get`
 //! [More info](https://teams.vk.com/botapi/#/self/get_self_get)
 use crate::api::types::*;
-use serde::{Deserialize, Serialize};
-
 bot_api_method! {
     method = "self/get",
     request = RequestSelfGet {

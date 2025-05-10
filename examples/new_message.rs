@@ -37,7 +37,7 @@ async fn main() -> Result<()> {
                             CODE_STRING.to_string(),
                             Some("html".to_string()),
                         )),
-                )
+                )?
                 .set_keyboard(
                     Keyboard::new()
                         .add_button(&ButtonKeyboard::url(
@@ -51,7 +51,7 @@ async fn main() -> Result<()> {
                             "CB".to_string(),
                             ButtonStyle::Attention,
                         )),
-                ),
+                )?,
         )
         .await?
     {

@@ -5,8 +5,6 @@ use crate::api::types::*;
 use crate::bot::net::*;
 use crate::error::{BotError, Result};
 use reqwest::Url;
-use serde::{Deserialize, Serialize};
-
 bot_api_method! {
     method = "files/getInfo",
     request = RequestFilesGetInfo {

@@ -55,6 +55,7 @@ pub trait BotRequest {
         MultipartName::None
     }
     fn new(args: Self::Args) -> Self;
+    fn get_chat_id(&self) -> Option<&ChatId>;
 }
 /// API event id type
 pub type EventId = u32;
@@ -392,22 +393,22 @@ pub struct MessagePayload {
     pub parts: Vec<MessageParts>,
 }
 /// Chat id struct
-#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Hash, Eq)]
 pub struct ChatId(pub String);
 /// Message id struct
-#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Hash, Eq)]
 pub struct MsgId(pub String);
 /// User id struct
-#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Hash, Eq)]
 pub struct UserId(pub String);
 /// File id struct
-#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Hash, Eq)]
 pub struct FileId(pub String);
 /// Query id struct
-#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Hash, Eq)]
 pub struct QueryId(pub String);
 /// Timestamp struct
-#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Hash, Eq)]
 pub struct Timestamp(pub u32);
 /// Chat struct
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]

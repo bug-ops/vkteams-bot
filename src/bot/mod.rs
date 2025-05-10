@@ -3,15 +3,21 @@ pub mod grpc;
 #[cfg(feature = "longpoll")]
 pub mod longpoll;
 pub mod net;
+#[cfg(feature = "ratelimit")]
+pub mod ratelimit;
 #[cfg(feature = "webhook")]
 pub mod webhook;
 
 use crate::api::types::*;
+#[cfg(feature = "ratelimit")]
+use crate::bot::ratelimit::RateLimiter;
 use crate::error::{BotError, Result};
 use net::*;
 use reqwest::{Client, Url};
 use serde::Serialize;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use tracing::debug;
 
 #[derive(Debug, Clone)]
 /// Bot class with attributes
@@ -30,6 +36,8 @@ pub struct Bot {
     pub(crate) base_api_url: Url,
     pub(crate) base_api_path: String,
     pub(crate) event_id: Arc<Mutex<EventId>>,
+    #[cfg(feature = "ratelimit")]
+    pub(crate) rate_limiter: Arc<Mutex<RateLimiter>>,
 }
 
 impl Bot {
@@ -86,6 +94,8 @@ impl Bot {
             base_api_url,
             base_api_path: base_api_path.to_string(),
             event_id: Arc::new(Mutex::new(0)),
+            #[cfg(feature = "ratelimit")]
+            rate_limiter: Default::default(),
         }
     }
 
@@ -93,12 +103,8 @@ impl Bot {
     ///
     /// ## Errors
     /// - `BotError::System` - mutex lock error
-    pub fn get_last_event_id(&self) -> EventId {
-        *self
-            .event_id
-            .lock()
-            .map_err(|e| BotError::System(format!("Mutex lock error: {}", e)))
-            .unwrap_or_else(|e| panic!("{}", e))
+    pub async fn get_last_event_id(&self) -> EventId {
+        *self.event_id.lock().await
     }
 
     /// Set last event id
@@ -107,12 +113,8 @@ impl Bot {
     ///
     /// ## Errors
     /// - `BotError::System` - mutex lock error
-    pub fn set_last_event_id(&self, id: EventId) {
-        *self
-            .event_id
-            .lock()
-            .map_err(|e| BotError::System(format!("Mutex lock error: {}", e)))
-            .unwrap_or_else(|e| panic!("{}", e)) = id;
+    pub async fn set_last_event_id(&self, id: EventId) {
+        *self.event_id.lock().await = id;
     }
 
     /// Append method path to `base_api_path`
@@ -168,6 +170,17 @@ impl Bot {
     where
         Rq: BotRequest + Serialize + std::fmt::Debug,
     {
+        // Check rate limit for this chat
+        #[cfg(feature = "ratelimit")]
+        {
+            let mut rate_limiter = self.rate_limiter.lock().await;
+            if !rate_limiter.wait_if_needed(message.get_chat_id()).await {
+                return Err(BotError::Validation(
+                    "Rate limit exceeded for this chat".to_string(),
+                ));
+            }
+        }
+
         debug!("Sending API request: {:?}", message);
 
         let query = serde_url_params::to_string(&message)?;

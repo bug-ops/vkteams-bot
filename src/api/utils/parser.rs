@@ -2,6 +2,7 @@ use crate::api::types::*;
 use crate::error::{BotError, Result};
 use reqwest::Url;
 use std::convert::From;
+// use tracing::error;
 pub trait MessageTextHTMLParser {
     /// Create new parser
     fn new() -> Self
@@ -17,7 +18,7 @@ pub trait MessageTextHTMLParser {
     /// Add space to parser
     fn space(&mut self) -> Self;
     /// Parse text to HTML
-    fn parse(&self) -> (String, ParseMode);
+    fn parse(&self) -> Result<(String, ParseMode)>;
 }
 impl MessageTextParser {
     /// Parse [`MessageTextFormat`] types to HTML string
@@ -101,7 +102,7 @@ impl MessageTextHTMLParser for MessageTextParser {
         self.to_owned()
     }
     /// Parse [`MessageTextFormat`] to string
-    fn parse(&self) -> (String, ParseMode) {
+    fn parse(&self) -> Result<(String, ParseMode)> {
         let mut result = String::new();
         match self.parse_mode {
             ParseMode::HTML => {
@@ -111,19 +112,12 @@ impl MessageTextHTMLParser for MessageTextParser {
                     }
                     result.push_str(&self.parse_html(item).unwrap_or_default());
                 }
-                (result, self.parse_mode)
+                Ok((result, self.parse_mode))
             }
             #[cfg(feature = "templates")]
             ParseMode::Template => {
-                let str = match &self.parse_tmpl() {
-                    Ok(text) => text.to_owned(),
-                    Err(e) => {
-                        error!("Error: {}", e);
-                        return (String::new(), ParseMode::HTML);
-                    }
-                };
-                result.push_str(str.as_str());
-                (result, ParseMode::HTML)
+                result.push_str(&self.parse_tmpl()?.as_str());
+                Ok((result, ParseMode::HTML))
             }
             _ => todo!("Parse mode not implemented: {:?}", self.parse_mode),
         }

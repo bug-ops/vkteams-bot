@@ -38,8 +38,8 @@ async fn main() -> Result<()> {
     match bot
         .send_api_request(
             RequestMessagesSendText::new(chat_id)
-                .set_keyboard(keyboard)
-                .set_text(html_parser),
+                .set_keyboard(keyboard)?
+                .set_text(html_parser)?,
         )
         .await?
     {
