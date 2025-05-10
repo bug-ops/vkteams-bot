@@ -87,8 +87,6 @@ impl ChatBucket {
 #[derive(Debug, Clone)]
 pub struct RateLimiter {
     chat_buckets: Arc<Mutex<HashMap<ChatId, ChatBucket>>>,
-    last_request: Instant,
-    min_interval: Duration,
 }
 
 impl Default for RateLimiter {
@@ -103,8 +101,6 @@ impl RateLimiter {
         debug!("Creating new RateLimiter");
         Self {
             chat_buckets: Arc::new(Mutex::new(HashMap::new())),
-            last_request: Instant::now(),
-            min_interval: Duration::from_secs(CONFIG.rate_limit.duration),
         }
     }
     /// ### Check request limit for `chat_id`
@@ -113,7 +109,7 @@ impl RateLimiter {
     /// - Returns `true` if the limit is not exceeded
     /// - Returns `false` if the limit is exceeded
     #[tracing::instrument(skip(self))]
-    pub async fn check_rate_limit(&self, chat_id: ChatId) -> bool {
+    pub async fn check_rate_limit(&self, chat_id: &ChatId) -> bool {
         let chat_buckets = self.chat_buckets.clone();
         let mut buckets = chat_buckets.lock().await;
         let bucket = buckets.entry(chat_id.clone()).or_insert_with(|| {
@@ -131,42 +127,27 @@ impl RateLimiter {
     /// - Returns `true` if the limit is not exceeded
     /// - Returns `false` if the limit is exceeded and a permit could not be obtained
     #[tracing::instrument(skip(self))]
-    pub async fn wait_if_needed(&mut self, chat_id: Option<&ChatId>) -> bool {
-        if let Some(chat_id) = chat_id {
-            let cfg = &CONFIG.rate_limit;
-            let mut attempts = 0;
-            let retry_delay = Duration::from_millis(cfg.retry_delay);
+    pub async fn wait_if_needed(&mut self, chat_id: &ChatId) -> bool {
+        let cfg = &CONFIG.rate_limit;
+        let mut attempts = 0;
+        let retry_delay = Duration::from_millis(cfg.retry_delay);
 
-            while attempts < cfg.retry_attempts {
-                if self.check_rate_limit(chat_id.clone()).await {
-                    debug!("Rate limit not exceeded for chat_id: {}", chat_id.0);
-                    return true;
-                }
-                attempts += 1;
-                debug!(
-                    "Rate limit exceeded, attempt {}/{}",
-                    attempts, cfg.retry_attempts
-                );
-                sleep(retry_delay).await;
+        while attempts < cfg.retry_attempts {
+            if self.check_rate_limit(&chat_id).await {
+                debug!("Rate limit not exceeded for chat_id: {}", chat_id.0);
+                return true;
             }
-            warn!(
-                "Rate limit exceeded after {} attempts for chat_id: {}",
-                attempts, chat_id.0
+            attempts += 1;
+            debug!(
+                "Rate limit exceeded, attempt {}/{}",
+                attempts, cfg.retry_attempts
             );
-            false
-        } else {
-            true
+            sleep(retry_delay).await;
         }
-    }
-
-    pub async fn wait_if_needed_new(&mut self, chat_id: Option<&ChatId>) -> bool {
-        if let Some(_chat_id) = chat_id {
-            let elapsed = self.last_request.elapsed();
-            if elapsed < self.min_interval {
-                tokio::time::sleep(self.min_interval - elapsed).await;
-            }
-            self.last_request = Instant::now();
-        }
-        true
+        warn!(
+            "Rate limit exceeded after {} attempts for chat_id: {}",
+            attempts, chat_id.0
+        );
+        false
     }
 }

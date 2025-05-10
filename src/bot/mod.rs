@@ -173,11 +173,13 @@ impl Bot {
         // Check rate limit for this chat
         #[cfg(feature = "ratelimit")]
         {
-            let mut rate_limiter = self.rate_limiter.lock().await;
-            if !rate_limiter.wait_if_needed(message.get_chat_id()).await {
-                return Err(BotError::Validation(
-                    "Rate limit exceeded for this chat".to_string(),
-                ));
+            if let Some(chat_id) = message.get_chat_id() {
+                let mut rate_limiter = self.rate_limiter.lock().await;
+                if !rate_limiter.wait_if_needed(chat_id).await {
+                    return Err(BotError::Validation(
+                        "Rate limit exceeded for this chat".to_string(),
+                    ));
+                }
             }
         }
 
