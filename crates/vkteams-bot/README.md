@@ -5,8 +5,6 @@
 [![github.com](https://github.com/k05h31/vkteams-bot/workflows/Rust/badge.svg)](https://github.com/k05h31/vkteams-bot/actions)
 [![Unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
 
-VK Teams Bot API client written in Rust.
-
 ## Table of Contents
 
 - [Environment](#environment)
@@ -42,12 +40,12 @@ log = "0.4"
 
 [Examples:](examples)
 
-- [new message](crates/vkteams-bot/examples/new_message.rs)
-- [new message / edit message](crates/vkteams-bot/examples/emul_chat_gpt.rs)
-- [event listener](crates/vkteams-bot/examples/event_listener.rs)
-- [answer callback query](crates/vkteams-bot/examples/callback_query.rs)
-- [chat - get info](crates/vkteams-bot/examples/chat_get_info.rs)
-- [chat admin - avatar set](crates/vkteams-bot/examples/chat_admin_avatar_set.rs)
-- [chat - download files](crates/vkteams-bot/examples/chat_get_file.rs)
-- [bot - webhook handler](crates/vkteams-bot/examples/prometheus_webhook.rs)
-- [bot - rate limit](crates/vkteams-bot/examples/ratelimit_test.rs)
+- [new message](examples/new_message.rs)
+- [new message / edit message](examples/emul_chat_gpt.rs)
+- [event listener](examples/event_listener.rs)
+- [answer callback query](examples/callback_query.rs)
+- [chat - get info](examples/chat_get_info.rs)
+- [chat admin - avatar set](examples/chat_admin_avatar_set.rs)
+- [chat - download files](examples/chat_get_file.rs)
+- [bot - webhook handler](examples/prometheus_webhook.rs)
+- [bot - rate limit](examples/ratelimit_test.rs)
