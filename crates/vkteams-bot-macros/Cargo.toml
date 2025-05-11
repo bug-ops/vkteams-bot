@@ -1,8 +1,11 @@
 [package]
-license = "MIT OR Apache-2.0"
 name = "vkteams-bot-macros"
 version = "0.1.0"
-edition = "2024"
+description = "VK Teams Bot Macros"
+
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [lib]
 proc-macro = true
