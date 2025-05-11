@@ -23,7 +23,7 @@ pub fn derive_chat_id(input: TokenStream) -> TokenStream {
                 .segments
                 .iter()
                 .any(|seg| seg.ident == "ChatId"),
-            Type::Group(group) => is_chat_id_type(&*group.elem),
+            Type::Group(group) => is_chat_id_type(&group.elem),
             _ => false,
         }
     }
