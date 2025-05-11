@@ -41,7 +41,6 @@ impl ChatBucket {
     async fn acquire(&mut self) -> bool {
         let cfg = &CONFIG.rate_limit;
         let now = Instant::now();
-
         // Check and update the last replenishment time
         {
             let mut last_replenish = self.last_replenish.lock().await;
@@ -54,10 +53,15 @@ impl ChatBucket {
                 );
                 *last_replenish = now;
 
-                // Clear old permits and replenish the semaphore
+                // Clear old permits and create new semaphore
                 let mut active_permits = self.active_permits.lock().await;
+                let old_permits = active_permits.len();
                 active_permits.drain(..).for_each(|permit| permit.forget());
-                self.semaphore.add_permits(cfg.limit);
+                self.semaphore = Arc::new(Semaphore::new(cfg.limit));
+                debug!(
+                    "Replenished semaphore: old_permits={}, new_limit={}",
+                    old_permits, cfg.limit
+                );
             }
         }
 
@@ -73,13 +77,8 @@ impl ChatBucket {
                 active_permits.push(permit);
                 true
             }
-            Err(_) => {
-                warn!(
-                    "No permits available in semaphore. Available permits: {}",
-                    self.semaphore.available_permits()
-                );
-                false
-            }
+            // If the permit is not available, return false
+            Err(_) => false,
         }
     }
 }

@@ -170,6 +170,7 @@ impl Bot {
     where
         Rq: BotRequest + Serialize + std::fmt::Debug,
     {
+        debug!("Starting send_api_request");
         // Check rate limit for this chat
         #[cfg(feature = "ratelimit")]
         {
@@ -180,16 +181,15 @@ impl Bot {
                         "Rate limit exceeded for this chat".to_string(),
                     ));
                 }
+            } else {
+                debug!("No chat_id found in message");
             }
         }
 
-        debug!("Sending API request: {:?}", message);
-
         let query = serde_url_params::to_string(&message)?;
-
         let url = self.get_parsed_url(self.set_path(<Rq>::METHOD.to_string()), query.to_owned())?;
 
-        debug!("Request URL: {}", url);
+        debug!("Request URL: {}", url.path());
 
         let body = match <Rq>::HTTP_METHOD {
             HTTPMethod::POST => {
@@ -204,11 +204,7 @@ impl Bot {
             }
         };
 
-        debug!("Received API response: {}", body);
-        let response = serde_json::from_str::<<Rq>::ResponseType>(&body)?;
-
-        debug!("Response successfully deserialized");
-
+        let response: <Rq>::ResponseType = serde_json::from_str(&body)?;
         Ok(response)
     }
 }

@@ -15,10 +15,23 @@ pub fn derive_has_chat_id(input: TokenStream) -> TokenStream {
         _ => return quote! {}.into(),
     };
 
+    // Helper function for recursive type checking
+    fn is_chat_id_type(ty: &Type) -> bool {
+        match ty {
+            Type::Path(type_path) => type_path
+                .path
+                .segments
+                .iter()
+                .any(|seg| seg.ident == "ChatId"),
+            Type::Group(group) => is_chat_id_type(&*group.elem),
+            _ => false,
+        }
+    }
+
     let chat_id_field = fields.iter().find(|field| {
-        if let Type::Path(type_path) = &field.ty {
-            if let Some(ident) = type_path.path.get_ident() {
-                ident == "ChatId"
+        if let Some(ident) = &field.ident {
+            if ident == "chat_id" {
+                is_chat_id_type(&field.ty)
             } else {
                 false
             }
@@ -31,7 +44,7 @@ pub fn derive_has_chat_id(input: TokenStream) -> TokenStream {
         let field_name = &field.ident;
         quote! {
             impl #name {
-                pub fn _get_chat_id(&self) -> Option<&crate::prelude::types::ChatId> {
+                pub fn _get_chat_id(&self) -> Option<&crate::api::types::ChatId> {
                     Some(&self.#field_name)
                 }
             }
@@ -39,7 +52,7 @@ pub fn derive_has_chat_id(input: TokenStream) -> TokenStream {
     } else {
         quote! {
             impl #name {
-                pub fn _get_chat_id(&self) -> Option<&crate::prelude::types::ChatId> {
+                pub fn _get_chat_id(&self) -> Option<&crate::api::types::ChatId> {
                     None
                 }
             }

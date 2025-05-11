@@ -1,0 +1,19 @@
+[rate_limit]
+limit = 5
+duration = 1
+retry_delay = 100
+retry_attempts = 3
+
+[otlp]
+instance_id = "vkteams-bot"
+deployment_environment_name = "development"
+exporter_endpoint = "http://localhost:4317"
+exporter_timeout = 5
+exporter_metric_interval = 5
+ratio = 1.0
+otel_filter_default = "info"
+fmt_filter_default = "info"
+fmt_ansi = true
+fmt_filter_self_directive = "info"
+otel = []
+fmt = []
