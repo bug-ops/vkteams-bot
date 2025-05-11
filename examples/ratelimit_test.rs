@@ -8,56 +8,58 @@ use vkteams_bot::prelude::*;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Загружаем .env файл
+    // Load .env file
     dotenvy::dotenv().expect("unable to load .env file");
-    // Инициализируем логгер
+    // Initialize logger
     let _guard = otlp::init().map_err(|e| BotError::Otlp(e.into()))?;
     info!("Starting rate limit tests...");
 
-    // Создаем бота с включенным rate limit
+    // Create bot with rate limit enabled
     let bot = Arc::new(Bot::default());
 
-    // Получаем chat_id из .env
+    // Get chat_id from .env
     let chat_id = Arc::new(ChatId(
         std::env::var("VKTEAMS_CHAT_ID")
             .expect("Unable to find VKTEAMS_CHAT_ID in .env file")
             .to_string(),
     ));
 
-    // Тест 1: Отправка сообщений с небольшой задержкой
-    info!("Тест 1: Отправка сообщений с небольшой задержкой");
+    // Test 1: Sending messages with small delay
+    info!("Test 1: Sending messages with small delay");
     for i in 0..5 {
         let bot = Arc::clone(&bot);
         let chat_id = Arc::clone(&chat_id);
 
         let request = RequestMessagesSendText::new((*chat_id).clone()).set_text(
             MessageTextParser::new()
-                .add(MessageTextFormat::Plain(format!("Тест 1: Сообщение {}", i))),
+                .add(MessageTextFormat::Plain(format!("Test 1: Message {}", i))),
         );
 
         match request {
             Ok(req) => {
-                // Проверяем, что chat_id правильно извлекается из запроса
+                // Check if chat_id is correctly extracted from the request
                 if let Some(id) = req.get_chat_id() {
-                    info!("Тест 1: ChatId из запроса: {:?}", id);
+                    info!("Test 1: ChatId from request: {:?}", id);
                 } else {
-                    error!("Тест 1: Не удалось получить ChatId из запроса");
+                    error!("Test 1: Failed to get ChatId from request");
                 }
 
                 match bot.send_api_request(req).await {
-                    Ok(ApiResult::Success(_)) => info!("Тест 1: Запрос {} успешно выполнен", i),
-                    Ok(ApiResult::Error(e)) => error!("Тест 1: Ошибка в запросе {}: {:?}", i, e),
-                    Err(e) => error!("Тест 1: Ошибка в запросе {}: {:?}", i, e),
+                    Ok(ApiResult::Success(_)) => {
+                        info!("Test 1: Request {} completed successfully", i)
+                    }
+                    Ok(ApiResult::Error(e)) => error!("Test 1: Error in request {}: {:?}", i, e),
+                    Err(e) => error!("Test 1: Error in request {}: {:?}", i, e),
                 }
             }
-            Err(e) => error!("Тест 1: Ошибка создания запроса {}: {:?}", i, e),
+            Err(e) => error!("Test 1: Error creating request {}: {:?}", i, e),
         }
 
         sleep(Duration::from_millis(100)).await;
     }
 
-    // Тест 2: Параллельная отправка сообщений
-    info!("Тест 2: Параллельная отправка сообщений");
+    // Test 2: Parallel message sending
+    info!("Test 2: Parallel message sending");
     let num_requests = 10;
     let semaphore = Arc::new(Semaphore::new(num_requests));
     let mut handles = vec![];
@@ -69,44 +71,46 @@ async fn main() -> Result<()> {
 
         let handle = tokio::spawn(async move {
             let _permit = semaphore.acquire().await.unwrap();
-            info!("Тест 2: Отправка запроса {}", i);
+            info!("Test 2: Sending request {}", i);
 
             let request = RequestMessagesSendText::new((*chat_id).clone()).set_text(
                 MessageTextParser::new()
-                    .add(MessageTextFormat::Plain(format!("Тест 2: Сообщение {}", i))),
+                    .add(MessageTextFormat::Plain(format!("Test 2: Message {}", i))),
             );
 
             match request {
                 Ok(req) => {
-                    // Проверяем, что chat_id правильно извлекается из запроса
+                    // Check if chat_id is correctly extracted from the request
                     if let Some(id) = req.get_chat_id() {
-                        info!("Тест 2: ChatId из запроса: {:?}", id);
+                        info!("Test 2: ChatId from request: {:?}", id);
                     } else {
-                        error!("Тест 2: Не удалось получить ChatId из запроса");
+                        error!("Test 2: Failed to get ChatId from request");
                     }
 
                     match bot.send_api_request(req).await {
-                        Ok(ApiResult::Success(_)) => info!("Тест 2: Запрос {} успешно выполнен", i),
-                        Ok(ApiResult::Error(e)) => {
-                            error!("Тест 2: Ошибка в запросе {}: {:?}", i, e)
+                        Ok(ApiResult::Success(_)) => {
+                            info!("Test 2: Request {} completed successfully", i)
                         }
-                        Err(e) => error!("Тест 2: Ошибка в запросе {}: {:?}", i, e),
+                        Ok(ApiResult::Error(e)) => {
+                            error!("Test 2: Error in request {}: {:?}", i, e)
+                        }
+                        Err(e) => error!("Test 2: Error in request {}: {:?}", i, e),
                     }
                 }
-                Err(e) => error!("Тест 2: Ошибка создания запроса {}: {:?}", i, e),
+                Err(e) => error!("Test 2: Error creating request {}: {:?}", i, e),
             }
         });
 
         handles.push(handle);
     }
 
-    // Ждем завершения всех запросов
+    // Wait for all requests to complete
     for handle in handles {
         handle.await.unwrap();
     }
 
-    // Тест 3: Отправка сообщений после превышения лимита
-    info!("Тест 3: Отправка сообщений после превышения лимита");
+    // Test 3: Sending messages after exceeding the limit
+    info!("Test 3: Sending messages after exceeding the limit");
     let num_requests = 20;
     let mut handles = vec![];
 
@@ -115,45 +119,47 @@ async fn main() -> Result<()> {
         let chat_id = Arc::clone(&chat_id);
 
         let handle = tokio::spawn(async move {
-            info!("Тест 3: Отправка запроса {}", i);
+            info!("Test 3: Sending request {}", i);
 
             let request = RequestMessagesSendText::new((*chat_id).clone()).set_text(
                 MessageTextParser::new()
-                    .add(MessageTextFormat::Plain(format!("Тест 3: Сообщение {}", i))),
+                    .add(MessageTextFormat::Plain(format!("Test 3: Message {}", i))),
             );
 
             match request {
                 Ok(req) => {
-                    // Проверяем, что chat_id правильно извлекается из запроса
+                    // Check if chat_id is correctly extracted from the request
                     if let Some(id) = req.get_chat_id() {
-                        debug!("Тест 3: ChatId из запроса: {:?}", id);
+                        debug!("Test 3: ChatId from request: {:?}", id);
                     } else {
-                        error!("Тест 3: Не удалось получить ChatId из запроса");
+                        error!("Test 3: Failed to get ChatId from request");
                     }
 
                     match bot.send_api_request(req).await {
-                        Ok(ApiResult::Success(_)) => info!("Тест 3: Запрос {} успешно выполнен", i),
-                        Ok(ApiResult::Error(e)) => {
-                            error!("Тест 3: Ошибка в запросе {}: {:?}", i, e)
+                        Ok(ApiResult::Success(_)) => {
+                            info!("Test 3: Request {} completed successfully", i)
                         }
-                        Err(e) => error!("Тест 3: Ошибка отправки запроса {}: {:?}", i, e),
+                        Ok(ApiResult::Error(e)) => {
+                            error!("Test 3: Error in request {}: {:?}", i, e)
+                        }
+                        Err(e) => error!("Test 3: Error sending request {}: {:?}", i, e),
                     }
                 }
-                Err(e) => error!("Тест 3: Ошибка создания запроса {}: {:?}", i, e),
+                Err(e) => error!("Test 3: Error creating request {}: {:?}", i, e),
             }
         });
 
         handles.push(handle);
     }
 
-    // Ждем завершения всех запросов
+    // Wait for all requests to complete
     for handle in handles {
         handle.await.unwrap();
     }
 
-    // Тест 4: Проверка восстановления после превышения лимита
-    info!("Тест 4: Проверка восстановления после превышения лимита");
-    sleep(Duration::from_secs(2)).await; // Ждем полного восстановления лимитов
+    // Test 4: Checking recovery after exceeding the limit
+    info!("Test 4: Checking recovery after exceeding the limit");
+    sleep(Duration::from_secs(2)).await; // Wait for complete limit recovery
 
     for i in 0..3 {
         let bot = Arc::clone(&bot);
@@ -161,37 +167,34 @@ async fn main() -> Result<()> {
 
         let request = RequestMessagesSendText::new((*chat_id).clone()).set_text(
             MessageTextParser::new().add(MessageTextFormat::Plain(format!(
-                "Тест 4: Сообщение после восстановления {}",
+                "Test 4: Message after recovery {}",
                 i
             ))),
         )?;
 
-        // Проверяем, что chat_id правильно извлекается из запроса
+        // Check if chat_id is correctly extracted from the request
         if let Some(id) = request.get_chat_id() {
-            info!("Тест 4: ChatId из запроса: {:?}", id);
+            info!("Test 4: ChatId from request: {:?}", id);
         } else {
-            error!("Тест 4: Не удалось получить ChatId из запроса");
+            error!("Test 4: Failed to get ChatId from request");
         }
 
-        let response = bot.send_api_request(request).await;
-
-        match response {
+        match bot.send_api_request(request).await {
             Ok(ApiResult::Success(_)) => {
-                info!("Тест 4: Запрос {} успешно выполнен после восстановления", i)
+                info!(
+                    "Test 4: Request {} completed successfully after recovery",
+                    i
+                )
             }
-            Ok(ApiResult::Error(e)) => error!(
-                "Тест 4: Ошибка в запросе {} после восстановления: {:?}",
-                i, e
-            ),
-            Err(e) => error!(
-                "Тест 4: Ошибка в запросе {} после восстановления: {:?}",
-                i, e
-            ),
+            Ok(ApiResult::Error(e)) => {
+                error!("Test 4: Error in request {} after recovery: {:?}", i, e)
+            }
+            Err(e) => error!("Test 4: Error in request {} after recovery: {:?}", i, e),
         }
 
         sleep(Duration::from_millis(100)).await;
     }
 
-    info!("Все тесты завершены");
+    info!("All tests completed");
     Ok(())
 }
