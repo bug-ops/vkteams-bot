@@ -1,0 +1,23 @@
+[rate_limit]
+# https://teams.vk.com/botapi/faq/?lang=en (restrictions)
+limit = 1           # requests
+duration = 1        # seconds
+retry_delay = 50    # milliseconds
+retry_attempts = 50 # requests
+[otlp]
+instance_id = "vkteams-bot"
+deployment_environment_name = "development"
+exporter_endpoint = "http://localhost:4317"
+exporter_timeout = 5
+exporter_metric_interval = 5
+ratio = 1.0
+otel_filter_default = "debug"
+fmt_filter_default = "info"
+fmt_ansi = true
+fmt_filter_self_directive = "debug"
+[[otlp.fmt]]
+fmt_filter_directive = "axum=trace"
+[[otlp.fmt]]
+fmt_filter_directive = "tower_http=debug"
+[[otlp.fmt]]
+fmt_filter_directive = "opentelemetry=info"

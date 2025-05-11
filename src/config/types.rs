@@ -9,6 +9,7 @@ pub static CONFIG: Lazy<Arc<Config>> = Lazy::new(Config::new);
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct Config {
+    #[cfg(feature = "otlp")]
     pub otlp: OtlpConfig,
     #[cfg(feature = "ratelimit")]
     pub rate_limit: RateLimit,
