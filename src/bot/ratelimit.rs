@@ -132,7 +132,7 @@ impl RateLimiter {
         let retry_delay = Duration::from_millis(cfg.retry_delay);
 
         while attempts < cfg.retry_attempts {
-            if self.check_rate_limit(&chat_id).await {
+            if self.check_rate_limit(chat_id).await {
                 debug!("Rate limit not exceeded for chat_id: {}", chat_id.0);
                 return true;
             }
