@@ -13,3 +13,4 @@ Cargo.lock
 .yaml
 Dockerfile
 compose.yaml
+.svg

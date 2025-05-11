@@ -2,7 +2,6 @@
 //! Get information about a chat method `chats/getInfo`
 //! [More info](https://teams.vk.com/botapi/#/chats/get_chats_getInfo)
 use crate::api::types::*;
-use serde::{Deserialize, Serialize};
 bot_api_method! {
     method   = "chats/getInfo",
     request  = RequestChatsGetInfo {

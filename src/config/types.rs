@@ -10,6 +10,8 @@ pub static CONFIG: Lazy<Arc<Config>> = Lazy::new(Config::new);
 #[serde(rename_all = "snake_case")]
 pub struct Config {
     pub otlp: OtlpConfig,
+    #[cfg(feature = "ratelimit")]
+    pub rate_limit: RateLimit,
 }
 /// Otlp variables
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -42,4 +44,13 @@ pub struct OtelDirective {
 #[repr(C)]
 pub struct FmtDirective {
     pub fmt_filter_directive: Cow<'static, str>,
+}
+/// Rate limit configuration
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub struct RateLimit {
+    pub limit: usize,
+    pub duration: u64,
+    pub retry_delay: u64,
+    pub retry_attempts: u16,
 }

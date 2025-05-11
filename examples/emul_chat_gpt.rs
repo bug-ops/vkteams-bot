@@ -41,7 +41,7 @@ async fn send(bot: &Bot) -> Result<()> {
             id = match bot
                 .send_api_request(
                     RequestMessagesSendText::new(chat_id.to_owned())
-                        .set_text(html_parser.to_owned()),
+                        .set_text(html_parser.to_owned())?,
                 )
                 .await?
             {
@@ -56,7 +56,7 @@ async fn send(bot: &Bot) -> Result<()> {
             // Next words add by editing previous message
             bot.send_api_request(
                 RequestMessagesEditText::new((chat_id.to_owned(), id.to_owned()))
-                    .set_text(html_parser.to_owned()),
+                    .set_text(html_parser.to_owned())?,
             )
             .await?;
         };

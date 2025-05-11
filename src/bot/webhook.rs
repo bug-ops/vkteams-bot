@@ -38,6 +38,7 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
+use tracing::{error, info, trace};
 
 /// Environment variable for the port
 const DEFAULT_TCP_PORT: &str = "VKTEAMS_TCP_PORT";

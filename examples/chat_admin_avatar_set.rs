@@ -1,8 +1,6 @@
-#[macro_use]
-extern crate log;
 use std::vec::IntoIter;
+use tracing::{error, info};
 use vkteams_bot::prelude::*;
-
 #[tokio::main]
 async fn main() -> Result<()> {
     // Check .env file and init logger
@@ -65,7 +63,7 @@ async fn main() -> Result<()> {
 // Get events from the API
 pub async fn iter_get_events(bot: &Bot) -> Result<IntoIter<EventMessage>> {
     match bot
-        .send_api_request(RequestEventsGet::new(bot.get_last_event_id()))
+        .send_api_request(RequestEventsGet::new(bot.get_last_event_id().await))
         .await?
     {
         ApiResult::Success(res) => Ok(res.events.into_iter()),

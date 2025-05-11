@@ -1,7 +1,6 @@
 //! Block User method `chats/blockUser`
 //! [More info](https://teams.vk.com/botapi/#/chats/get_chats_blockUser)
 use crate::api::types::*;
-use serde::{Deserialize, Serialize};
 bot_api_method! {
     method   = "chats/blockUser",
     request  = RequestChatsBlockUser {

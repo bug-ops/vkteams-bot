@@ -9,6 +9,7 @@ use std::time::Duration;
 use tokio::fs::File;
 use tokio::signal;
 use tokio_util::codec::{BytesCodec, FramedRead};
+use tracing::{debug, trace};
 /// Get text response from API
 /// Send request with [`Client`] `get` method and get body with [`reqwest::Response`] `text` method
 /// - `url` - file URL

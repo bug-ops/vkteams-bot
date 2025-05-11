@@ -17,26 +17,8 @@
 //! [`serde_json`]: https://docs.rs/serde_json
 //! [`serde_url_params`]: https://docs.rs/serde_url_params
 //! [`axum`]: https://docs.rs/axum
-//! # Environment
-//! - `RUST_LOG` - log level (default: `info`)
-//! - `VKTEAMS_BOT_API_TOKEN` - bot token
-//! - `VKTEAMS_BOT_API_URL` - bot api url
-//! - `VKTEAMS_PROXY` - proxy url
-//!
-//! ```bash
-//! # Unix-like
-//! $ export VKTEAMS_BOT_API_TOKEN=<Your token here> #require
-//! $ export VKTEAMS_BOT_API_URL=<Your base api url> #require
-//! $ export VKTEAMS_PROXY=<Proxy> #optional
-//!
-//! # Windows
-//! $ set VKTEAMS_BOT_API_TOKEN=<Your token here> #require
-//! $ set VKTEAMS_BOT_API_URL=<Your base api url> #require
-//! $ set VKTEAMS_PROXY=<Proxy> #optional
-//! ```
-#[macro_use]
-extern crate log;
 
+#[macro_export]
 macro_rules! bot_api_method {
     (
         method = $method:literal,
@@ -53,7 +35,8 @@ macro_rules! bot_api_method {
             $( $(#[$res_attr:meta])* $res_f:ident : $ResT:ty ),* $(,)?
         },
     ) => {
-        #[derive(Serialize, Clone, Debug, Default)]
+        use serde::{Deserialize, Serialize};
+        #[derive(Serialize, Deserialize, Clone, Debug, Default, vkteams_bot_macros::ChatId)]
         #[serde(rename_all = "camelCase")]
         #[non_exhaustive]
         pub struct $Req {
@@ -67,18 +50,22 @@ macro_rules! bot_api_method {
             $( $(#[$res_attr])* pub $res_f : $ResT, )*
         }
 
-        impl crate::api::types::BotRequest for $Req {
+        impl $crate::api::types::BotRequest for $Req {
             type Args = ($($ReqT),*);
             const METHOD: &'static str = $method;
-            $(const HTTP_METHOD: crate::api::types::HTTPMethod = $http_method;)?
+            $(const HTTP_METHOD: $crate::api::types::HTTPMethod = $http_method;)?
             type RequestType = Self;
-            type ResponseType = crate::api::types::ApiResult<$Res>;
+            type ResponseType = $crate::api::types::ApiResult<$Res>;
 
             fn new(($($req_f),*): ($($ReqT),*)) -> Self {
                 Self {
                     $( $req_f, )*
                     ..Default::default()
                 }
+            }
+
+            fn get_chat_id(&self) -> Option<&$crate::api::types::ChatId> {
+                self._get_chat_id()
             }
         }
 

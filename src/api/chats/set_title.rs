@@ -1,7 +1,6 @@
 //! Set chat title method `chats/setTitle`
 //! [More Info](https://teams.vk.com/botapi/#/chats/get_chats_setTitle)
 use crate::api::types::*;
-use serde::{Deserialize, Serialize};
 bot_api_method! {
     method   = "chats/setTitle",
     request  = RequestChatsSetTitle {

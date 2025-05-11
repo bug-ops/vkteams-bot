@@ -47,10 +47,11 @@ tonic-health = { version = "0.13", optional = true }
 http = "1.2"
 paste = "1"
 url = "2.5"
+vkteams-bot-macros = { path = "./vkteams-bot-macros" }
 
 [features]
 default = ["longpoll"]
-full = ["webhook", "longpoll", "templates", "grpc", "otlp"]
+full = ["webhook", "longpoll", "templates", "grpc", "otlp", "ratelimit"]
 longpoll = []
 webhook = ["dep:axum", "dep:tower-http", "dep:async-trait"]
 templates = ["dep:tera"]
@@ -63,6 +64,7 @@ otlp = [
     "dep:opentelemetry-otlp",
     "dep:opentelemetry-semantic-conventions",
 ]
+ratelimit = []
 
 [dev-dependencies]
 vkteams-bot = { path = ".", features = ["full"] }
