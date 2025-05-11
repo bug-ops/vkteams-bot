@@ -36,7 +36,7 @@ macro_rules! bot_api_method {
         },
     ) => {
         use serde::{Deserialize, Serialize};
-        #[derive(Serialize, Deserialize, Clone, Debug, Default, vkteams_bot_macros::HasChatId)]
+        #[derive(Serialize, Deserialize, Clone, Debug, Default, vkteams_bot_macros::ChatId)]
         #[serde(rename_all = "camelCase")]
         #[non_exhaustive]
         pub struct $Req {

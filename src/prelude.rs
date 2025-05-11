@@ -13,4 +13,3 @@ pub use crate::bot_api_method;
 pub use crate::error::*;
 #[cfg(feature = "otlp")]
 pub use crate::otlp::{self, OtelGuard, init};
-pub use vkteams_bot_macros::HasChatId;

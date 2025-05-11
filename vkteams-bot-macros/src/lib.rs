@@ -2,8 +2,8 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{Data, DeriveInput, Fields, Type, parse_macro_input};
 
-#[proc_macro_derive(HasChatId)]
-pub fn derive_has_chat_id(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(ChatId)]
+pub fn derive_chat_id(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = input.ident;
 
