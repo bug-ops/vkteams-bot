@@ -7,7 +7,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! vkteams_bot = "0.7"
+//! vkteams_bot = "0.9"
 //! log = "0.4"
 //! ```
 //!
