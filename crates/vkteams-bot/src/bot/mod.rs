@@ -13,7 +13,8 @@ use crate::api::types::*;
 use crate::bot::ratelimit::RateLimiter;
 use crate::error::{BotError, Result};
 use net::*;
-use reqwest::{Client, Url};
+use reqwest::Url;
+use net::ConnectionPool;
 use serde::Serialize;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -21,17 +22,16 @@ use tracing::debug;
 
 #[derive(Debug, Clone)]
 /// Bot class with attributes
-/// - `client`: [`reqwest::Client`]
-/// - `token`: [`String`]
-/// - `base_api_url`: [`reqwest::Url`]
-/// - `base_api_path`: [`String`]
-/// - `event_id`: [`std::sync::Arc<_>`]
+/// - `connection_pool`: [`ConnectionPool`] - Pool of HTTP connections for API requests
+/// - `token`: [`String`] - Bot API token 
+/// - `base_api_url`: [`reqwest::Url`] - Base API URL
+/// - `base_api_path`: [`String`] - Base API path
+/// - `event_id`: [`std::sync::Arc<_>`] - Last event ID
 ///
-/// [`reqwest::Client`]: https://docs.rs/reqwest/latest/reqwest/struct.Client.html
 /// [`reqwest::Url`]: https://docs.rs/reqwest/latest/reqwest/struct.Url.html
 /// [`std::sync::Arc<_>`]: https://doc.rust-lang.org/std/sync/struct.Arc.html
 pub struct Bot {
-    pub(crate) client: Client,
+    pub(crate) connection_pool: ConnectionPool,
     pub(crate) token: String,
     pub(crate) base_api_url: Url,
     pub(crate) base_api_path: String,
@@ -43,9 +43,7 @@ pub struct Bot {
 impl Bot {
     /// Creates a new `Bot` with API version [`APIVersionUrl`]
     ///
-    /// Build optional proxy from .env variable `VKTEAMS_PROXY` if its bound, passes to [`reqwest::Proxy::all`].
-    ///
-    /// Build [`reqwest::Client`] with default settings.
+    /// Uses ConnectionPool with optimized settings for HTTP requests.
     ///
     /// Get token from variable `VKTEAMS_BOT_API_TOKEN` in .env file
     ///
@@ -56,15 +54,12 @@ impl Bot {
     /// ## Errors
     /// - `BotError::Config` - configuration error (invalid token or URL)
     /// - `BotError::Url` - URL parsing error
+    /// - `BotError::Network` - network client creation error
     ///
     /// ## Panics
-    /// - Unable to parse proxy if its bound in `VKTEAMS_PROXY` env variable
-    /// - Unable to build [`reqwest::Client`]
     /// - Unable to find token in .env file
     /// - Unable to find or parse url in .env file
-    ///
-    /// [`reqwest::Client`]: https://docs.rs/reqwest/latest/reqwest/struct.Client.html
-    /// [`reqwest::Proxy::all`]: https://docs.rs/reqwest/latest/reqwest/struct.Proxy.html#method.all
+    /// - Unable to create connection pool
     pub fn new(version: APIVersionUrl) -> Self {
         debug!("Creating new bot with API version: {:?}", version);
 
@@ -87,9 +82,13 @@ impl Bot {
             APIVersionUrl::V1 => "/bot/v1/",
         };
         debug!("Set API base path: {}", base_api_path);
+        
+        let connection_pool = ConnectionPool::optimized()
+            .unwrap_or_else(|e| panic!("Failed to create connection pool: {}", e));
+        debug!("Connection pool successfully created");
 
         Self {
-            client: Client::new(),
+            connection_pool,
             token,
             base_api_url,
             base_api_path: base_api_path.to_string(),
@@ -143,7 +142,7 @@ impl Bot {
 
     /// Send request, get response
     /// Serialize request generic type `Rq` with [`serde_url_params::to_string`] into query string
-    /// Get response body with [`response`]
+    /// Get response body using connection pool
     /// Deserialize response with [`serde_json::from_str`]
     /// - `message`: generic type `Rq` - request type
     ///
@@ -156,15 +155,8 @@ impl Bot {
     /// - `BotError::Api` - API error when processing request
     ///
     /// ## Panics
-    /// - Unable to serialize request
-    /// - Unable to parse URL
-    /// - Unable to get response body
     /// - Unable to deserialize response
-    /// - Unable to send request
-    /// - Unable to get response
-    /// - Unable to get response status
     ///
-    /// [`response`]: #method.response
     #[tracing::instrument(skip(self, message))]
     pub async fn send_api_request<Rq>(&self, message: Rq) -> Result<<Rq>::ResponseType>
     where
@@ -196,11 +188,11 @@ impl Bot {
                 debug!("Sending POST request with file");
                 let form = file_to_multipart(message.get_file()).await?;
 
-                post_response_file(self.client.clone(), url, form).await?
+                self.connection_pool.post_file(url, form).await?
             }
             HTTPMethod::GET => {
                 debug!("Sending GET request");
-                get_text_response(self.client.clone(), url).await?
+                self.connection_pool.get_text(url).await?
             }
         };
 
@@ -212,5 +204,37 @@ impl Bot {
 impl Default for Bot {
     fn default() -> Self {
         Self::new(APIVersionUrl::V1)
+    }
+}
+
+// Helper function to create a new bot with a custom connection pool
+impl Bot {
+    /// Create a new bot with a custom connection pool
+    /// Useful for testing or specific connection requirements
+    pub fn with_connection_pool(version: APIVersionUrl, connection_pool: ConnectionPool) -> Result<Self> {
+        debug!("Creating new bot with custom connection pool");
+        
+        let token = std::env::var(VKTEAMS_BOT_API_TOKEN)
+            .map_err(|e| BotError::Config(format!("Failed to get token: {}", e)))?;
+            
+        let base_api_url = std::env::var(VKTEAMS_BOT_API_URL)
+            .map_err(|e| BotError::Config(format!("Failed to get API URL: {}", e)))?;
+            
+        let base_api_url = Url::parse(&base_api_url)
+            .map_err(|e| BotError::Config(format!("Invalid API URL format: {}", e)))?;
+            
+        let base_api_path = match version {
+            APIVersionUrl::V1 => "/bot/v1/",
+        };
+        
+        Ok(Self {
+            connection_pool,
+            token,
+            base_api_url,
+            base_api_path: base_api_path.to_string(),
+            event_id: Arc::new(Mutex::new(0)),
+            #[cfg(feature = "ratelimit")]
+            rate_limiter: Default::default(),
+        })
     }
 }

@@ -13,6 +13,9 @@ pub struct Config {
     pub otlp: OtlpConfig,
     #[cfg(feature = "ratelimit")]
     pub rate_limit: RateLimit,
+    /// Network configuration
+    #[serde(default)]
+    pub network: NetworkConfig,
 }
 /// Otlp variables
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -55,3 +58,47 @@ pub struct RateLimit {
     pub retry_delay: u64,
     pub retry_attempts: u16,
 }
+
+/// Network configuration
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub struct NetworkConfig {
+    /// Number of retry attempts for failed requests
+    #[serde(default = "default_retries")]
+    pub retries: usize,
+    /// Maximum backoff time in milliseconds
+    #[serde(default = "default_max_backoff_ms")]
+    pub max_backoff_ms: u64,
+    /// Request timeout in seconds
+    #[serde(default = "default_request_timeout_secs")]
+    pub request_timeout_secs: u64,
+    /// Connection timeout in seconds
+    #[serde(default = "default_connect_timeout_secs")]
+    pub connect_timeout_secs: u64,
+    /// Pool idle timeout in seconds
+    #[serde(default = "default_pool_idle_timeout_secs")]
+    pub pool_idle_timeout_secs: u64,
+    /// Maximum number of idle connections per host
+    #[serde(default = "default_max_idle_connections")]
+    pub max_idle_connections: usize,
+}
+
+impl Default for NetworkConfig {
+    fn default() -> Self {
+        Self {
+            retries: default_retries(),
+            max_backoff_ms: default_max_backoff_ms(),
+            request_timeout_secs: default_request_timeout_secs(),
+            connect_timeout_secs: default_connect_timeout_secs(),
+            pool_idle_timeout_secs: default_pool_idle_timeout_secs(),
+            max_idle_connections: default_max_idle_connections(),
+        }
+    }
+}
+
+fn default_retries() -> usize { 3 }
+fn default_max_backoff_ms() -> u64 { 5000 }
+fn default_request_timeout_secs() -> u64 { 30 }
+fn default_connect_timeout_secs() -> u64 { 10 }
+fn default_pool_idle_timeout_secs() -> u64 { 90 }
+fn default_max_idle_connections() -> usize { 10 }
