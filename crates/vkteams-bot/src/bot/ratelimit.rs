@@ -1,5 +1,6 @@
 use crate::config::CONFIG;
 use crate::prelude::ChatId;
+use async_trait::async_trait;
 use dashmap::DashMap;
 use std::collections::VecDeque;
 use std::sync::Arc;
@@ -334,38 +335,29 @@ impl RateLimiter {
 }
 
 /// Extension trait for RateLimiter to support priority tiers
+#[async_trait]
 pub trait RateLimiterExt {
     /// Check if a chat with specified priority can make a request
     /// Higher priority chats get more tokens
-    fn check_with_priority(
-        &self,
-        chat_id: &ChatId,
-        priority: u8,
-    ) -> impl std::future::Future<Output = bool> + Send;
+    async fn check_with_priority(&self, chat_id: &ChatId, priority: u8) -> bool;
 }
-
+#[async_trait]
 impl RateLimiterExt for RateLimiter {
-    fn check_with_priority(
-        &self,
-        chat_id: &ChatId,
-        priority: u8,
-    ) -> impl std::future::Future<Output = bool> + Send {
-        async move {
-            // Allow more requests for higher priority chats
-            // This is a simple implementation that just tries multiple times for higher priority
-            let attempts = match priority {
-                0 => 1,           // Standard priority
-                1 => 2,           // Medium priority
-                2..=u8::MAX => 3, // High priority
-            };
+    async fn check_with_priority(&self, chat_id: &ChatId, priority: u8) -> bool {
+        // Allow more requests for higher priority chats
+        // This is a simple implementation that just tries multiple times for higher priority
+        let attempts = match priority {
+            0 => 1,           // Standard priority
+            1 => 2,           // Medium priority
+            2..=u8::MAX => 3, // High priority
+        };
 
-            for _ in 0..attempts {
-                if self.check_rate_limit(chat_id).await {
-                    return true;
-                }
+        for _ in 0..attempts {
+            if self.check_rate_limit(chat_id).await {
+                return true;
             }
-
-            false
         }
+
+        false
     }
 }

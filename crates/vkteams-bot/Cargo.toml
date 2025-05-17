@@ -72,7 +72,7 @@ otlp = [
     "dep:opentelemetry-otlp",
     "dep:opentelemetry-semantic-conventions",
 ]
-ratelimit = []
+ratelimit = ["dep:async-trait"]
 
 [dev-dependencies]
 vkteams-bot = { path = ".", features = ["full"] }

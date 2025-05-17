@@ -1,6 +1,4 @@
-#[macro_use]
-extern crate log;
-
+use tracing::info;
 use vkteams_bot::prelude::*;
 
 #[tokio::main]

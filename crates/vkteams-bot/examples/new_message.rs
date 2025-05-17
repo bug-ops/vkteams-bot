@@ -1,5 +1,4 @@
-#[macro_use]
-extern crate log;
+use tracing::{debug, info};
 use vkteams_bot::error::{BotError, Result};
 use vkteams_bot::prelude::*;
 

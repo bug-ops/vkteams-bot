@@ -1,6 +1,5 @@
-#[macro_use]
-extern crate log;
 use tokio::time::*;
+use tracing::info;
 use vkteams_bot::error::{BotError, Result};
 use vkteams_bot::prelude::*;
 
