@@ -12,9 +12,9 @@ use crate::api::types::*;
 #[cfg(feature = "ratelimit")]
 use crate::bot::ratelimit::RateLimiter;
 use crate::error::{BotError, Result};
+use net::ConnectionPool;
 use net::*;
 use reqwest::Url;
-use net::ConnectionPool;
 use serde::Serialize;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -23,7 +23,7 @@ use tracing::debug;
 #[derive(Debug, Clone)]
 /// Bot class with attributes
 /// - `connection_pool`: [`ConnectionPool`] - Pool of HTTP connections for API requests
-/// - `token`: [`String`] - Bot API token 
+/// - `token`: [`String`] - Bot API token
 /// - `base_api_url`: [`reqwest::Url`] - Base API URL
 /// - `base_api_path`: [`String`] - Base API path
 /// - `event_id`: [`std::sync::Arc<_>`] - Last event ID
@@ -82,7 +82,7 @@ impl Bot {
             APIVersionUrl::V1 => "/bot/v1/",
         };
         debug!("Set API base path: {}", base_api_path);
-        
+
         let connection_pool = ConnectionPool::optimized()
             .unwrap_or_else(|e| panic!("Failed to create connection pool: {}", e));
         debug!("Connection pool successfully created");
@@ -196,8 +196,8 @@ impl Bot {
             }
         };
 
-        let response: <Rq>::ResponseType = serde_json::from_str(&body)?;
-        Ok(response)
+        let response: ApiResponseWrapper<<Rq>::ResponseType> = serde_json::from_str(&body)?;
+        response.into()
     }
 }
 
@@ -211,22 +211,25 @@ impl Default for Bot {
 impl Bot {
     /// Create a new bot with a custom connection pool
     /// Useful for testing or specific connection requirements
-    pub fn with_connection_pool(version: APIVersionUrl, connection_pool: ConnectionPool) -> Result<Self> {
+    pub fn with_connection_pool(
+        version: APIVersionUrl,
+        connection_pool: ConnectionPool,
+    ) -> Result<Self> {
         debug!("Creating new bot with custom connection pool");
-        
+
         let token = std::env::var(VKTEAMS_BOT_API_TOKEN)
             .map_err(|e| BotError::Config(format!("Failed to get token: {}", e)))?;
-            
+
         let base_api_url = std::env::var(VKTEAMS_BOT_API_URL)
             .map_err(|e| BotError::Config(format!("Failed to get API URL: {}", e)))?;
-            
+
         let base_api_url = Url::parse(&base_api_url)
             .map_err(|e| BotError::Config(format!("Invalid API URL format: {}", e)))?;
-            
+
         let base_api_path = match version {
             APIVersionUrl::V1 => "/bot/v1/",
         };
-        
+
         Ok(Self {
             connection_pool,
             token,

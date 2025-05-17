@@ -2,12 +2,9 @@
 use crate::error::{ApiError, BotError, Result};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::fmt::*;
-use std::fmt::{Display, Formatter};
 use std::time::Duration;
 #[cfg(feature = "templates")]
-use tera::Context;
-#[cfg(feature = "templates")]
-use tera::Tera;
+use tera::{Context, Tera};
 
 /// Environment variable name for bot API URL
 pub const VKTEAMS_BOT_API_URL: &str = "VKTEAMS_BOT_API_URL";
@@ -151,9 +148,8 @@ pub enum ParseMode {
 #[serde(rename_all = "camelCase")]
 pub struct EventMessage {
     pub event_id: EventId,
-    #[serde(rename = "type", flatten)]
+    #[serde(flatten)]
     pub event_type: EventType,
-    // pub payload: EventPayload,
 }
 /// Event types
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
@@ -498,19 +494,35 @@ pub struct Sn {
 pub struct PhotoUrl {
     pub url: String,
 }
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(untagged)]
-/// API result wrapper: Success(T) or Error { ok: false, description }
-pub enum ApiResult<T> {
-    Success(T),
-    Error(ApiError),
+// Intermediate structure for deserializing API responses with the "ok" field
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+pub struct ApiResponseWrapper<T> {
+    #[serde(flatten)]
+    variant: Option<ApiOkResponse>,
+    #[serde(flatten)]
+    payload: T,
 }
 
-impl<T> ApiResult<T> {
-    pub fn into_result(self) -> Result<T> {
-        match self {
-            ApiResult::Success(value) => Ok(value),
-            ApiResult::Error(error) => Err(BotError::Api(error)),
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+struct ApiOkResponse {
+    ok: bool,
+    description: String,
+}
+
+// Implementation of From for automatic conversion from ApiResponseWrapper to Result
+impl<T> std::convert::From<ApiResponseWrapper<T>> for Result<T> {
+    fn from(wrapper: ApiResponseWrapper<T>) -> Self {
+        match wrapper.variant {
+            Some(result) => {
+                if result.ok {
+                    Ok(wrapper.payload)
+                } else {
+                    Err(BotError::Api(ApiError {
+                        description: result.description,
+                    }))
+                }
+            }
+            None => Ok(wrapper.payload),
         }
     }
 }
@@ -551,13 +563,5 @@ impl Default for Keyboard {
             // Empty vector of [`KeyboardButton`]
             buttons: vec![vec![]],
         }
-    }
-}
-impl<T> Default for ApiResult<T> {
-    fn default() -> Self {
-        ApiResult::Error(ApiError {
-            ok: false,
-            description: String::new(),
-        })
     }
 }

@@ -9,10 +9,8 @@ bot_api_method! {
             approve: bool,
         },
         optional {
-            #[serde(skip_serializing_if = "Option::is_none")]
-            user_id: Option<UserId>,
-            #[serde(skip_serializing_if = "Option::is_none")]
-            everyone: Option<bool>,
+            user_id: UserId,
+            everyone: bool,
         }
     },
     response = ResponseChatsResolvePending {},

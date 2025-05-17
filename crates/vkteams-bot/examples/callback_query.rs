@@ -1,5 +1,4 @@
-#[macro_use]
-extern crate log;
+use tracing::info;
 use vkteams_bot::prelude::*;
 
 const CALLBACK_DATA: &str = "callback_button_#1";
@@ -35,20 +34,13 @@ async fn main() -> Result<()> {
         .to_owned();
     // Send message
     info!("Sending message...");
-    match bot
-        .send_api_request(
-            RequestMessagesSendText::new(chat_id)
-                .set_keyboard(keyboard)?
-                .set_text(html_parser)?,
-        )
-        .await?
-    {
-        ApiResult::Success(_) => info!("Message sent"),
-        ApiResult::Error(e) => {
-            error!("Error: {}", e.description);
-            return Err(BotError::Api(e));
-        }
-    };
+    bot.send_api_request(
+        RequestMessagesSendText::new(chat_id)
+            .set_keyboard(keyboard)?
+            .set_text(html_parser)?,
+    )
+    .await?;
+    info!("Message sent");
     // Start event listener and pass result to a callback function
     bot.event_listener(callback).await?;
     Ok(())
@@ -63,26 +55,19 @@ pub async fn callback(bot: Bot, res: ResponseEventsGet) -> Result<()> {
             EventType::CallbackQuery(payload) => payload.to_owned(),
             _ => continue,
         };
-        match bot
-            .send_api_request(
-                RequestMessagesAnswerCallbackQuery::new(payload.query_id)
-                    .with_text(
-                        match payload.callback_data.as_str() {
-                            CALLBACK_DATA => "Button pressed!",
-                            _ => "WRONG button pressed!",
-                        }
-                        .to_string(),
-                    )
-                    .with_show_alert(true),
-            )
-            .await?
-        {
-            ApiResult::Success(_) => info!("Callback query answered"),
-            ApiResult::Error(e) => {
-                error!("Error: {}", e.description);
-                return Err(BotError::Api(e));
-            }
-        }
+        bot.send_api_request(
+            RequestMessagesAnswerCallbackQuery::new(payload.query_id)
+                .with_text(
+                    match payload.callback_data.as_str() {
+                        CALLBACK_DATA => "Button pressed!",
+                        _ => "WRONG button pressed!",
+                    }
+                    .to_string(),
+                )
+                .with_show_alert(true),
+        )
+        .await?;
+        info!("Callback query answered");
     }
     Ok(())
 }

@@ -41,7 +41,9 @@ macro_rules! bot_api_method {
         #[non_exhaustive]
         pub struct $Req {
             $( pub $req_f : $ReqT, )*
-            $( $(#[$opt_attr])* pub $opt_f : Option<$OptT>, )*
+            $( $(#[$opt_attr])*
+                #[serde(skip_serializing_if = "Option::is_none")]
+                pub $opt_f : Option<$OptT>, )*
         }
 
         #[derive(Serialize, Deserialize, Clone, Debug, Default)]
@@ -55,12 +57,12 @@ macro_rules! bot_api_method {
             const METHOD: &'static str = $method;
             $(const HTTP_METHOD: $crate::api::types::HTTPMethod = $http_method;)?
             type RequestType = Self;
-            type ResponseType = $crate::api::types::ApiResult<$Res>;
+            type ResponseType = $Res;
 
             fn new(($($req_f),*): ($($ReqT),*)) -> Self {
                 Self {
                     $( $req_f, )*
-                    ..Default::default()
+                    $( $opt_f: None, )*
                 }
             }
 

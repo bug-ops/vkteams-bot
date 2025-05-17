@@ -1,5 +1,5 @@
 use std::vec::IntoIter;
-use tracing::{error, info};
+use tracing::info;
 use vkteams_bot::prelude::*;
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -11,13 +11,7 @@ async fn main() -> Result<()> {
     // Start bot with API version 1
     let bot = Bot::new(APIVersionUrl::V1);
     // Remember self user_id
-    let self_user_id = match bot.send_api_request(RequestSelfGet::new(())).await? {
-        ApiResult::Success(res) => res.user_id,
-        ApiResult::Error(e) => {
-            error!("Error: {:?}", e.description);
-            return Err(BotError::Api(e));
-        }
-    };
+    let self_user_id = bot.send_api_request(RequestSelfGet::new(())).await?.user_id;
 
     // Get events with new chat members
     let events = iter_get_events(&bot)
@@ -39,15 +33,15 @@ async fn main() -> Result<()> {
         // Get info about the chat
         match bot
             .send_api_request(RequestChatsGetInfo::new(chat.chat_id.clone()))
-            .await?
+            .await
         {
-            ApiResult::Success(res) => match res.res {
+            Ok(res) => match res.types {
                 EnumChatsGetInfo::Group(chat_info) => {
                     info!("Chat info: {:?}", chat_info);
                 }
                 _ => continue,
             },
-            _ => continue,
+            Err(_) => continue,
         }
         // Get chat admins
         let is_admin = iter_get_admins(&bot, chat.chat_id.clone())
@@ -62,41 +56,28 @@ async fn main() -> Result<()> {
 }
 // Get events from the API
 pub async fn iter_get_events(bot: &Bot) -> Result<IntoIter<EventMessage>> {
-    match bot
+    Ok(bot
         .send_api_request(RequestEventsGet::new(bot.get_last_event_id().await))
         .await?
-    {
-        ApiResult::Success(res) => Ok(res.events.into_iter()),
-        ApiResult::Error(e) => {
-            error!("Error: {:?}", e.description);
-            return Err(BotError::Api(e));
-        }
-    }
+        .events
+        .into_iter())
 }
 // Get admins from the chat
 pub async fn iter_get_admins(bot: &Bot, chat_id: ChatId) -> Result<IntoIter<Admin>> {
-    match bot
+    Ok(bot
         .send_api_request(RequestChatsGetAdmins::new(chat_id))
         .await?
-    {
-        ApiResult::Success(res) => Ok(res.admins.into_iter()),
-        ApiResult::Error(e) => {
-            error!("Error: {:?}", e.description);
-            return Err(BotError::Api(e));
-        }
-    }
+        .admins
+        .into_iter())
 }
 // Set avatar for the chat
 pub async fn avatar_set(bot: &Bot, chat_id: ChatId) -> Result<()> {
-    match bot
+    bot
         // tests folder contains test.jpg file
         .send_api_request(RequestChatsAvatarSet::new((
             chat_id,
             MultipartName::Image(String::from("tests/test.jpg")),
         )))
-        .await?
-    {
-        ApiResult::Success(_) => Ok(()),
-        ApiResult::Error(e) => Err(BotError::Api(e)),
-    }
+        .await?;
+    Ok(())
 }

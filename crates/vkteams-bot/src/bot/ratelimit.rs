@@ -97,6 +97,7 @@ impl TokenBucket {
     /// - Returns `false` if no tokens are available
     #[tracing::instrument(skip(self))]
     fn consume(&mut self) -> bool {
+        let cfg = &CONFIG.rate_limit;
         let now = Instant::now();
         self.stats.last_access = SystemTime::now();
         self.stats.total_requests += 1;
@@ -114,7 +115,7 @@ impl TokenBucket {
 
         // Remove old request timestamps (older than the rate limit duration)
         while let Some(timestamp) = self.recent_requests.front() {
-            if now.duration_since(*timestamp).as_secs() > CONFIG.rate_limit.duration {
+            if now.duration_since(*timestamp).as_secs() > cfg.duration {
                 self.recent_requests.pop_front();
             } else {
                 break;
@@ -344,22 +345,26 @@ pub trait RateLimiterExt {
 }
 
 impl RateLimiterExt for RateLimiter {
-    fn check_with_priority(&self, chat_id: &ChatId, priority: u8) -> impl std::future::Future<Output = bool> + Send {
+    fn check_with_priority(
+        &self,
+        chat_id: &ChatId,
+        priority: u8,
+    ) -> impl std::future::Future<Output = bool> + Send {
         async move {
             // Allow more requests for higher priority chats
             // This is a simple implementation that just tries multiple times for higher priority
             let attempts = match priority {
-                0 => 1,     // Standard priority
-                1 => 2,     // Medium priority  
-                2..=u8::MAX => 3,  // High priority
+                0 => 1,           // Standard priority
+                1 => 2,           // Medium priority
+                2..=u8::MAX => 3, // High priority
             };
-            
+
             for _ in 0..attempts {
                 if self.check_rate_limit(chat_id).await {
                     return true;
                 }
             }
-            
+
             false
         }
     }

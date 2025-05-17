@@ -1,17 +1,23 @@
 [package]
 license = "MIT OR Apache-2.0"
 name = "vkteams-bot"
-version = "0.9.0"
+version = "0.9.1"
 edition = "2024"
 authors = ["Andrei G. <k05h31@gmail.com>"]
 description = "VK Teams Bot API client"
 repository = "https://github.com/bug-ops/vkteams-bot/tree/master"
 readme = "README.md"
 keywords = ["vk", "teams", "bot", "api", "client"]
-categories = ["asynchronous", "api-bindings", "web-programming::http-client", "performance"]
+categories = ["asynchronous", "api-bindings", "web-programming::http-client"]
 
 [dependencies]
-reqwest = { version = "0.12", features = ["json", "stream", "multipart", "rustls-tls", "__tls"] }
+reqwest = { version = "0.12", features = [
+    "json",
+    "stream",
+    "multipart",
+    "rustls-tls",
+    "__tls",
+] }
 toml = "0.8"
 once_cell = "1"
 tokio = { version = "1", features = ["full"] }
@@ -53,8 +59,7 @@ rand = "0.8"
 
 [features]
 default = ["longpoll"]
-full = ["webhook", "longpoll", "templates", "grpc", "otlp", "ratelimit", "performance"]
-performance = []
+full = ["webhook", "longpoll", "templates", "grpc", "otlp", "ratelimit"]
 longpoll = []
 webhook = ["dep:axum", "dep:tower-http", "dep:async-trait"]
 templates = ["dep:tera"]

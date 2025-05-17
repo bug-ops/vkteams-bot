@@ -1,4 +1,5 @@
 pub mod keyboard;
+pub mod option_wrapper;
 pub mod parser;
 #[cfg(feature = "templates")]
 pub mod templates;

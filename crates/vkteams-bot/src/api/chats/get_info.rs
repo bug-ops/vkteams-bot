@@ -12,7 +12,7 @@ bot_api_method! {
     },
     response = ResponseChatsGetInfo {
         #[serde(flatten)]
-        res: EnumChatsGetInfo
+        types: EnumChatsGetInfo
     },
 }
 

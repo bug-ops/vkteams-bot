@@ -101,10 +101,8 @@ impl WebhookState for ExtendState {
         // Make request for bot API
         let req = RequestMessagesSendText::new(self.chat_id.to_owned()).set_text(parser)?;
         // Send request to the bot API
-        match self.bot.send_api_request(req).await? {
-            ApiResult::Success(_) => Ok(()),
-            ApiResult::Error(e) => Err(BotError::Api(e)),
-        }
+        self.bot.send_api_request(req).await?;
+        Ok(())
     }
 }
 
