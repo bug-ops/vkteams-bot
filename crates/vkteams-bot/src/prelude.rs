@@ -8,6 +8,7 @@ pub use crate::api::myself::get::*;
 pub use crate::api::types::*;
 pub use crate::api::utils::*;
 pub use crate::api::*;
+#[cfg(feature = "grpc")]
 pub use crate::bot::webhook::*;
 pub use crate::bot::*;
 pub use crate::bot_api_method;
