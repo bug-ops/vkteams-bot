@@ -66,16 +66,62 @@ impl Bot {
         let token = std::env::var(VKTEAMS_BOT_API_TOKEN)
             .map_err(|e| BotError::Config(format!("Failed to get token: {}", e)))
             .unwrap_or_else(|e| panic!("{}", e));
-        debug!("Token successfully obtained");
+        debug!("Token successfully obtained from environment");
 
         let base_api_url = std::env::var(VKTEAMS_BOT_API_URL)
             .map_err(|e| BotError::Config(format!("Failed to get API URL: {}", e)))
             .unwrap_or_else(|e| panic!("{}", e));
-        debug!("API URL successfully obtained");
+        debug!("API URL successfully obtained from environment");
 
-        let base_api_url = Url::parse(&base_api_url)
-            .map_err(|e| BotError::Config(format!("Invalid API URL format: {}", e)))
-            .unwrap_or_else(|e| panic!("{}", e));
+        Self::with_params(version, token, base_api_url)
+            .unwrap_or_else(|e| panic!("Failed to create bot: {}", e))
+    }
+
+    /// Creates a new `Bot` with direct parameters instead of environment variables
+    ///
+    /// This method allows you to create a bot by directly providing the token and API URL,
+    /// instead of reading them from environment variables. This is particularly useful
+    /// when:
+    /// - You want to manage credentials programmatically
+    /// - You're integrating with a system that doesn't use environment variables
+    /// - You're testing with different credentials
+    ///
+    /// Uses ConnectionPool with optimized settings for HTTP requests.
+    ///
+    /// ## Parameters
+    /// - `version`: [`APIVersionUrl`] - API version
+    /// - `token`: [`String`] - Bot API token
+    /// - `api_url`: [`String`] - Base API URL
+    ///
+    /// ## Errors
+    /// - `BotError::Url` - URL parsing error
+    /// - `BotError::Network` - network client creation error
+    ///
+    /// ## Example
+    /// ```
+    /// use vkteams_bot::{Bot, APIVersionUrl};
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let bot = Bot::with_params(
+    ///         APIVersionUrl::V1,
+    ///         "your_bot_token".to_string(),
+    ///         "https://api.example.com".to_string()
+    ///     )?;
+    ///
+    ///     // Now use the bot...
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
+    ///
+    /// For most cases, consider using [`with_default_version`](#method.with_default_version)
+    /// which uses V1 API version and has a simpler signature.
+    pub fn with_params(version: APIVersionUrl, token: String, api_url: String) -> Result<Self> {
+        debug!("Creating new bot with API version: {:?}", version);
+        debug!("Using provided token and API URL");
+
+        let base_api_url = Url::parse(&api_url).map_err(BotError::Url)?;
         debug!("API URL successfully parsed");
 
         let base_api_path = match version {
@@ -83,11 +129,10 @@ impl Bot {
         };
         debug!("Set API base path: {}", base_api_path);
 
-        let connection_pool = ConnectionPool::optimized()
-            .unwrap_or_else(|e| panic!("Failed to create connection pool: {}", e));
+        let connection_pool = ConnectionPool::optimized()?;
         debug!("Connection pool successfully created");
 
-        Self {
+        Ok(Self {
             connection_pool,
             token,
             base_api_url,
@@ -95,7 +140,7 @@ impl Bot {
             event_id: Arc::new(Mutex::new(0)),
             #[cfg(feature = "ratelimit")]
             rate_limiter: Default::default(),
-        }
+        })
     }
 
     /// Get last event id
@@ -207,10 +252,47 @@ impl Default for Bot {
     }
 }
 
-// Helper function to create a new bot with a custom connection pool
+impl Bot {
+    /// Creates a new bot with default API version (V1) and direct parameters
+    ///
+    /// This is the recommended method for creating a bot with direct parameters.
+    /// It uses the default connection pool with optimized settings.
+    ///
+    /// ## Parameters
+    /// - `token`: [`String`] - Bot API token
+    /// - `api_url`: [`String`] - Base API URL
+    ///
+    /// ## Errors
+    /// - `BotError::Url` - URL parsing error
+    /// - `BotError::Network` - network client creation error
+    ///
+    /// ## Example
+    /// ```
+    /// use vkteams_bot::Bot;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let bot = Bot::with_default_version(
+    ///         "your_bot_token".to_string(),
+    ///         "https://api.example.com".to_string()
+    ///     )?;
+    ///
+    ///     // Now use the bot...
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
+    pub fn with_default_version(token: String, api_url: String) -> Result<Self> {
+        Self::with_params(APIVersionUrl::V1, token, api_url)
+    }
+}
+
+// Helper functions to create a new bot with a custom connection pool
 impl Bot {
     /// Create a new bot with a custom connection pool
     /// Useful for testing or specific connection requirements
+    ///
+    /// Gets token and API URL from environment variables
     pub fn with_connection_pool(
         version: APIVersionUrl,
         connection_pool: ConnectionPool,
@@ -223,8 +305,63 @@ impl Bot {
         let base_api_url = std::env::var(VKTEAMS_BOT_API_URL)
             .map_err(|e| BotError::Config(format!("Failed to get API URL: {}", e)))?;
 
-        let base_api_url = Url::parse(&base_api_url)
-            .map_err(|e| BotError::Config(format!("Invalid API URL format: {}", e)))?;
+        Self::with_connection_pool_and_params(version, token, base_api_url, connection_pool)
+    }
+
+    /// Create a new bot with a custom connection pool and direct parameters
+    ///
+    /// This method provides maximum flexibility by allowing you to specify both
+    /// direct parameters (token and API URL) and a custom connection pool.
+    /// This is particularly useful for:
+    /// - Advanced testing scenarios with custom network configurations
+    /// - Specialized connection requirements (timeouts, retries, etc.)
+    /// - Sharing connection pools between multiple bot instances
+    ///
+    /// ## Parameters
+    /// - `version`: [`APIVersionUrl`] - API version to use
+    /// - `token`: [`String`] - Bot API token for authentication
+    /// - `api_url`: [`String`] - Base API URL for requests
+    /// - `connection_pool`: [`ConnectionPool`] - Custom configured connection pool
+    ///
+    /// ## Errors
+    /// - `BotError::Url` - URL parsing error if api_url is invalid
+    /// - Other errors that might be propagated from connection pool operations
+    ///
+    /// ## Example
+    /// ```
+    /// use vkteams_bot::{Bot, APIVersionUrl, ConnectionPool};
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     // Create a custom connection pool with specific settings
+    ///     let pool = ConnectionPool::new(
+    ///         reqwest::Client::new(),
+    ///         5, // 5 retries
+    ///         std::time::Duration::from_secs(10) // 10 second max backoff
+    ///     );
+    ///
+    ///     let bot = Bot::with_connection_pool_and_params(
+    ///         APIVersionUrl::V1,
+    ///         "your_bot_token".to_string(),
+    ///         "https://api.example.com".to_string(),
+    ///         pool
+    ///     )?;
+    ///
+    ///     // Now use the bot...
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
+    pub fn with_connection_pool_and_params(
+        version: APIVersionUrl,
+        token: String,
+        api_url: String,
+        connection_pool: ConnectionPool,
+    ) -> Result<Self> {
+        debug!("Creating new bot with custom connection pool and direct parameters");
+
+        let base_api_url = Url::parse(&api_url).map_err(BotError::Url)?;
+        debug!("API URL successfully parsed");
 
         let base_api_path = match version {
             APIVersionUrl::V1 => "/bot/v1/",
