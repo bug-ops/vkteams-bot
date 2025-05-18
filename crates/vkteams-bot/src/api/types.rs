@@ -297,7 +297,7 @@ pub struct MessagePartsPayloadVoice {
 #[serde(rename_all = "camelCase")]
 pub struct MessagePartsPayloadFile {
     pub file_id: FileId,
-    #[serde(rename = "type")]
+    #[serde(rename = "type", default)]
     pub file_type: String,
     #[serde(default)]
     pub caption: String,
