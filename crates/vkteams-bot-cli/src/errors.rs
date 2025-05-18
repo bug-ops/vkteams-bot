@@ -1,4 +1,6 @@
+use colored::Colorize;
 use std::fmt;
+use std::process::exit;
 use vkteams_bot::error::BotError;
 
 // Static error message prefixes to avoid repeated allocations
@@ -43,17 +45,17 @@ impl From<std::io::Error> for CliError {
 
 impl From<serde_json::Error> for CliError {
     fn from(error: serde_json::Error) -> Self {
-        CliError::UnexpectedError(format!("JSON error: {error}"))
+        CliError::UnexpectedError(format!("JSON error: {}", error))
     }
 }
 
 impl fmt::Display for CliError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CliError::ApiError(err) => write!(f, "{API_ERROR}{err}"),
-            CliError::FileError(err) => write!(f, "File Error: {err}"),
-            CliError::InputError(err) => write!(f, "{INPUT_ERROR}{err}"),
-            CliError::UnexpectedError(err) => write!(f, "{UNEXPECTED_ERROR}{err}"),
+            CliError::ApiError(err) => write!(f, "{}{}", API_ERROR, err),
+            CliError::FileError(err) => write!(f, "File Error: {}", err),
+            CliError::InputError(err) => write!(f, "{}{}", INPUT_ERROR, err),
+            CliError::UnexpectedError(err) => write!(f, "{}{}", UNEXPECTED_ERROR, err),
         }
     }
 }
@@ -62,7 +64,6 @@ impl std::error::Error for CliError {}
 
 impl CliError {
     /// Returns the appropriate exit code for this error
-    #[must_use]
     pub fn exit_code(&self) -> i32 {
         match self {
             CliError::ApiError(_) => exitcode::UNAVAILABLE,
@@ -72,27 +73,27 @@ impl CliError {
         }
     }
 
-    // TODO: Enable this method when we need direct error exit functionality
-    // /// Prints the error message and exits with appropriate code
-    // pub fn exit_with_error(self) -> ! {
-    //     // Avoid unnecessary string allocation for commonly used error types
-    //     let error_message = match &self {
-    //         CliError::ApiError(err) => format!("{API_ERROR}{err}"),
-    //         CliError::FileError(msg) => format!("File Error: {msg}"),
-    //         CliError::InputError(msg) => format!("{INPUT_ERROR}{msg}"),
-    //         CliError::UnexpectedError(msg) => format!("{UNEXPECTED_ERROR}{msg}"),
-    //     };
-    //
-    //     eprintln!("{}", error_message.red());
-    //     exit(self.exit_code());
-    // }
+    /// Prints the error message and exits with appropriate code
+    pub fn exit_with_error(self) -> ! {
+        // Avoid unnecessary string allocation for commonly used error types
+        let error_message = match &self {
+            CliError::ApiError(err) => format!("{}{}", API_ERROR, err),
+            CliError::FileError(msg) => format!("File Error: {}", msg),
+            CliError::InputError(msg) => format!("{}{}", INPUT_ERROR, msg),
+            CliError::UnexpectedError(msg) => format!("{}{}", UNEXPECTED_ERROR, msg),
+        };
+    
+        eprintln!("{}", error_message.red());
+        exit(self.exit_code());
+    }
 }
 
 /// A module to re-export all error types and constants
 pub mod prelude {
-    pub use super::{
-        API_ERROR, DIR_NOT_FOUND, DOWNLOAD_ERROR, FILE_NOT_FOUND, INPUT_ERROR, NOT_A_DIR,
-        NOT_A_FILE, READ_ERROR, UNEXPECTED_ERROR, WRITE_ERROR,
-    };
     pub use super::{CliError, Result};
+    pub use super::{
+        API_ERROR, DIR_NOT_FOUND, DOWNLOAD_ERROR, FILE_NOT_FOUND,
+        INPUT_ERROR, NOT_A_DIR, NOT_A_FILE, READ_ERROR, 
+        UNEXPECTED_ERROR, WRITE_ERROR,
+    };
 }
