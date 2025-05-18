@@ -18,7 +18,7 @@ async fn main() {
     let config = match Config::load() {
         Ok(config) => config,
         Err(err) => {
-            eprintln!("Failed to load configuration: {}", err);
+            eprintln!("Failed to load configuration: {err}");
             exit(exitcode::CONFIG);
         }
     };
@@ -26,7 +26,7 @@ async fn main() {
     debug!("Configuration loaded successfully");
     
     match Cli::with_config(config).match_input().await {
-        Ok(_) => (),
+        Ok(()) => (),
         Err(err) => {
             err.exit_with_error();
         }

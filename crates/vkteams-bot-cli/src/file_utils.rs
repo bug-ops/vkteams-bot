@@ -8,19 +8,20 @@ use tracing::{debug, info};
 use vkteams_bot::prelude::*;
 
 /// Validates a file path exists
+///
+/// # Errors
+/// - Returns `CliError::FileError` if file doesn't exist or is not a regular file
 pub fn validate_file_path(file_path: &str) -> CliResult<()> {
     let path = Path::new(file_path);
     if !path.exists() {
         return Err(CliError::FileError(format!(
-            "File not found: {}",
-            file_path
+            "File not found: {file_path}"
         )));
     }
 
     if !path.is_file() {
         return Err(CliError::FileError(format!(
-            "Path is not a file: {}",
-            file_path
+            "Path is not a file: {file_path}"
         )));
     }
 
@@ -28,19 +29,20 @@ pub fn validate_file_path(file_path: &str) -> CliResult<()> {
 }
 
 /// Validates a directory path exists
+///
+/// # Errors
+/// - Returns `CliError::FileError` if directory doesn't exist or is not a directory
 pub fn validate_directory(dir_path: &str) -> CliResult<()> {
     let path = Path::new(dir_path);
     if !path.exists() {
         return Err(CliError::FileError(format!(
-            "Directory not found: {}",
-            dir_path
+            "Directory not found: {dir_path}"
         )));
     }
 
     if !path.is_dir() {
         return Err(CliError::FileError(format!(
-            "Path is not a directory: {}",
-            dir_path
+            "Path is not a directory: {dir_path}"
         )));
     }
 
@@ -48,17 +50,24 @@ pub fn validate_directory(dir_path: &str) -> CliResult<()> {
 }
 
 /// Streams a file from disk for uploading
+///
+/// # Errors
+/// - Returns `CliError::FileError` if the file doesn't exist or cannot be opened
 pub async fn read_file_stream(file_path: &str) -> CliResult<tokio::fs::File> {
     validate_file_path(file_path)?;
-
+    
     let file = tokio::fs::File::open(file_path)
         .await
-        .map_err(|e| CliError::FileError(format!("Failed to open file {}: {}", file_path, e)))?;
-
+        .map_err(|e| CliError::FileError(format!("Failed to open file {file_path}: {e}")))?;
+    
     Ok(file)
 }
 
 /// Stream downloads a file and saves it to disk
+///
+/// # Errors
+/// - Returns `CliError::FileError` if there are issues with file operations
+/// - Returns `CliError::ApiError` if there are issues with the API
 pub async fn download_and_save_file(
     bot: &Bot,
     file_id: &str,
@@ -102,7 +111,7 @@ pub async fn download_and_save_file(
         .get(url)
         .send()
         .await
-        .map_err(|e| CliError::FileError(format!("Failed to initiate download: {}", e)))?;
+        .map_err(|e| CliError::FileError(format!("Failed to initiate download: {e}")))?;
 
     if !response.status().is_success() {
         return Err(CliError::FileError(format!(
@@ -128,21 +137,31 @@ pub async fn download_and_save_file(
     debug!("Streaming file content to disk");
     while let Some(chunk_result) = stream.next().await {
         let chunk = chunk_result
-            .map_err(|e| CliError::FileError(format!("Error during download: {}", e)))?;
+            .map_err(|e| CliError::FileError(format!("Error during download: {e}")))?;
 
         file_writer
             .write_all(&chunk)
             .await
-            .map_err(|e| CliError::FileError(format!("Failed to write to file: {}", e)))?;
+            .map_err(|e| CliError::FileError(format!("Failed to write to file: {e}")))?;
 
         downloaded += chunk.len() as u64;
 
         // Log progress for large files
         if total_size > 1024 * 1024 && downloaded % (1024 * 1024) < chunk.len() as u64 {
+            let downloaded_mb = {
+                #[allow(clippy::cast_precision_loss)]
+                let val = (downloaded / 1_048_576) as f64;
+                val
+            };
+            let total_mb = {
+                #[allow(clippy::cast_precision_loss)]
+                let val = (total_size / 1_048_576) as f64;
+                val
+            };
             info!(
                 "Download progress: {:.1}MB / {:.1}MB",
-                downloaded as f64 / 1_048_576.0,
-                total_size as f64 / 1_048_576.0
+                downloaded_mb,
+                total_mb
             );
         }
     }
@@ -151,13 +170,18 @@ pub async fn download_and_save_file(
     file_writer
         .flush()
         .await
-        .map_err(|e| CliError::FileError(format!("Failed to flush file data: {}", e)))?;
+        .map_err(|e| CliError::FileError(format!("Failed to flush file data: {e}")))?;
 
     info!("Successfully downloaded file to: {}", file_path.display());
     Ok(file_path)
 }
 
 /// Stream uploads a file to the API
+///
+/// # Errors
+/// - Returns `CliError::InputError` if no file path provided
+/// - Returns `CliError::FileError` if the file doesn't exist or is not accessible
+/// - Returns `CliError::ApiError` if there are issues with the API
 pub async fn upload_file(
     bot: &Bot,
     user_id: &str,

@@ -6,7 +6,7 @@ use colored::Colorize;
 use std::fmt::Debug;
 use tracing::{debug, error, info};
 use vkteams_bot::prelude::*;
-/// VKTeams CLI - Interacts with VK Teams API
+/// `VKTeams` CLI - Interacts with VK Teams API
 pub struct Cli {
     /// bot instance
     pub bot: Bot,
@@ -61,7 +61,7 @@ impl Cli {
         }
     }
 }
-/// VKTeams CLI - Interacts with VK Teams API
+/// `VKTeams` CLI - Interacts with VK Teams API
 #[derive(Parser, Clone, Debug)]
 #[command(author="Andrei G.", version="0.6.0", about="vkteams-bot-cli tool", long_about = None)]
 pub struct Opts {
@@ -76,24 +76,24 @@ pub struct Opts {
     #[command(subcommand)]
     pub subcmd: SubCommand,
 }
-/// Subcommands for VKTeams CLI
+/// Subcommands for `VKTeams` CLI
 #[derive(Subcommand, Debug, Clone)]
 pub enum SubCommand {
-    /// Send text message text <MESSAGE> to user with <USER_ID>
+    /// Send text message text <MESSAGE> to user with <`USER_ID`>
     SendText {
         #[arg(short, long, required = true, value_name = "USER_ID")]
         user_id: String,
         #[arg(short, long, required = true, value_name = "MESSAGE")]
         message: String,
     },
-    /// Send file from <FILE_PATH> to user with <USER_ID>
+    /// Send file from <`FILE_PATH`> to user with <`USER_ID`>
     SendFile {
         #[arg(short, long, required = true, value_name = "USER_ID")]
         user_id: String,
         #[arg(short, long, required = false, value_name = "FILE_PATH")]
         file_path: String,
     },
-    /// Download file with <FILE_ID> into <FILE_PATH>
+    /// Download file with <`FILE_ID`> into <`FILE_PATH`>
     GetFile {
         #[arg(short = 'f', long, required = true, value_name = "FILE_ID")]
         file_id: String,
@@ -118,6 +118,12 @@ pub enum SubCommand {
 /// Implementation for CLI
 impl Cli {
     /// Match input with subcommands
+    ///
+    /// # Errors
+    /// - Returns `CliError::ApiError` if there is an error with the API
+    /// - Returns `CliError::FileError` if there is an error with file operations
+    /// - Returns `CliError::InputError` if there is an error with input validation
+    /// - Returns `CliError::UnexpectedError` for unexpected errors
     pub async fn match_input(&self) -> CliResult<()> {
         debug!("Match input with subcommands");
 
@@ -130,7 +136,7 @@ impl Cli {
         }
 
         // Match subcommands
-        match self.matches.subcmd.to_owned() {
+        match self.matches.subcmd.clone() {
             // Subcommand for send text message
             SubCommand::SendText { user_id, message } => {
                 debug!("Send text message");
@@ -141,8 +147,7 @@ impl Cli {
                         Ok(req) => req,
                         Err(e) => {
                             return Err(CliError::InputError(format!(
-                                "Failed to set message text: {}",
-                                e
+                                "Failed to set message text: {e}"
                             )));
                         }
                     };
@@ -153,7 +158,7 @@ impl Cli {
                 };
 
                 info!("Successfully sent text message to user: {}", user_id);
-                match_result(&result).await?;
+                match_result(&result)?;
             }
             // Subcommand for send file
             SubCommand::SendFile { user_id, file_path } => {
@@ -164,35 +169,32 @@ impl Cli {
                     file_utils::upload_file(&self.bot, &user_id, &file_path, &self.config).await?;
 
                 info!("Successfully sent file to user: {}", user_id);
-                match_result(&result).await?;
+                match_result(&result)?;
             }
             // Subcommand for get events
             SubCommand::GetEvents { listen } => {
                 debug!("Get events");
-                match listen {
-                    Some(true) => {
-                        info!("Starting event listener (long polling)...");
-                        match self.bot.event_listener(match_events).await {
-                            Ok(_) => (),
-                            Err(e) => return Err(CliError::ApiError(e)),
-                        }
+                if let Some(true) = listen {
+                    info!("Starting event listener (long polling)...");
+                    match self.bot.event_listener(match_events).await {
+                        Ok(()) => (),
+                        Err(e) => return Err(CliError::ApiError(e)),
                     }
-                    _ => {
-                        let result = match self
-                            .bot
-                            .send_api_request(RequestEventsGet::new(
-                                self.bot.get_last_event_id().await,
-                            ))
-                            .await
-                        {
-                            Ok(res) => res,
-                            Err(e) => return Err(CliError::ApiError(e)),
-                        };
+                } else {
+                    let result = match self
+                        .bot
+                        .send_api_request(RequestEventsGet::new(
+                            self.bot.get_last_event_id().await,
+                        ))
+                        .await
+                    {
+                        Ok(res) => res,
+                        Err(e) => return Err(CliError::ApiError(e)),
+                    };
 
-                        info!("Successfully retrieved events");
-                        match_result(&result).await?
-                    }
-                };
+                    info!("Successfully retrieved events");
+                    match_result(&result)?;
+                }
             }
             // Subcommand for get file from id
             SubCommand::GetFile { file_id, file_path } => {
@@ -213,8 +215,7 @@ impl Cli {
                         }
                         Err(e) => {
                             return Err(CliError::UnexpectedError(format!(
-                                "Failed to serialize configuration: {}",
-                                e
+                                "Failed to serialize configuration: {e}"
                             )));
                         }
                     }
@@ -238,6 +239,9 @@ impl Cli {
     }
 }
 /// Match result and print it
+///
+/// # Errors
+/// - Returns `BotError::System` if there is an error processing the event
 pub async fn match_events<T>(
     bot: Bot,
     result: T,
@@ -247,21 +251,24 @@ where
     T: Debug,
 {
     debug!("Last event id: {:?}", bot.get_last_event_id().await);
-    if let Err(err) = match_result(&result).await {
+    if let Err(err) = match_result(&result) {
         error!("Error processing event: {}", err);
         return Err(vkteams_bot::error::BotError::System(err.to_string()));
     }
     Ok(())
 }
 /// Match result and print it
-pub async fn match_result<T>(result: &T) -> CliResult<()>
+///
+/// # Errors
+/// - Returns `CliError::UnexpectedError` if there is an error serializing the result
+pub fn match_result<T>(result: &T) -> CliResult<()>
 where
     T: serde::Serialize,
     T: Debug,
 {
     debug!("Result: {:?}", result);
     let json_str = serde_json::to_string(result)
-        .map_err(|e| CliError::UnexpectedError(format!("Failed to serialize response: {}", e)))?;
+        .map_err(|e| CliError::UnexpectedError(format!("Failed to serialize response: {e}")))?;
 
     println!("{}", json_str.green());
     Ok(())

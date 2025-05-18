@@ -45,17 +45,17 @@ impl From<std::io::Error> for CliError {
 
 impl From<serde_json::Error> for CliError {
     fn from(error: serde_json::Error) -> Self {
-        CliError::UnexpectedError(format!("JSON error: {}", error))
+        CliError::UnexpectedError(format!("JSON error: {error}"))
     }
 }
 
 impl fmt::Display for CliError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CliError::ApiError(err) => write!(f, "{}{}", API_ERROR, err),
-            CliError::FileError(err) => write!(f, "File Error: {}", err),
-            CliError::InputError(err) => write!(f, "{}{}", INPUT_ERROR, err),
-            CliError::UnexpectedError(err) => write!(f, "{}{}", UNEXPECTED_ERROR, err),
+            CliError::ApiError(err) => write!(f, "{API_ERROR}{err}"),
+            CliError::FileError(err) => write!(f, "File Error: {err}"),
+            CliError::InputError(err) => write!(f, "{INPUT_ERROR}{err}"),
+            CliError::UnexpectedError(err) => write!(f, "{UNEXPECTED_ERROR}{err}"),
         }
     }
 }
@@ -64,6 +64,7 @@ impl std::error::Error for CliError {}
 
 impl CliError {
     /// Returns the appropriate exit code for this error
+    #[must_use]
     pub fn exit_code(&self) -> i32 {
         match self {
             CliError::ApiError(_) => exitcode::UNAVAILABLE,
@@ -77,10 +78,10 @@ impl CliError {
     pub fn exit_with_error(self) -> ! {
         // Avoid unnecessary string allocation for commonly used error types
         let error_message = match &self {
-            CliError::ApiError(err) => format!("{}{}", API_ERROR, err),
-            CliError::FileError(msg) => format!("File Error: {}", msg),
-            CliError::InputError(msg) => format!("{}{}", INPUT_ERROR, msg),
-            CliError::UnexpectedError(msg) => format!("{}{}", UNEXPECTED_ERROR, msg),
+            CliError::ApiError(err) => format!("{API_ERROR}{err}"),
+            CliError::FileError(msg) => format!("File Error: {msg}"),
+            CliError::InputError(msg) => format!("{INPUT_ERROR}{msg}"),
+            CliError::UnexpectedError(msg) => format!("{UNEXPECTED_ERROR}{msg}"),
         };
     
         eprintln!("{}", error_message.red());
