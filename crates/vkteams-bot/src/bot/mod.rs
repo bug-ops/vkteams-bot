@@ -98,11 +98,11 @@ impl Bot {
     /// - `BotError::Network` - network client creation error
     ///
     /// ## Example
-    /// ```
-    /// use vkteams_bot::{Bot, APIVersionUrl};
+    /// ```no_run
+    /// use vkteams_bot::prelude::*;
     ///
     /// #[tokio::main]
-    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// async fn main() -> Result<()> {
     ///     let bot = Bot::with_params(
     ///         APIVersionUrl::V1,
     ///         "your_bot_token".to_string(),
@@ -124,9 +124,7 @@ impl Bot {
         let base_api_url = Url::parse(&api_url).map_err(BotError::Url)?;
         debug!("API URL successfully parsed");
 
-        let base_api_path = match version {
-            APIVersionUrl::V1 => "/bot/v1/",
-        };
+        let base_api_path = version.to_string();
         debug!("Set API base path: {}", base_api_path);
 
         let connection_pool = ConnectionPool::optimized()?;
@@ -267,11 +265,11 @@ impl Bot {
     /// - `BotError::Network` - network client creation error
     ///
     /// ## Example
-    /// ```
-    /// use vkteams_bot::Bot;
+    /// ```no_run
+    /// use vkteams_bot::{Bot, error::Result};
     ///
     /// #[tokio::main]
-    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// async fn main() -> Result<()> {
     ///     let bot = Bot::with_default_version(
     ///         "your_bot_token".to_string(),
     ///         "https://api.example.com".to_string()
@@ -328,16 +326,17 @@ impl Bot {
     /// - Other errors that might be propagated from connection pool operations
     ///
     /// ## Example
-    /// ```
-    /// use vkteams_bot::{Bot, APIVersionUrl, ConnectionPool};
+    /// ```no_run
+    /// use vkteams_bot::prelude::*;
+    /// use std::time::Duration;
     ///
     /// #[tokio::main]
-    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// async fn main() -> Result<()> {
     ///     // Create a custom connection pool with specific settings
     ///     let pool = ConnectionPool::new(
     ///         reqwest::Client::new(),
     ///         5, // 5 retries
-    ///         std::time::Duration::from_secs(10) // 10 second max backoff
+    ///         Duration::from_secs(10) // 10 second max backoff
     ///     );
     ///
     ///     let bot = Bot::with_connection_pool_and_params(

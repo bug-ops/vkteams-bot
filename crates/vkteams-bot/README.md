@@ -50,8 +50,6 @@ let bot = Bot::with_default_version(
 )?;
 ```
 
-See the [direct parameters example](examples/direct_params/main.rs) for more details.
-
 ## Usage examples
 
 [Examples:](examples)
