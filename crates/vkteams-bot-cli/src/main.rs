@@ -2,16 +2,17 @@ pub mod cli;
 pub mod config;
 pub mod errors;
 pub mod file_utils;
+pub mod progress;
 
 use cli::Cli;
 use config::Config;
-use pretty_env_logger::env_logger;
 use std::process::exit;
 use tracing::debug;
+use vkteams_bot::prelude::*;
 
 #[tokio::main]
 async fn main() {
-    env_logger::init();
+    let _guard = otlp::init().map_err(|e| BotError::Otlp(e.into()));
 
     // Load configuration
     let config = match Config::load() {

@@ -1,5 +1,6 @@
 use crate::errors::prelude::{CliError, Result as CliResult};
 use crate::config::Config;
+use crate::progress;
 use futures::StreamExt;
 use std::fmt::Debug;
 use std::path::{Path, PathBuf};
@@ -134,20 +135,34 @@ pub async fn download_and_save_file(
     let mut stream = response.bytes_stream();
     let mut downloaded: u64 = 0;
 
+    // Create a progress bar for the download
+    let progress_bar = progress::create_download_progress_bar(
+        config, 
+        total_size, 
+        &file_info.file_name
+    );
+
     debug!("Streaming file content to disk");
     while let Some(chunk_result) = stream.next().await {
         let chunk = chunk_result
-            .map_err(|e| CliError::FileError(format!("Error during download: {e}")))?;
+            .map_err(|e| {
+                progress::abandon_progress(&progress_bar, "Download failed");
+                CliError::FileError(format!("Error during download: {e}"))
+            })?;
 
         file_writer
             .write_all(&chunk)
             .await
-            .map_err(|e| CliError::FileError(format!("Failed to write to file: {e}")))?;
+            .map_err(|e| {
+                progress::abandon_progress(&progress_bar, "Write failed");
+                CliError::FileError(format!("Failed to write to file: {e}"))
+            })?;
 
         downloaded += chunk.len() as u64;
+        progress::increment_progress(&progress_bar, chunk.len() as u64);
 
-        // Log progress for large files
-        if total_size > 1024 * 1024 && downloaded % (1024 * 1024) < chunk.len() as u64 {
+        // Log progress for large files (if progress bar is disabled)
+        if !config.ui.show_progress && total_size > 1024 * 1024 && downloaded % (1024 * 1024) < chunk.len() as u64 {
             let downloaded_mb = {
                 #[allow(clippy::cast_precision_loss)]
                 let val = (downloaded / 1_048_576) as f64;
@@ -170,8 +185,12 @@ pub async fn download_and_save_file(
     file_writer
         .flush()
         .await
-        .map_err(|e| CliError::FileError(format!("Failed to flush file data: {e}")))?;
+        .map_err(|e| {
+            progress::abandon_progress(&progress_bar, "File flush failed");
+            CliError::FileError(format!("Failed to flush file data: {e}"))
+        })?;
 
+    progress::finish_progress(&progress_bar, &format!("Downloaded to {}", file_path.display()));
     info!("Successfully downloaded file to: {}", file_path.display());
     Ok(file_path)
 }
@@ -200,14 +219,35 @@ pub async fn upload_file(
     validate_file_path(&source_path)?;
 
     debug!("Preparing to upload file: {}", source_path);
-
-    let result = bot
+    
+    // Get the file size for the progress bar
+    let file_size = match progress::calculate_upload_size(&source_path) {
+        Ok(size) => size,
+        Err(e) => {
+            debug!("Could not determine file size: {}", e);
+            0 // If we can't determine size, progress bar will be indeterminate
+        }
+    };
+    
+    // Create a progress bar for upload
+    let progress_bar = progress::create_upload_progress_bar(config, file_size, &source_path);
+    
+    // Start the upload
+    let result = match bot
         .send_api_request(RequestMessagesSendFile::new((
             ChatId(user_id.to_string()),
             MultipartName::File(source_path.to_string()),
         )))
-        .await
-        .map_err(CliError::ApiError)?;
+        .await {
+            Ok(res) => {
+                progress::finish_progress(&progress_bar, "Upload complete");
+                res
+            },
+            Err(e) => {
+                progress::abandon_progress(&progress_bar, "Upload failed");
+                return Err(CliError::ApiError(e));
+            }
+        };
 
     info!("Successfully uploaded file: {}", source_path);
     Ok(result)

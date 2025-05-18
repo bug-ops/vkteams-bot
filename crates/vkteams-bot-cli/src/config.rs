@@ -25,6 +25,10 @@ pub struct Config {
     #[serde(default)]
     pub logging: LoggingConfig,
 
+    /// UI Configuration including progress bars
+    #[serde(default)]
+    pub ui: UiConfig,
+
     /// Proxy configuration
     #[serde(default)]
     pub proxy: Option<ProxyConfig>,
@@ -82,6 +86,22 @@ pub struct LoggingConfig {
     pub colors: bool,
 }
 
+/// UI and progress indicator configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UiConfig {
+    /// Enable or disable progress bars
+    #[serde(default = "default_show_progress")]
+    pub show_progress: bool,
+
+    /// Progress bar style (default, unicode, ascii)
+    #[serde(default = "default_progress_style")]
+    pub progress_style: String,
+
+    /// Progress bar refresh rate in milliseconds
+    #[serde(default = "default_progress_refresh_rate")]
+    pub progress_refresh_rate: u64,
+}
+
 /// Proxy configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProxyConfig {
@@ -127,6 +147,16 @@ impl Default for LoggingConfig {
     }
 }
 
+impl Default for UiConfig {
+    fn default() -> Self {
+        Self {
+            show_progress: default_show_progress(),
+            progress_style: default_progress_style(),
+            progress_refresh_rate: default_progress_refresh_rate(),
+        }
+    }
+}
+
 // Default values functions
 fn default_timeout() -> u64 {
     30
@@ -154,6 +184,19 @@ fn default_log_format() -> String {
 
 fn default_log_colors() -> bool {
     true
+}
+
+// Default values for UI configuration
+fn default_show_progress() -> bool {
+    true
+}
+
+fn default_progress_style() -> String {
+    "unicode".to_string()
+}
+
+fn default_progress_refresh_rate() -> u64 {
+    100
 }
 
 impl Config {
@@ -319,6 +362,23 @@ impl Config {
             }
         }
 
+        // UI config
+        if let Ok(show_progress_str) = env::var(format!("{ENV_PREFIX}SHOW_PROGRESS")) {
+            if let Ok(show_progress_val) = show_progress_str.parse::<bool>() {
+                config.ui.show_progress = show_progress_val;
+            }
+        }
+
+        if let Ok(progress_style) = env::var(format!("{ENV_PREFIX}PROGRESS_STYLE")) {
+            config.ui.progress_style = progress_style;
+        }
+
+        if let Ok(refresh_rate_str) = env::var(format!("{ENV_PREFIX}PROGRESS_REFRESH_RATE")) {
+            if let Ok(refresh_rate_val) = refresh_rate_str.parse::<u64>() {
+                config.ui.progress_refresh_rate = refresh_rate_val;
+            }
+        }
+
         // Proxy config
         if let Ok(proxy_url) = env::var(format!("{ENV_PREFIX}PROXY")) {
             config.proxy = Some(ProxyConfig {
@@ -377,6 +437,23 @@ impl Config {
                     base.logging.colors
                 } else {
                     overlay.logging.colors
+                },
+            },
+            ui: UiConfig {
+                show_progress: if overlay.ui.show_progress == default_show_progress() {
+                    base.ui.show_progress
+                } else {
+                    overlay.ui.show_progress
+                },
+                progress_style: if overlay.ui.progress_style == default_progress_style() {
+                    base.ui.progress_style
+                } else {
+                    overlay.ui.progress_style
+                },
+                progress_refresh_rate: if overlay.ui.progress_refresh_rate == default_progress_refresh_rate() {
+                    base.ui.progress_refresh_rate
+                } else {
+                    overlay.ui.progress_refresh_rate
                 },
             },
             proxy: overlay.proxy.or(base.proxy),
