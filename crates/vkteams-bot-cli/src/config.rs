@@ -11,7 +11,7 @@ pub const DEFAULT_CONFIG_DIR: &str = ".config/vkteams-bot";
 pub const ENV_PREFIX: &str = "VKTEAMS_";
 
 /// Configuration structure for VK Teams Bot CLI
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     /// API Configuration
     #[serde(default)]
