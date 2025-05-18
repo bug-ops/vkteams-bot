@@ -1,0 +1,190 @@
+use crate::errors::prelude::{CliError, Result as CliResult};
+use crate::config::Config;
+use futures::StreamExt;
+use std::fmt::Debug;
+use std::path::{Path, PathBuf};
+use tokio::io::AsyncWriteExt;
+use tracing::{debug, info};
+use vkteams_bot::prelude::*;
+
+/// Validates a file path exists
+pub fn validate_file_path(file_path: &str) -> CliResult<()> {
+    let path = Path::new(file_path);
+    if !path.exists() {
+        return Err(CliError::FileError(format!(
+            "File not found: {}",
+            file_path
+        )));
+    }
+
+    if !path.is_file() {
+        return Err(CliError::FileError(format!(
+            "Path is not a file: {}",
+            file_path
+        )));
+    }
+
+    Ok(())
+}
+
+/// Validates a directory path exists
+pub fn validate_directory(dir_path: &str) -> CliResult<()> {
+    let path = Path::new(dir_path);
+    if !path.exists() {
+        return Err(CliError::FileError(format!(
+            "Directory not found: {}",
+            dir_path
+        )));
+    }
+
+    if !path.is_dir() {
+        return Err(CliError::FileError(format!(
+            "Path is not a directory: {}",
+            dir_path
+        )));
+    }
+
+    Ok(())
+}
+
+/// Streams a file from disk for uploading
+pub async fn read_file_stream(file_path: &str) -> CliResult<tokio::fs::File> {
+    validate_file_path(file_path)?;
+
+    let file = tokio::fs::File::open(file_path)
+        .await
+        .map_err(|e| CliError::FileError(format!("Failed to open file {}: {}", file_path, e)))?;
+
+    Ok(file)
+}
+
+/// Stream downloads a file and saves it to disk
+pub async fn download_and_save_file(
+    bot: &Bot,
+    file_id: &str,
+    dir_path: &str,
+    config: &Config,
+) -> CliResult<PathBuf> {
+    // Use directory from path or config or current directory
+    let target_dir = if !dir_path.is_empty() {
+        dir_path.to_string()
+    } else if let Some(download_dir) = &config.files.download_dir {
+        download_dir.clone()
+    } else {
+        ".".to_string()
+    };
+    
+    validate_directory(&target_dir)?;
+
+    debug!("Getting file info for file ID: {}", file_id);
+    let file_info = bot
+        .send_api_request(RequestFilesGetInfo::new(FileId(file_id.to_string())))
+        .await
+        .map_err(CliError::ApiError)?;
+
+    let mut file_path = PathBuf::from(&target_dir);
+    file_path.push(&file_info.file_name);
+
+    debug!("Creating file at path: {}", file_path.display());
+    let file = tokio::fs::File::create(&file_path).await.map_err(|e| {
+        CliError::FileError(format!(
+            "Failed to create file {}: {}",
+            file_path.display(),
+            e
+        ))
+    })?;
+
+    debug!("Starting file download stream");
+    let client = reqwest::Client::new();
+    let url = file_info.url.clone();
+
+    let response = client
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| CliError::FileError(format!("Failed to initiate download: {}", e)))?;
+
+    if !response.status().is_success() {
+        return Err(CliError::FileError(format!(
+            "Failed to download file, status code: {}",
+            response.status()
+        )));
+    }
+
+    let total_size = response.content_length().unwrap_or(0);
+
+    if total_size > config.files.max_file_size as u64 {
+        return Err(CliError::FileError(format!(
+            "File size exceeds maximum allowed size of {} bytes",
+            config.files.max_file_size
+        )));
+    }
+
+    let mut file_writer = tokio::io::BufWriter::with_capacity(config.files.buffer_size, file);
+
+    let mut stream = response.bytes_stream();
+    let mut downloaded: u64 = 0;
+
+    debug!("Streaming file content to disk");
+    while let Some(chunk_result) = stream.next().await {
+        let chunk = chunk_result
+            .map_err(|e| CliError::FileError(format!("Error during download: {}", e)))?;
+
+        file_writer
+            .write_all(&chunk)
+            .await
+            .map_err(|e| CliError::FileError(format!("Failed to write to file: {}", e)))?;
+
+        downloaded += chunk.len() as u64;
+
+        // Log progress for large files
+        if total_size > 1024 * 1024 && downloaded % (1024 * 1024) < chunk.len() as u64 {
+            info!(
+                "Download progress: {:.1}MB / {:.1}MB",
+                downloaded as f64 / 1_048_576.0,
+                total_size as f64 / 1_048_576.0
+            );
+        }
+    }
+
+    debug!("Flushing and finalizing file");
+    file_writer
+        .flush()
+        .await
+        .map_err(|e| CliError::FileError(format!("Failed to flush file data: {}", e)))?;
+
+    info!("Successfully downloaded file to: {}", file_path.display());
+    Ok(file_path)
+}
+
+/// Stream uploads a file to the API
+pub async fn upload_file(
+    bot: &Bot,
+    user_id: &str,
+    file_path: &str,
+    config: &Config,
+) -> CliResult<impl serde::Serialize + Debug> {
+    // Use file path from arguments or config
+    let source_path = if !file_path.is_empty() {
+        file_path.to_string()
+    } else if let Some(upload_dir) = &config.files.upload_dir {
+        upload_dir.clone()
+    } else {
+        return Err(CliError::InputError("No file path provided and no default upload directory configured".to_string()));
+    };
+    
+    validate_file_path(&source_path)?;
+
+    debug!("Preparing to upload file: {}", source_path);
+
+    let result = bot
+        .send_api_request(RequestMessagesSendFile::new((
+            ChatId(user_id.to_string()),
+            MultipartName::File(source_path.to_string()),
+        )))
+        .await
+        .map_err(CliError::ApiError)?;
+
+    info!("Successfully uploaded file: {}", source_path);
+    Ok(result)
+}
