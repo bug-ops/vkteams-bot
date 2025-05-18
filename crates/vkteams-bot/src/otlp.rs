@@ -35,10 +35,15 @@ fn get_resource() -> Resource {
 fn init_traces() -> Result<SdkTracerProvider, Box<dyn std::error::Error>> {
     let cfg = &CONFIG.otlp;
     global::set_text_map_propagator(TraceContextPropagator::new());
+    let endpoint = cfg.exporter_endpoint.as_ref().ok_or_else(|| {
+        Box::<dyn std::error::Error>::from(crate::error::BotError::Config(
+            "OTLP exporter endpoint not configured. Disable OTLP metrics.".to_string(),
+        ))
+    })?;
     // Create a trace exporter
     let exporter = opentelemetry_otlp::SpanExporter::builder()
         .with_tonic()
-        .with_endpoint(cfg.exporter_endpoint.as_ref())
+        .with_endpoint(endpoint.as_ref())
         .with_protocol(Protocol::Grpc)
         .with_timeout(Duration::from_secs(cfg.exporter_timeout))
         .build()?;
@@ -55,9 +60,15 @@ fn init_traces() -> Result<SdkTracerProvider, Box<dyn std::error::Error>> {
 /// Initialize OpenTelemetry metrics
 fn init_metrics() -> Result<SdkMeterProvider, Box<dyn std::error::Error>> {
     let cfg = &CONFIG.otlp;
+    // Check that exporter_endpoint value is specified in the config
+    let endpoint = cfg.exporter_endpoint.as_ref().ok_or_else(|| {
+        Box::<dyn std::error::Error>::from(crate::error::BotError::Config(
+            "OTLP exporter endpoint not configured. Disable OTLP metrics.".to_string(),
+        ))
+    })?;
     let exporter = opentelemetry_otlp::MetricExporter::builder()
         .with_tonic()
-        .with_endpoint(cfg.exporter_endpoint.as_ref())
+        .with_endpoint(endpoint.as_ref())
         .with_protocol(Protocol::Grpc)
         .with_timeout(Duration::from_secs(cfg.exporter_timeout))
         .with_temporality(opentelemetry_sdk::metrics::Temporality::default())
@@ -109,8 +120,11 @@ fn fmt_filter() -> Result<EnvFilter, Box<dyn std::error::Error>> {
 /// Initialize OpenTelemetry
 pub fn init() -> Result<OtelGuard, Box<dyn std::error::Error>> {
     let cfg = &CONFIG.otlp;
-    let tracer_provider = init_traces()?;
-    let meter_provider = init_metrics()?;
+
+    // Initialize tracing and metrics providers
+    let tracer_provider = init_traces().ok();
+    let meter_provider = init_metrics().ok();
+
     // Create a formatting layer with the filter
     let fmt_layer = tracing_subscriber::fmt::layer()
         .with_ansi(cfg.fmt_ansi)
@@ -118,15 +132,35 @@ pub fn init() -> Result<OtelGuard, Box<dyn std::error::Error>> {
         .with_line_number(true)
         .with_thread_ids(true)
         .with_filter(fmt_filter()?);
-    // Create a tracer
-    let tracer = tracer_provider.tracer(crate::api::types::SERVICE_NAME);
-    // Create a subscriber with the filter and formatting layer
-    tracing_subscriber::registry()
+
+    // Create basic configuration for the subscriber
+    let base_subscriber = tracing_subscriber::registry()
         .with(filter_layer()?)
-        .with(fmt_layer)
-        .with(MetricsLayer::new(meter_provider.clone()))
-        .with(OpenTelemetryLayer::new(tracer))
-        .init();
+        .with(fmt_layer);
+
+    // Add appropriate layers depending on initialization results
+    if let (Some(meter), Some(tracer)) = (&meter_provider, &tracer_provider) {
+        // Both providers available
+        let tracer_instance = tracer.tracer(crate::api::types::SERVICE_NAME);
+        base_subscriber
+            .with(MetricsLayer::new(meter.clone()))
+            .with(OpenTelemetryLayer::new(tracer_instance))
+            .init();
+    } else if let Some(meter) = &meter_provider {
+        // Only metrics available
+        base_subscriber
+            .with(MetricsLayer::new(meter.clone()))
+            .init();
+    } else if let Some(tracer) = &tracer_provider {
+        // Only tracing available
+        let tracer_instance = tracer.tracer(crate::api::types::SERVICE_NAME);
+        base_subscriber
+            .with(OpenTelemetryLayer::new(tracer_instance))
+            .init();
+    } else {
+        // No providers available
+        base_subscriber.init();
+    }
 
     Ok(OtelGuard {
         tracer_provider,
@@ -135,17 +169,21 @@ pub fn init() -> Result<OtelGuard, Box<dyn std::error::Error>> {
 }
 /// Guard for OpenTelemetry
 pub struct OtelGuard {
-    tracer_provider: SdkTracerProvider,
-    meter_provider: SdkMeterProvider,
+    tracer_provider: Option<SdkTracerProvider>,
+    meter_provider: Option<SdkMeterProvider>,
 }
 /// Drop implementation for the OtelGuard
 impl Drop for OtelGuard {
     fn drop(&mut self) {
-        if let Err(err) = self.tracer_provider.shutdown() {
-            eprintln!("{err:?}");
+        if let Some(provider) = &self.tracer_provider {
+            if let Err(err) = provider.shutdown() {
+                eprintln!("Error shutting down tracer: {err:?}");
+            }
         }
-        if let Err(err) = self.meter_provider.shutdown() {
-            eprintln!("{err:?}");
+        if let Some(provider) = &self.meter_provider {
+            if let Err(err) = provider.shutdown() {
+                eprintln!("Error shutting down meter: {err:?}");
+            }
         }
     }
 }

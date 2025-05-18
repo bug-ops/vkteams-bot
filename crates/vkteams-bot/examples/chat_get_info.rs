@@ -1,5 +1,4 @@
-#[macro_use]
-extern crate log;
+use tracing::{debug, info};
 use vkteams_bot::error::{BotError, Result};
 use vkteams_bot::prelude::*;
 
@@ -25,11 +24,11 @@ async fn main() -> Result<()> {
     )))
     .await?;
     // Send message
-    let response = bot
+    match bot
         .send_api_request(RequestChatsGetInfo::new(chat_id.to_owned()))
-        .await?;
-
-    match response.into_result()?.res {
+        .await?
+        .types
+    {
         EnumChatsGetInfo::Channel(chat) => {
             info!("Channel: {:?}", chat.title.unwrap());
         }

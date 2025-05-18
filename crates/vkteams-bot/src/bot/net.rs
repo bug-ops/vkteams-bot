@@ -1,21 +1,227 @@
 //! Network module
 use crate::api::types::*;
+use crate::config::CONFIG;
 use crate::error::{BotError, Result};
 use reqwest::{
-    Body, Client, Url,
+    Body, Client, ClientBuilder, StatusCode, Url,
     multipart::{Form, Part},
 };
 use std::time::Duration;
 use tokio::fs::File;
 use tokio::signal;
+use tokio::time::sleep;
 use tokio_util::codec::{BytesCodec, FramedRead};
-use tracing::{debug, trace};
+use tracing::{debug, error, trace, warn};
+/// Connection pool for managing HTTP connections
+#[derive(Debug, Clone)]
+pub struct ConnectionPool {
+    client: Client,
+    retries: usize,
+    max_backoff: Duration,
+}
+
+impl Default for ConnectionPool {
+    fn default() -> Self {
+        Self::new(Client::new(), 3, Duration::from_secs(5))
+    }
+}
+
+impl ConnectionPool {
+    /// Create a new connection pool with custom settings
+    pub fn new(client: Client, retries: usize, max_backoff: Duration) -> Self {
+        Self {
+            client,
+            retries,
+            max_backoff,
+        }
+    }
+
+    /// Create a connection pool with optimized settings for the VK Teams Bot API
+    pub fn optimized() -> Result<Self> {
+        let cfg = &CONFIG.network;
+        let client = build_optimized_client()?;
+        let retries = cfg.retries;
+        let max_backoff = Duration::from_millis(cfg.max_backoff_ms);
+
+        Ok(Self {
+            client,
+            retries,
+            max_backoff,
+        })
+    }
+
+    /// Execute a request with exponential backoff retry strategy
+    pub async fn execute_with_retry<F, Fut, T>(&self, operation: F) -> Result<T>
+    where
+        F: Fn() -> Fut + Send + Sync,
+        Fut: std::future::Future<Output = Result<T>> + Send,
+        T: Send,
+    {
+        let mut retries = 0;
+        let mut backoff_ms = 100;
+
+        loop {
+            match operation().await {
+                Ok(result) => return Ok(result),
+                Err(e) => {
+                    if let BotError::Network(ref req_err) = e {
+                        if !should_retry(req_err) || retries >= self.retries {
+                            return Err(e);
+                        }
+
+                        retries += 1;
+                        let jitter = rand::random::<u64>() % 100;
+                        let delay = Duration::from_millis(backoff_ms + jitter);
+
+                        warn!(
+                            "Request failed, retrying ({}/{}): {} after {:?}",
+                            retries, self.retries, req_err, delay
+                        );
+
+                        sleep(delay).await;
+                        backoff_ms =
+                            std::cmp::min(backoff_ms * 2, self.max_backoff.as_millis() as u64);
+                    } else {
+                        return Err(e);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Get text response from API with retry capability
+    #[tracing::instrument(skip(self))]
+    pub async fn get_text(&self, url: Url) -> Result<String> {
+        debug!("Getting response from API at path {}...", url);
+
+        self.execute_with_retry(|| {
+            let client = self.client.clone();
+            let url = url.clone();
+
+            async move {
+                let response = client.get(url.as_str()).send().await?;
+                trace!("Response status: {}", response.status());
+
+                validate_response(&response.status())?;
+
+                let text = response.text().await?;
+                trace!("Response body length: {} bytes", text.len());
+                Ok(text)
+            }
+        })
+        .await
+    }
+
+    /// Get bytes response from API with retry capability
+    #[tracing::instrument(skip(self))]
+    pub async fn get_bytes(&self, url: Url) -> Result<Vec<u8>> {
+        debug!("Getting binary response from API at path {}...", url);
+
+        self.execute_with_retry(|| {
+            let client = self.client.clone();
+            let url = url.clone();
+
+            async move {
+                let response = client.get(url.as_str()).send().await?;
+                trace!("Response status: {}", response.status());
+
+                validate_response(&response.status())?;
+
+                let bytes = response.bytes().await?;
+                trace!("Response body size: {} bytes", bytes.len());
+                Ok(bytes.to_vec())
+            }
+        })
+        .await
+    }
+
+    /// Post file to API with retry capability
+    #[tracing::instrument(skip(self, form))]
+    pub async fn post_file(&self, url: Url, form: Form) -> Result<String> {
+        debug!("Sending file to API at path {}...", url);
+
+        // Since Form doesn't implement Clone, we need to handle it specially
+        // We'll pass the form directly to the first attempt,
+        // and if retries are needed, we'll notify the caller
+        let response = self.client.post(url.as_str()).multipart(form).send().await;
+
+        match response {
+            Ok(response) => {
+                trace!("Response status: {}", response.status());
+
+                // Validate the response
+                validate_response(&response.status())?;
+
+                // Get the response text
+                let text = response.text().await?;
+                trace!("Response body length: {} bytes", text.len());
+                Ok(text)
+            }
+            Err(err) => {
+                // Handle error with retry logic
+                if !should_retry(&err) || self.retries == 0 {
+                    return Err(BotError::Network(err));
+                }
+
+                warn!(
+                    "File upload failed, but cannot retry because Form doesn't implement Clone. Error: {}",
+                    err
+                );
+                Err(BotError::Network(err))
+            }
+        }
+    }
+}
+
+/// Validate HTTP response status
+fn validate_response(status: &StatusCode) -> Result<()> {
+    if status.is_success() {
+        Ok(())
+    } else if status.is_server_error() {
+        warn!("Server error: {}", status);
+        Err(BotError::System(format!("Server error: HTTP {}", status)))
+    } else if status.is_client_error() {
+        error!("Client error: {}", status);
+        Err(BotError::Validation(format!("HTTP error: {}", status)))
+    } else {
+        warn!("Unexpected status code: {}", status);
+        Err(BotError::System(format!(
+            "Unexpected HTTP status code: {}",
+            status
+        )))
+    }
+}
+
+/// Determine if the request should be retried based on the error
+fn should_retry(err: &reqwest::Error) -> bool {
+    err.is_timeout()
+        || err.is_connect()
+        || err.is_request()
+        || (err.status().is_some_and(|s| s.is_server_error()))
+}
+
+/// Build a client with optimized settings for the API
+fn build_optimized_client() -> Result<Client> {
+    let cfg = &CONFIG.network;
+    let builder = ClientBuilder::new()
+        .timeout(Duration::from_secs(cfg.request_timeout_secs))
+        .connect_timeout(Duration::from_secs(cfg.connect_timeout_secs))
+        .pool_idle_timeout(Duration::from_secs(cfg.pool_idle_timeout_secs))
+        .tcp_nodelay(true)
+        .pool_max_idle_per_host(cfg.max_idle_connections)
+        .use_rustls_tls();
+
+    builder.build().map_err(BotError::Network)
+}
+
 /// Get text response from API
 /// Send request with [`Client`] `get` method and get body with [`reqwest::Response`] `text` method
 /// - `url` - file URL
 ///
 /// ## Errors
 /// - `BotError::Network` - network error when sending request or receiving response
+///
+/// @deprecated Use ConnectionPool::get_text instead
 #[tracing::instrument(skip(client))]
 pub async fn get_text_response(client: Client, url: Url) -> Result<String> {
     debug!("Getting response from API at path {}...", url);
@@ -31,6 +237,8 @@ pub async fn get_text_response(client: Client, url: Url) -> Result<String> {
 ///
 /// ## Errors
 /// - `BotError::Network` - network error when sending request or receiving response
+///
+/// @deprecated Use ConnectionPool::get_bytes instead
 #[tracing::instrument(skip(client))]
 pub async fn get_bytes_response(client: Client, url: Url) -> Result<Vec<u8>> {
     debug!("Getting binary response from API at path {}...", url);
@@ -79,6 +287,8 @@ async fn make_stream(path: String) -> Result<Body> {
 ///
 /// ## Errors
 /// - `BotError::Network` - network error when sending request or receiving response
+///
+/// @deprecated Use ConnectionPool::post_file instead
 #[tracing::instrument(skip(client, form))]
 pub async fn post_response_file(client: Client, url: Url, form: Form) -> Result<String> {
     debug!("Sending file to API at path {}...", url);
@@ -95,6 +305,8 @@ pub async fn post_response_file(client: Client, url: Url, form: Form) -> Result<
 /// Set `timeout` to 5 secs
 ///
 /// Set `tcp_nodelay` to true
+///
+/// @deprecated Use build_optimized_client instead
 pub fn default_reqwest_settings() -> reqwest::ClientBuilder {
     reqwest::Client::builder()
         .timeout(*POLL_DURATION)

@@ -1,4 +1,4 @@
-use tracing::{error, info};
+use tracing::info;
 use vkteams_bot::prelude::*;
 
 #[tokio::main]
@@ -11,32 +11,23 @@ async fn main() -> Result<()> {
     // Make bot instance
     let bot = Bot::default();
     // Get events from the API
-    match bot
+    let res = bot
         .send_api_request(RequestEventsGet::new(bot.get_last_event_id().await))
-        .await?
-    {
-        ApiResult::Success(res) => {
-            let events = res.events;
-            // Check if there are any events with new messages event type
-            for event in events {
-                if let EventType::NewMessage(payload) = event.event_type {
-                    let parts = payload.parts;
-                    // Check if there are any files in the message
-                    for part in parts {
-                        if let MessagePartsType::File(p) = part.part_type {
-                            download_files(&bot, p.file_id).await?;
-                        } else {
-                            continue;
-                        }
-                    }
+        .await?;
+    // Check if there are any events with new messages event type
+    for event in res.events {
+        if let EventType::NewMessage(payload) = event.event_type {
+            let parts = payload.parts;
+            // Check if there are any files in the message
+            for part in parts {
+                if let MessagePartsType::File(p) = part.part_type {
+                    download_files(&bot, p.file_id).await?;
                 } else {
                     continue;
                 }
             }
-        }
-        ApiResult::Error(e) => {
-            error!("Error: {}", e.description);
-            return Err(BotError::Api(e));
+        } else {
+            continue;
         }
     }
     Ok(())
@@ -44,21 +35,13 @@ async fn main() -> Result<()> {
 // Download files from messages
 pub async fn download_files(bot: &Bot, file_id: FileId) -> Result<()> {
     // Get file info from the API
-    match bot
+    let file_info = bot
         .send_api_request(RequestFilesGetInfo::new(file_id))
-        .await?
-    {
-        // Download file data
-        ApiResult::Success(file_info) => {
-            let file_data = file_info.download(reqwest::Client::new()).await?;
-            // Save file to the disk
-            file_save(&file_info.file_name.to_owned(), file_data).await?;
-        }
-        ApiResult::Error(e) => {
-            error!("Error: {}", e.description);
-            return Err(BotError::Api(e));
-        }
-    }
+        .await?;
+    // Download file data
+    let file_data = file_info.download(reqwest::Client::new()).await?;
+    // Save file to the disk
+    file_save(&file_info.file_name.to_owned(), file_data).await?;
     Ok(())
 }
 // Save file to the disk

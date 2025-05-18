@@ -9,8 +9,7 @@ bot_api_method! {
             chat_id: ChatId,
         },
         optional {
-            #[serde(skip_serializing_if = "Option::is_none")]
-            cursor: Option<u32>,
+            cursor: u32,
         }
     },
     response = ResponseChatsGetMembers {

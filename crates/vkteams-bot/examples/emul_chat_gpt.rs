@@ -1,6 +1,5 @@
-#[macro_use]
-extern crate log;
 use tokio::time::*;
+use tracing::info;
 use vkteams_bot::error::{BotError, Result};
 use vkteams_bot::prelude::*;
 
@@ -38,19 +37,13 @@ async fn send(bot: &Bot) -> Result<()> {
         if id.0.is_empty() {
             info!("Sending first word...");
             // First word send by creating new message
-            id = match bot
+            id = bot
                 .send_api_request(
                     RequestMessagesSendText::new(chat_id.to_owned())
                         .set_text(html_parser.to_owned())?,
                 )
                 .await?
-            {
-                ApiResult::Success(res) => res.msg_id,
-                ApiResult::Error(e) => {
-                    error!("Error: {}", e.description);
-                    return Err(BotError::Api(e));
-                }
-            };
+                .msg_id;
         } else {
             info!("Sending next word...");
             // Next words add by editing previous message
@@ -70,14 +63,10 @@ async fn send(bot: &Bot) -> Result<()> {
         sleep(Duration::from_millis(300)).await;
     }
     // Bot action looking for message
-    match bot
-        .send_api_request(RequestChatsSendAction::new((
-            chat_id.to_owned(),
-            ChatActions::Looking,
-        )))
-        .await?
-    {
-        ApiResult::Success(_) => Ok(()),
-        ApiResult::Error(e) => Err(BotError::Api(e)),
-    }
+    bot.send_api_request(RequestChatsSendAction::new((
+        chat_id.to_owned(),
+        ChatActions::Looking,
+    )))
+    .await?;
+    Ok(())
 }

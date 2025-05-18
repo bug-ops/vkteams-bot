@@ -1,5 +1,4 @@
-#[macro_use]
-extern crate log;
+use tracing::{debug, info};
 use vkteams_bot::error::{BotError, Result};
 use vkteams_bot::prelude::*;
 
@@ -26,7 +25,7 @@ async fn main() -> Result<()> {
     )))
     .await?;
     // Send message
-    match bot
+    let res = bot
         .send_api_request(
             RequestMessagesSendText::new(chat_id.to_owned())
                 .set_text(
@@ -53,20 +52,12 @@ async fn main() -> Result<()> {
                         )),
                 )?,
         )
-        .await?
-    {
-        ApiResult::Success(res) => {
-            debug!("Message id: {:?}", res.msg_id);
-            bot.send_api_request(RequestChatsSendAction::new((
-                chat_id.to_owned(),
-                ChatActions::Looking,
-            )))
-            .await?;
-        }
-        ApiResult::Error(e) => {
-            error!("Error: {}", e.description);
-            return Err(BotError::Api(e));
-        }
-    }
+        .await?;
+    debug!("Message id: {:?}", res.msg_id);
+    bot.send_api_request(RequestChatsSendAction::new((
+        chat_id.to_owned(),
+        ChatActions::Looking,
+    )))
+    .await?;
     Ok(())
 }

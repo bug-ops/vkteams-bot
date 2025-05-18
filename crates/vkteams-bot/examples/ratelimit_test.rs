@@ -12,11 +12,7 @@ async fn main() -> Result<()> {
     // Create bot with rate limit enabled
     let bot = Arc::new(Bot::default());
     // Get chat_id from .env
-    let chat_id = Arc::new(ChatId(
-        std::env::var("VKTEAMS_CHAT_ID")
-            .expect("Unable to find VKTEAMS_CHAT_ID in .env file")
-            .to_string(),
-    ));
+    let chat_id = Arc::new(ChatId(std::env::var("VKTEAMS_CHAT_ID")?.to_string()));
 
     info!("Test: Parallel message sending");
     let num_requests = 100;
@@ -34,11 +30,8 @@ async fn main() -> Result<()> {
                     .add(MessageTextFormat::Plain(format!("Test: Message {}", i))),
             ) {
                 match bot.send_api_request(request).await {
-                    Ok(ApiResult::Success(_)) => {
+                    Ok(_) => {
                         info!("Test: Request {} completed successfully", i)
-                    }
-                    Ok(ApiResult::Error(e)) => {
-                        error!("Test: Error in request {}: {:?}", i, e)
                     }
                     Err(e) => error!("Test: Error in request {}: {:?}", i, e),
                 }

@@ -16,3 +16,48 @@ bot_api_method! {
         events: Vec<EventMessage>,
     },
 }
+
+#[cfg(test)]
+use crate::prelude::*;
+#[test]
+fn test_print_out() {
+    let _guard = otlp::init().map_err(|e| BotError::Otlp(e.into()));
+    let j = r#"
+        {
+          "events": [
+            {
+              "eventId": 1299,
+              "payload": {
+                "chat": {
+                  "chatId": "123456@chat.agent",
+                  "title": "TEST",
+                  "type": "group"
+                },
+                "from": {
+                  "firstName": "Test",
+                  "lastName": "Tests",
+                  "userId": "test@examle.com"
+                },
+                "msgId": "1111117815001117942",
+                "parts": [
+                  {
+                    "payload": { "fileId": "zFDf9...1bg" },
+                    "type": "file"
+                  }
+                ],
+                "text": "https://files-n.internal.example.com/get/zFDf9...1bg",
+                "timestamp": 1747470306
+              },
+              "type": "newMessage"
+            }
+          ],
+          "ok": true
+        }
+        "#;
+    match serde_json::from_str::<ResponseEventsGet>(j) {
+        Ok(response) => tracing::info!("{:?}", response),
+        Err(e) => {
+            tracing::error!("Error deserializing response: {}", e);
+        }
+    };
+}

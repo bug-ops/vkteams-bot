@@ -1,11 +1,8 @@
-#[macro_use]
-extern crate log;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::LazyLock;
-use vkteams_bot::bot::webhook::{AppState, WebhookState};
-use vkteams_bot::error::{BotError, Result};
+use tracing::{error, info};
 use vkteams_bot::prelude::*;
 // Environment variable for the chat id
 const CHAT_ID: &str = "VKTEAMS_CHAT_ID";
@@ -101,10 +98,8 @@ impl WebhookState for ExtendState {
         // Make request for bot API
         let req = RequestMessagesSendText::new(self.chat_id.to_owned()).set_text(parser)?;
         // Send request to the bot API
-        match self.bot.send_api_request(req).await? {
-            ApiResult::Success(_) => Ok(()),
-            ApiResult::Error(e) => Err(BotError::Api(e)),
-        }
+        self.bot.send_api_request(req).await?;
+        Ok(())
     }
 }
 

@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
+use std::env::VarError;
 use std::fmt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApiError {
-    pub ok: bool,
     pub description: String,
 }
 
@@ -154,6 +154,24 @@ impl From<serde_url_params::Error> for BotError {
 impl From<tonic::transport::Error> for BotError {
     fn from(err: tonic::transport::Error) -> Self {
         BotError::Grpc(err)
+    }
+}
+
+impl From<toml::de::Error> for BotError {
+    fn from(err: toml::de::Error) -> Self {
+        BotError::Config(err.to_string())
+    }
+}
+
+impl From<VarError> for BotError {
+    fn from(err: VarError) -> Self {
+        BotError::Config(err.to_string())
+    }
+}
+
+impl From<ApiError> for BotError {
+    fn from(err: ApiError) -> Self {
+        BotError::Api(err)
     }
 }
 
