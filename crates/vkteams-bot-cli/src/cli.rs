@@ -128,9 +128,9 @@ pub enum SubCommand {
     },
     /// Send file from <`FILE_PATH`> to user with <`USER_ID`>
     SendFile {
-        #[arg(short, long, required = true, value_name = "USER_ID")]
+        #[arg(short = 'u', long, required = true, value_name = "USER_ID")]
         user_id: String,
-        #[arg(short, long, required = false, value_name = "FILE_PATH")]
+        #[arg(short = 'p', long, required = false, value_name = "FILE_PATH")]
         file_path: String,
     },
     /// Download file with <`FILE_ID`> into <`FILE_PATH`>
@@ -223,9 +223,7 @@ impl Cli {
                 } else {
                     let result = match self
                         .bot
-                        .send_api_request(RequestEventsGet::new(
-                            self.bot.get_last_event_id().await,
-                        ))
+                        .send_api_request(RequestEventsGet::new(self.bot.get_last_event_id().await))
                         .await
                     {
                         Ok(res) => res,

@@ -752,9 +752,9 @@ $ vkteams-bot-cli get-events -l true | grep "ALARM"
 # Send text
 $ vkteams-bot-cli send-text -u <USER_ID> -m "text message"
 # Send file
-$ vkteams-bot-cli send-file -u <USER_ID> -f <FILE_PATH>
+$ vkteams-bot-cli send-file -u <USER_ID> -p <FILE_PATH>
 # Download file
-$ vkteams-bot-cli get-file -i <FILE_ID> -f <FILE_PATH>
+$ vkteams-bot-cli get-file -f <FILE_ID> -p <FILE_PATH>
 ```
 
 ## Commands

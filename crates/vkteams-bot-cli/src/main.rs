@@ -197,11 +197,14 @@ pub mod file_utils;
 
 use cli::Cli;
 use config::Config;
+use pretty_env_logger::env_logger;
+use std::process::exit;
+use tracing::debug;
 
 #[tokio::main]
 async fn main() {
     env_logger::init();
-    
+
     // Load configuration
     let config = match Config::load() {
         Ok(config) => config,
@@ -210,9 +213,9 @@ async fn main() {
             exit(exitcode::CONFIG);
         }
     };
-    
+
     debug!("Configuration loaded successfully");
-    
+
     match Cli::with_config(config).match_input().await {
         Ok(()) => (),
         Err(err) => {
