@@ -213,24 +213,6 @@ fn build_optimized_client() -> Result<Client> {
 
     builder.build().map_err(BotError::Network)
 }
-
-/// Get text response from API
-/// Send request with [`Client`] `get` method and get body with [`reqwest::Response`] `text` method
-/// - `url` - file URL
-///
-/// ## Errors
-/// - `BotError::Network` - network error when sending request or receiving response
-///
-/// @deprecated Use ConnectionPool::get_text instead
-#[tracing::instrument(skip(client))]
-pub async fn get_text_response(client: Client, url: Url) -> Result<String> {
-    debug!("Getting response from API at path {}...", url);
-    let response = client.get(url.as_str()).send().await?;
-    trace!("Response status: {}", response.status());
-    let text = response.text().await?;
-    trace!("Response body: {}", text);
-    Ok(text)
-}
 /// Get bytes response from API
 /// Send request with [`Client`] `get` method and get body with [`reqwest::Response`] `bytes` method
 /// - `url` - file URL
@@ -281,93 +263,6 @@ async fn make_stream(path: String) -> Result<Body> {
     //Create stream from file
     let file_stream = Body::wrap_stream(FramedRead::new(file, BytesCodec::new()));
     Ok(file_stream)
-}
-/// Get raw response from API
-/// Send request with [`Client`] `post` method with body file streaming and get body with [`reqwest::Response`] `text` method
-///
-/// ## Errors
-/// - `BotError::Network` - network error when sending request or receiving response
-///
-/// @deprecated Use ConnectionPool::post_file instead
-#[tracing::instrument(skip(client, form))]
-pub async fn post_response_file(client: Client, url: Url, form: Form) -> Result<String> {
-    debug!("Sending file to API at path {}...", url);
-    let response = client.post(url.as_str()).multipart(form).send().await?;
-    trace!("Response status: {}", response.status());
-    let text = response.text().await?;
-    trace!("Response body: {}", text);
-    Ok(text)
-}
-/// Set default request settings: timeout, tcp
-///
-/// Set connection timeout to [`POLL_DURATION`] constant
-///
-/// Set `timeout` to 5 secs
-///
-/// Set `tcp_nodelay` to true
-///
-/// @deprecated Use build_optimized_client instead
-pub fn default_reqwest_settings() -> reqwest::ClientBuilder {
-    reqwest::Client::builder()
-        .timeout(*POLL_DURATION)
-        .tcp_nodelay(true)
-        .connect_timeout(Duration::from_secs(5))
-}
-/// Set default path depending on API version
-///
-/// default is [`APIVersionUrl::V1`]
-///
-/// ## Panics
-///
-/// - Another API version is not supported
-pub fn set_default_path(version: &APIVersionUrl) -> String {
-    // Choose path depending on API version
-    match version {
-        APIVersionUrl::V1 => version.to_string(),
-        // Another API version is not supported
-        // _ => panic!("Unknown API version"),
-    }
-}
-/// Get token from [`VKTEAMS_BOT_API_TOKEN`] environment variable
-///
-/// ## Errors
-/// - `BotError::Config` - environment variable not found
-///
-/// ## Panics
-///
-/// - Unable to find environment variable
-pub fn get_env_token() -> String {
-    std::env::var(VKTEAMS_BOT_API_TOKEN)
-        .map_err(|e| {
-            BotError::Config(format!(
-                "Failed to find environment variable VKTEAMS_BOT_API_TOKEN: {}",
-                e
-            ))
-        })
-        .unwrap_or_else(|e| panic!("{}", e))
-}
-/// Get base api url from [`VKTEAMS_BOT_API_URL`] environment variable
-///
-/// ## Errors
-/// - `BotError::Config` - failed to find or parse URL
-///
-/// ## Panics
-///
-/// - Unable to find environment variable
-/// - Unable to parse url
-pub fn get_env_url() -> Url {
-    let url_str = std::env::var(VKTEAMS_BOT_API_URL)
-        .map_err(|e| {
-            BotError::Config(format!(
-                "Failed to find environment variable VKTEAMS_BOT_API_URL: {}",
-                e
-            ))
-        })
-        .unwrap_or_else(|e| panic!("{}", e));
-
-    Url::parse(&url_str)
-        .map_err(|e| BotError::Config(format!("Failed to parse URL VKTEAMS_BOT_API_URL: {}", e)))
-        .unwrap_or_else(|e| panic!("{}", e))
 }
 /// Graceful shutdown signal
 ///

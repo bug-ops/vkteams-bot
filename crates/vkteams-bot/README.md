@@ -12,6 +12,10 @@
 
 ## Environment
 
+There are two ways to initialize the bot:
+
+### Option 1: Using Environment Variables (Default)
+
 1. Begin with bot API following [instructions](https://teams.vk.com/botapi/?lang=en)
 
 2. Set environment variables or save in `.env` file
@@ -33,7 +37,17 @@ $ set VKTEAMS_PROXY=<Proxy> #optional
 ```toml
 [dependencies]
 vkteams_bot = { version = "0.9", features = ["full"] }
-log = "0.4"
+```
+
+### Option 2: Direct Parameter Passing
+
+Alternatively, you can create the bot by directly passing parameters:
+
+```rust
+let bot = Bot::with_default_version(
+    "your_bot_token".to_string(),
+    "https://api.example.com".to_string()
+)?;
 ```
 
 ## Usage examples
