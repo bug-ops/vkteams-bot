@@ -12,7 +12,7 @@
 
 ## Environment
 
-There are two ways to configure the bot:
+There are two ways to initialize the bot:
 
 ### Option 1: Using Environment Variables (Default)
 
@@ -37,7 +37,6 @@ $ set VKTEAMS_PROXY=<Proxy> #optional
 ```toml
 [dependencies]
 vkteams_bot = { version = "0.9", features = ["full"] }
-log = "0.4"
 ```
 
 ### Option 2: Direct Parameter Passing
@@ -47,7 +46,7 @@ Alternatively, you can create the bot by directly passing parameters:
 ```rust
 let bot = Bot::with_default_version(
     "your_bot_token".to_string(),
-    "https://api.internal.myteam.mail.ru".to_string()
+    "https://api.example.com".to_string()
 )?;
 ```
 
@@ -66,4 +65,3 @@ See the [direct parameters example](examples/direct_params/main.rs) for more det
 - [chat - download files](examples/chat_get_file.rs)
 - [bot - webhook handler](examples/prometheus_webhook.rs)
 - [bot - rate limit](examples/ratelimit_test.rs)
-- [bot - direct parameters](examples/direct_params/main.rs)
