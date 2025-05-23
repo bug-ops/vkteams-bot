@@ -86,6 +86,7 @@ indicatif = { version = "0.17", features = ["tokio"] }
 chrono = { version = "0.4", features = ["serde"] }
 cron = "0.12"
 uuid = { version = "1.0", features = ["v4"] }
+async-trait = "0.1"
 
 [dev-dependencies]
 serde_yaml = "0.9"
