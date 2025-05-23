@@ -718,43 +718,82 @@ VK Teams Bot API terminal application.
 
 ## Table of Contents
 
-- [Environment](#environment)
-- [Usage](#usage)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [Commands](#commands)
+- [Examples](#examples)
+- [Advanced Usage](#advanced-usage)
 
-## Environment
+## Installation
 
-1. Begin with bot API following [instructions](https://teams.vk.com/botapi/?lang=en)
-2. Set environment variables or save in `.env` file
+### From crates.io (Recommended)
 ```bash
-# Unix-like
-$ export VKTEAMS_BOT_API_TOKEN=<Your token here> #require
-$ export VKTEAMS_BOT_API_URL=<Your base api url> #require
-$ export VKTEAMS_PROXY=<Proxy> #optional
-
-$ cargo install vkteams-bot-cli
-
-# Windows
-$ set VKTEAMS_BOT_API_TOKEN=<Your token here> #require
-$ set VKTEAMS_BOT_API_URL=<Your base api url> #require
-$ set VKTEAMS_PROXY=<Proxy> #optional
-
-# Build from source
-$ cargo install vkteams-bot-cli
+cargo install vkteams-bot-cli
 ```
 
-## Usage
-
+### From source
 ```bash
-# Help
-$ vkteams-bot-cli --help
-# Listen for events
-$ vkteams-bot-cli get-events -l true | grep "ALARM"
-# Send text
-$ vkteams-bot-cli send-text -u <USER_ID> -m "text message"
-# Send file
-$ vkteams-bot-cli send-file -u <USER_ID> -p <FILE_PATH>
-# Download file
-$ vkteams-bot-cli get-file -f <FILE_ID> -p <FILE_PATH>
+git clone https://github.com/bug-ops/vkteams-bot
+cd vkteams-bot
+cargo install --path crates/vkteams-bot-cli
+```
+
+## Quick Start
+
+### 1. Get Your Bot Credentials
+Follow the [VK Teams Bot API instructions](https://teams.vk.com/botapi/?lang=en) to create a bot and get your:
+- **API Token** 
+- **API URL**
+
+### 2. Interactive Setup
+```bash
+vkteams-bot-cli setup
+```
+This will guide you through the initial configuration process.
+
+### 3. Test Your Setup
+```bash
+vkteams-bot-cli validate
+```
+
+### 4. Send Your First Message
+```bash
+vkteams-bot-cli send-text -u USER_ID -m "Hello from CLI!"
+```
+
+## Configuration
+
+The CLI supports multiple configuration methods (in order of precedence):
+
+### 1. Environment Variables
+```bash
+# Required
+export VKTEAMS_BOT_API_TOKEN=your_token_here
+export VKTEAMS_BOT_API_URL=your_api_url_here
+
+# Optional
+export VKTEAMS_PROXY=http://proxy:8080
+export VKTEAMS_LOG_LEVEL=info
+export VKTEAMS_DOWNLOAD_DIR=/path/to/downloads
+```
+
+### 2. Configuration File
+The CLI automatically looks for config files in:
+- Current directory: `cli_config.toml`
+- User config: `~/.config/vkteams-bot/cli_config.toml`
+- System config: `/etc/vkteams-bot/cli_config.toml` (Unix only)
+
+### 3. Interactive Configuration
+```bash
+# Initial setup wizard
+vkteams-bot-cli setup
+
+# Update existing configuration
+vkteams-bot-cli config --wizard
+
+# View current configuration
+vkteams-bot-cli config --show
 ```
 
 ## Commands
