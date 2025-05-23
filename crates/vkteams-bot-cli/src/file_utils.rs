@@ -252,3 +252,61 @@ pub async fn upload_file(
     info!("Successfully uploaded file: {}", source_path);
     Ok(result)
 }
+
+/// Stream uploads a voice message to the API
+///
+/// # Errors
+/// - Returns `CliError::InputError` if no file path provided
+/// - Returns `CliError::FileError` if the file doesn't exist or is not accessible
+/// - Returns `CliError::ApiError` if there are issues with the API
+pub async fn upload_voice(
+    bot: &Bot,
+    user_id: &str,
+    file_path: &str,
+    config: &Config,
+) -> CliResult<impl serde::Serialize + Debug> {
+    // Use file path from arguments or config
+    let source_path = if !file_path.is_empty() {
+        file_path.to_string()
+    } else if let Some(upload_dir) = &config.files.upload_dir {
+        upload_dir.clone()
+    } else {
+        return Err(CliError::InputError("No file path provided and no default upload directory configured".to_string()));
+    };
+    
+    validate_file_path(&source_path)?;
+
+    debug!("Preparing to upload voice message: {}", source_path);
+    
+    // Get the file size for the progress bar
+    let file_size = match progress::calculate_upload_size(&source_path) {
+        Ok(size) => size,
+        Err(e) => {
+            debug!("Could not determine file size: {}", e);
+            0 // If we can't determine size, progress bar will be indeterminate
+        }
+    };
+    
+    // Create a progress bar for upload
+    let progress_bar = progress::create_upload_progress_bar(config, file_size, &source_path);
+    
+    // Start the voice upload
+    let result = match bot
+        .send_api_request(RequestMessagesSendVoice::new((
+            ChatId(user_id.to_string()),
+            MultipartName::File(source_path.to_string()),
+        )))
+        .await {
+            Ok(res) => {
+                progress::finish_progress(&progress_bar, "Voice upload complete");
+                res
+            },
+            Err(e) => {
+                progress::abandon_progress(&progress_bar, "Voice upload failed");
+                return Err(CliError::ApiError(e));
+            }
+        };
+
+    info!("Successfully uploaded voice message: {}", source_path);
+    Ok(result)
+}

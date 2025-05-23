@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use toml;
 
 // Constants for configuration
-pub const CONFIG_FILE_NAME: &str = "vkteams_bot_config.toml";
+pub const CONFIG_FILE_NAME: &str = "cli_config.toml";
 pub const DEFAULT_CONFIG_DIR: &str = ".config/vkteams-bot";
 pub const ENV_PREFIX: &str = "VKTEAMS_";
 
@@ -450,7 +450,9 @@ impl Config {
                 } else {
                     overlay.ui.progress_style
                 },
-                progress_refresh_rate: if overlay.ui.progress_refresh_rate == default_progress_refresh_rate() {
+                progress_refresh_rate: if overlay.ui.progress_refresh_rate
+                    == default_progress_refresh_rate()
+                {
                     base.ui.progress_refresh_rate
                 } else {
                     overlay.ui.progress_refresh_rate
