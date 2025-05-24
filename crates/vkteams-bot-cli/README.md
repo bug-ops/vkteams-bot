@@ -1,7 +1,9 @@
 <<<<<<< HEAD
+
 # VK Teams Bot API CLI
 
 =======
+
 # VK Teams Bot API Cli
 
 [![docs.rs](https://img.shields.io/docsrs/vkteams-bot-cli/latest)](https://docs.rs/vkteams-bot-cli/latest/vkteams_bot_cli/)
@@ -809,10 +811,12 @@ vkteams-bot-cli config --show
 ```
 
 ## Commands
+
 | Command | Description |
 |---------|-------------|
 | `get-events` | Listen for events (long polling) |
 | `send-text` | Send text message |
 | `send-file` | Send file to chat |
 | `get-file`  | Download file from API |
+
 >>>>>>> 3f6c614 (move cli)
