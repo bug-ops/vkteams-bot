@@ -199,17 +199,18 @@ pub mod progress;
 pub mod scheduler;
 pub mod utils;
 
-use commands::{Commands, Command, CommandExecutor, CommandResult, OutputFormat};
-use config::Config;
-use constants::{ui::emoji, exit_codes};
-use errors::prelude::Result as CliResult;
-use utils::{create_bot_instance, create_dummy_bot, needs_bot_instance};
-use clap::Parser;
+use clap::{Parser, ValueHint};
 use colored::Colorize;
+use commands::{Command, CommandExecutor, CommandResult, Commands, OutputFormat};
+use config::Config;
+use constants::{exit_codes, ui::emoji};
+use errors::prelude::Result as CliResult;
 use std::process::exit;
+use std::path::PathBuf;
 use tracing::debug;
-use vkteams_bot::prelude::*;
+use utils::{create_bot_instance, create_dummy_bot, needs_bot_instance};
 use vkteams_bot::otlp;
+use vkteams_bot::prelude::*;
 
 /// Main CLI structure for the VK Teams Bot command-line interface.
 ///
@@ -262,11 +263,11 @@ use vkteams_bot::otlp;
 )]
 pub struct Cli {
     /// Path to config file (overrides default locations)
-    #[arg(short, long, value_name = "CONFIG")]
+    #[arg(short, long, value_name = "CONFIG", value_hint = ValueHint::FilePath)]
     pub config: Option<String>,
 
     /// Save current configuration to file
-    #[arg(long, value_name = "PATH")]
+    #[arg(long, value_name = "PATH", value_hint = ValueHint::FilePath)]
     pub save_config: Option<String>,
 
     /// Enable verbose output
@@ -295,8 +296,6 @@ pub struct Cli {
     pub command: Commands,
 }
 
-
-
 ///
 /// # Verbose output with JSON format
 /// vkteams-bot-cli --verbose --output json validate
@@ -313,34 +312,52 @@ pub struct Cli {
 /// - **Environment Variables**: Optional but may be needed for configuration
 #[tokio::main]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
+    //
+    dotenvy::dotenv().expect("Unable to load .env file");
+
     let _guard = otlp::init()?;
-    
+
     // Parse CLI arguments
     let cli = Cli::parse();
-    
+
     // Initialize logging based on verbosity
     if cli.verbose {
         unsafe {
             std::env::set_var("RUST_LOG", "debug");
         }
     }
-    
+
+    // Set up completion directory for runtime access
+    setup_completion_environment();
+
     // Load configuration
     let config = match load_configuration(&cli).await {
         Ok(config) => config,
         Err(err) => {
-            eprintln!("{} {}", emoji::CROSS, format!("Failed to load configuration: {}", err).red());
+            eprintln!(
+                "{} {}",
+                emoji::CROSS,
+                format!("Failed to load configuration: {}", err).red()
+            );
             exit(exit_codes::CONFIG);
         }
     };
-    
+
     // Handle config save if requested
     if let Some(path) = &cli.save_config {
         if let Err(err) = save_configuration(&config, path) {
-            eprintln!("{} {}", emoji::CROSS, format!("Failed to save configuration: {}", err).red());
+            eprintln!(
+                "{} {}",
+                emoji::CROSS,
+                format!("Failed to save configuration: {}", err).red()
+            );
             exit(exit_codes::CONFIG);
         }
-        println!("{} Configuration saved to: {}", emoji::FLOPPY_DISK, path.green());
+        println!(
+            "{} Configuration saved to: {}",
+            emoji::FLOPPY_DISK,
+            path.green()
+        );
         return Ok(());
     }
 
@@ -348,7 +365,11 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     // Validate command before execution
     if let Err(err) = cli.command.validate() {
-        eprintln!("{} {}", emoji::CROSS, format!("Validation error: {}", err).red());
+        eprintln!(
+            "{} {}",
+            emoji::CROSS,
+            format!("Validation error: {}", err).red()
+        );
         exit(exit_codes::USAGE_ERROR);
     }
 
@@ -362,7 +383,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             exit(err.exit_code());
         }
     }
-    
+
     Ok(())
 }
 >>>>>>> 3f6c614 (move cli)
