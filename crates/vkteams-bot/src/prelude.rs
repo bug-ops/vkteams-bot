@@ -9,6 +9,8 @@ pub use crate::api::types::*;
 pub use crate::api::utils::*;
 pub use crate::api::*;
 pub use crate::bot::net::ConnectionPool;
+#[cfg(feature = "ratelimit")]
+pub use crate::bot::ratelimit::RateLimiter;
 #[cfg(feature = "grpc")]
 pub use crate::bot::webhook::*;
 pub use crate::bot::*;
