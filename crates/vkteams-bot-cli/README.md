@@ -30,11 +30,13 @@
 ## Installation
 
 ### From crates.io (Recommended)
+
 ```bash
 cargo install vkteams-bot-cli
 ```
 
 ### From source
+
 ```bash
 git clone https://github.com/bug-ops/vkteams-bot
 cd vkteams-bot
@@ -44,22 +46,28 @@ cargo install --path crates/vkteams-bot-cli
 ## Quick Start
 
 ### 1. Get Your Bot Credentials
+
 Follow the [VK Teams Bot API instructions](https://teams.vk.com/botapi/?lang=en) to create a bot and get your:
-- **API Token** 
+
+- **API Token**
 - **API URL**
 
 ### 2. Interactive Setup
+
 ```bash
 vkteams-bot-cli setup
 ```
+
 This will guide you through the initial configuration process.
 
 ### 3. Test Your Setup
+
 ```bash
 vkteams-bot-cli validate
 ```
 
 ### 4. Send Your First Message
+
 ```bash
 vkteams-bot-cli send-text -u USER_ID -m "Hello from CLI!"
 ```
@@ -69,6 +77,7 @@ vkteams-bot-cli send-text -u USER_ID -m "Hello from CLI!"
 The CLI supports multiple configuration methods (in order of precedence):
 
 ### 1. Environment Variables
+
 ```bash
 # Required
 export VKTEAMS_BOT_API_TOKEN=your_token_here
@@ -81,12 +90,15 @@ export VKTEAMS_DOWNLOAD_DIR=/path/to/downloads
 ```
 
 ### 2. Configuration File
+
 The CLI automatically looks for config files in:
+
 - Current directory: `cli_config.toml`
 - User config: `~/.config/vkteams-bot/cli_config.toml`
 - System config: `/etc/vkteams-bot/cli_config.toml` (Unix only)
 
 ### 3. Interactive Configuration
+
 ```bash
 # Initial setup wizard
 vkteams-bot-cli setup
@@ -101,6 +113,7 @@ vkteams-bot-cli config --show
 ## Commands
 
 ### 📤 Message Operations
+
 | Command | Description | Example |
 |---------|-------------|---------|
 | `send-text` | Send text message | `vkteams-bot-cli send-text -u USER_ID -m "Hello!"` |
@@ -112,6 +125,7 @@ vkteams-bot-cli config --show
 | `unpin-message` | Unpin message | `vkteams-bot-cli unpin-message -c CHAT_ID -m MSG_ID` |
 
 ### 💬 Chat Management
+
 | Command | Description | Example |
 |---------|-------------|---------|
 | `get-chat-info` | Get chat details | `vkteams-bot-cli get-chat-info -c CHAT_ID` |
@@ -121,17 +135,20 @@ vkteams-bot-cli config --show
 | `send-action` | Send typing/looking action | `vkteams-bot-cli send-action -c CHAT_ID -a typing` |
 
 ### 📁 File Operations
+
 | Command | Description | Example |
 |---------|-------------|---------|
 | `get-file` | Download file with progress | `vkteams-bot-cli get-file -f FILE_ID -p /downloads/` |
 
 ### 📡 Event Monitoring
+
 | Command | Description | Example |
 |---------|-------------|---------|
 | `get-events` | Get events once | `vkteams-bot-cli get-events` |
 | `get-events -l true` | Start long polling | `vkteams-bot-cli get-events -l true` |
 
 ### 🔍 Information & Diagnostics
+
 | Command | Description | Example |
 |---------|-------------|---------|
 | `get-self` | Get bot information | `vkteams-bot-cli get-self` |
@@ -141,6 +158,7 @@ vkteams-bot-cli config --show
 | `list-commands` | Show all commands | `vkteams-bot-cli list-commands` |
 
 ### ⚙️ Configuration
+
 | Command | Description | Example |
 |---------|-------------|---------|
 | `setup` | Interactive setup wizard | `vkteams-bot-cli setup` |
@@ -150,6 +168,7 @@ vkteams-bot-cli config --show
 ## Examples
 
 ### Basic Messaging
+
 ```bash
 # Send a simple text message
 vkteams-bot-cli send-text -u user123 -m "Hello, World!"
@@ -162,6 +181,7 @@ vkteams-bot-cli send-voice -u user123 -p /path/to/audio.ogg
 ```
 
 ### Chat Management
+
 ```bash
 # Get detailed chat information
 vkteams-bot-cli get-chat-info -c chat456
@@ -175,6 +195,7 @@ vkteams-bot-cli set-chat-about -c chat456 -a "Discussion for the new project"
 ```
 
 ### Message Operations
+
 ```bash
 # Edit a message
 vkteams-bot-cli edit-message -c chat456 -m msg789 -t "Updated message content"
@@ -187,6 +208,7 @@ vkteams-bot-cli delete-message -c chat456 -m msg789
 ```
 
 ### File Operations
+
 ```bash
 # Download a file to specific directory
 vkteams-bot-cli get-file -f file123 -p /downloads/
@@ -195,6 +217,7 @@ vkteams-bot-cli get-file -f file123 -p /downloads/
 ```
 
 ### Event Monitoring
+
 ```bash
 # Get events once
 vkteams-bot-cli get-events
@@ -210,6 +233,7 @@ vkteams-bot-cli get-events -l true | grep -i "urgent"
 ```
 
 ### Chat Interaction
+
 ```bash
 # Send typing indicator
 vkteams-bot-cli send-action -c chat456 -a typing
@@ -221,6 +245,7 @@ vkteams-bot-cli send-action -c chat456 -a looking
 ## Advanced Usage
 
 ### Configuration Management
+
 ```bash
 # Save configuration to custom location
 vkteams-bot-cli --save-config /path/to/custom-config.toml
@@ -233,6 +258,7 @@ vkteams-bot-cli config --init
 ```
 
 ### Scripting and Automation
+
 ```bash
 #!/bin/bash
 # Example script for daily notifications
@@ -250,13 +276,10 @@ vkteams-bot-cli send-text -u "$CHAT_ID" -m "$MESSAGE"
 ```
 
 ### Environment-Specific Configuration
-```bash
-# Development environment
-export VKTEAMS_BOT_API_URL="https://dev-api.teams.vk.com"
-export VKTEAMS_LOG_LEVEL="debug"
 
-# Production environment  
-export VKTEAMS_BOT_API_URL="https://api.teams.vk.com"
+```bash
+# Environment  
+export VKTEAMS_BOT_API_URL="https://api.example.com"
 export VKTEAMS_LOG_LEVEL="info"
 
 # Validate current setup
@@ -264,6 +287,7 @@ vkteams-bot-cli validate
 ```
 
 ### Troubleshooting
+
 ```bash
 # Test your configuration
 vkteams-bot-cli validate
@@ -294,6 +318,7 @@ The CLI provides clear error messages and appropriate exit codes:
 ## Configuration File Format
 
 Example `cli_config.toml`:
+
 ```toml
 [api]
 token = "your_bot_token"
