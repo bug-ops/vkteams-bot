@@ -1,14 +1,16 @@
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::time::{Duration, sleep};
-use tracing::info;
+
 use vkteams_bot::prelude::*;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Load .env file
+    dotenvy::dotenv().expect("unable to load .env file");
     // Initialize logger
     let _guard = otlp::init().map_err(|e| BotError::Otlp(e.into()))?;
-    info!("🚀 Starting Rate Limiter Background Refill Demo");
+    println!("🚀 Starting Rate Limiter Background Refill Demo");
 
     // Create high-performance rate limiter with background refill
     let rate_limiter = RateLimiter::new();
@@ -19,7 +21,7 @@ async fn main() -> Result<()> {
     println!("   ✅ Bucket starts with full capacity");
     println!("   ✅ Graceful shutdown support");
     println!("   ✅ High concurrency performance");
-    println!();
+    println!("");
 
     // Demo 1: Immediate availability
     demo_immediate_availability(&rate_limiter).await?;
@@ -66,7 +68,7 @@ async fn demo_immediate_availability(rate_limiter: &RateLimiter) -> Result<()> {
         "   Total time for 5 requests: {:.2}ms",
         start.elapsed().as_millis()
     );
-    println!();
+    println!("");
     Ok(())
 }
 
@@ -106,7 +108,7 @@ async fn demo_background_refill(rate_limiter: &RateLimiter) -> Result<()> {
         if allowed { "✅ Allowed" } else { "❌ Denied" }
     );
 
-    println!();
+    println!("");
     Ok(())
 }
 
@@ -165,7 +167,7 @@ async fn demo_concurrent_performance(rate_limiter: &RateLimiter) -> Result<()> {
         1000.0 / total_duration.as_secs_f64()
     );
 
-    println!();
+    println!("");
     Ok(())
 }
 
@@ -185,18 +187,17 @@ async fn demo_rate_limiting(rate_limiter: &RateLimiter) -> Result<()> {
         let allowed = rate_limiter.check_rate_limit(&chat_id).await;
         if allowed {
             allowed_count += 1;
-            print!("✅");
+            println!("✅");
         } else {
             denied_count += 1;
-            print!("❌");
+            println!("❌");
         }
 
         if i % 10 == 0 {
-            println!();
+            println!("");
         }
     }
 
-    println!();
     println!(
         "   Results: {} allowed, {} denied",
         allowed_count, denied_count
@@ -210,8 +211,6 @@ async fn demo_rate_limiting(rate_limiter: &RateLimiter) -> Result<()> {
         println!("      Allowed: {}", stats.allowed_requests);
         println!("      Rate limited: {}", stats.rate_limited_requests);
     }
-
-    println!();
     Ok(())
 }
 
@@ -232,6 +231,5 @@ async fn demo_graceful_shutdown(rate_limiter: &RateLimiter) -> Result<()> {
     rate_limiter.shutdown().await;
     println!("   ✅ Shutdown complete - all background tasks stopped");
 
-    println!();
     Ok(())
 }

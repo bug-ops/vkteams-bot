@@ -499,8 +499,8 @@ pub struct PhotoUrl {
 pub struct ApiResponseWrapper<T> {
     #[serde(flatten)]
     variant: Option<ApiOkResponse>,
-    #[serde(flatten)]
-    payload: T,
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    payload: Option<T>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
@@ -510,19 +510,22 @@ struct ApiOkResponse {
 }
 
 // Implementation of From for automatic conversion from ApiResponseWrapper to Result
-impl<T> std::convert::From<ApiResponseWrapper<T>> for Result<T> {
+impl<T> std::convert::From<ApiResponseWrapper<T>> for Result<T>
+where
+    T: Default,
+{
     fn from(wrapper: ApiResponseWrapper<T>) -> Self {
         match wrapper.variant {
             Some(result) => {
                 if result.ok {
-                    Ok(wrapper.payload)
+                    Ok(wrapper.payload.unwrap_or_default())
                 } else {
                     Err(BotError::Api(ApiError {
                         description: result.description,
                     }))
                 }
             }
-            None => Ok(wrapper.payload),
+            None => Ok(wrapper.payload.unwrap_or_default()),
         }
     }
 }
