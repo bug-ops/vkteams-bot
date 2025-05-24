@@ -183,20 +183,22 @@ async fn demo_rate_limiting(rate_limiter: &RateLimiter) -> Result<()> {
     let mut allowed_count = 0;
     let mut denied_count = 0;
 
+    let mut results = String::new();
     for i in 1..=20 {
         let allowed = rate_limiter.check_rate_limit(&chat_id).await;
         if allowed {
             allowed_count += 1;
-            println!("✅");
+            results.push_str("✅");
         } else {
             denied_count += 1;
-            println!("❌");
+            results.push_str("❌");
         }
 
         if i % 10 == 0 {
-            println!("");
+            results.push('\n');
         }
     }
+    println!("{}", results);
 
     println!(
         "   Results: {} allowed, {} denied",
