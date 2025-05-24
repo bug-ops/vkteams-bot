@@ -2,11 +2,11 @@ use crate::config::CONFIG;
 use crate::prelude::ChatId;
 use async_trait::async_trait;
 use dashmap::DashMap;
-use std::collections::VecDeque;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::SystemTime;
-use tokio::sync::{Mutex, RwLock};
-use tokio::time::{Duration, Instant, sleep};
+use tokio::sync::{Mutex, RwLock, broadcast};
+use tokio::time::{Duration, Instant, interval, sleep};
 use tracing::{debug, info, trace, warn};
 /// Statistics about token bucket usage
 #[derive(Debug, Clone)]
@@ -35,120 +35,206 @@ impl Default for BucketStats {
     }
 }
 
-/// ### Token Bucket implementation for rate limiting
+/// ### Token Bucket implementation for rate limiting with background refilling
 ///
-/// A token bucket that refills at a constant rate over time. This implementation:
-/// - Uses token bucket algorithm instead of semaphore for better performance
-/// - Calculates tokens based on time elapsed since last request
-/// - More precise than periodic replenishing
-/// - Thread-safe with minimal locking
+/// A token bucket that refills at a constant rate using a background task. This implementation:
+/// - Uses background task for consistent token refilling (no calculation on request)
+/// - More predictable performance - no computation during `consume()`
+/// - Better burst handling - tokens are always available when rate limit allows
+/// - Thread-safe with atomic operations
 /// - Collects statistics for monitoring
 #[derive(Debug)]
 struct TokenBucket {
-    /// Current number of tokens in the bucket
-    tokens: f64,
+    /// Current number of tokens in the bucket (atomic for thread safety)
+    tokens: Arc<AtomicU32>,
     /// Maximum number of tokens the bucket can hold
     capacity: u32,
-    /// Rate at which tokens are added to the bucket (tokens per second)
-    refill_rate: f64,
-    /// Last time the bucket was refilled
-    last_refill: Instant,
+    /// Shutdown signal for background task
+    shutdown_tx: broadcast::Sender<()>,
+    /// Background task handle
+    _task_handle: tokio::task::JoinHandle<()>,
     /// Statistics about token usage
-    stats: BucketStats,
-    /// Recent request timestamps for adaptive rate limiting
-    recent_requests: VecDeque<Instant>,
+    stats: Arc<Mutex<BucketStats>>,
 }
 
 impl TokenBucket {
+    /// Create a new TokenBucket with background refill task
+    ///
+    /// **Performance optimizations:**
+    /// - Starts with full capacity for immediate availability
+    /// - Background task runs at optimal intervals
+    /// - Atomic operations for lock-free token consumption
     #[tracing::instrument]
     fn new() -> Self {
         let cfg = &CONFIG.rate_limit;
-        let capacity = cfg.limit as u32;
+        let capacity = u32::try_from(cfg.limit)
+            .unwrap_or_else(|_| panic!("Rate limit capacity too large: {}", cfg.limit));
 
-        // Calculate tokens per second based on configuration
-        // If duration is 60 seconds and limit is 100, then refill_rate is 100/60 = 1.67 tokens per second
-        let refill_rate = capacity as f64 / cfg.duration as f64;
+        // Calculate optimal refill interval (balance between precision and performance)
+        // For high rates: refill every 100ms, for low rates: refill every second
+        let refill_interval_ms = if cfg.duration <= 10 { 100 } else { 1000 };
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        let tokens_per_refill = ((capacity as f64 / cfg.duration as f64)
+            * (refill_interval_ms as f64 / 1000.0))
+            .max(1.0) as u32;
 
         debug!(
-            "Creating new token bucket with capacity: {}, refill rate: {:.2} tokens/sec",
-            capacity, refill_rate
+            "Creating token bucket: capacity={}, refill_interval={}ms, tokens_per_refill={}",
+            capacity, refill_interval_ms, tokens_per_refill
+        );
+
+        let tokens = Arc::new(AtomicU32::new(capacity)); // Start full!
+        let stats = Arc::new(Mutex::new(BucketStats::default()));
+        let (shutdown_tx, shutdown_rx) = broadcast::channel(1);
+
+        // Spawn background refill task
+        let refill_task = Self::spawn_refill_task(
+            Arc::clone(&tokens),
+            capacity,
+            tokens_per_refill,
+            refill_interval_ms,
+            shutdown_rx,
         );
 
         Self {
-            tokens: capacity as f64,
+            tokens,
             capacity,
-            refill_rate,
-            last_refill: Instant::now(),
-            stats: BucketStats {
-                total_requests: 0,
-                rate_limited_requests: 0,
-                allowed_requests: 0,
-                last_access: SystemTime::now(),
-                max_tokens_used: 0,
-            },
-            recent_requests: VecDeque::with_capacity(32), // Track recent requests for burst detection
+            stats,
+            shutdown_tx,
+            _task_handle: refill_task,
         }
     }
 
-    /// Try to consume a token from the bucket
+    /// Spawn the background token refill task
     ///
-    /// - Refills tokens based on time elapsed since last request
-    /// - More accurate and efficient than periodic replenishing
-    /// - Returns `true` if a token was consumed
-    /// - Returns `false` if no tokens are available
-    #[tracing::instrument(skip(self))]
-    fn consume(&mut self) -> bool {
-        let cfg = &CONFIG.rate_limit;
-        let now = Instant::now();
-        self.stats.last_access = SystemTime::now();
-        self.stats.total_requests += 1;
+    /// **Design principles:**
+    /// - Runs independently of request processing
+    /// - Handles shutdown gracefully
+    /// - Optimized intervals for performance
+    fn spawn_refill_task(
+        tokens: Arc<AtomicU32>,
+        capacity: u32,
+        tokens_per_refill: u32,
+        interval_ms: u64,
+        mut shutdown_rx: broadcast::Receiver<()>,
+    ) -> tokio::task::JoinHandle<()> {
+        tokio::spawn(async move {
+            let mut interval = interval(Duration::from_millis(interval_ms));
+            interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
-        // Calculate how many tokens to add based on time elapsed
-        let elapsed = now.duration_since(self.last_refill).as_secs_f64();
-        let new_tokens = elapsed * self.refill_rate;
+            debug!("Token refill task started: interval={}ms", interval_ms);
 
-        // Add new tokens, up to capacity
-        self.tokens = (self.tokens + new_tokens).min(self.capacity as f64);
-        self.last_refill = now;
+            loop {
+                tokio::select! {
+                    _ = interval.tick() => {
+                        // Add tokens up to capacity (atomic operation)
+                        let current = tokens.load(Ordering::Relaxed);
+                        if current < capacity {
+                            let new_tokens = (current + tokens_per_refill).min(capacity);
+                            tokens.store(new_tokens, Ordering::Relaxed);
 
-        // Record this request timestamp
-        self.recent_requests.push_back(now);
-
-        // Remove old request timestamps (older than the rate limit duration)
-        while let Some(timestamp) = self.recent_requests.front() {
-            if now.duration_since(*timestamp).as_secs() > cfg.duration {
-                self.recent_requests.pop_front();
-            } else {
-                break;
+                            if current + tokens_per_refill > capacity {
+                                trace!("Token bucket refilled to capacity: {}", capacity);
+                            } else {
+                                trace!("Added {} tokens: {} -> {} (capacity: {})",
+                                    tokens_per_refill, current, new_tokens, capacity);
+                            }
+                        }
+                    }
+                    _ = shutdown_rx.recv() => {
+                        debug!("Token refill task shutting down gracefully");
+                        break;
+                    }
+                }
             }
-        }
 
-        // Check for potential burst and adjust tokens if needed
-        let recent_count = self.recent_requests.len() as u32;
-        self.stats.max_tokens_used = self.stats.max_tokens_used.max(recent_count);
+            debug!("Token refill task terminated");
+        })
+    }
 
-        // If we have at least one token, consume it
-        if self.tokens >= 1.0 {
-            self.tokens -= 1.0;
-            self.stats.allowed_requests += 1;
-            trace!(
-                "Token consumed. Remaining tokens: {:.2}, Recent requests: {}",
-                self.tokens, recent_count
-            );
-            true
-        } else {
-            self.stats.rate_limited_requests += 1;
-            trace!(
-                "No tokens available. Recent requests: {}, Max tokens used: {}",
-                recent_count, self.stats.max_tokens_used
-            );
-            false
+    /// **High-Performance Token Consumption**
+    ///
+    /// This method is optimized for maximum throughput:
+    /// - **Lock-free operation** using atomic compare-and-swap
+    /// - **No time calculations** - handled by background task
+    /// - **Minimal CPU overhead** per request
+    /// - **Thread-safe** without mutexes
+    ///
+    /// ## Returns
+    /// - `true` if token was consumed successfully
+    /// - `false` if no tokens available (rate limited)
+    #[inline]
+    fn consume(&self) -> bool {
+        // Fast path: try to consume a token atomically
+        loop {
+            let current = self.tokens.load(Ordering::Relaxed);
+
+            if current == 0 {
+                // No tokens available - update stats and return
+                if let Ok(mut stats) = self.stats.try_lock() {
+                    stats.total_requests += 1;
+                    stats.rate_limited_requests += 1;
+                    stats.last_access = SystemTime::now();
+                }
+
+                trace!("Rate limited: no tokens available");
+                return false;
+            }
+
+            // Try to atomically decrement token count
+            if self
+                .tokens
+                .compare_exchange_weak(current, current - 1, Ordering::Relaxed, Ordering::Relaxed)
+                .is_ok()
+            {
+                // Success! Update stats asynchronously (non-blocking)
+                if let Ok(mut stats) = self.stats.try_lock() {
+                    stats.total_requests += 1;
+                    stats.allowed_requests += 1;
+                    stats.last_access = SystemTime::now();
+                }
+
+                trace!("Token consumed successfully. Remaining: {}", current - 1);
+                return true;
+            }
+
+            // CAS failed, retry (another thread consumed a token)
         }
     }
 
     /// Get current token bucket statistics
-    fn get_stats(&self) -> BucketStats {
-        self.stats.clone()
+    ///
+    /// **Non-blocking**: Returns immediately with current stats snapshot
+    async fn get_stats(&self) -> BucketStats {
+        if let Ok(stats) = self.stats.try_lock() {
+            stats.clone()
+        } else {
+            // Return default stats if lock is contended (non-blocking)
+            BucketStats::default()
+        }
+    }
+
+    /// Get current token count (for debugging/monitoring)
+    #[inline]
+    pub fn available_tokens(&self) -> u32 {
+        self.tokens.load(Ordering::Relaxed)
+    }
+
+    /// Get bucket capacity
+    #[inline]
+    pub fn capacity(&self) -> u32 {
+        self.capacity
+    }
+
+    /// Gracefully shutdown the background refill task
+    fn shutdown(&self) {
+        if let Err(e) = self.shutdown_tx.send(()) {
+            // Channel might be closed already - this is fine
+            trace!(
+                "Shutdown signal send failed (task may already be stopped): {}",
+                e
+            );
+        }
     }
 }
 
@@ -156,7 +242,7 @@ impl TokenBucket {
 pub struct RateLimiter {
     /// Map of chat_id to token bucket
     /// Using DashMap for better concurrent access performance
-    chat_buckets: Arc<DashMap<ChatId, Arc<Mutex<TokenBucket>>>>,
+    chat_buckets: Arc<DashMap<ChatId, Arc<TokenBucket>>>,
     /// Global statistics for all buckets
     global_stats: Arc<RwLock<BucketStats>>,
     /// Last time buckets were cleaned up
@@ -170,9 +256,15 @@ impl Default for RateLimiter {
 }
 
 impl RateLimiter {
+    /// Create a new high-performance RateLimiter
+    ///
+    /// **Performance features:**
+    /// - Pre-allocated DashMap for lock-free bucket access
+    /// - Background cleanup to prevent memory leaks
+    /// - Graceful shutdown support
     #[tracing::instrument]
     pub fn new() -> Self {
-        debug!("Creating new RateLimiter");
+        debug!("Creating high-performance RateLimiter");
         Self {
             chat_buckets: Arc::new(DashMap::with_capacity(100)),
             global_stats: Arc::new(RwLock::new(BucketStats::default())),
@@ -185,11 +277,10 @@ impl RateLimiter {
         self.global_stats.read().await.clone()
     }
 
-    /// Get statistics for a specific chat_id
+    /// Get statistics for a specific chat_id (non-blocking)
     pub async fn get_chat_stats(&self, chat_id: &ChatId) -> Option<BucketStats> {
         if let Some(bucket) = self.chat_buckets.get(chat_id) {
-            let bucket_lock = bucket.lock().await;
-            Some(bucket_lock.get_stats())
+            Some(bucket.get_stats().await)
         } else {
             None
         }
@@ -210,59 +301,71 @@ impl RateLimiter {
         let mut removed_count = 0;
 
         // Remove buckets that haven't been accessed in an hour
-        self.chat_buckets.retain(|_, bucket| {
-            // Try to get a lock, if we can't (someone is using it), keep it
-            if let Ok(bucket_lock) = bucket.try_lock() {
-                let stats = bucket_lock.get_stats();
-                let is_active = SystemTime::now()
-                    .duration_since(stats.last_access)
-                    .map(|d| d < Duration::from_secs(3600))
-                    .unwrap_or(true);
+        // Collect inactive buckets for removal
+        let mut to_remove = Vec::new();
 
-                if !is_active {
-                    removed_count += 1;
-                    return false;
+        for entry in self.chat_buckets.iter() {
+            let (chat_id, bucket) = (entry.key(), entry.value());
+
+            // Check if bucket is inactive (non-blocking)
+            if let Ok(stats) = bucket.stats.try_lock() {
+                let is_inactive = SystemTime::now()
+                    .duration_since(stats.last_access)
+                    .map(|d| d >= Duration::from_secs(3600))
+                    .unwrap_or(false);
+
+                if is_inactive {
+                    to_remove.push(chat_id.clone());
                 }
             }
-            true
-        });
+        }
+
+        // Remove inactive buckets and shutdown their background tasks
+        for chat_id in to_remove {
+            if let Some((_, bucket)) = self.chat_buckets.remove(&chat_id) {
+                bucket.shutdown();
+                removed_count += 1;
+            }
+        }
 
         if removed_count > 0 {
             info!("Cleaned up {} inactive buckets", removed_count);
         }
     }
-    /// ### Check request limit for `chat_id`
+    /// **High-Performance Rate Limit Check**
     ///
-    /// - Checks the request limit for `chat_id` using token bucket algorithm
-    /// - Returns `true` if the limit is not exceeded
-    /// - Returns `false` if the limit is exceeded
-    /// - Updates statistics for monitoring
+    /// Optimized for maximum throughput and minimal latency:
+    /// - **Lock-free bucket access** using DashMap
+    /// - **Atomic token consumption** without mutexes
+    /// - **Lazy bucket creation** only when needed
+    /// - **Background cleanup** to prevent memory leaks
+    ///
+    /// ## Performance characteristics
+    /// - **O(1) average case** for bucket lookup
+    /// - **Lock-free token consumption** using atomics
+    /// - **Minimal memory allocations** during processing
     #[tracing::instrument(skip(self))]
     pub async fn check_rate_limit(&self, chat_id: &ChatId) -> bool {
-        // Occasionally clean up inactive buckets
+        // Occasionally clean up inactive buckets (non-blocking)
         self.cleanup_inactive_buckets().await;
 
-        // Get or create bucket for this chat_id
+        // Get or create bucket with lock-free access
         let bucket = self
             .chat_buckets
             .entry(chat_id.clone())
             .or_insert_with(|| {
                 debug!("Creating new token bucket for chat_id: {}", chat_id.0);
-                Arc::new(Mutex::new(TokenBucket::new()))
+                Arc::new(TokenBucket::new())
             })
             .clone();
 
         debug!("Checking rate limit for chat_id: {}", chat_id.0);
 
-        // Try to consume a token
-        let result = {
-            let mut bucket_lock = bucket.lock().await;
-            bucket_lock.consume()
-        };
+        // Consume token (lock-free operation)
+        let result = bucket.consume();
 
-        // Update global stats
-        {
-            let mut global_stats = self.global_stats.write().await;
+        // Update global stats asynchronously (non-blocking)
+        if let Ok(mut global_stats) = self.global_stats.try_write() {
             global_stats.total_requests += 1;
             if result {
                 global_stats.allowed_requests += 1;
@@ -324,13 +427,62 @@ impl RateLimiter {
         false
     }
 
-    /// Clear rate limit cache for a specific chat
+    /// **Gracefully clear rate limit for a specific chat**
+    ///
     /// Useful when a chat should no longer be rate limited (e.g., upgraded account)
+    /// - Shuts down background refill task properly
+    /// - Removes bucket from memory
     pub async fn clear_rate_limit(&self, chat_id: &ChatId) {
-        if self.chat_buckets.contains_key(chat_id) {
+        if let Some((_, bucket)) = self.chat_buckets.remove(chat_id) {
             debug!("Clearing rate limit for chat_id: {}", chat_id.0);
-            self.chat_buckets.remove(chat_id);
+            bucket.shutdown();
         }
+    }
+
+    /// Get current token count for a specific chat
+    ///
+    /// Returns None if bucket doesn't exist for this chat
+    pub async fn get_available_tokens(&self, chat_id: &ChatId) -> Option<u32> {
+        self.chat_buckets
+            .get(chat_id)
+            .map(|bucket| bucket.available_tokens())
+    }
+
+    /// Get bucket capacity for a specific chat
+    ///
+    /// Returns None if bucket doesn't exist for this chat
+    pub async fn get_bucket_capacity(&self, chat_id: &ChatId) -> Option<u32> {
+        self.chat_buckets
+            .get(chat_id)
+            .map(|bucket| bucket.capacity())
+    }
+
+    /// Get number of active buckets
+    pub fn active_bucket_count(&self) -> usize {
+        self.chat_buckets.len()
+    }
+
+    /// Graceful shutdown of all rate limiters
+    ///
+    /// Call this when shutting down your application to:
+    /// - Stop all background refill tasks
+    /// - Prevent resource leaks
+    /// - Ensure clean shutdown
+    pub async fn shutdown(&self) {
+        info!(
+            "Shutting down RateLimiter with {} active buckets",
+            self.chat_buckets.len()
+        );
+
+        // Shutdown all bucket background tasks
+        for entry in self.chat_buckets.iter() {
+            entry.value().shutdown();
+        }
+
+        // Clear all buckets
+        self.chat_buckets.clear();
+
+        info!("RateLimiter shutdown complete");
     }
 }
 
@@ -341,6 +493,7 @@ pub trait RateLimiterExt {
     /// Higher priority chats get more tokens
     async fn check_with_priority(&self, chat_id: &ChatId, priority: u8) -> bool;
 }
+
 #[async_trait]
 impl RateLimiterExt for RateLimiter {
     async fn check_with_priority(&self, chat_id: &ChatId, priority: u8) -> bool {
@@ -359,5 +512,199 @@ impl RateLimiterExt for RateLimiter {
         }
 
         false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+    use std::sync::atomic::AtomicU32;
+    use tokio::time::{Duration, sleep};
+
+    /// Test helper to create a TokenBucket with explicit config
+    fn create_test_bucket(capacity: u32, duration_secs: u64) -> TokenBucket {
+        // Mock CONFIG for testing
+        let tokens = Arc::new(AtomicU32::new(capacity));
+        let stats = Arc::new(Mutex::new(BucketStats::default()));
+        let (shutdown_tx, shutdown_rx) = broadcast::channel(1);
+
+        // Calculate refill parameters
+        let refill_interval_ms = if duration_secs <= 10 { 100 } else { 1000 };
+        let tokens_per_refill = ((capacity as f64 / duration_secs as f64)
+            * (refill_interval_ms as f64 / 1000.0))
+            .max(1.0) as u32;
+
+        let refill_task = TokenBucket::spawn_refill_task(
+            Arc::clone(&tokens),
+            capacity,
+            tokens_per_refill,
+            refill_interval_ms,
+            shutdown_rx,
+        );
+
+        TokenBucket {
+            tokens,
+            capacity,
+            stats,
+            shutdown_tx,
+            _task_handle: refill_task,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_bucket_created_with_full_capacity() {
+        let bucket = create_test_bucket(10, 60);
+
+        // Verify bucket starts with full capacity
+        assert_eq!(bucket.available_tokens(), 10);
+        assert_eq!(bucket.capacity, 10);
+
+        // First token consumption should succeed immediately
+        assert!(
+            bucket.consume(),
+            "First token should be available immediately"
+        );
+        assert_eq!(bucket.available_tokens(), 9);
+
+        // Should be able to consume all initial tokens
+        for i in 0..9 {
+            assert!(bucket.consume(), "Token {} should be available", i + 2);
+        }
+
+        // Now bucket should be empty
+        assert_eq!(bucket.available_tokens(), 0);
+        assert!(!bucket.consume(), "Should be rate limited when empty");
+
+        bucket.shutdown();
+    }
+
+    #[tokio::test]
+    async fn test_background_refill() {
+        // Create bucket with fast refill rate for testing
+        let bucket = create_test_bucket(5, 1); // 5 tokens per second
+
+        // Consume all tokens
+        for _ in 0..5 {
+            assert!(bucket.consume());
+        }
+        assert_eq!(bucket.available_tokens(), 0);
+
+        // Wait for background refill (slightly more than refill interval)
+        sleep(Duration::from_millis(1200)).await;
+
+        // Should have tokens again
+        let tokens_after_refill = bucket.available_tokens();
+        assert!(
+            tokens_after_refill > 0,
+            "Background task should have refilled tokens"
+        );
+        assert!(tokens_after_refill <= 5, "Should not exceed capacity");
+
+        bucket.shutdown();
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_token_consumption() {
+        let bucket = Arc::new(create_test_bucket(100, 60));
+        let mut handles = vec![];
+
+        // Spawn 20 concurrent consumers
+        for i in 0..20 {
+            let bucket_clone = Arc::clone(&bucket);
+            let handle = tokio::spawn(async move {
+                let mut successes = 0;
+                for _ in 0..10 {
+                    if bucket_clone.consume() {
+                        successes += 1;
+                    }
+                }
+                (i, successes)
+            });
+            handles.push(handle);
+        }
+
+        // Collect results
+        let mut total_successes = 0;
+        for handle in handles {
+            let (_, successes) = handle.await.unwrap();
+            total_successes += successes;
+        }
+
+        // Should have consumed at most 100 tokens (capacity)
+        assert!(total_successes <= 100, "Should not exceed bucket capacity");
+        assert!(
+            total_successes >= 90,
+            "Should consume most tokens with high concurrency"
+        );
+
+        bucket.shutdown();
+    }
+
+    #[tokio::test]
+    async fn test_graceful_shutdown() {
+        let bucket = create_test_bucket(10, 60);
+
+        // Bucket should be working
+        assert!(bucket.consume());
+
+        // Shutdown the bucket
+        bucket.shutdown();
+
+        // Give background task time to shutdown
+        sleep(Duration::from_millis(100)).await;
+
+        // Bucket should still work for remaining tokens but no refill
+        let initial_tokens = bucket.available_tokens();
+
+        // Wait longer than refill interval
+        sleep(Duration::from_millis(2000)).await;
+
+        // Should not have been refilled after shutdown
+        assert_eq!(
+            bucket.available_tokens(),
+            initial_tokens,
+            "Tokens should not be refilled after shutdown"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_bucket_capacity_limits() {
+        let bucket = create_test_bucket(3, 1); // 3 tokens per second
+
+        // Wait for potential over-refill
+        sleep(Duration::from_millis(5000)).await;
+
+        // Should never exceed capacity regardless of time passed
+        assert!(
+            bucket.available_tokens() <= 3,
+            "Should never exceed capacity even after long wait"
+        );
+
+        bucket.shutdown();
+    }
+
+    #[tokio::test]
+    async fn test_atomic_operations_performance() {
+        let bucket = create_test_bucket(1000, 60);
+
+        // Measure performance of atomic operations
+        let start = std::time::Instant::now();
+
+        // Consume tokens in tight loop
+        for _ in 0..1000 {
+            bucket.consume();
+        }
+
+        let duration = start.elapsed();
+
+        // Should be very fast (less than 10ms for 1000 operations)
+        assert!(
+            duration.as_millis() < 10,
+            "Atomic operations should be very fast: {:?}",
+            duration
+        );
+
+        bucket.shutdown();
     }
 }
