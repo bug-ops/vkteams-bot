@@ -207,26 +207,7 @@ fn save_configuration(config: &Config, path: &str) -> CliResult<()> {
     config.save(Some(std::path::Path::new(path)))
 }
 
-/// - [`CliError::UnexpectedError`] for internal application errors
-///
-/// # Example Execution Flow
-///
-/// ```rust,no_run
-/// use vkteams_bot_cli::{Commands, Config, execute_command};
-///
-/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// let config = Config::load()?;
-/// 
-/// // This would create a real bot instance
-/// let api_command = Commands::Messaging(/* send-text command */);
-/// execute_command(&api_command, &config).await?;
-/// 
-/// // This would use a dummy bot instance
-/// let local_command = Commands::Config(/* setup command */);
-/// execute_command(&local_command, &config).await?;
-/// # Ok(())
-/// # }
-/// ```
+/// Execute command
 async fn execute_command(command: &Commands, config: &Config) -> CliResult<()> {
     // Check if command needs bot instance
     if needs_bot_instance(command) {
@@ -239,20 +220,7 @@ async fn execute_command(command: &Commands, config: &Config) -> CliResult<()> {
     }
 }
 
-///
-/// # Example
-///
-/// ```rust
-/// use vkteams_bot_cli::Commands;
-///
-/// // Configuration commands don't need API access
-/// let config_cmd = Commands::Config(/* ... */);
-/// assert_eq!(needs_bot_instance(&config_cmd), false);
-///
-/// // Messaging commands need API access
-/// let msg_cmd = Commands::Messaging(/* ... */);
-/// assert_eq!(needs_bot_instance(&msg_cmd), true);
-/// ```
+/// Check if a command needs a real bot instance for execution
 fn needs_bot_instance(command: &Commands) -> bool {
     match command {
         Commands::Config(_) => false,
@@ -266,22 +234,7 @@ fn needs_bot_instance(command: &Commands) -> bool {
     }
 }
 
-///
-/// # Example
-///
-/// ```rust,no_run
-/// use vkteams_bot_cli::{Config, create_bot_instance};
-///
-/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// let mut config = Config::default();
-/// config.api.token = Some("your_bot_token".to_string());
-/// config.api.url = Some("https://api.teams.vk.com".to_string());
-///
-/// let bot = create_bot_instance(&config)?;
-/// // Bot is now ready for API operations
-/// # Ok(())
-/// # }
-/// ```
+/// Create a bot instance from configuration
 fn create_bot_instance(config: &Config) -> CliResult<Bot> {
     let token = config.api.token.as_ref()
         .ok_or_else(|| CliError::InputError(
@@ -307,12 +260,7 @@ fn create_bot_instance(config: &Config) -> CliResult<Bot> {
         .map_err(CliError::ApiError)
 }
 
-///
-/// ```rust,no_run
-/// // This is typically called internally for config commands
-/// let dummy_bot = create_dummy_bot();
-/// // dummy_bot can be passed to commands but won't make real API calls
-/// ```
+/// Create a dummy bot instance for commands that don't need real API access
 fn create_dummy_bot() -> Bot {
     // Create a dummy bot for commands that don't need real API access
     // This is safe because those commands won't actually use the bot
@@ -325,3 +273,5 @@ fn create_dummy_bot() -> Bot {
         panic!("Failed to create dummy bot - this should not happen")
     })
 }
+
+

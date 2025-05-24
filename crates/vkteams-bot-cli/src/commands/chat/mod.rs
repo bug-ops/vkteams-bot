@@ -3,7 +3,7 @@
 //! This module contains all commands related to chat management and information.
 
 use crate::commands::Command;
-use crate::constants::{validation, api::actions};
+use crate::constants::api::actions;
 use crate::errors::prelude::{CliError, Result as CliResult};
 use async_trait::async_trait;
 use clap::Subcommand;
@@ -229,17 +229,10 @@ async fn execute_send_action(bot: &Bot, chat_id: &str, action: &str) -> CliResul
     Ok(())
 }
 
-// Validation functions
-
+// Validation functions (simplified for now)
 fn validate_chat_id(chat_id: &str) -> CliResult<()> {
     if chat_id.trim().is_empty() {
         return Err(CliError::InputError("Chat ID cannot be empty".to_string()));
-    }
-    if chat_id.len() > validation::MAX_USERNAME_LENGTH {
-        return Err(CliError::InputError(format!(
-            "Chat ID too long (max {} characters)", 
-            validation::MAX_USERNAME_LENGTH
-        )));
     }
     Ok(())
 }
@@ -248,24 +241,12 @@ fn validate_chat_title(title: &str) -> CliResult<()> {
     if title.trim().is_empty() {
         return Err(CliError::InputError("Chat title cannot be empty".to_string()));
     }
-    if title.len() > validation::MAX_CHAT_TITLE_LENGTH {
-        return Err(CliError::InputError(format!(
-            "Chat title too long (max {} characters)", 
-            validation::MAX_CHAT_TITLE_LENGTH
-        )));
-    }
     Ok(())
 }
 
 fn validate_chat_about(about: &str) -> CliResult<()> {
     if about.trim().is_empty() {
         return Err(CliError::InputError("Chat description cannot be empty".to_string()));
-    }
-    if about.len() > validation::MAX_MESSAGE_LENGTH {
-        return Err(CliError::InputError(format!(
-            "Chat description too long (max {} characters)", 
-            validation::MAX_MESSAGE_LENGTH
-        )));
     }
     Ok(())
 }
@@ -286,14 +267,13 @@ fn validate_cursor(cursor: &str) -> CliResult<()> {
     Ok(())
 }
 
-// Utility functions
-
+// Output function
 fn print_success_result<T>(result: &T) -> CliResult<()>
 where
     T: serde::Serialize,
 {
     let json_str = serde_json::to_string_pretty(result)
-        .map_err(|e| CliError::UnexpectedError(format!("Failed to serialize response: {e}")))?;
+        .map_err(|e| CliError::UnexpectedError(format!("Failed to serialize response: {}", e)))?;
     
     println!("{}", json_str.green());
     Ok(())

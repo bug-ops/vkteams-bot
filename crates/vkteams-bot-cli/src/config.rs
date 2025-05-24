@@ -158,44 +158,44 @@ impl Default for UiConfig {
 }
 
 // Default values functions
-fn default_timeout() -> u64 {
+pub fn default_timeout() -> u64 {
     30
 }
 
-fn default_retries() -> u32 {
+pub fn default_retries() -> u32 {
     3
 }
 
-fn default_max_file_size() -> usize {
+pub fn default_max_file_size() -> usize {
     100 * 1024 * 1024 // 100MB
 }
 
-fn default_buffer_size() -> usize {
+pub fn default_buffer_size() -> usize {
     64 * 1024 // 64KB
 }
 
-fn default_log_level() -> String {
+pub fn default_log_level() -> String {
     "info".to_string()
 }
 
-fn default_log_format() -> String {
+pub fn default_log_format() -> String {
     "text".to_string()
 }
 
-fn default_log_colors() -> bool {
+pub fn default_log_colors() -> bool {
     true
 }
 
 // Default values for UI configuration
-fn default_show_progress() -> bool {
+pub fn default_show_progress() -> bool {
     true
 }
 
-fn default_progress_style() -> String {
+pub fn default_progress_style() -> String {
     "unicode".to_string()
 }
 
-fn default_progress_refresh_rate() -> u64 {
+pub fn default_progress_refresh_rate() -> u64 {
     100
 }
 

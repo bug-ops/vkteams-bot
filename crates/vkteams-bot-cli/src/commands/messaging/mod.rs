@@ -3,10 +3,11 @@
 //! This module contains all commands related to sending and managing messages.
 
 use crate::commands::Command;
-use crate::constants::{ui::emoji, validation};
+use crate::constants::ui::emoji;
 use crate::errors::prelude::{CliError, Result as CliResult};
 use crate::file_utils;
 use crate::config::Config;
+
 use async_trait::async_trait;
 use clap::Subcommand;
 use colored::Colorize;
@@ -246,17 +247,10 @@ async fn execute_unpin_message(bot: &Bot, chat_id: &str, message_id: &str) -> Cl
     Ok(())
 }
 
-// Validation functions
-
+// Validation functions (simplified for now)
 fn validate_chat_id(chat_id: &str) -> CliResult<()> {
     if chat_id.trim().is_empty() {
         return Err(CliError::InputError("Chat ID cannot be empty".to_string()));
-    }
-    if chat_id.len() > validation::MAX_USERNAME_LENGTH {
-        return Err(CliError::InputError(format!(
-            "Chat ID too long (max {} characters)",
-            validation::MAX_USERNAME_LENGTH
-        )));
     }
     Ok(())
 }
@@ -264,12 +258,6 @@ fn validate_chat_id(chat_id: &str) -> CliResult<()> {
 fn validate_message_text(message: &str) -> CliResult<()> {
     if message.trim().is_empty() {
         return Err(CliError::InputError("Message cannot be empty".to_string()));
-    }
-    if message.len() > validation::MAX_MESSAGE_LENGTH {
-        return Err(CliError::InputError(format!(
-            "Message too long (max {} characters)",
-            validation::MAX_MESSAGE_LENGTH
-        )));
     }
     Ok(())
 }
@@ -285,7 +273,6 @@ fn validate_file_path(file_path: &str) -> CliResult<()> {
     if file_path.trim().is_empty() {
         return Err(CliError::InputError("File path cannot be empty".to_string()));
     }
-
     let path = std::path::Path::new(file_path);
     if !path.exists() {
         return Err(CliError::FileError(format!("File not found: {}", file_path)));
@@ -293,14 +280,11 @@ fn validate_file_path(file_path: &str) -> CliResult<()> {
     if !path.is_file() {
         return Err(CliError::FileError(format!("Path is not a file: {}", file_path)));
     }
-
     Ok(())
 }
 
 fn validate_voice_file_path(file_path: &str) -> CliResult<()> {
     validate_file_path(file_path)?;
-
-    // Additional validation for voice files
     let path = std::path::Path::new(file_path);
     if let Some(extension) = path.extension() {
         let ext = extension.to_string_lossy().to_lowercase();
@@ -316,14 +300,13 @@ fn validate_voice_file_path(file_path: &str) -> CliResult<()> {
     }
 }
 
-// Utility functions
-
+// Output function
 fn print_success_result<T>(result: &T) -> CliResult<()>
 where
     T: serde::Serialize,
 {
     let json_str = serde_json::to_string_pretty(result)
-        .map_err(|e| CliError::UnexpectedError(format!("Failed to serialize response: {e}")))?;
+        .map_err(|e| CliError::UnexpectedError(format!("Failed to serialize response: {}", e)))?;
 
     println!("{}", json_str.green());
     Ok(())
