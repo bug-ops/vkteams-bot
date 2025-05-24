@@ -728,11 +728,13 @@ VK Teams Bot API terminal application.
 ## Installation
 
 ### From crates.io (Recommended)
+
 ```bash
 cargo install vkteams-bot-cli
 ```
 
 ### From source
+
 ```bash
 git clone https://github.com/bug-ops/vkteams-bot
 cd vkteams-bot
@@ -742,22 +744,28 @@ cargo install --path crates/vkteams-bot-cli
 ## Quick Start
 
 ### 1. Get Your Bot Credentials
+
 Follow the [VK Teams Bot API instructions](https://teams.vk.com/botapi/?lang=en) to create a bot and get your:
-- **API Token** 
+
+- **API Token**
 - **API URL**
 
 ### 2. Interactive Setup
+
 ```bash
 vkteams-bot-cli setup
 ```
+
 This will guide you through the initial configuration process.
 
 ### 3. Test Your Setup
+
 ```bash
 vkteams-bot-cli validate
 ```
 
 ### 4. Send Your First Message
+
 ```bash
 vkteams-bot-cli send-text -u USER_ID -m "Hello from CLI!"
 ```
@@ -767,6 +775,7 @@ vkteams-bot-cli send-text -u USER_ID -m "Hello from CLI!"
 The CLI supports multiple configuration methods (in order of precedence):
 
 ### 1. Environment Variables
+
 ```bash
 # Required
 export VKTEAMS_BOT_API_TOKEN=your_token_here
@@ -779,12 +788,15 @@ export VKTEAMS_DOWNLOAD_DIR=/path/to/downloads
 ```
 
 ### 2. Configuration File
+
 The CLI automatically looks for config files in:
+
 - Current directory: `cli_config.toml`
 - User config: `~/.config/vkteams-bot/cli_config.toml`
 - System config: `/etc/vkteams-bot/cli_config.toml` (Unix only)
 
 ### 3. Interactive Configuration
+
 ```bash
 # Initial setup wizard
 vkteams-bot-cli setup
