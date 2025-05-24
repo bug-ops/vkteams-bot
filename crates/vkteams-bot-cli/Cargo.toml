@@ -94,6 +94,5 @@ default = ["completion"]
 completion = ["dep:clap_complete"]
 
 [dev-dependencies]
-serde_yaml = "0.9"
 dotenvy = "0.15"
 >>>>>>> 3f6c614 (move cli)
