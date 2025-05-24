@@ -10,7 +10,7 @@ use crate::config::Config;
 use crate::utils::{validate_file_id, validate_directory_path};
 use crate::utils::output::print_success_result;
 use async_trait::async_trait;
-use clap::Subcommand;
+use clap::{Subcommand, ValueHint};
 use colored::Colorize;
 use tracing::{debug, info};
 use vkteams_bot::prelude::*;
@@ -33,7 +33,7 @@ pub enum DiagnosticCommands {
     GetFile {
         #[arg(short = 'f', long, required = true, value_name = "FILE_ID")]
         file_id: String,
-        #[arg(short = 'p', long, required = false, value_name = "FILE_PATH")]
+        #[arg(short = 'p', long, required = false, value_name = "FILE_PATH", value_hint = ValueHint::DirPath)]
         file_path: String,
     },
     /// Perform comprehensive health check

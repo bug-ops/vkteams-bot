@@ -22,6 +22,7 @@
 ## Table of Contents
 
 - [Installation](#installation)
+- [Shell Completion](#shell-completion)
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
 - [Commands](#commands)
@@ -44,7 +45,130 @@ cd vkteams-bot
 cargo install --path crates/vkteams-bot-cli
 ```
 
+## Shell Completion
+
+Shell completion is **automatically generated** during build and provides intelligent Tab completion for all commands, options, and file paths.
+
+### 🚀 One-Command Setup
+
+```bash
+# Build CLI (completions auto-generated)
+cargo build --release
+
+# Install completions using auto-generated script
+./target/completions/install-completions.sh
+```
+
+### What You Get
+
+After installation, use Tab completion for:
+- **Commands**: `vkteams-bot-cli s[Tab]` → `send-text`, `send-file`, `schedule`
+- **Options**: `vkteams-bot-cli config --[Tab]` → `--show`, `--wizard`, `--help`
+- **File paths**: `vkteams-bot-cli send-file -p /path/[Tab]` → auto-complete files
+
+### Manual Installation
+
+```bash
+# Generate completion for your shell (uses prebuilt when available)
+vkteams-bot-cli completion bash --output completion.bash
+vkteams-bot-cli completion zsh --install
+
+# Or copy from auto-generated files
+cp target/completions/vkteams-bot-cli.bash ~/.bashrc
+```
+
+📖 **Detailed instructions**: See [BUILD.md](BUILD.md) for comprehensive build and completion setup guide.
+
+### Manual Installation
+
+#### Bash
+```bash
+# Generate and source the completion script
+vkteams-bot-cli completion bash > ~/.local/share/bash-completion/completions/vkteams-bot-cli
+
+# Add to your ~/.bashrc
+echo 'source ~/.local/share/bash-completion/completions/vkteams-bot-cli' >> ~/.bashrc
+```
+
+#### Zsh
+```bash
+# Generate completion script
+vkteams-bot-cli completion zsh > ~/.local/share/zsh/site-functions/_vkteams-bot-cli
+
+# Ensure completions are enabled in ~/.zshrc
+echo 'autoload -Uz compinit && compinit' >> ~/.zshrc
+```
+
+#### Fish
+```bash
+# Fish automatically loads completions from this directory
+vkteams-bot-cli completion fish > ~/.config/fish/completions/vkteams-bot-cli.fish
+```
+
+#### PowerShell
+```powershell
+# Generate completion script
+vkteams-bot-cli completion powershell > vkteams-bot-cli-completion.ps1
+
+# Add to your PowerShell profile
+Add-Content $PROFILE ". $(pwd)\vkteams-bot-cli-completion.ps1"
+```
+
+### Manual Installation
+
+#### Bash
+```bash
+# Generate and source the completion script
+vkteams-bot-cli completion bash > ~/.local/share/bash-completion/completions/vkteams-bot-cli
+
+# Add to your ~/.bashrc
+echo 'source ~/.local/share/bash-completion/completions/vkteams-bot-cli' >> ~/.bashrc
+```
+
+#### Zsh
+```bash
+# Generate completion script
+vkteams-bot-cli completion zsh > ~/.local/share/zsh/site-functions/_vkteams-bot-cli
+
+# Ensure completions are enabled in ~/.zshrc
+echo 'autoload -Uz compinit && compinit' >> ~/.zshrc
+```
+
+#### Fish
+```bash
+# Fish automatically loads completions from this directory
+vkteams-bot-cli completion fish > ~/.config/fish/completions/vkteams-bot-cli.fish
+```
+
+#### PowerShell
+```powershell
+# Generate completion script
+vkteams-bot-cli completion powershell > vkteams-bot-cli-completion.ps1
+
+# Add to your PowerShell profile
+Add-Content $PROFILE ". $(pwd)\vkteams-bot-cli-completion.ps1"
+```
+
+### Build from Source with Completions
+
+```bash
+# Clone and build (completions generated automatically)
+git clone https://github.com/bug-ops/vkteams-bot
+cd vkteams-bot/crates/vkteams-bot-cli
+cargo build --release
+
+# Install completions
+./target/completions/install-completions.sh
+
+# Completions are now available in your shell! 🎉
+```
+
+> 📋 **Build Guide**: See [BUILD.md](BUILD.md) for detailed build instructions, troubleshooting, and advanced options.
+
 ## Quick Start
+
+
+| `completion` | Generate shell completions | `vkteams-bot-cli completion bash` |
 
 ### 1. Get Your Bot Credentials
 
@@ -71,6 +195,18 @@ vkteams-bot-cli validate
 
 ```bash
 vkteams-bot-cli send-text -u USER_ID -m "Hello from CLI!"
+```
+
+### 5. Set Up Shell Completion (Optional)
+
+```bash
+# Use auto-generated installer (created during build)
+./target/completions/install-completions.sh
+
+# Or install for your shell manually
+vkteams-bot-cli completion bash --install
+vkteams-bot-cli completion zsh --install
+vkteams-bot-cli completion fish --install
 ```
 
 ## Configuration
@@ -193,6 +329,7 @@ vkteams-bot-cli config --show
 | `setup` | Interactive setup wizard | `vkteams-bot-cli setup` |
 | `config --show` | Show current config | `vkteams-bot-cli config --show` |
 | `config --wizard` | Update config interactively | `vkteams-bot-cli config --wizard` |
+| `completion` | Generate shell completions | `vkteams-bot-cli completion bash` |
 
 ## Examples
 
@@ -356,6 +493,7 @@ vkteams-bot-cli schedule text -u chat456 -m "Next week" -t "7d"
 ## Advanced Usage
 
 ### Configuration Management
+### Configuration
 
 ```bash
 # Save configuration to custom location
@@ -366,6 +504,9 @@ vkteams-bot-cli --config /path/to/custom-config.toml send-text -u user123 -m "He
 
 # Initialize configuration with defaults
 vkteams-bot-cli config --init
+
+# Generate shell completions for better UX
+vkteams-bot-cli completion bash --install
 ```
 
 ### Scripting and Automation
@@ -459,6 +600,9 @@ export VKTEAMS_LOG_LEVEL="info"
 
 # Validate current setup
 vkteams-bot-cli validate
+
+# Set up completion for development environment
+vkteams-bot-cli completion bash --install
 ```
 
 ### Troubleshooting
@@ -478,6 +622,28 @@ vkteams-bot-cli list-commands
 
 # See usage examples
 vkteams-bot-cli examples
+
+# Install shell completion for better command discovery
+vkteams-bot-cli completion bash --install
+vkteams-bot-cli completion zsh --install
+```
+
+### Advanced Usage
+
+### Configuration Management
+
+```bash
+# Save configuration to custom location
+vkteams-bot-cli --save-config /path/to/custom-config.toml
+
+# Use custom configuration file
+vkteams-bot-cli --config /path/to/custom-config.toml send-text -u user123 -m "Hello"
+
+# Initialize configuration with defaults
+vkteams-bot-cli config --init
+
+# Generate shell completions for better UX
+vkteams-bot-cli completion bash --install
 ```
 
 ## Error Handling

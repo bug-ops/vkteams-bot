@@ -8,7 +8,7 @@ use crate::errors::prelude::{CliError, Result as CliResult};
 use crate::utils::{validate_chat_id, validate_chat_title, validate_chat_about, validate_chat_action, validate_cursor};
 use crate::utils::output::print_success_result;
 use async_trait::async_trait;
-use clap::Subcommand;
+use clap::{Subcommand, ValueHint};
 use tracing::{debug, info};
 use vkteams_bot::prelude::*;
 
@@ -17,38 +17,38 @@ use vkteams_bot::prelude::*;
 pub enum ChatCommands {
     /// Get chat information
     GetChatInfo {
-        #[arg(short = 'c', long, required = true, value_name = "CHAT_ID")]
+        #[arg(short = 'c', long, required = true, value_name = "CHAT_ID", value_hint = ValueHint::Username)]
         chat_id: String,
     },
     /// Get user profile information
     GetProfile {
-        #[arg(short = 'u', long, required = true, value_name = "USER_ID")]
+        #[arg(short = 'u', long, required = true, value_name = "USER_ID", value_hint = ValueHint::Username)]
         user_id: String,
     },
     /// Get chat members
     GetChatMembers {
-        #[arg(short = 'c', long, required = true, value_name = "CHAT_ID")]
+        #[arg(short = 'c', long, required = true, value_name = "CHAT_ID", value_hint = ValueHint::Username)]
         chat_id: String,
         #[arg(short = 'c', long, value_name = "CURSOR")]
         cursor: Option<String>,
     },
     /// Set chat title
     SetChatTitle {
-        #[arg(short = 'c', long, required = true, value_name = "CHAT_ID")]
+        #[arg(short = 'c', long, required = true, value_name = "CHAT_ID", value_hint = ValueHint::Username)]
         chat_id: String,
         #[arg(short = 't', long, required = true, value_name = "TITLE")]
         title: String,
     },
     /// Set chat description
     SetChatAbout {
-        #[arg(short = 'c', long, required = true, value_name = "CHAT_ID")]
+        #[arg(short = 'c', long, required = true, value_name = "CHAT_ID", value_hint = ValueHint::Username)]
         chat_id: String,
         #[arg(short = 'a', long, required = true, value_name = "ABOUT")]
         about: String,
     },
     /// Send typing or looking action to chat
     SendAction {
-        #[arg(short = 'c', long, required = true, value_name = "CHAT_ID")]
+        #[arg(short = 'c', long, required = true, value_name = "CHAT_ID", value_hint = ValueHint::Username)]
         chat_id: String,
         #[arg(short = 'a', long, required = true, value_name = "ACTION")]
         action: String,

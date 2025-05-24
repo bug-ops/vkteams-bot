@@ -1,4 +1,5 @@
 pub mod commands;
+pub mod completion;
 pub mod config;
 pub mod constants;
 pub mod errors;
@@ -7,17 +8,18 @@ pub mod progress;
 pub mod scheduler;
 pub mod utils;
 
-use commands::{Commands, Command, CommandExecutor, CommandResult, OutputFormat};
-use config::Config;
-use constants::{ui::emoji, exit_codes};
-use errors::prelude::Result as CliResult;
-use utils::{create_bot_instance, create_dummy_bot, needs_bot_instance};
-use clap::Parser;
+use clap::{Parser, ValueHint};
 use colored::Colorize;
+use commands::{Command, CommandExecutor, CommandResult, Commands, OutputFormat};
+use config::Config;
+use constants::{exit_codes, ui::emoji};
+use errors::prelude::Result as CliResult;
 use std::process::exit;
+use std::path::PathBuf;
 use tracing::debug;
-use vkteams_bot::prelude::*;
+use utils::{create_bot_instance, create_dummy_bot, needs_bot_instance};
 use vkteams_bot::otlp;
+use vkteams_bot::prelude::*;
 
 /// Main CLI structure for the VK Teams Bot command-line interface.
 ///
@@ -70,11 +72,11 @@ use vkteams_bot::otlp;
 )]
 pub struct Cli {
     /// Path to config file (overrides default locations)
-    #[arg(short, long, value_name = "CONFIG")]
+    #[arg(short, long, value_name = "CONFIG", value_hint = ValueHint::FilePath)]
     pub config: Option<String>,
 
     /// Save current configuration to file
-    #[arg(long, value_name = "PATH")]
+    #[arg(long, value_name = "PATH", value_hint = ValueHint::FilePath)]
     pub save_config: Option<String>,
 
     /// Enable verbose output
@@ -103,8 +105,6 @@ pub struct Cli {
     pub command: Commands,
 }
 
-
-
 ///
 /// # Verbose output with JSON format
 /// vkteams-bot-cli --verbose --output json validate
@@ -121,34 +121,52 @@ pub struct Cli {
 /// - **Environment Variables**: Optional but may be needed for configuration
 #[tokio::main]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
+    //
+    dotenvy::dotenv().expect("Unable to load .env file");
+
     let _guard = otlp::init()?;
-    
+
     // Parse CLI arguments
     let cli = Cli::parse();
-    
+
     // Initialize logging based on verbosity
     if cli.verbose {
         unsafe {
             std::env::set_var("RUST_LOG", "debug");
         }
     }
-    
+
+    // Set up completion directory for runtime access
+    setup_completion_environment();
+
     // Load configuration
     let config = match load_configuration(&cli).await {
         Ok(config) => config,
         Err(err) => {
-            eprintln!("{} {}", emoji::CROSS, format!("Failed to load configuration: {}", err).red());
+            eprintln!(
+                "{} {}",
+                emoji::CROSS,
+                format!("Failed to load configuration: {}", err).red()
+            );
             exit(exit_codes::CONFIG);
         }
     };
-    
+
     // Handle config save if requested
     if let Some(path) = &cli.save_config {
         if let Err(err) = save_configuration(&config, path) {
-            eprintln!("{} {}", emoji::CROSS, format!("Failed to save configuration: {}", err).red());
+            eprintln!(
+                "{} {}",
+                emoji::CROSS,
+                format!("Failed to save configuration: {}", err).red()
+            );
             exit(exit_codes::CONFIG);
         }
-        println!("{} Configuration saved to: {}", emoji::FLOPPY_DISK, path.green());
+        println!(
+            "{} Configuration saved to: {}",
+            emoji::FLOPPY_DISK,
+            path.green()
+        );
         return Ok(());
     }
 
@@ -156,7 +174,11 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     // Validate command before execution
     if let Err(err) = cli.command.validate() {
-        eprintln!("{} {}", emoji::CROSS, format!("Validation error: {}", err).red());
+        eprintln!(
+            "{} {}",
+            emoji::CROSS,
+            format!("Validation error: {}", err).red()
+        );
         exit(exit_codes::USAGE_ERROR);
     }
 
@@ -170,7 +192,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             exit(err.exit_code());
         }
     }
-    
+
     Ok(())
 }
 
@@ -180,7 +202,7 @@ async fn load_configuration(cli: &Cli) -> CliResult<Config> {
         debug!("Loading configuration from: {}", config_path);
         return Config::from_path(std::path::Path::new(config_path));
     }
-    
+
     // Load from default locations
     Config::load()
 }
@@ -196,11 +218,11 @@ async fn load_configuration(cli: &Cli) -> CliResult<Config> {
 /// [api]
 /// token = "your_bot_token"
 /// url = "https://api.teams.vk.com"
-/// 
+///
 /// [files]
 /// download_dir = "/downloads"
 /// max_file_size = 104857600
-/// 
+///
 /// [logging]
 /// level = "info"
 /// colors = true
@@ -210,7 +232,11 @@ fn save_configuration(config: &Config, path: &str) -> CliResult<()> {
 }
 
 /// Execute command
-async fn execute_command(command: &Commands, config: &Config, output_format: &OutputFormat) -> CliResult<()> {
+async fn execute_command(
+    command: &Commands,
+    config: &Config,
+    output_format: &OutputFormat,
+) -> CliResult<()> {
     // Check if command needs bot instance
     let bot = if needs_bot_instance(command) {
         create_bot_instance(config)?
@@ -236,8 +262,88 @@ async fn try_execute_with_result(command: &Commands, bot: &Bot) -> Option<Comman
     }
 }
 
+/// Set up completion environment for runtime access
+fn setup_completion_environment() {
+    // Check if completions directory is available from build time
+    if let Some(completions_dir) = get_build_time_completions_dir() {
+        if completions_dir.exists() {
+            unsafe {
+                std::env::set_var("VKTEAMS_RUNTIME_COMPLETIONS_DIR", &completions_dir);
+            }
+            debug!("Runtime completions directory set: {:?}", completions_dir);
+        }
+    }
+}
 
+/// Get the completion directory that was generated at build time
+fn get_build_time_completions_dir() -> Option<PathBuf> {
+    // First try the compile-time environment variable
+    if let Some(dir) = option_env!("VKTEAMS_COMPLETIONS_DIR") {
+        let path = PathBuf::from(dir);
+        if path.exists() {
+            return Some(path);
+        }
+    }
+    
+    // Fall back to checking common build locations
+    let current_exe = std::env::current_exe().ok()?;
+    let exe_dir = current_exe.parent()?;
+    
+    // Check if we're in a target directory structure
+    let possible_paths = [
+        exe_dir.join("completions"),
+        exe_dir.join("../completions"),
+        exe_dir.join("../../completions"),
+        exe_dir.join("../../../completions"), // For nested target dirs
+    ];
+    
+    for path in &possible_paths {
+        if path.exists() && path.is_dir() {
+            return Some(path.canonicalize().unwrap_or_else(|_| path.clone()));
+        }
+    }
+    
+    None
+}
 
+/// Get the runtime completion directory
+#[cfg(feature = "completion")]
+pub fn get_runtime_completions_dir() -> Option<PathBuf> {
+    // Check runtime environment variable first
+    if let Ok(dir) = std::env::var("VKTEAMS_RUNTIME_COMPLETIONS_DIR") {
+        let path = PathBuf::from(dir);
+        if path.exists() {
+            return Some(path);
+        }
+    }
+    
+    // Fall back to build-time detection
+    get_build_time_completions_dir()
+}
 
+/// Check if pre-built completions are available
+#[cfg(feature = "completion")]
+pub fn has_prebuilt_completions() -> bool {
+    get_runtime_completions_dir().is_some()
+}
 
-
+/// Get path to a specific completion file
+#[cfg(feature = "completion")]
+pub fn get_completion_file_path(shell: &str) -> Option<PathBuf> {
+    let completions_dir = get_runtime_completions_dir()?;
+    
+    let filename = match shell {
+        "bash" => "vkteams-bot-cli.bash",
+        "zsh" => "_vkteams-bot-cli",
+        "fish" => "vkteams-bot-cli.fish", 
+        "powershell" => "vkteams-bot-cli.ps1",
+        _ => return None,
+    };
+    
+    let file_path = completions_dir.join(filename);
+    if file_path.exists() {
+        Some(file_path)
+    } else {
+        None
+    }
+}

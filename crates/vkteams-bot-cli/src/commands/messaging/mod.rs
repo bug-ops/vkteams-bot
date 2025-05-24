@@ -11,7 +11,7 @@ use crate::utils::{validate_chat_id, validate_message_text, validate_message_id,
 use crate::utils::output::print_success_result;
 
 use async_trait::async_trait;
-use clap::Subcommand;
+use clap::{Subcommand, ValueHint};
 use colored::Colorize;
 use tracing::{debug, info};
 use vkteams_bot::prelude::*;
@@ -21,28 +21,28 @@ use vkteams_bot::prelude::*;
 pub enum MessagingCommands {
     /// Send text message to user or chat
     SendText {
-        #[arg(short = 'u', long, required = true, value_name = "CHAT_ID")]
+        #[arg(short = 'u', long, required = true, value_name = "CHAT_ID", value_hint = ValueHint::Username)]
         chat_id: String,
         #[arg(short = 'm', long, required = true, value_name = "MESSAGE")]
         message: String,
     },
     /// Send file to user or chat
     SendFile {
-        #[arg(short = 'u', long, required = true, value_name = "CHAT_ID")]
+        #[arg(short = 'u', long, required = true, value_name = "CHAT_ID", value_hint = ValueHint::Username)]
         chat_id: String,
-        #[arg(short = 'p', long, required = true, value_name = "FILE_PATH")]
+        #[arg(short = 'p', long, required = true, value_name = "FILE_PATH", value_hint = ValueHint::FilePath)]
         file_path: String,
     },
     /// Send voice message to user or chat
     SendVoice {
-        #[arg(short = 'u', long, required = true, value_name = "CHAT_ID")]
+        #[arg(short = 'u', long, required = true, value_name = "CHAT_ID", value_hint = ValueHint::Username)]
         chat_id: String,
-        #[arg(short = 'p', long, required = true, value_name = "FILE_PATH")]
+        #[arg(short = 'p', long, required = true, value_name = "FILE_PATH", value_hint = ValueHint::FilePath)]
         file_path: String,
     },
     /// Edit existing message
     EditMessage {
-        #[arg(short = 'c', long, required = true, value_name = "CHAT_ID")]
+        #[arg(short = 'c', long, required = true, value_name = "CHAT_ID", value_hint = ValueHint::Username)]
         chat_id: String,
         #[arg(short = 'm', long, required = true, value_name = "MESSAGE_ID")]
         message_id: String,
@@ -51,21 +51,21 @@ pub enum MessagingCommands {
     },
     /// Delete message from chat
     DeleteMessage {
-        #[arg(short = 'c', long, required = true, value_name = "CHAT_ID")]
+        #[arg(short = 'c', long, required = true, value_name = "CHAT_ID", value_hint = ValueHint::Username)]
         chat_id: String,
         #[arg(short = 'm', long, required = true, value_name = "MESSAGE_ID")]
         message_id: String,
     },
     /// Pin message in chat
     PinMessage {
-        #[arg(short = 'c', long, required = true, value_name = "CHAT_ID")]
+        #[arg(short = 'c', long, required = true, value_name = "CHAT_ID", value_hint = ValueHint::Username)]
         chat_id: String,
         #[arg(short = 'm', long, required = true, value_name = "MESSAGE_ID")]
         message_id: String,
     },
     /// Unpin message from chat
     UnpinMessage {
-        #[arg(short = 'c', long, required = true, value_name = "CHAT_ID")]
+        #[arg(short = 'c', long, required = true, value_name = "CHAT_ID", value_hint = ValueHint::Username)]
         chat_id: String,
         #[arg(short = 'm', long, required = true, value_name = "MESSAGE_ID")]
         message_id: String,

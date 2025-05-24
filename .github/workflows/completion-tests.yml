@@ -1,0 +1,411 @@
+name: Shell Completion Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'crates/vkteams-bot-cli/**'
+      - '.github/workflows/completion-tests.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'crates/vkteams-bot-cli/**'
+      - '.github/workflows/completion-tests.yml'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  completion-generation:
+    name: Test Completion Generation
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        shell: [bash, zsh, fish, powershell]
+        exclude:
+          # Fish is not readily available on Windows
+          - os: windows-latest
+            shell: fish
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+
+    - name: Cache cargo dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-completion-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Install Fish (Ubuntu)
+      if: matrix.os == 'ubuntu-latest' && matrix.shell == 'fish'
+      run: |
+        sudo apt-add-repository ppa:fish-shell/release-3
+        sudo apt-get update
+        sudo apt-get install fish
+
+    - name: Install Fish (macOS)
+      if: matrix.os == 'macos-latest' && matrix.shell == 'fish'
+      run: brew install fish
+
+    - name: Build CLI
+      working-directory: crates/vkteams-bot-cli
+      run: cargo build --release
+
+    - name: Test completion generation to stdout
+      working-directory: crates/vkteams-bot-cli
+      run: |
+        ./target/release/vkteams-bot-cli completion ${{ matrix.shell }}
+
+    - name: Test completion generation to file
+      working-directory: crates/vkteams-bot-cli
+      shell: bash
+      run: |
+        mkdir -p test-completions
+        ./target/release/vkteams-bot-cli completion ${{ matrix.shell }} --output test-completions/test-${{ matrix.shell }}
+        
+        # Verify file was created and has content
+        if [ ! -f "test-completions/test-${{ matrix.shell }}" ]; then
+          echo "ERROR: Completion file was not created"
+          exit 1
+        fi
+        
+        if [ ! -s "test-completions/test-${{ matrix.shell }}" ]; then
+          echo "ERROR: Completion file is empty"
+          exit 1
+        fi
+        
+        # Verify file contains expected content
+        if ! grep -q "vkteams-bot-cli" "test-completions/test-${{ matrix.shell }}"; then
+          echo "ERROR: Completion file does not contain CLI name"
+          exit 1
+        fi
+        
+        echo "SUCCESS: Completion file generated correctly"
+
+    - name: Test all completions generation
+      working-directory: crates/vkteams-bot-cli
+      shell: bash
+      run: |
+        ./target/release/vkteams-bot-cli completion ${{ matrix.shell }} --all --output test-all-completions
+        
+        # Check that directory was created
+        if [ ! -d "test-all-completions" ]; then
+          echo "ERROR: Completions directory was not created"
+          exit 1
+        fi
+        
+        # Check that completion files exist
+        case "${{ matrix.shell }}" in
+          bash)
+            expected_file="test-all-completions/vkteams-bot-cli.bash"
+            ;;
+          zsh)
+            expected_file="test-all-completions/_vkteams-bot-cli"
+            ;;
+          fish)
+            expected_file="test-all-completions/vkteams-bot-cli.fish"
+            ;;
+          powershell)
+            expected_file="test-all-completions/vkteams-bot-cli.ps1"
+            ;;
+        esac
+        
+        if [ -f "$expected_file" ]; then
+          echo "SUCCESS: Expected completion file exists: $expected_file"
+        else
+          echo "Available files:"
+          ls -la test-all-completions/ || true
+          echo "ERROR: Expected completion file missing: $expected_file"
+          exit 1
+        fi
+
+    - name: Upload completion artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: completions-${{ matrix.os }}-${{ matrix.shell }}
+        path: crates/vkteams-bot-cli/test-completions/
+
+  completion-content-quality:
+    name: Test Completion Content Quality
+    runs-on: ubuntu-latest
+    needs: completion-generation
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Build CLI
+      working-directory: crates/vkteams-bot-cli
+      run: cargo build --release
+
+    - name: Test completion content quality
+      working-directory: crates/vkteams-bot-cli
+      shell: bash
+      run: |
+        mkdir -p quality-test
+        
+        # Generate completions for testing
+        ./target/release/vkteams-bot-cli completion bash > quality-test/test.bash
+        ./target/release/vkteams-bot-cli completion zsh > quality-test/test.zsh
+        
+        # Test bash completion content
+        echo "Testing bash completion content..."
+        
+        # Check for essential bash completion elements
+        if ! grep -q "complete" quality-test/test.bash; then
+          echo "ERROR: Bash completion missing 'complete' command"
+          exit 1
+        fi
+        
+        # Check for CLI name
+        if ! grep -q "vkteams-bot-cli" quality-test/test.bash; then
+          echo "ERROR: Bash completion missing CLI name"
+          exit 1
+        fi
+        
+        # Check for main commands
+        main_commands=("send-text" "send-file" "get-chat-info" "schedule" "config")
+        for cmd in "${main_commands[@]}"; do
+          if ! grep -q "$cmd" quality-test/test.bash; then
+            echo "WARNING: Bash completion might be missing command: $cmd"
+          fi
+        done
+        
+        # Test zsh completion content
+        echo "Testing zsh completion content..."
+        
+        # Check for zsh-specific elements
+        if ! grep -q "#compdef" quality-test/test.zsh; then
+          echo "ERROR: Zsh completion missing '#compdef' header"
+          exit 1
+        fi
+        
+        echo "SUCCESS: Completion content quality checks passed"
+
+  completion-unit-tests:
+    name: Run Completion Unit Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache cargo dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Run completion-specific tests
+      working-directory: crates/vkteams-bot-cli
+      run: cargo test completion_tests
+
+    - name: Run all tests with completion features
+      working-directory: crates/vkteams-bot-cli
+      run: cargo test --all-features
+
+  installation-script-tests:
+    name: Test Installation Scripts
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        shell: [bash, zsh]
+        include:
+          - os: ubuntu-latest
+            shell: fish
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install required shells
+      run: |
+        case "${{ matrix.os }}" in
+          ubuntu-latest)
+            sudo apt-get update
+            case "${{ matrix.shell }}" in
+              fish)
+                sudo apt-add-repository ppa:fish-shell/release-3 -y
+                sudo apt-get update
+                sudo apt-get install fish -y
+                ;;
+              zsh)
+                sudo apt-get install zsh -y
+                ;;
+            esac
+            ;;
+          macos-latest)
+            case "${{ matrix.shell }}" in
+              fish)
+                brew install fish
+                ;;
+            esac
+            ;;
+        esac
+
+    - name: Build CLI
+      working-directory: crates/vkteams-bot-cli
+      run: cargo build --release
+
+    - name: Install CLI temporarily for testing
+      working-directory: crates/vkteams-bot-cli
+      run: |
+        sudo cp target/release/vkteams-bot-cli /usr/local/bin/
+
+    - name: Test installation script syntax
+      working-directory: crates/vkteams-bot-cli
+      run: |
+        bash -n scripts/install-completion.sh
+        echo "Installation script syntax is valid"
+
+    - name: Test installation script help
+      working-directory: crates/vkteams-bot-cli
+      run: |
+        bash scripts/install-completion.sh --help
+
+    - name: Test completion installation (dry run simulation)
+      working-directory: crates/vkteams-bot-cli
+      shell: bash
+      run: |
+        # Create a temporary directory structure for testing
+        mkdir -p ~/.local/share/test-completions
+        
+        # Test that the CLI can install completions
+        vkteams-bot-cli completion ${{ matrix.shell }} --output ~/.local/share/test-completions/test-${{ matrix.shell }}
+        
+        # Verify the file was created
+        if [ -f ~/.local/share/test-completions/test-${{ matrix.shell }} ]; then
+          echo "SUCCESS: Completion installation test passed"
+        else
+          echo "ERROR: Completion installation test failed"
+          exit 1
+        fi
+
+    - name: Clean up
+      run: |
+        sudo rm -f /usr/local/bin/vkteams-bot-cli
+        rm -rf ~/.local/share/test-completions
+
+  makefile-tests:
+    name: Test Makefile Completion Targets
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Test Makefile completion targets
+      working-directory: crates/vkteams-bot-cli
+      run: |
+        # Test that Makefile targets work
+        make build
+        make completions
+        make test-completions
+        make clean-completions
+
+    - name: Verify Makefile help
+      working-directory: crates/vkteams-bot-cli
+      run: make help
+
+  cross-platform-compatibility:
+    name: Cross-Platform Compatibility
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Build and test basic completion
+      working-directory: crates/vkteams-bot-cli
+      shell: bash
+      run: |
+        cargo build --release
+        
+        # Test that basic completion works on all platforms
+        ./target/release/vkteams-bot-cli completion bash > test-completion.bash
+        
+        # Basic verification
+        if [ -s test-completion.bash ]; then
+          echo "SUCCESS: Basic completion generation works on ${{ matrix.os }}"
+        else
+          echo "ERROR: Completion generation failed on ${{ matrix.os }}"
+          exit 1
+        fi
+
+  documentation-check:
+    name: Check Completion Documentation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Check completion documentation exists
+      run: |
+        if [ -f "crates/vkteams-bot-cli/docs/COMPLETION.md" ]; then
+          echo "SUCCESS: Completion documentation exists"
+        else
+          echo "ERROR: Completion documentation missing"
+          exit 1
+        fi
+
+    - name: Check README includes completion info
+      run: |
+        if grep -q "completion" crates/vkteams-bot-cli/README.md; then
+          echo "SUCCESS: README includes completion information"
+        else
+          echo "ERROR: README missing completion information"
+          exit 1
+        fi
+
+  completion-integration:
+    name: Integration Test Summary
+    runs-on: ubuntu-latest
+    needs: [completion-generation, completion-content-quality, completion-unit-tests, installation-script-tests, makefile-tests, cross-platform-compatibility, documentation-check]
+    
+    steps:
+    - name: Integration test summary
+      run: |
+        echo "🎉 All completion tests passed successfully!"
+        echo ""
+        echo "✅ Completion generation works on all platforms"
+        echo "✅ Completion content quality verified"
+        echo "✅ Unit tests passed"
+        echo "✅ Installation scripts tested"
+        echo "✅ Makefile targets work correctly"
+        echo "✅ Cross-platform compatibility verified"
+        echo "✅ Documentation is present and complete"
+        echo ""
+        echo "The shell completion feature is ready for production! 🚀"

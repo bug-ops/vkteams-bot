@@ -4,6 +4,7 @@
 //! It is organized into modular components for better maintainability and testing.
 
 pub mod commands;
+pub mod completion;
 pub mod config;
 pub mod constants;
 pub mod errors;

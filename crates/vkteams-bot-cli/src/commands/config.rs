@@ -4,7 +4,7 @@
 
 use crate::commands::{Command, CommandExecutor, CommandResult};
 use crate::config::Config;
-use crate::constants::{ui::emoji, help};
+use crate::constants::{help, ui::emoji};
 use crate::errors::prelude::{CliError, Result as CliResult};
 use async_trait::async_trait;
 use clap::Subcommand;
@@ -35,6 +35,21 @@ pub enum ConfigCommands {
         #[arg(short = 'w', long)]
         wizard: bool,
     },
+    /// Generate shell completion scripts
+    Completion {
+        /// Shell to generate completion for
+        #[arg(value_enum)]
+        shell: crate::completion::CompletionShell,
+        /// Output file path (prints to stdout if not specified)
+        #[arg(short, long)]
+        output: Option<String>,
+        /// Install completion to system location
+        #[arg(short, long)]
+        install: bool,
+        /// Generate completions for all shells
+        #[arg(short, long)]
+        all: bool,
+    },
 }
 
 #[async_trait]
@@ -48,6 +63,12 @@ impl Command for ConfigCommands {
             ConfigCommands::Config { show, init, wizard } => {
                 execute_config(*show, *init, *wizard).await
             }
+            ConfigCommands::Completion {
+                shell,
+                output,
+                install,
+                all,
+            } => execute_completion(*shell, output.as_deref(), *install, *all).await,
         }
     }
 
@@ -58,6 +79,7 @@ impl Command for ConfigCommands {
             ConfigCommands::ListCommands => "list-commands",
             ConfigCommands::Validate => "validate",
             ConfigCommands::Config { .. } => "config",
+            ConfigCommands::Completion { .. } => "completion",
         }
     }
 
@@ -78,6 +100,12 @@ impl CommandExecutor for ConfigCommands {
             ConfigCommands::Config { show, init, wizard } => {
                 execute_config_with_result(*show, *init, *wizard).await
             }
+            ConfigCommands::Completion {
+                shell,
+                output,
+                install,
+                all,
+            } => execute_completion_with_result(*shell, output.as_deref(), *install, *all).await,
         }
     }
 
@@ -88,6 +116,7 @@ impl CommandExecutor for ConfigCommands {
             ConfigCommands::ListCommands => "list-commands",
             ConfigCommands::Validate => "validate",
             ConfigCommands::Config { .. } => "config",
+            ConfigCommands::Completion { .. } => "completion",
         }
     }
 
@@ -100,7 +129,10 @@ impl CommandExecutor for ConfigCommands {
 // Command execution functions
 
 async fn execute_setup() -> CliResult<()> {
-    println!("{} VK Teams Bot CLI Setup Wizard", emoji::ROBOT.bold().blue());
+    println!(
+        "{} VK Teams Bot CLI Setup Wizard",
+        emoji::ROBOT.bold().blue()
+    );
     println!("This wizard will help you configure the CLI tool.\n");
 
     let mut new_config = Config::default();
@@ -138,16 +170,64 @@ async fn execute_setup() -> CliResult<()> {
 
     // Test and save configuration
     println!("\n{} Testing configuration...", emoji::TEST_TUBE);
-    
+
     if let Err(e) = new_config.save(None) {
-        eprintln!("{}  Warning: Could not save configuration: {}", emoji::WARNING, e);
+        eprintln!(
+            "{}  Warning: Could not save configuration: {}",
+            emoji::WARNING,
+            e
+        );
     } else {
         println!("{} Configuration saved successfully!", emoji::FLOPPY_DISK);
     }
-    
-    println!("\n{} Setup complete! You can now use the CLI tool.", emoji::PARTY);
-    println!("Try: {} to test your setup", "vkteams-bot-cli get-self".green());
-    
+
+    println!(
+        "\n{} Setup complete! You can now use the CLI tool.",
+        emoji::PARTY
+    );
+    println!(
+        "Try: {} to test your setup",
+        "vkteams-bot-cli get-self".green()
+    );
+
+    Ok(())
+}
+
+async fn execute_completion(
+    shell: crate::completion::CompletionShell,
+    output: Option<&str>,
+    install: bool,
+    all: bool,
+) -> CliResult<()> {
+    use crate::completion::{
+        generate_all_completions, generate_completion, get_default_completion_dir,
+        install_completion,
+    };
+    use std::path::Path;
+
+    if all {
+        let output_dir = if let Some(dir) = output {
+            Path::new(dir).to_path_buf()
+        } else if let Some(default_dir) = get_default_completion_dir() {
+            default_dir
+        } else {
+            std::env::current_dir().map_err(|e| {
+                CliError::FileError(format!("Failed to get current directory: {}", e))
+            })?
+        };
+
+        generate_all_completions(&output_dir)?;
+        return Ok(());
+    }
+
+    if install {
+        install_completion(shell)?;
+        return Ok(());
+    }
+
+    let output_path = output.map(Path::new);
+    generate_completion(shell, output_path)?;
+
     Ok(())
 }
 
@@ -188,59 +268,129 @@ async fn execute_config_with_result(show: bool, init: bool, wizard: bool) -> Com
     }
 }
 
+async fn execute_completion_with_result(
+    shell: crate::completion::CompletionShell,
+    output: Option<&str>,
+    install: bool,
+    all: bool,
+) -> CommandResult {
+    match execute_completion(shell, output, install, all).await {
+        Ok(()) => CommandResult::success_with_message("Completion operation completed"),
+        Err(e) => CommandResult::error(format!("Completion operation failed: {}", e)),
+    }
+}
+
 async fn execute_examples() -> CliResult<()> {
     println!("{} VK Teams Bot CLI Examples", emoji::BOOKS.bold().blue());
     println!();
-    
+
     println!("{}", "Basic Message Operations:".bold().green());
-    println!("  {}", "vkteams-bot-cli send-text -u USER_ID -m \"Hello World!\"".cyan());
-    println!("  {}", "vkteams-bot-cli send-file -u USER_ID -p /path/to/file.pdf".cyan());
-    println!("  {}", "vkteams-bot-cli send-voice -u USER_ID -p /path/to/voice.ogg".cyan());
+    println!(
+        "  {}",
+        "vkteams-bot-cli send-text -u USER_ID -m \"Hello World!\"".cyan()
+    );
+    println!(
+        "  {}",
+        "vkteams-bot-cli send-file -u USER_ID -p /path/to/file.pdf".cyan()
+    );
+    println!(
+        "  {}",
+        "vkteams-bot-cli send-voice -u USER_ID -p /path/to/voice.ogg".cyan()
+    );
     println!();
-    
+
     println!("{}", "Chat Management:".bold().green());
     println!("  {}", "vkteams-bot-cli get-chat-info -c CHAT_ID".cyan());
     println!("  {}", "vkteams-bot-cli get-chat-members -c CHAT_ID".cyan());
-    println!("  {}", "vkteams-bot-cli set-chat-title -c CHAT_ID -t \"New Title\"".cyan());
-    println!("  {}", "vkteams-bot-cli set-chat-about -c CHAT_ID -a \"Chat description\"".cyan());
+    println!(
+        "  {}",
+        "vkteams-bot-cli set-chat-title -c CHAT_ID -t \"New Title\"".cyan()
+    );
+    println!(
+        "  {}",
+        "vkteams-bot-cli set-chat-about -c CHAT_ID -a \"Chat description\"".cyan()
+    );
     println!();
-    
+
     println!("{}", "Message Operations:".bold().green());
-    println!("  {}", "vkteams-bot-cli edit-message -c CHAT_ID -m MSG_ID -t \"Updated text\"".cyan());
-    println!("  {}", "vkteams-bot-cli delete-message -c CHAT_ID -m MSG_ID".cyan());
-    println!("  {}", "vkteams-bot-cli pin-message -c CHAT_ID -m MSG_ID".cyan());
-    println!("  {}", "vkteams-bot-cli unpin-message -c CHAT_ID -m MSG_ID".cyan());
+    println!(
+        "  {}",
+        "vkteams-bot-cli edit-message -c CHAT_ID -m MSG_ID -t \"Updated text\"".cyan()
+    );
+    println!(
+        "  {}",
+        "vkteams-bot-cli delete-message -c CHAT_ID -m MSG_ID".cyan()
+    );
+    println!(
+        "  {}",
+        "vkteams-bot-cli pin-message -c CHAT_ID -m MSG_ID".cyan()
+    );
+    println!(
+        "  {}",
+        "vkteams-bot-cli unpin-message -c CHAT_ID -m MSG_ID".cyan()
+    );
     println!();
-    
+
     println!("{}", "File Operations:".bold().green());
-    println!("  {}", "vkteams-bot-cli get-file -f FILE_ID -p /download/path/".cyan());
+    println!(
+        "  {}",
+        "vkteams-bot-cli get-file -f FILE_ID -p /download/path/".cyan()
+    );
     println!();
-    
+
     println!("{}", "Bot Information:".bold().green());
     println!("  {}", "vkteams-bot-cli get-self".cyan());
     println!("  {}", "vkteams-bot-cli get-self --detailed".cyan());
     println!("  {}", "vkteams-bot-cli get-profile -u USER_ID".cyan());
     println!();
-    
+
     println!("{}", "Event Monitoring:".bold().green());
     println!("  {}", "vkteams-bot-cli get-events".cyan());
-    println!("  {}", "vkteams-bot-cli get-events -l true | jq '.events[]'".cyan());
+    println!(
+        "  {}",
+        "vkteams-bot-cli get-events -l true | jq '.events[]'".cyan()
+    );
     println!();
-    
+
     println!("{}", "Configuration:".bold().green());
     println!("  {}", "vkteams-bot-cli setup".cyan());
     println!("  {}", "vkteams-bot-cli config --show".cyan());
     println!("  {}", "vkteams-bot-cli config --wizard".cyan());
     println!("  {}", "vkteams-bot-cli validate".cyan());
     println!();
-    
-    println!("{}", "Scheduled Messages:".bold().green());
-    println!("  {}", "vkteams-bot-cli schedule text -u CHAT_ID -m \"Hello\" -t \"2024-01-01 10:00\"".cyan());
-    println!("  {}", "vkteams-bot-cli schedule text -u CHAT_ID -m \"Daily reminder\" -c \"0 9 * * *\"".cyan());
-    println!("  {}", "vkteams-bot-cli schedule text -u CHAT_ID -m \"Every 5 min\" -i 300".cyan());
-    println!("  {}", "vkteams-bot-cli schedule file -u CHAT_ID -p \"/path/to/report.pdf\" -t \"30m\"".cyan());
+
+    println!("{}", "Shell Completion:".bold().green());
+    println!("  {}", "vkteams-bot-cli completion bash".cyan());
+    println!(
+        "  {}",
+        "vkteams-bot-cli completion zsh --output _vkteams-bot-cli".cyan()
+    );
+    println!("  {}", "vkteams-bot-cli completion fish --install".cyan());
+    println!(
+        "  {}",
+        "vkteams-bot-cli completion bash --all --output ./completions".cyan()
+    );
     println!();
-    
+
+    println!("{}", "Scheduled Messages:".bold().green());
+    println!(
+        "  {}",
+        "vkteams-bot-cli schedule text -u CHAT_ID -m \"Hello\" -t \"2024-01-01 10:00\"".cyan()
+    );
+    println!(
+        "  {}",
+        "vkteams-bot-cli schedule text -u CHAT_ID -m \"Daily reminder\" -c \"0 9 * * *\"".cyan()
+    );
+    println!(
+        "  {}",
+        "vkteams-bot-cli schedule text -u CHAT_ID -m \"Every 5 min\" -i 300".cyan()
+    );
+    println!(
+        "  {}",
+        "vkteams-bot-cli schedule file -u CHAT_ID -p \"/path/to/report.pdf\" -t \"30m\"".cyan()
+    );
+    println!();
+
     println!("{}", "Scheduler Management:".bold().green());
     println!("  {}", "vkteams-bot-cli scheduler start".cyan());
     println!("  {}", "vkteams-bot-cli scheduler status".cyan());
@@ -248,52 +398,155 @@ async fn execute_examples() -> CliResult<()> {
     println!("  {}", "vkteams-bot-cli task show TASK_ID".cyan());
     println!("  {}", "vkteams-bot-cli task run TASK_ID".cyan());
     println!();
-    
+
     println!("{}", "Chat Actions:".bold().green());
-    println!("  {}", "vkteams-bot-cli send-action -c CHAT_ID -a typing".cyan());
-    println!("  {}", "vkteams-bot-cli send-action -c CHAT_ID -a looking".cyan());
+    println!(
+        "  {}",
+        "vkteams-bot-cli send-action -c CHAT_ID -a typing".cyan()
+    );
+    println!(
+        "  {}",
+        "vkteams-bot-cli send-action -c CHAT_ID -a looking".cyan()
+    );
     println!();
-    
+
     Ok(())
 }
 
 async fn execute_list_commands() -> CliResult<()> {
-    println!("{} VK Teams Bot CLI Commands Reference", emoji::ROBOT.bold().blue());
+    println!(
+        "{} VK Teams Bot CLI Commands Reference",
+        emoji::ROBOT.bold().blue()
+    );
     println!();
-    
+
     let commands = vec![
-        ("send-text", "Send a text message to a user or chat", "Basic messaging"),
-        ("send-file", "Upload and send a file to a user or chat", "File sharing"),
-        ("send-voice", "Send a voice message from an audio file", "Voice messaging"),
-        ("get-file", "Download a file by its ID to local storage", "File management"),
-        ("get-events", "Retrieve bot events or start long polling", "Event monitoring"),
-        ("get-chat-info", "Get detailed information about a chat", "Chat information"),
-        ("get-profile", "Get user profile information", "User information"),
-        ("edit-message", "Edit an existing message in a chat", "Message management"),
-        ("delete-message", "Delete a message from a chat", "Message management"),
-        ("pin-message", "Pin a message in a chat", "Message management"),
-        ("unpin-message", "Unpin a message from a chat", "Message management"),
-        ("get-chat-members", "List all members of a chat", "Chat management"),
-        ("set-chat-title", "Change the title of a chat", "Chat management"),
-        ("set-chat-about", "Set the description of a chat", "Chat management"),
-        ("send-action", "Send typing or looking action to a chat", "Chat interaction"),
-        ("get-self", "Get bot information and verify connectivity", "Bot management"),
-        ("schedule", "Schedule messages to be sent at specific times", "Scheduling"),
-        ("scheduler", "Manage the scheduler daemon service", "Scheduling"),
+        (
+            "send-text",
+            "Send a text message to a user or chat",
+            "Basic messaging",
+        ),
+        (
+            "send-file",
+            "Upload and send a file to a user or chat",
+            "File sharing",
+        ),
+        (
+            "send-voice",
+            "Send a voice message from an audio file",
+            "Voice messaging",
+        ),
+        (
+            "get-file",
+            "Download a file by its ID to local storage",
+            "File management",
+        ),
+        (
+            "get-events",
+            "Retrieve bot events or start long polling",
+            "Event monitoring",
+        ),
+        (
+            "get-chat-info",
+            "Get detailed information about a chat",
+            "Chat information",
+        ),
+        (
+            "get-profile",
+            "Get user profile information",
+            "User information",
+        ),
+        (
+            "edit-message",
+            "Edit an existing message in a chat",
+            "Message management",
+        ),
+        (
+            "delete-message",
+            "Delete a message from a chat",
+            "Message management",
+        ),
+        (
+            "pin-message",
+            "Pin a message in a chat",
+            "Message management",
+        ),
+        (
+            "unpin-message",
+            "Unpin a message from a chat",
+            "Message management",
+        ),
+        (
+            "get-chat-members",
+            "List all members of a chat",
+            "Chat management",
+        ),
+        (
+            "set-chat-title",
+            "Change the title of a chat",
+            "Chat management",
+        ),
+        (
+            "set-chat-about",
+            "Set the description of a chat",
+            "Chat management",
+        ),
+        (
+            "send-action",
+            "Send typing or looking action to a chat",
+            "Chat interaction",
+        ),
+        (
+            "get-self",
+            "Get bot information and verify connectivity",
+            "Bot management",
+        ),
+        (
+            "schedule",
+            "Schedule messages to be sent at specific times",
+            "Scheduling",
+        ),
+        (
+            "scheduler",
+            "Manage the scheduler daemon service",
+            "Scheduling",
+        ),
         ("task", "Manage individual scheduled tasks", "Scheduling"),
-        ("setup", "Interactive wizard for first-time configuration", "Configuration"),
+        (
+            "setup",
+            "Interactive wizard for first-time configuration",
+            "Configuration",
+        ),
         ("examples", "Show usage examples for all commands", "Help"),
-        ("list-commands", "Show this detailed command reference", "Help"),
-        ("validate", "Test configuration and bot connectivity", "Diagnostics"),
-        ("config", "Manage configuration files and settings", "Configuration"),
+        (
+            "list-commands",
+            "Show this detailed command reference",
+            "Help",
+        ),
+        (
+            "validate",
+            "Test configuration and bot connectivity",
+            "Diagnostics",
+        ),
+        (
+            "config",
+            "Manage configuration files and settings",
+            "Configuration",
+        ),
+        (
+            "completion",
+            "Generate shell completion scripts",
+            "Configuration",
+        ),
     ];
-    
-    let mut categories: std::collections::HashMap<&str, Vec<(&str, &str)>> = std::collections::HashMap::new();
-    
+
+    let mut categories: std::collections::HashMap<&str, Vec<(&str, &str)>> =
+        std::collections::HashMap::new();
+
     for (cmd, desc, cat) in commands {
         categories.entry(cat).or_default().push((cmd, desc));
     }
-    
+
     for (category, cmds) in categories {
         println!("{}", format!("{}:", category).bold().green());
         for (cmd, desc) in cmds {
@@ -301,47 +554,62 @@ async fn execute_list_commands() -> CliResult<()> {
         }
         println!();
     }
-    
+
     println!("{}", "💡 Tips:".bold().yellow());
-    println!("  • Use {} for command-specific help", "vkteams-bot-cli <command> --help".cyan());
-    println!("  • Use {} to see usage examples", "vkteams-bot-cli examples".cyan());
-    println!("  • Use {} to test your configuration", "vkteams-bot-cli validate".cyan());
-    println!("  • Use {} for interactive setup", "vkteams-bot-cli setup".cyan());
-    
+    println!(
+        "  • Use {} for command-specific help",
+        "vkteams-bot-cli <command> --help".cyan()
+    );
+    println!(
+        "  • Use {} to see usage examples",
+        "vkteams-bot-cli examples".cyan()
+    );
+    println!(
+        "  • Use {} to test your configuration",
+        "vkteams-bot-cli validate".cyan()
+    );
+    println!(
+        "  • Use {} for interactive setup",
+        "vkteams-bot-cli setup".cyan()
+    );
+
     Ok(())
 }
 
 async fn execute_validate(bot: &Bot) -> CliResult<()> {
-    println!("{} Validating Configuration...", emoji::MAGNIFYING_GLASS.bold().blue());
+    println!(
+        "{} Validating Configuration...",
+        emoji::MAGNIFYING_GLASS.bold().blue()
+    );
     println!();
-    
+
     // Check if configuration exists
     match Config::from_file() {
         Ok(config) => {
             println!("{} Configuration file found and readable", emoji::CHECK);
-            
+
             // Check required fields
             if config.api.token.is_some() {
                 println!("{} API token is configured", emoji::CHECK);
             } else {
                 println!("{} API token is missing", emoji::CROSS);
             }
-            
+
             if config.api.url.is_some() {
                 println!("{} API URL is configured", emoji::CHECK);
             } else {
                 println!("{} API URL is missing", emoji::CROSS);
             }
-            
+
             // Test bot connection
             println!("\n{} Testing bot connection...", emoji::GEAR);
-            
+
             let request = RequestSelfGet::new(());
             match bot.send_api_request(request).await {
                 Ok(bot_info) => {
                     println!("{} API connection successful", emoji::CHECK);
                     println!("{} Bot is working correctly", emoji::CHECK);
-                    
+
                     if let Ok(json_str) = serde_json::to_string_pretty(&bot_info) {
                         println!("\n{}", "Bot Information:".bold().green());
                         println!("{}", json_str.green());
@@ -355,10 +623,14 @@ async fn execute_validate(bot: &Bot) -> CliResult<()> {
         }
         Err(_) => {
             println!("{} No configuration file found", emoji::CROSS);
-            println!("{} Run {} to create initial configuration", emoji::LIGHTBULB, "vkteams-bot-cli setup".cyan());
+            println!(
+                "{} Run {} to create initial configuration",
+                emoji::LIGHTBULB,
+                "vkteams-bot-cli setup".cyan()
+            );
         }
     }
-    
+
     println!("\n{} Validation complete!", emoji::SPARKLES.bold().green());
     Ok(())
 }
@@ -369,11 +641,14 @@ async fn execute_config(show: bool, init: bool, wizard: bool) -> CliResult<()> {
         println!("Current configuration will be updated.\n");
 
         let mut new_config = Config::default();
-        
+
         // Update API token
         if let Ok(current_config) = Config::from_file() {
             if let Some(current_token) = &current_config.api.token {
-                println!("Current API token: {}***", &current_token[..8.min(current_token.len())]);
+                println!(
+                    "Current API token: {}***",
+                    &current_token[..8.min(current_token.len())]
+                );
             }
         }
         print!("Enter new API token (or press Enter to keep current): ");
@@ -400,7 +675,11 @@ async fn execute_config(show: bool, init: bool, wizard: bool) -> CliResult<()> {
 
         // Save and test
         if let Err(e) = new_config.save(None) {
-            eprintln!("{}  Warning: Could not save configuration: {}", emoji::WARNING, e);
+            eprintln!(
+                "{}  Warning: Could not save configuration: {}",
+                emoji::WARNING,
+                e
+            );
         } else {
             println!("{} Configuration updated successfully!", emoji::FLOPPY_DISK);
         }
@@ -409,18 +688,16 @@ async fn execute_config(show: bool, init: bool, wizard: bool) -> CliResult<()> {
     if show {
         // Print current configuration as TOML
         match Config::from_file() {
-            Ok(config) => {
-                match toml::to_string_pretty(&config) {
-                    Ok(config_str) => {
-                        println!("Current configuration:\n{}", config_str.green());
-                    }
-                    Err(e) => {
-                        return Err(CliError::UnexpectedError(format!(
-                            "Failed to serialize configuration: {e}"
-                        )));
-                    }
+            Ok(config) => match toml::to_string_pretty(&config) {
+                Ok(config_str) => {
+                    println!("Current configuration:\n{}", config_str.green());
                 }
-            }
+                Err(e) => {
+                    return Err(CliError::UnexpectedError(format!(
+                        "Failed to serialize configuration: {e}"
+                    )));
+                }
+            },
             Err(_) => {
                 println!("{} No configuration file found", emoji::INFO);
                 println!("{} {}", emoji::LIGHTBULB, help::SETUP_HINT.cyan());

@@ -7,7 +7,7 @@ use crate::errors::prelude::{CliError, Result as CliResult};
 use crate::scheduler::{Scheduler, TaskType, ScheduleType};
 use crate::utils::parse_schedule_time;
 use async_trait::async_trait;
-use clap::Subcommand;
+use clap::{Subcommand, ValueHint};
 use chrono::Utc;
 use colored::Colorize;
 use std::str::FromStr;
@@ -37,7 +37,7 @@ pub enum SchedulingCommands {
 pub enum ScheduleMessageType {
     /// Schedule a text message
     Text {
-        #[arg(short = 'u', long, required = true, value_name = "CHAT_ID")]
+        #[arg(short = 'u', long, required = true, value_name = "CHAT_ID", value_hint = ValueHint::Username)]
         chat_id: String,
         #[arg(short = 'm', long, required = true, value_name = "MESSAGE")]
         message: String,
@@ -52,9 +52,9 @@ pub enum ScheduleMessageType {
     },
     /// Schedule a file message
     File {
-        #[arg(short = 'u', long, required = true, value_name = "CHAT_ID")]
+        #[arg(short = 'u', long, required = true, value_name = "CHAT_ID", value_hint = ValueHint::Username)]
         chat_id: String,
-        #[arg(short = 'p', long, required = true, value_name = "FILE_PATH")]
+        #[arg(short = 'p', long, required = true, value_name = "FILE_PATH", value_hint = ValueHint::FilePath)]
         file_path: String,
         #[arg(short = 't', long, value_name = "TIME")]
         time: Option<String>,
@@ -67,9 +67,9 @@ pub enum ScheduleMessageType {
     },
     /// Schedule a voice message
     Voice {
-        #[arg(short = 'u', long, required = true, value_name = "CHAT_ID")]
+        #[arg(short = 'u', long, required = true, value_name = "CHAT_ID", value_hint = ValueHint::Username)]
         chat_id: String,
-        #[arg(short = 'p', long, required = true, value_name = "FILE_PATH")]
+        #[arg(short = 'p', long, required = true, value_name = "FILE_PATH", value_hint = ValueHint::FilePath)]
         file_path: String,
         #[arg(short = 't', long, value_name = "TIME")]
         time: Option<String>,
@@ -82,7 +82,7 @@ pub enum ScheduleMessageType {
     },
     /// Schedule a chat action
     Action {
-        #[arg(short = 'u', long, required = true, value_name = "CHAT_ID")]
+        #[arg(short = 'u', long, required = true, value_name = "CHAT_ID", value_hint = ValueHint::Username)]
         chat_id: String,
         #[arg(short = 'a', long, required = true, value_name = "ACTION")]
         action: String,
