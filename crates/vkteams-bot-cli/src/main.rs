@@ -199,18 +199,18 @@ pub mod progress;
 pub mod scheduler;
 pub mod utils;
 
-use clap::{Parser, ValueHint};
+use crate::cli::Cli;
+use clap::Parser;
 use colored::Colorize;
-use commands::{Command, CommandExecutor, CommandResult, Commands, OutputFormat};
+use commands::{Command, Commands, OutputFormat};
 use config::Config;
 use constants::{exit_codes, ui::emoji};
 use errors::prelude::Result as CliResult;
+use std::path::Path;
 use std::process::exit;
-use std::path::PathBuf;
 use tracing::debug;
 use utils::{create_bot_instance, create_dummy_bot, needs_bot_instance};
 use vkteams_bot::otlp;
-use vkteams_bot::prelude::*;
 
 /// Main CLI structure for the VK Teams Bot command-line interface.
 ///
@@ -312,7 +312,6 @@ pub struct Cli {
 /// - **Environment Variables**: Optional but may be needed for configuration
 #[tokio::main]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
-    //
     dotenvy::dotenv().expect("Unable to load .env file");
 
     let _guard = otlp::init()?;
@@ -327,11 +326,8 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Set up completion directory for runtime access
-    setup_completion_environment();
-
     // Load configuration
-    let config = match load_configuration(&cli).await {
+    let config = match load_configuration(&cli) {
         Ok(config) => config,
         Err(err) => {
             eprintln!(
@@ -361,7 +357,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    debug!("Configuration loaded successfully");
+    debug!("Configuration loaded успешно");
 
     // Validate command before execution
     if let Err(err) = cli.command.validate() {
