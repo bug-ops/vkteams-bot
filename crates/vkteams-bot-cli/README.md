@@ -1,6 +1,5 @@
 # VK Teams Bot API CLI
 
-[![docs.rs](https://img.shields.io/docsrs/vkteams-bot-cli/latest)](https://docs.rs/vkteams-bot-cli/latest/vkteams_bot_cli/)
 [![crates.io](https://img.shields.io/crates/v/vkteams-bot-cli)](https://crates.io/crates/vkteams-bot-cli)
 [![github.com](https://github.com/k05h31/vkteams-bot-cli/workflows/Rust/badge.svg)](https://github.com/k05h31/vkteams-bot/actions)
 [![Unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
@@ -14,6 +13,8 @@
 - 🔧 **Message Editing**: Edit, delete, pin/unpin messages
 - 📁 **File Handling**: Upload and download files with progress bars
 - 🎯 **Event Monitoring**: Real-time event listening with long polling
+- ⏰ **Message Scheduling**: Schedule messages with cron expressions, intervals, or specific times
+- 🤖 **Task Automation**: Background scheduler daemon with task management
 - ⚙️ **Smart Configuration**: Interactive setup wizard and multiple config sources
 - 🔍 **Diagnostics**: Built-in validation and connection testing
 - 🎨 **User-Friendly**: Colored output, progress indicators, and helpful examples
@@ -157,6 +158,34 @@ vkteams-bot-cli config --show
 | `examples` | Show usage examples | `vkteams-bot-cli examples` |
 | `list-commands` | Show all commands | `vkteams-bot-cli list-commands` |
 
+### ⏰ Message Scheduling
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `schedule text` | Schedule text message | `vkteams-bot-cli schedule text -u CHAT_ID -m "Hello" -t "2024-01-01 10:00"` |
+| `schedule file` | Schedule file message | `vkteams-bot-cli schedule file -u CHAT_ID -p file.pdf -c "0 9 * * *"` |
+| `schedule voice` | Schedule voice message | `vkteams-bot-cli schedule voice -u CHAT_ID -p voice.ogg -i 3600` |
+| `schedule action` | Schedule chat action | `vkteams-bot-cli schedule action -u CHAT_ID -a typing -t "30m"` |
+
+### 🔧 Scheduler Management
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `scheduler start` | Start scheduler daemon | `vkteams-bot-cli scheduler start` |
+| `scheduler stop` | Stop scheduler daemon | `vkteams-bot-cli scheduler stop` |
+| `scheduler status` | Show scheduler status | `vkteams-bot-cli scheduler status` |
+| `scheduler list` | List all scheduled tasks | `vkteams-bot-cli scheduler list` |
+
+### 📋 Task Management
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `task show` | Show task details | `vkteams-bot-cli task show TASK_ID` |
+| `task remove` | Remove scheduled task | `vkteams-bot-cli task remove TASK_ID` |
+| `task enable` | Enable disabled task | `vkteams-bot-cli task enable TASK_ID` |
+| `task disable` | Disable active task | `vkteams-bot-cli task disable TASK_ID` |
+| `task run` | Run task immediately | `vkteams-bot-cli task run TASK_ID` |
+
 ### ⚙️ Configuration
 
 | Command | Description | Example |
@@ -242,6 +271,88 @@ vkteams-bot-cli send-action -c chat456 -a typing
 vkteams-bot-cli send-action -c chat456 -a looking
 ```
 
+### Message Scheduling
+
+```bash
+# Schedule a text message for a specific date and time
+vkteams-bot-cli schedule text -u chat456 -m "Meeting reminder" -t "2024-01-15 09:00:00"
+
+# Schedule a daily message using cron expression (9 AM every day)
+vkteams-bot-cli schedule text -u chat456 -m "Daily standup time!" -c "0 9 * * *"
+
+# Schedule a file to be sent every hour
+vkteams-bot-cli schedule file -u chat456 -p "/path/to/report.pdf" -i 3600
+
+# Schedule a voice message for tomorrow
+vkteams-bot-cli schedule voice -u chat456 -p "/path/to/announcement.ogg" -t "tomorrow"
+
+# Schedule a typing action in 30 minutes
+vkteams-bot-cli schedule action -u chat456 -a typing -t "30m"
+
+# Schedule a weekly reminder (every Monday at 10 AM)
+vkteams-bot-cli schedule text -u chat456 -m "Weekly team meeting in 1 hour" -c "0 10 * * 1"
+
+# Schedule a one-time message with limited runs
+vkteams-bot-cli schedule text -u chat456 -m "Limited offer!" -t "2h" --max-runs 1
+```
+
+### Scheduler Management
+
+```bash
+# Start the scheduler daemon (runs in background)
+vkteams-bot-cli scheduler start
+
+# Check scheduler status and active tasks
+vkteams-bot-cli scheduler status
+
+# List all scheduled tasks with details
+vkteams-bot-cli scheduler list
+
+# Stop the scheduler daemon
+vkteams-bot-cli scheduler stop
+```
+
+### Task Management
+
+```bash
+# Show detailed information about a specific task
+vkteams-bot-cli task show a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+# Run a scheduled task immediately (one-time execution)
+vkteams-bot-cli task run a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+# Temporarily disable a task
+vkteams-bot-cli task disable a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+# Re-enable a disabled task
+vkteams-bot-cli task enable a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+# Permanently remove a task
+vkteams-bot-cli task remove a1b2c3d4-e5f6-7890-abcd-ef1234567890
+```
+
+### Advanced Scheduling Examples
+
+```bash
+# Business hours notifications (Monday to Friday, 9 AM to 5 PM)
+vkteams-bot-cli schedule text -u team-chat -m "Working hours reminder" -c "0 9-17 * * 1-5"
+
+# End of month reports (last day of every month at 6 PM)
+vkteams-bot-cli schedule file -u reports-chat -p "/reports/monthly.pdf" -c "0 18 L * *"
+
+# Hourly health checks during business hours
+vkteams-bot-cli schedule text -u monitoring-chat -m "System health check" -c "0 9-17 * * 1-5"
+
+# Multiple interval scheduling
+vkteams-bot-cli schedule text -u alerts-chat -m "Every 5 minutes alert" -i 300
+vkteams-bot-cli schedule text -u daily-chat -m "Every 30 minutes update" -i 1800
+
+# Relative time scheduling
+vkteams-bot-cli schedule text -u chat456 -m "In 1 hour" -t "1h"
+vkteams-bot-cli schedule text -u chat456 -m "Tomorrow morning" -t "tomorrow"
+vkteams-bot-cli schedule text -u chat456 -m "Next week" -t "7d"
+```
+
 ## Advanced Usage
 
 ### Configuration Management
@@ -273,6 +384,70 @@ vkteams-bot-cli send-text -u "$CHAT_ID" -m "$MESSAGE"
 vkteams-bot-cli send-action -c "$CHAT_ID" -a typing
 sleep 2
 vkteams-bot-cli send-text -u "$CHAT_ID" -m "$MESSAGE"
+```
+
+### Scheduler Automation Scripts
+
+```bash
+#!/bin/bash
+# Setup automated notifications for a development team
+
+TEAM_CHAT="dev-team-chat"
+ALERTS_CHAT="alerts-chat"
+
+# Daily standup reminder
+vkteams-bot-cli schedule text \
+  -u "$TEAM_CHAT" \
+  -m "🏃‍♂️ Daily standup in 15 minutes! Please prepare your updates." \
+  -c "0 9 * * 1-5"
+
+# End of sprint reminders
+vkteams-bot-cli schedule text \
+  -u "$TEAM_CHAT" \
+  -m "📊 Sprint ends tomorrow. Please update your task status." \
+  -c "0 17 * * 4"
+
+# Weekly retrospective
+vkteams-bot-cli schedule text \
+  -u "$TEAM_CHAT" \
+  -m "🔄 Weekly retrospective today at 4 PM. What went well this week?" \
+  -c "0 16 * * 5"
+
+# System maintenance notifications
+vkteams-bot-cli schedule text \
+  -u "$ALERTS_CHAT" \
+  -m "🔧 Scheduled maintenance window starts in 1 hour" \
+  -t "2024-01-20 01:00:00"
+
+echo "All scheduled notifications have been set up!"
+```
+
+```bash
+#!/bin/bash
+# Scheduler management script
+
+case "$1" in
+  start)
+    echo "Starting VK Teams Bot scheduler..."
+    vkteams-bot-cli scheduler start
+    ;;
+  stop)
+    echo "Stopping VK Teams Bot scheduler..."
+    vkteams-bot-cli scheduler stop
+    ;;
+  status)
+    echo "Checking scheduler status..."
+    vkteams-bot-cli scheduler status
+    ;;
+  list)
+    echo "Listing all scheduled tasks..."
+    vkteams-bot-cli scheduler list
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|status|list}"
+    exit 1
+    ;;
+esac
 ```
 
 ### Environment-Specific Configuration
@@ -346,4 +521,63 @@ progress_refresh_rate = 100
 url = "http://proxy:8080"
 # user = "username"     # optional
 # password = "password" # optional
+
+[scheduler]
+data_file = "/home/user/.config/vkteams-bot/scheduler_tasks.json"
+check_interval = 60    # seconds
+max_task_history = 100
 ```
+
+## Scheduler Features
+
+### Schedule Types
+
+The CLI supports three types of scheduling:
+
+1. **One-time scheduling** - Execute once at a specific time
+2. **Cron-based scheduling** - Use cron expressions for complex recurring schedules
+3. **Interval-based scheduling** - Repeat every N seconds/minutes/hours
+
+### Time Formats
+
+**Absolute time:**
+- `2024-01-15 14:30:00` - Specific date and time
+- `2024-01-15 14:30` - Date and time (seconds default to 00)
+- `2024-01-15` - Date only (time defaults to 00:00:00)
+
+**Relative time:**
+- `30s` - 30 seconds from now
+- `5m` - 5 minutes from now
+- `2h` - 2 hours from now
+- `1d` - 1 day from now
+- `1w` - 1 week from now
+- `tomorrow` - Tomorrow at the same time
+- `now` - Right now
+
+**Cron expressions:**
+- `0 9 * * *` - Every day at 9:00 AM
+- `0 */2 * * *` - Every 2 hours
+- `0 9 * * 1-5` - Weekdays at 9:00 AM
+- `0 0 1 * *` - First day of every month at midnight
+- `*/30 * * * *` - Every 30 minutes
+
+### Task Management
+
+Each scheduled task has:
+- **Unique ID** - UUID for task identification
+- **Status** - Active/disabled state
+- **Run count** - Number of times executed
+- **Next run time** - When the task will run next
+- **Maximum runs** - Optional limit on executions
+
+### Scheduler Daemon
+
+The scheduler runs as a background process that:
+- Checks for due tasks every minute
+- Executes tasks at their scheduled time
+- Manages task state and run counts
+- Automatically disables completed one-time tasks
+- Persists task data between restarts
+```
+
+</edits>
