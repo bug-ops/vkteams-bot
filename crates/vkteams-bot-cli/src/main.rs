@@ -197,8 +197,9 @@ pub mod errors;
 pub mod file_utils;
 pub mod progress;
 pub mod scheduler;
+pub mod utils;
 
-use commands::{Commands, Command, OutputFormat};
+use commands::{Commands, Command, CommandExecutor, CommandResult, OutputFormat};
 use config::Config;
 use constants::{ui::emoji, exit_codes};
 use errors::prelude::{CliError, Result as CliResult};
@@ -351,7 +352,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     }
 
     // Execute command
-    match execute_command(&cli.command, &config).await {
+    match execute_command(&cli.command, &config, &cli.output).await {
         Ok(()) => {
             debug!("Command executed successfully");
         }
