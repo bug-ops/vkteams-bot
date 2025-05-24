@@ -13,7 +13,7 @@ async fn main() -> Result<()> {
     println!("🚀 Starting Rate Limiter Background Refill Demo");
 
     // Create high-performance rate limiter with background refill
-    let rate_limiter = RateLimiter::new();
+    let rate_limiter = Arc::new(RateLimiter::new());
 
     println!("🔧 New Rate Limiter Features:");
     println!("   ✅ Background token refill (no computation during requests)");
@@ -24,26 +24,26 @@ async fn main() -> Result<()> {
     println!("");
 
     // Demo 1: Immediate availability
-    demo_immediate_availability(&rate_limiter).await?;
+    demo_immediate_availability(Arc::clone(&rate_limiter)).await?;
 
     // Demo 2: Background refill
-    demo_background_refill(&rate_limiter).await?;
+    demo_background_refill(Arc::clone(&rate_limiter)).await?;
 
     // Demo 3: High-performance concurrent access
-    demo_concurrent_performance(&rate_limiter).await?;
+    demo_concurrent_performance(Arc::clone(&rate_limiter)).await?;
 
     // Demo 4: Rate limiting behavior
-    demo_rate_limiting(&rate_limiter).await?;
+    demo_rate_limiting(Arc::clone(&rate_limiter)).await?;
 
     // Demo 5: Graceful shutdown
-    demo_graceful_shutdown(&rate_limiter).await?;
+    demo_graceful_shutdown(Arc::clone(&rate_limiter)).await?;
 
     println!("✅ All demos completed successfully!");
     Ok(())
 }
 
 /// Demo 1: Immediate token availability
-async fn demo_immediate_availability(rate_limiter: &RateLimiter) -> Result<()> {
+async fn demo_immediate_availability(rate_limiter: Arc<RateLimiter>) -> Result<()> {
     println!("📦 Demo 1: Immediate Token Availability");
     println!("   Bucket starts with full capacity - no delays on startup");
 
@@ -73,7 +73,7 @@ async fn demo_immediate_availability(rate_limiter: &RateLimiter) -> Result<()> {
 }
 
 /// Demo 2: Background refill functionality
-async fn demo_background_refill(rate_limiter: &RateLimiter) -> Result<()> {
+async fn demo_background_refill(rate_limiter: Arc<RateLimiter>) -> Result<()> {
     println!("🔄 Demo 2: Background Token Refill");
     println!("   Tokens are refilled by background task, not during requests");
 
@@ -172,7 +172,7 @@ async fn demo_concurrent_performance(rate_limiter: Arc<RateLimiter>) -> Result<(
 }
 
 /// Demo 4: Rate limiting behavior
-async fn demo_rate_limiting(rate_limiter: &RateLimiter) -> Result<()> {
+async fn demo_rate_limiting(rate_limiter: Arc<RateLimiter>) -> Result<()> {
     println!("🛡️  Demo 4: Rate Limiting Protection");
     println!("   Protects against burst requests while allowing normal traffic");
 
@@ -217,7 +217,7 @@ async fn demo_rate_limiting(rate_limiter: &RateLimiter) -> Result<()> {
 }
 
 /// Demo 5: Graceful shutdown
-async fn demo_graceful_shutdown(rate_limiter: &RateLimiter) -> Result<()> {
+async fn demo_graceful_shutdown(rate_limiter: Arc<RateLimiter>) -> Result<()> {
     println!("🛑 Demo 5: Graceful Shutdown");
     println!("   Properly cleanup background tasks to prevent resource leaks");
 
