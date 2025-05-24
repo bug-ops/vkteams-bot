@@ -113,11 +113,11 @@ async fn demo_background_refill(rate_limiter: &RateLimiter) -> Result<()> {
 }
 
 /// Demo 3: High-performance concurrent access
-async fn demo_concurrent_performance(rate_limiter: &RateLimiter) -> Result<()> {
+async fn demo_concurrent_performance(rate_limiter: Arc<RateLimiter>) -> Result<()> {
     println!("⚡ Demo 3: High-Performance Concurrent Access");
     println!("   Lock-free atomic operations scale with CPU cores");
 
-    let rate_limiter = Arc::new(rate_limiter.clone());
+    let rate_limiter = Arc::clone(&rate_limiter);
 
     // Benchmark: 1000 requests across 10 threads
     let start = Instant::now();
