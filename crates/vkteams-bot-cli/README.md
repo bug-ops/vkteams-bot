@@ -471,7 +471,6 @@ vkteams-bot-cli schedule text -u chat456 -m "Next week" -t "7d"
 ## Advanced Usage
 
 ### Configuration Management
-### Configuration
 
 ```bash
 # Save configuration to custom location
