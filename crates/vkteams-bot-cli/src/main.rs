@@ -220,7 +220,7 @@ async fn execute_command(command: &Commands, config: &Config, output_format: &Ou
 
     // Try to execute with new CommandResult system first
     if let Some(result) = try_execute_with_result(command, &bot).await {
-        return result.display(output_format).map_err(|e| e);
+        return result.display(output_format);
     }
 
     // Fall back to old system for commands not yet migrated
@@ -239,12 +239,8 @@ async fn try_execute_with_result(command: &Commands, bot: &Bot) -> Option<Comman
 fn needs_bot_instance(command: &Commands) -> bool {
     match command {
         Commands::Config(_) => false,
-        Commands::Diagnostic(cmd) => {
-            match cmd {
-                commands::diagnostic::DiagnosticCommands::SystemInfo => false,
-                _ => true,
-            }
-        }
+        Commands::Diagnostic(commands::diagnostic::DiagnosticCommands::SystemInfo) => false,
+        Commands::Diagnostic(_) => true,
         _ => true,
     }
 }

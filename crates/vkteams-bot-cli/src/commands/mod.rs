@@ -119,10 +119,8 @@ impl CommandResult {
                             ))?;
                         println!("{}", json_str.green());
                     }
-                } else {
-                    if let Some(message) = &self.message {
-                        eprintln!("{} {}", emoji::CROSS, message.red());
-                    }
+                } else if let Some(message) = &self.message {
+                    eprintln!("{} {}", emoji::CROSS, message.red());
                 }
             }
             OutputFormat::Json => {

@@ -435,18 +435,18 @@ pub fn parse_schedule_time(time_str: &str) -> CliResult<DateTime<Utc>> {
     }
 
     // Try relative times
-    if time_str.ends_with('m') {
-        if let Ok(minutes) = time_str[..time_str.len()-1].parse::<i64>() {
+    if let Some(stripped) = time_str.strip_suffix('m') {
+        if let Ok(minutes) = stripped.parse::<i64>() {
             return Ok(Utc::now() + Duration::minutes(minutes));
         }
     }
-    if time_str.ends_with('h') {
-        if let Ok(hours) = time_str[..time_str.len()-1].parse::<i64>() {
+    if let Some(stripped) = time_str.strip_suffix('h') {
+        if let Ok(hours) = stripped.parse::<i64>() {
             return Ok(Utc::now() + Duration::hours(hours));
         }
     }
-    if time_str.ends_with('d') {
-        if let Ok(days) = time_str[..time_str.len()-1].parse::<i64>() {
+    if let Some(stripped) = time_str.strip_suffix('d') {
+        if let Ok(days) = stripped.parse::<i64>() {
             return Ok(Utc::now() + Duration::days(days));
         }
     }

@@ -105,28 +105,28 @@ pub fn parse_relative_time(time_str: &str) -> CliResult<DateTime<Utc>> {
     let now = Utc::now();
 
     // Parse relative times
-    if time_str.ends_with('s') {
-        if let Ok(seconds) = time_str[..time_str.len()-1].parse::<i64>() {
+    if let Some(stripped) = time_str.strip_suffix('s') {
+        if let Ok(seconds) = stripped.parse::<i64>() {
             return Ok(now + Duration::seconds(seconds));
         }
     }
-    if time_str.ends_with('m') {
-        if let Ok(minutes) = time_str[..time_str.len()-1].parse::<i64>() {
+    if let Some(stripped) = time_str.strip_suffix('m') {
+        if let Ok(minutes) = stripped.parse::<i64>() {
             return Ok(now + Duration::minutes(minutes));
         }
     }
-    if time_str.ends_with('h') {
-        if let Ok(hours) = time_str[..time_str.len()-1].parse::<i64>() {
+    if let Some(stripped) = time_str.strip_suffix('h') {
+        if let Ok(hours) = stripped.parse::<i64>() {
             return Ok(now + Duration::hours(hours));
         }
     }
-    if time_str.ends_with('d') {
-        if let Ok(days) = time_str[..time_str.len()-1].parse::<i64>() {
+    if let Some(stripped) = time_str.strip_suffix('d') {
+        if let Ok(days) = stripped.parse::<i64>() {
             return Ok(now + Duration::days(days));
         }
     }
-    if time_str.ends_with('w') {
-        if let Ok(weeks) = time_str[..time_str.len()-1].parse::<i64>() {
+    if let Some(stripped) = time_str.strip_suffix('w') {
+        if let Ok(weeks) = stripped.parse::<i64>() {
             return Ok(now + Duration::weeks(weeks));
         }
     }

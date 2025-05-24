@@ -62,12 +62,8 @@ pub fn create_dummy_bot() -> Bot {
 pub fn needs_bot_instance(command: &Commands) -> bool {
     match command {
         Commands::Config(_) => false,
-        Commands::Diagnostic(cmd) => {
-            match cmd {
-                crate::commands::diagnostic::DiagnosticCommands::SystemInfo => false,
-                _ => true,
-            }
-        }
+        Commands::Diagnostic(crate::commands::diagnostic::DiagnosticCommands::SystemInfo) => false,
+        Commands::Diagnostic(_) => true,
         _ => true,
     }
 }
@@ -248,6 +244,6 @@ mod tests {
         let _dummy_bot = create_dummy_bot();
         // We can't test much about the dummy bot without making API calls
         // But we can verify it was created without panicking
-        assert!(true); // This test passes if create_dummy_bot() doesn't panic
+        // This test passes if create_dummy_bot() doesn't panic
     }
 }

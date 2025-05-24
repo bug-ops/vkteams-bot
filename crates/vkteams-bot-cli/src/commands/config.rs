@@ -291,7 +291,7 @@ async fn execute_list_commands() -> CliResult<()> {
     let mut categories: std::collections::HashMap<&str, Vec<(&str, &str)>> = std::collections::HashMap::new();
     
     for (cmd, desc, cat) in commands {
-        categories.entry(cat).or_insert_with(Vec::new).push((cmd, desc));
+        categories.entry(cat).or_default().push((cmd, desc));
     }
     
     for (category, cmds) in categories {
