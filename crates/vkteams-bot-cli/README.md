@@ -63,6 +63,7 @@ vkteams-bot-cli completion zsh --install
 ### What You Get
 
 After installation, use Tab completion for:
+
 - **Commands**: `vkteams-bot-cli s[Tab]` → `send-text`, `send-file`, `schedule`
 - **Options**: `vkteams-bot-cli config --[Tab]` → `--show`, `--wizard`, `--help`
 - **File paths**: `vkteams-bot-cli send-file -p /path/[Tab]` → auto-complete files
@@ -78,11 +79,10 @@ vkteams-bot-cli completion zsh --install
 vkteams-bot-cli completion bash
 ```
 
-📖 **Detailed instructions**: See [BUILD.md](BUILD.md) for comprehensive build and completion setup guide.
-
 ### Manual Installation
 
 #### Bash
+
 ```bash
 # Generate and source the completion script
 vkteams-bot-cli completion bash > ~/.local/share/bash-completion/completions/vkteams-bot-cli
@@ -92,6 +92,7 @@ echo 'source ~/.local/share/bash-completion/completions/vkteams-bot-cli' >> ~/.b
 ```
 
 #### Zsh
+
 ```bash
 # Generate completion script
 vkteams-bot-cli completion zsh > ~/.local/share/zsh/site-functions/_vkteams-bot-cli
@@ -101,47 +102,14 @@ echo 'autoload -Uz compinit && compinit' >> ~/.zshrc
 ```
 
 #### Fish
+
 ```bash
 # Fish automatically loads completions from this directory
 vkteams-bot-cli completion fish > ~/.config/fish/completions/vkteams-bot-cli.fish
 ```
 
 #### PowerShell
-```powershell
-# Generate completion script
-vkteams-bot-cli completion powershell > vkteams-bot-cli-completion.ps1
 
-# Add to your PowerShell profile
-Add-Content $PROFILE ". $(pwd)\vkteams-bot-cli-completion.ps1"
-```
-
-### Manual Installation
-
-#### Bash
-```bash
-# Generate and source the completion script
-vkteams-bot-cli completion bash > ~/.local/share/bash-completion/completions/vkteams-bot-cli
-
-# Add to your ~/.bashrc
-echo 'source ~/.local/share/bash-completion/completions/vkteams-bot-cli' >> ~/.bashrc
-```
-
-#### Zsh
-```bash
-# Generate completion script
-vkteams-bot-cli completion zsh > ~/.local/share/zsh/site-functions/_vkteams-bot-cli
-
-# Ensure completions are enabled in ~/.zshrc
-echo 'autoload -Uz compinit && compinit' >> ~/.zshrc
-```
-
-#### Fish
-```bash
-# Fish automatically loads completions from this directory
-vkteams-bot-cli completion fish > ~/.config/fish/completions/vkteams-bot-cli.fish
-```
-
-#### PowerShell
 ```powershell
 # Generate completion script
 vkteams-bot-cli completion powershell > vkteams-bot-cli-completion.ps1
@@ -168,7 +136,6 @@ cargo build --release
 > 📋 **Build Guide**: See [BUILD.md](BUILD.md) for detailed build instructions, troubleshooting, and advanced options.
 
 ## Quick Start
-
 
 | `completion` | Generate shell completions | `vkteams-bot-cli completion bash` |
 
@@ -495,7 +462,6 @@ vkteams-bot-cli schedule text -u chat456 -m "Next week" -t "7d"
 ## Advanced Usage
 
 ### Configuration Management
-### Configuration
 
 ```bash
 # Save configuration to custom location
@@ -630,24 +596,6 @@ vkteams-bot-cli completion bash --install
 vkteams-bot-cli completion zsh --install
 ```
 
-### Advanced Usage
-
-### Configuration Management
-
-```bash
-# Save configuration to custom location
-vkteams-bot-cli --save-config /path/to/custom-config.toml
-
-# Use custom configuration file
-vkteams-bot-cli --config /path/to/custom-config.toml send-text -u user123 -m "Hello"
-
-# Initialize configuration with defaults
-vkteams-bot-cli config --init
-
-# Generate shell completions for better UX
-vkteams-bot-cli completion bash --install
-```
-
 ## Error Handling
 
 The CLI provides clear error messages and appropriate exit codes:
@@ -716,11 +664,13 @@ The CLI supports three types of scheduling:
 ### Time Formats
 
 **Absolute time:**
+
 - `2024-01-15 14:30:00` - Specific date and time
 - `2024-01-15 14:30` - Date and time (seconds default to 00)
 - `2024-01-15` - Date only (time defaults to 00:00:00)
 
 **Relative time:**
+
 - `30s` - 30 seconds from now
 - `5m` - 5 minutes from now
 - `2h` - 2 hours from now
@@ -730,6 +680,7 @@ The CLI supports three types of scheduling:
 - `now` - Right now
 
 **Cron expressions:**
+
 - `0 9 * * *` - Every day at 9:00 AM
 - `0 */2 * * *` - Every 2 hours
 - `0 9 * * 1-5` - Weekdays at 9:00 AM
@@ -739,6 +690,7 @@ The CLI supports three types of scheduling:
 ### Task Management
 
 Each scheduled task has:
+
 - **Unique ID** - UUID for task identification
 - **Status** - Active/disabled state
 - **Run count** - Number of times executed
@@ -748,6 +700,7 @@ Each scheduled task has:
 ### Scheduler Daemon
 
 The scheduler runs as a background process that:
+
 - Checks for due tasks every minute
 - Executes tasks at their scheduled time
 - Manages task state and run counts
