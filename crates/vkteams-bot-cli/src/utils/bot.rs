@@ -21,17 +21,18 @@ pub fn create_bot_instance(config: &Config) -> CliResult<Bot> {
         .ok_or_else(|| CliError::InputError(
             "API token is required. Set VKTEAMS_BOT_API_TOKEN or configure via 'vkteams-bot-cli setup'".to_string()
         ))?;
-    
-    let url = config.api.url.as_ref()
-        .ok_or_else(|| CliError::InputError(
-            "API URL is required. Set VKTEAMS_BOT_API_URL or configure via 'vkteams-bot-cli setup'".to_string()
-        ))?;
+
+    let url = config.api.url.as_ref().ok_or_else(|| {
+        CliError::InputError(
+            "API URL is required. Set VKTEAMS_BOT_API_URL or configure via 'vkteams-bot-cli setup'"
+                .to_string(),
+        )
+    })?;
 
     // Set environment variables for bot initialization
     setup_bot_environment(config);
 
-    Bot::with_params(APIVersionUrl::V1, token.clone(), url.clone())
-        .map_err(CliError::ApiError)
+    Bot::with_params(APIVersionUrl::V1, token.clone(), url.clone()).map_err(CliError::ApiError)
 }
 
 /// Create a dummy bot instance for commands that don't need real API access
@@ -42,10 +43,11 @@ pub fn create_dummy_bot() -> Bot {
     // Create a dummy bot for commands that don't need real API access
     // This is safe because those commands won't actually use the bot
     Bot::with_params(
-        APIVersionUrl::V1, 
-        "dummy_token".to_string(), 
-        "https://dummy.api.com".to_string()
-    ).unwrap_or_else(|_| {
+        APIVersionUrl::V1,
+        "dummy_token".to_string(),
+        "https://dummy.api.com".to_string(),
+    )
+    .unwrap_or_else(|_| {
         // If even dummy bot creation fails, we'll handle it in the command execution
         panic!("Failed to create dummy bot - this should not happen")
     })
@@ -78,24 +80,24 @@ pub fn setup_bot_environment(config: &Config) {
             std::env::set_var("VKTEAMS_BOT_API_TOKEN", token);
         }
     }
-    
+
     if let Some(url) = &config.api.url {
         unsafe {
             std::env::set_var("VKTEAMS_BOT_API_URL", url);
         }
     }
-    
+
     if let Some(proxy) = &config.proxy {
         unsafe {
             std::env::set_var("VKTEAMS_PROXY", &proxy.url);
         }
-        
+
         if let Some(user) = &proxy.user {
             unsafe {
                 std::env::set_var("VKTEAMS_PROXY_USER", user);
             }
         }
-        
+
         if let Some(password) = &proxy.password {
             unsafe {
                 std::env::set_var("VKTEAMS_PROXY_PASSWORD", password);
@@ -103,8 +105,6 @@ pub fn setup_bot_environment(config: &Config) {
         }
     }
 }
-
-
 
 /// Test bot connectivity with a simple API call
 ///
@@ -116,7 +116,8 @@ pub fn setup_bot_environment(config: &Config) {
 /// * `Err(CliError)` if the bot connectivity test fails
 pub async fn test_bot_connectivity(bot: &Bot) -> CliResult<()> {
     let request = RequestSelfGet::new(());
-    bot.send_api_request(request).await
+    bot.send_api_request(request)
+        .await
         .map_err(CliError::ApiError)
         .map(|_| ())
 }
@@ -132,7 +133,7 @@ pub async fn test_bot_connectivity(bot: &Bot) -> CliResult<()> {
 /// * `Err(CliError)` if bot creation fails after all retries
 pub fn create_bot_instance_with_retry(config: &Config, max_retries: u32) -> CliResult<Bot> {
     let mut last_error = None;
-    
+
     for attempt in 0..=max_retries {
         match create_bot_instance(config) {
             Ok(bot) => return Ok(bot),
@@ -140,12 +141,14 @@ pub fn create_bot_instance_with_retry(config: &Config, max_retries: u32) -> CliR
                 last_error = Some(e);
                 if attempt < max_retries {
                     // Add a small delay between retries
-                    std::thread::sleep(std::time::Duration::from_millis(100 * (attempt + 1) as u64));
+                    std::thread::sleep(std::time::Duration::from_millis(
+                        100 * (attempt + 1) as u64,
+                    ));
                 }
             }
         }
     }
-    
+
     Err(last_error.unwrap_or_else(|| {
         CliError::UnexpectedError("Failed to create bot instance after retries".to_string())
     }))
@@ -160,33 +163,32 @@ mod tests {
         // Config commands should not need bot
         let config_cmd = Commands::Config(crate::commands::config::ConfigCommands::Setup);
         assert!(!needs_bot_instance(&config_cmd));
-        
+
         // System info should not need bot
-        let system_info_cmd = Commands::Diagnostic(
-            crate::commands::diagnostic::DiagnosticCommands::SystemInfo
-        );
+        let system_info_cmd =
+            Commands::Diagnostic(crate::commands::diagnostic::DiagnosticCommands::SystemInfo);
         assert!(!needs_bot_instance(&system_info_cmd));
     }
 
     #[test]
     fn test_validate_config() {
         let mut config = Config::default();
-        
+
         // Empty config should fail
         assert!(crate::utils::config_helpers::validate_config(&config).is_err());
-        
+
         // Config with only token should fail
         config.api.token = Some("test_token_12345".to_string());
         assert!(crate::utils::config_helpers::validate_config(&config).is_err());
-        
+
         // Config with token and URL should pass
         config.api.url = Some("https://api.teams.vk.com".to_string());
         assert!(crate::utils::config_helpers::validate_config(&config).is_ok());
-        
+
         // Invalid URL should fail
         config.api.url = Some("invalid-url".to_string());
         assert!(crate::utils::config_helpers::validate_config(&config).is_err());
-        
+
         // Short token should fail
         config.api.token = Some("short".to_string());
         config.api.url = Some("https://api.teams.vk.com".to_string());

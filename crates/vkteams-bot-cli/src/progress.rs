@@ -1,11 +1,15 @@
 use crate::config::Config;
-use indicatif::{ProgressBar, ProgressStyle, ProgressState};
+use indicatif::{ProgressBar, ProgressState, ProgressStyle};
 use std::fmt::Write;
 use std::path::Path;
 use std::time::Duration;
 
 /// Creates a progress bar for file download operations
-pub fn create_download_progress_bar(config: &Config, total_size: u64, file_name: &str) -> Option<ProgressBar> {
+pub fn create_download_progress_bar(
+    config: &Config,
+    total_size: u64,
+    file_name: &str,
+) -> Option<ProgressBar> {
     if !config.ui.show_progress {
         return None;
     }
@@ -18,7 +22,11 @@ pub fn create_download_progress_bar(config: &Config, total_size: u64, file_name:
 }
 
 /// Creates a progress bar for file upload operations
-pub fn create_upload_progress_bar(config: &Config, total_size: u64, file_path: &str) -> Option<ProgressBar> {
+pub fn create_upload_progress_bar(
+    config: &Config,
+    total_size: u64,
+    file_path: &str,
+) -> Option<ProgressBar> {
     if !config.ui.show_progress {
         return None;
     }
@@ -47,7 +55,6 @@ fn create_progress_style(style_name: &str, prefix: &str) -> ProgressStyle {
             write!(w, "{:.1}s", state.eta().as_secs_f64()).unwrap()
         })
         .progress_chars("##-"),
-        
         "unicode" => ProgressStyle::with_template(
             "{prefix}{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})",
         )
@@ -56,7 +63,6 @@ fn create_progress_style(style_name: &str, prefix: &str) -> ProgressStyle {
             write!(w, "{:.1}s", state.eta().as_secs_f64()).unwrap()
         })
         .progress_chars("━━╾─"),
-        
         _ => ProgressStyle::with_template(
             "{prefix}{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})",
         )

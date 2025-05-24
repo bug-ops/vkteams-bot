@@ -3,9 +3,9 @@
 //! This module contains validation functions for chat IDs, usernames,
 //! and other chat-related identifiers.
 
+use super::{validate_length, validate_not_empty};
 use crate::constants::validation;
 use crate::errors::prelude::{CliError, Result as CliResult};
-use super::{validate_not_empty, validate_length};
 
 /// Validate a chat ID or user ID
 ///
@@ -30,9 +30,10 @@ pub fn validate_chat_id(chat_id: &str) -> CliResult<()> {
     )?;
 
     // Validate character set
-    if !chat_id.chars().all(|c| {
-        c.is_alphanumeric() || c == '_' || c == '.' || c == '-' || c == '@'
-    }) {
+    if !chat_id
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '_' || c == '.' || c == '-' || c == '@')
+    {
         return Err(CliError::InputError(
             "Chat ID contains invalid characters. Only alphanumeric, underscore, dot, hyphen, and @ are allowed".to_string()
         ));
@@ -70,12 +71,7 @@ pub fn validate_chat_title(title: &str) -> CliResult<()> {
 /// * `Err(CliError::InputError)` if the description is invalid
 pub fn validate_chat_about(about: &str) -> CliResult<()> {
     validate_not_empty(about, "Chat description")?;
-    validate_length(
-        about,
-        "Chat description",
-        1,
-        validation::MAX_MESSAGE_LENGTH,
-    )?;
+    validate_length(about, "Chat description", 1, validation::MAX_MESSAGE_LENGTH)?;
     Ok(())
 }
 
@@ -89,12 +85,14 @@ pub fn validate_chat_about(about: &str) -> CliResult<()> {
 /// * `Err(CliError::InputError)` if the action is invalid
 pub fn validate_chat_action(action: &str) -> CliResult<()> {
     use crate::constants::api::actions;
-    
+
     match action {
         actions::TYPING | actions::LOOKING => Ok(()),
         _ => Err(CliError::InputError(format!(
             "Invalid action: {}. Available actions: {}, {}",
-            action, actions::TYPING, actions::LOOKING
+            action,
+            actions::TYPING,
+            actions::LOOKING
         ))),
     }
 }
@@ -108,7 +106,8 @@ pub fn validate_chat_action(action: &str) -> CliResult<()> {
 /// * `Ok(())` if the cursor is valid
 /// * `Err(CliError::InputError)` if the cursor is invalid
 pub fn validate_cursor(cursor: &str) -> CliResult<()> {
-    cursor.parse::<u32>()
+    cursor
+        .parse::<u32>()
         .map_err(|_| CliError::InputError("Cursor must be a valid number".to_string()))?;
     Ok(())
 }

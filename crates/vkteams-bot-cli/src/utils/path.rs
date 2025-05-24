@@ -4,8 +4,8 @@
 //! used throughout the CLI application.
 
 use crate::errors::prelude::{CliError, Result as CliResult};
-use std::path::{Path, PathBuf};
 use std::fs;
+use std::path::{Path, PathBuf};
 
 /// Ensure that a directory exists, creating it if necessary
 ///
@@ -17,11 +17,17 @@ use std::fs;
 /// * `Err(CliError::FileError)` if directory creation fails
 pub fn ensure_directory_exists(path: &Path) -> CliResult<()> {
     if !path.exists() {
-        fs::create_dir_all(path)
-            .map_err(|e| CliError::FileError(format!("Failed to create directory {}: {}", path.display(), e)))?;
+        fs::create_dir_all(path).map_err(|e| {
+            CliError::FileError(format!(
+                "Failed to create directory {}: {}",
+                path.display(),
+                e
+            ))
+        })?;
     } else if !path.is_dir() {
         return Err(CliError::FileError(format!(
-            "Path exists but is not a directory: {}", path.display()
+            "Path exists but is not a directory: {}",
+            path.display()
         )));
     }
     Ok(())
@@ -66,7 +72,10 @@ pub fn get_file_extension(path: &str) -> Option<String> {
 /// * `true` if the extension is supported for voice messages
 /// * `false` otherwise
 pub fn is_supported_voice_format(extension: &str) -> bool {
-    matches!(extension.to_lowercase().as_str(), "ogg" | "mp3" | "wav" | "m4a" | "aac")
+    matches!(
+        extension.to_lowercase().as_str(),
+        "ogg" | "mp3" | "wav" | "m4a" | "aac"
+    )
 }
 
 /// Check if a file extension is supported for regular file uploads
@@ -93,24 +102,24 @@ pub fn is_supported_file_format(extension: &str) -> bool {
 pub fn sanitize_filename(filename: &str) -> String {
     let unsafe_chars = ['<', '>', ':', '"', '|', '?', '*', '/', '\\'];
     let mut sanitized = filename.to_string();
-    
+
     for unsafe_char in &unsafe_chars {
         sanitized = sanitized.replace(*unsafe_char, "_");
     }
-    
+
     // Remove leading/trailing dots and spaces
     sanitized = sanitized.trim_matches(|c| c == '.' || c == ' ').to_string();
-    
+
     // Ensure the filename is not empty
     if sanitized.is_empty() {
         sanitized = "unnamed_file".to_string();
     }
-    
+
     // Limit filename length to reasonable bounds
     if sanitized.len() > 255 {
         sanitized = sanitized[..255].to_string();
     }
-    
+
     sanitized
 }
 
@@ -123,12 +132,15 @@ pub fn sanitize_filename(filename: &str) -> String {
 /// * `Ok(u64)` containing the file size in bytes
 /// * `Err(CliError::FileError)` if the file cannot be accessed
 pub fn get_file_size(path: &Path) -> CliResult<u64> {
-    let metadata = fs::metadata(path)
-        .map_err(|e| CliError::FileError(format!("Failed to get file metadata for {}: {}", path.display(), e)))?;
+    let metadata = fs::metadata(path).map_err(|e| {
+        CliError::FileError(format!(
+            "Failed to get file metadata for {}: {}",
+            path.display(),
+            e
+        ))
+    })?;
     Ok(metadata.len())
 }
-
-
 
 /// Normalize a path string to use consistent separators
 ///
@@ -138,9 +150,7 @@ pub fn get_file_size(path: &Path) -> CliResult<u64> {
 /// # Returns
 /// * A normalized path string
 pub fn normalize_path(path: &str) -> String {
-    Path::new(path)
-        .to_string_lossy()
-        .replace('\\', "/")
+    Path::new(path).to_string_lossy().replace('\\', "/")
 }
 
 /// Get the parent directory of a path
@@ -195,7 +205,7 @@ pub fn is_directory_writable(path: &Path) -> bool {
     if !path.exists() || !path.is_dir() {
         return false;
     }
-    
+
     // Try to create a temporary file to test writability
     let test_file = path.join(".write_test_temp");
     match fs::write(&test_file, b"test") {
@@ -219,24 +229,27 @@ pub fn get_unique_filename(base_path: &Path) -> PathBuf {
     if !base_path.exists() {
         return base_path.to_path_buf();
     }
-    
+
     let parent = base_path.parent().unwrap_or_else(|| Path::new("."));
-    let stem = base_path.file_stem().and_then(|s| s.to_str()).unwrap_or("file");
+    let stem = base_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("file");
     let extension = base_path.extension().and_then(|s| s.to_str()).unwrap_or("");
-    
+
     for i in 1..1000 {
         let new_filename = if extension.is_empty() {
             format!("{}_{}", stem, i)
         } else {
             format!("{}_{}.{}", stem, i, extension)
         };
-        
+
         let new_path = parent.join(new_filename);
         if !new_path.exists() {
             return new_path;
         }
     }
-    
+
     // Fallback if we can't find a unique name
     base_path.to_path_buf()
 }
@@ -297,7 +310,7 @@ mod tests {
     fn test_ensure_directory_exists() {
         let temp_dir = tempdir().unwrap();
         let new_dir = temp_dir.path().join("new_directory");
-        
+
         assert!(ensure_directory_exists(&new_dir).is_ok());
         assert!(new_dir.exists() && new_dir.is_dir());
     }
@@ -306,11 +319,11 @@ mod tests {
     fn test_get_unique_filename() {
         let temp_dir = tempdir().unwrap();
         let file_path = temp_dir.path().join("test.txt");
-        
+
         // First call should return the original path
         let unique1 = get_unique_filename(&file_path);
         assert_eq!(unique1, file_path);
-        
+
         // Create the file and test again
         fs::write(&file_path, "test").unwrap();
         let unique2 = get_unique_filename(&file_path);

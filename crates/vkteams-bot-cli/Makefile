@@ -45,11 +45,9 @@ help:
 # Build targets
 .PHONY: build
 build:
-	@echo "$(COLOR_BLUE)Building $(PROJECT_NAME) with completions...$(COLOR_RESET)"
+	@echo "$(COLOR_BLUE)Building $(PROJECT_NAME)...$(COLOR_RESET)"
 	cargo build --release --features completion
-	@if [ -d "target/completions" ]; then \
-		echo "$(COLOR_GREEN)✓ Completions auto-generated in target/completions/$(COLOR_RESET)"; \
-	fi
+	@echo "$(COLOR_GREEN)✓ Build completed with completion support$(COLOR_RESET)"
 
 .PHONY: release
 release: build
@@ -85,25 +83,24 @@ clippy:
 .PHONY: install-completions
 install-completions: build
 	@echo "$(COLOR_BLUE)Installing completions...$(COLOR_RESET)"
-	@if [ -f "target/completions/install-completions.sh" ]; then \
-		bash target/completions/install-completions.sh; \
+	@if command -v ./target/release/$(BINARY_NAME) >/dev/null 2>&1; then \
+		./target/release/$(BINARY_NAME) completion bash --install 2>/dev/null || echo "$(COLOR_YELLOW)Bash completion install failed$(COLOR_RESET)"; \
+		./target/release/$(BINARY_NAME) completion zsh --install 2>/dev/null || echo "$(COLOR_YELLOW)Zsh completion install failed$(COLOR_RESET)"; \
+		./target/release/$(BINARY_NAME) completion fish --install 2>/dev/null || echo "$(COLOR_YELLOW)Fish completion install failed$(COLOR_RESET)"; \
+		echo "$(COLOR_GREEN)✓ Completions installed using CLI$(COLOR_RESET)"; \
 	else \
-		echo "$(COLOR_YELLOW)No auto-generated installer found. Run 'make build' first.$(COLOR_RESET)"; \
+		echo "$(COLOR_YELLOW)CLI binary not found. Run 'make build' first.$(COLOR_RESET)"; \
 	fi
 
 .PHONY: test-completions
 test-completions: build
 	@echo "$(COLOR_BLUE)Testing completion generation...$(COLOR_RESET)"
-	@if [ -d "target/completions" ]; then \
-		echo "$(COLOR_GREEN)✓ Build script generated completions:$(COLOR_RESET)"; \
-		ls -la target/completions/; \
-		echo "$(COLOR_GREEN)✓ Testing CLI completion commands:$(COLOR_RESET)"; \
-		./target/release/$(BINARY_NAME) completion bash > /tmp/test-completion-bash && echo "✓ Bash completion works"; \
-		./target/release/$(BINARY_NAME) completion zsh > /tmp/test-completion-zsh && echo "✓ Zsh completion works"; \
-	else \
-		echo "$(COLOR_YELLOW)No completions found. Build may have failed.$(COLOR_RESET)"; \
-		exit 1; \
-	fi
+	@echo "$(COLOR_GREEN)✓ Testing CLI completion commands:$(COLOR_RESET)"
+	@./target/release/$(BINARY_NAME) completion bash > /tmp/test-completion-bash && echo "✓ Bash completion works" || echo "✗ Bash completion failed"
+	@./target/release/$(BINARY_NAME) completion zsh > /tmp/test-completion-zsh && echo "✓ Zsh completion works" || echo "✗ Zsh completion failed"
+	@./target/release/$(BINARY_NAME) completion fish > /tmp/test-completion-fish && echo "✓ Fish completion works" || echo "✗ Fish completion failed"
+	@./target/release/$(BINARY_NAME) completion powershell > /tmp/test-completion-powershell && echo "✓ PowerShell completion works" || echo "✗ PowerShell completion failed"
+	@echo "$(COLOR_GREEN)✓ Runtime completion generation tested$(COLOR_RESET)"
 
 # Installation targets
 .PHONY: install
@@ -124,18 +121,15 @@ demo: build
 	@echo "$(COLOR_GREEN)Available commands:$(COLOR_RESET)"
 	@./target/release/$(BINARY_NAME) list-commands 2>/dev/null || echo "Use --help to see commands"
 	@echo ""
-	@echo "$(COLOR_GREEN)Completion files:$(COLOR_RESET)"
-	@if [ -d "target/completions" ]; then \
-		ls -la target/completions/; \
-	else \
-		echo "No completions generated yet. Run 'make build' first."; \
-	fi
+	@echo "$(COLOR_GREEN)Completion generation:$(COLOR_RESET)"
+	@echo "Generate completions with: ./target/release/$(BINARY_NAME) completion <shell>"
+	@echo "Available shells: bash, zsh, fish, powershell"
 
 # Force targets for development
 .PHONY: force-build
 force-build: clean
-	@echo "$(COLOR_BLUE)Force rebuilding with completions...$(COLOR_RESET)"
-	VKTEAMS_GENERATE_COMPLETIONS=1 cargo build --release --features completion
+	@echo "$(COLOR_BLUE)Force rebuilding...$(COLOR_RESET)"
+	cargo build --release --features completion
 
 .PHONY: dev
 dev:

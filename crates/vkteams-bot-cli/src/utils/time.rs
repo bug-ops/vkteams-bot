@@ -4,7 +4,7 @@
 //! used throughout the CLI application.
 
 use crate::errors::prelude::{CliError, Result as CliResult};
-use chrono::{DateTime, Utc, Duration, NaiveDateTime, NaiveDate, Timelike, Datelike};
+use chrono::{DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, Timelike, Utc};
 use cron::Schedule;
 use std::str::FromStr;
 
@@ -36,7 +36,7 @@ pub fn parse_schedule_time(time_str: &str) -> CliResult<DateTime<Utc>> {
         if let Ok(naive_date) = NaiveDate::parse_from_str(time_str, format) {
             return Ok(DateTime::from_naive_utc_and_offset(
                 naive_date.and_hms_opt(0, 0, 0).unwrap(),
-                Utc
+                Utc,
             ));
         }
     }
@@ -76,7 +76,10 @@ pub fn parse_schedule_time_compat(time_str: &str) -> CliResult<DateTime<Utc>> {
             return Ok(DateTime::from_naive_utc_and_offset(naive_dt, Utc));
         }
         if let Ok(naive_date) = NaiveDate::parse_from_str(time_str, format) {
-            return Ok(DateTime::from_naive_utc_and_offset(naive_date.and_hms_opt(0, 0, 0).unwrap(), Utc));
+            return Ok(DateTime::from_naive_utc_and_offset(
+                naive_date.and_hms_opt(0, 0, 0).unwrap(),
+                Utc,
+            ));
         }
     }
 
@@ -113,9 +116,11 @@ pub fn parse_schedule_time_compat(time_str: &str) -> CliResult<DateTime<Utc>> {
 /// * `Err(CliError::InputError)` if parsing fails
 pub fn parse_relative_time(time_str: &str) -> CliResult<DateTime<Utc>> {
     let time_str = time_str.trim().to_lowercase();
-    
+
     if time_str.is_empty() {
-        return Err(CliError::InputError("Relative time cannot be empty".to_string()));
+        return Err(CliError::InputError(
+            "Relative time cannot be empty".to_string(),
+        ));
     }
 
     let now = Utc::now();
@@ -168,7 +173,7 @@ pub fn parse_relative_time(time_str: &str) -> CliResult<DateTime<Utc>> {
 /// * A human-readable string representation of the duration
 pub fn format_duration(duration: Duration) -> String {
     let total_seconds = duration.num_seconds();
-    
+
     if total_seconds < 0 {
         return format!("-{}", format_duration(-duration));
     }
@@ -249,7 +254,7 @@ pub fn get_next_cron_occurrence(
         .map_err(|e| CliError::InputError(format!("Invalid cron expression: {}", e)))?;
 
     let base_time = from_time.unwrap_or_else(Utc::now);
-    
+
     schedule
         .after(&base_time)
         .next()
@@ -318,12 +323,13 @@ pub fn is_weekend(dt: DateTime<Utc>) -> bool {
 /// # Returns
 /// * The rounded datetime
 pub fn round_to_minute(dt: DateTime<Utc>) -> DateTime<Utc> {
-    let rounded_naive = dt.naive_utc()
+    let rounded_naive = dt
+        .naive_utc()
         .with_second(0)
         .unwrap()
         .with_nanosecond(0)
         .unwrap();
-    
+
     DateTime::from_naive_utc_and_offset(rounded_naive, Utc)
 }
 
@@ -334,7 +340,7 @@ mod tests {
     #[test]
     fn test_parse_relative_time() {
         let _now = Utc::now();
-        
+
         assert!(parse_relative_time("30s").is_ok());
         assert!(parse_relative_time("5m").is_ok());
         assert!(parse_relative_time("2h").is_ok());
@@ -342,7 +348,7 @@ mod tests {
         assert!(parse_relative_time("1w").is_ok());
         assert!(parse_relative_time("now").is_ok());
         assert!(parse_relative_time("tomorrow").is_ok());
-        
+
         assert!(parse_relative_time("invalid").is_err());
         assert!(parse_relative_time("").is_err());
     }
@@ -368,7 +374,7 @@ mod tests {
         assert!(parse_schedule_time("2024-01-01 12:00").is_ok());
         assert!(parse_schedule_time("2024-01-01").is_ok());
         assert!(parse_schedule_time("30m").is_ok());
-        
+
         assert!(parse_schedule_time("invalid-date").is_err());
     }
 
@@ -376,7 +382,7 @@ mod tests {
     fn test_get_next_cron_occurrence() {
         // Test every hour (6-field format: sec min hour day month weekday)
         assert!(get_next_cron_occurrence("0 0 * * * *", None).is_ok());
-        
+
         // Test invalid cron
         assert!(get_next_cron_occurrence("invalid", None).is_err());
     }
@@ -386,10 +392,10 @@ mod tests {
         let now = Utc::now();
         let future = now + Duration::minutes(5);
         let past = now - Duration::hours(2);
-        
+
         let future_str = format_datetime_relative(future);
         assert!(future_str.contains("in"));
-        
+
         let past_str = format_datetime_relative(past);
         assert!(past_str.contains("ago"));
     }
@@ -400,7 +406,7 @@ mod tests {
         let dt = Utc::now().date_naive().and_hms_opt(10, 0, 0).unwrap();
         let dt_utc = DateTime::from_naive_utc_and_offset(dt, Utc);
         assert!(is_business_hours(dt_utc));
-        
+
         // Create a datetime at 6 PM UTC
         let dt = Utc::now().date_naive().and_hms_opt(18, 0, 0).unwrap();
         let dt_utc = DateTime::from_naive_utc_and_offset(dt, Utc);

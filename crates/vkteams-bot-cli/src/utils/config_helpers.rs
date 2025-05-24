@@ -174,7 +174,9 @@ pub fn merge_rate_limit_configs(
         } else {
             overlay.retry_delay
         },
-        retry_attempts: if overlay.retry_attempts == crate::config::default_rate_limit_retry_attempts() {
+        retry_attempts: if overlay.retry_attempts
+            == crate::config::default_rate_limit_retry_attempts()
+        {
             base.retry_attempts
         } else {
             overlay.retry_attempts
@@ -428,7 +430,7 @@ mod tests {
         assert_eq!(merged.api.token, Some("base_token".to_string()));
         assert_eq!(merged.api.url, Some("https://api.example.com".to_string()));
         assert_eq!(merged.api.timeout, 60);
-        assert_eq!(merged.rate_limit.enabled, true);
+        assert!(merged.rate_limit.enabled);
         assert_eq!(merged.rate_limit.limit, 2000);
     }
 
@@ -468,22 +470,22 @@ mod tests {
         let base = crate::config::RateLimitConfig {
             enabled: true,
             limit: 100,
-            duration: 30,  // Non-default value
+            duration: 30,      // Non-default value
             retry_delay: 250,  // Non-default value
-            retry_attempts: 2,  // Non-default value
+            retry_attempts: 2, // Non-default value
         };
 
         let overlay = crate::config::RateLimitConfig {
-            enabled: true,  // Use true instead of false to avoid default
+            enabled: true, // Use true instead of false to avoid default
             limit: 500,
             duration: 120,
-            retry_delay: 800,  // Non-default value
+            retry_delay: 800, // Non-default value
             retry_attempts: 5,
         };
 
         let merged = merge_rate_limit_configs(base, overlay);
 
-        assert_eq!(merged.enabled, true);
+        assert!(merged.enabled);
         assert_eq!(merged.limit, 500);
         assert_eq!(merged.duration, 120);
         assert_eq!(merged.retry_delay, 800);

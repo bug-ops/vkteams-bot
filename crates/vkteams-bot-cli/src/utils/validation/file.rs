@@ -3,8 +3,8 @@
 //! This module contains validation functions for file paths, file IDs,
 //! and file-related operations.
 
-use crate::errors::prelude::{CliError, Result as CliResult};
 use super::validate_not_empty;
+use crate::errors::prelude::{CliError, Result as CliResult};
 use std::path::Path;
 
 /// Validate a file path exists and is accessible
@@ -20,10 +20,16 @@ pub fn validate_file_path(file_path: &str) -> CliResult<()> {
 
     let path = Path::new(file_path);
     if !path.exists() {
-        return Err(CliError::FileError(format!("File not found: {}", file_path)));
+        return Err(CliError::FileError(format!(
+            "File not found: {}",
+            file_path
+        )));
     }
     if !path.is_file() {
-        return Err(CliError::FileError(format!("Path is not a file: {}", file_path)));
+        return Err(CliError::FileError(format!(
+            "Path is not a file: {}",
+            file_path
+        )));
     }
 
     Ok(())
@@ -45,7 +51,8 @@ pub fn validate_directory_path(dir_path: &str) -> CliResult<()> {
     let path = Path::new(dir_path);
     if path.exists() && !path.is_dir() {
         return Err(CliError::FileError(format!(
-            "Path exists but is not a directory: {}", dir_path
+            "Path exists but is not a directory: {}",
+            dir_path
         )));
     }
 
@@ -64,7 +71,10 @@ pub fn validate_file_id(file_id: &str) -> CliResult<()> {
     validate_not_empty(file_id, "File ID")?;
 
     // Basic file ID format validation
-    if !file_id.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
+    if !file_id
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '_' || c == '-')
+    {
         return Err(CliError::InputError(
             "File ID contains invalid characters. Only alphanumeric, underscore, and hyphen are allowed".to_string()
         ));
@@ -96,7 +106,9 @@ pub fn validate_voice_file_path(file_path: &str) -> CliResult<()> {
             ))),
         }
     } else {
-        Err(CliError::InputError("Voice file must have an extension".to_string()))
+        Err(CliError::InputError(
+            "Voice file must have an extension".to_string(),
+        ))
     }
 }
 
@@ -132,7 +144,10 @@ pub fn validate_file_size(file_path: &str, max_size: usize) -> CliResult<()> {
 /// * `true` if the extension is supported for voice messages
 /// * `false` otherwise
 pub fn is_supported_voice_format(extension: &str) -> bool {
-    matches!(extension.to_lowercase().as_str(), "ogg" | "mp3" | "wav" | "m4a" | "aac")
+    matches!(
+        extension.to_lowercase().as_str(),
+        "ogg" | "mp3" | "wav" | "m4a" | "aac"
+    )
 }
 
 /// Check if a file extension is supported for regular file uploads
@@ -160,7 +175,7 @@ pub fn is_supported_file_format(extension: &str) -> bool {
 pub fn validate_safe_path(path: &str) -> CliResult<()> {
     if path.contains("..") || path.contains("~") {
         return Err(CliError::InputError(
-            "Path contains unsafe elements (.. or ~)".to_string()
+            "Path contains unsafe elements (.. or ~)".to_string(),
         ));
     }
 
@@ -172,7 +187,7 @@ pub fn validate_safe_path(path: &str) -> CliResult<()> {
             let drive = path.chars().next().unwrap().to_ascii_uppercase();
             if !('A'..='Z').contains(&drive) {
                 return Err(CliError::InputError(
-                    "Invalid drive letter in path".to_string()
+                    "Invalid drive letter in path".to_string(),
                 ));
             }
         }

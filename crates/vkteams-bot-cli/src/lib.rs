@@ -3,6 +3,7 @@
 //! This library provides the core functionality for the VK Teams Bot CLI application.
 //! It is organized into modular components for better maintainability and testing.
 
+pub mod cli;
 pub mod commands;
 pub mod completion;
 pub mod config;
@@ -14,6 +15,7 @@ pub mod scheduler;
 pub mod utils;
 
 // Re-export commonly used types for convenience
+pub use cli::Cli;
 pub use commands::Command;
 pub use config::Config;
 pub use errors::prelude::*;

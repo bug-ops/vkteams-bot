@@ -5,8 +5,11 @@
 use crate::commands::{Command, OutputFormat};
 use crate::constants::api::actions;
 use crate::errors::prelude::{CliError, Result as CliResult};
-use crate::utils::{validate_chat_id, validate_chat_title, validate_chat_about, validate_chat_action, validate_cursor};
 use crate::utils::output::print_success_result;
+use crate::utils::{
+    validate_chat_about, validate_chat_action, validate_chat_id, validate_chat_title,
+    validate_cursor,
+};
 use async_trait::async_trait;
 use clap::{Subcommand, ValueHint};
 use tracing::{debug, info};
@@ -59,12 +62,8 @@ pub enum ChatCommands {
 impl Command for ChatCommands {
     async fn execute(&self, bot: &Bot) -> CliResult<()> {
         match self {
-            ChatCommands::GetChatInfo { chat_id } => {
-                execute_get_chat_info(bot, chat_id).await
-            }
-            ChatCommands::GetProfile { user_id } => {
-                execute_get_profile(bot, user_id).await
-            }
+            ChatCommands::GetChatInfo { chat_id } => execute_get_chat_info(bot, chat_id).await,
+            ChatCommands::GetProfile { user_id } => execute_get_profile(bot, user_id).await,
             ChatCommands::GetChatMembers { chat_id, cursor } => {
                 execute_get_chat_members(bot, chat_id, cursor.as_deref()).await
             }
@@ -93,8 +92,8 @@ impl Command for ChatCommands {
 
     fn validate(&self) -> CliResult<()> {
         match self {
-            ChatCommands::GetChatInfo { chat_id } |
-            ChatCommands::GetProfile { user_id: chat_id } => {
+            ChatCommands::GetChatInfo { chat_id }
+            | ChatCommands::GetProfile { user_id: chat_id } => {
                 validate_chat_id(chat_id)?;
             }
             ChatCommands::GetChatMembers { chat_id, cursor } => {
@@ -124,9 +123,11 @@ impl Command for ChatCommands {
 
 async fn execute_get_chat_info(bot: &Bot, chat_id: &str) -> CliResult<()> {
     debug!("Getting chat info for {}", chat_id);
-    
+
     let request = RequestChatsGetInfo::new(ChatId(chat_id.to_string()));
-    let result = bot.send_api_request(request).await
+    let result = bot
+        .send_api_request(request)
+        .await
         .map_err(CliError::ApiError)?;
 
     info!("Successfully retrieved chat info for {}", chat_id);
@@ -136,9 +137,11 @@ async fn execute_get_chat_info(bot: &Bot, chat_id: &str) -> CliResult<()> {
 
 async fn execute_get_profile(bot: &Bot, user_id: &str) -> CliResult<()> {
     debug!("Getting profile for user {}", user_id);
-    
+
     let request = RequestChatsGetInfo::new(ChatId(user_id.to_string()));
-    let result = bot.send_api_request(request).await
+    let result = bot
+        .send_api_request(request)
+        .await
         .map_err(CliError::ApiError)?;
 
     info!("Successfully retrieved profile for user {}", user_id);
@@ -148,7 +151,7 @@ async fn execute_get_profile(bot: &Bot, user_id: &str) -> CliResult<()> {
 
 async fn execute_get_chat_members(bot: &Bot, chat_id: &str, cursor: Option<&str>) -> CliResult<()> {
     debug!("Getting chat members for {}", chat_id);
-    
+
     let mut request = RequestChatsGetMembers::new(ChatId(chat_id.to_string()));
     if let Some(cursor_val) = cursor {
         match cursor_val.parse::<u32>() {
@@ -163,7 +166,9 @@ async fn execute_get_chat_members(bot: &Bot, chat_id: &str, cursor: Option<&str>
         }
     }
 
-    let result = bot.send_api_request(request).await
+    let result = bot
+        .send_api_request(request)
+        .await
         .map_err(CliError::ApiError)?;
 
     info!("Successfully retrieved members for chat {}", chat_id);
@@ -173,13 +178,12 @@ async fn execute_get_chat_members(bot: &Bot, chat_id: &str, cursor: Option<&str>
 
 async fn execute_set_chat_title(bot: &Bot, chat_id: &str, title: &str) -> CliResult<()> {
     debug!("Setting chat title for {} to {}", chat_id, title);
-    
-    let request = RequestChatsSetTitle::new((
-        ChatId(chat_id.to_string()),
-        title.to_string(),
-    ));
 
-    let result = bot.send_api_request(request).await
+    let request = RequestChatsSetTitle::new((ChatId(chat_id.to_string()), title.to_string()));
+
+    let result = bot
+        .send_api_request(request)
+        .await
         .map_err(CliError::ApiError)?;
 
     info!("Successfully set title for chat {}: {}", chat_id, title);
@@ -189,40 +193,43 @@ async fn execute_set_chat_title(bot: &Bot, chat_id: &str, title: &str) -> CliRes
 
 async fn execute_set_chat_about(bot: &Bot, chat_id: &str, about: &str) -> CliResult<()> {
     debug!("Setting chat description for {} to {}", chat_id, about);
-    
-    let request = RequestChatsSetAbout::new((
-        ChatId(chat_id.to_string()),
-        about.to_string(),
-    ));
 
-    let result = bot.send_api_request(request).await
+    let request = RequestChatsSetAbout::new((ChatId(chat_id.to_string()), about.to_string()));
+
+    let result = bot
+        .send_api_request(request)
+        .await
         .map_err(CliError::ApiError)?;
 
-    info!("Successfully set description for chat {}: {}", chat_id, about);
+    info!(
+        "Successfully set description for chat {}: {}",
+        chat_id, about
+    );
     print_success_result(&result, &OutputFormat::Pretty)?;
     Ok(())
 }
 
 async fn execute_send_action(bot: &Bot, chat_id: &str, action: &str) -> CliResult<()> {
     debug!("Sending {} action to chat {}", action, chat_id);
-    
+
     let chat_action = match action {
         actions::TYPING => ChatActions::Typing,
         actions::LOOKING => ChatActions::Looking,
         _ => {
             return Err(CliError::InputError(format!(
-                "Unknown action: {}. Available actions: {}, {}", 
-                action, actions::TYPING, actions::LOOKING
+                "Unknown action: {}. Available actions: {}, {}",
+                action,
+                actions::TYPING,
+                actions::LOOKING
             )));
         }
     };
 
-    let request = RequestChatsSendAction::new((
-        ChatId(chat_id.to_string()),
-        chat_action,
-    ));
+    let request = RequestChatsSendAction::new((ChatId(chat_id.to_string()), chat_action));
 
-    let result = bot.send_api_request(request).await
+    let result = bot
+        .send_api_request(request)
+        .await
         .map_err(CliError::ApiError)?;
 
     info!("Successfully sent {} action to chat {}", action, chat_id);

@@ -1,11 +1,11 @@
 use crate::errors::prelude::{CliError, Result as CliResult};
-use chrono::{DateTime, Utc, Duration};
+use chrono::{DateTime, Duration, Utc};
 use cron::Schedule;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::str::FromStr;
-use tokio::time::{sleep, Duration as TokioDuration};
+use tokio::time::{Duration as TokioDuration, sleep};
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 use vkteams_bot::prelude::*;
@@ -27,22 +27,10 @@ pub struct ScheduledTask {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TaskType {
-    SendText {
-        chat_id: String,
-        message: String,
-    },
-    SendFile {
-        chat_id: String,
-        file_path: String,
-    },
-    SendVoice {
-        chat_id: String,
-        file_path: String,
-    },
-    SendAction {
-        chat_id: String,
-        action: String,
-    },
+    SendText { chat_id: String, message: String },
+    SendFile { chat_id: String, file_path: String },
+    SendVoice { chat_id: String, file_path: String },
+    SendAction { chat_id: String, action: String },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -155,7 +143,9 @@ impl Scheduler {
 
     pub async fn run_scheduler(&mut self) -> CliResult<()> {
         if self.bot.is_none() {
-            return Err(CliError::InputError("Bot not configured for scheduler".to_string()));
+            return Err(CliError::InputError(
+                "Bot not configured for scheduler".to_string(),
+            ));
         }
 
         info!("Starting scheduler...");
@@ -194,7 +184,9 @@ impl Scheduler {
 
     pub async fn run_task_once(&mut self, task_id: &str) -> CliResult<()> {
         if self.bot.is_none() {
-            return Err(CliError::InputError("Bot not configured for scheduler".to_string()));
+            return Err(CliError::InputError(
+                "Bot not configured for scheduler".to_string(),
+            ));
         }
 
         if !self.tasks.contains_key(task_id) {
@@ -208,29 +200,44 @@ impl Scheduler {
         let task = self.tasks.get(task_id).unwrap().clone();
         let bot = self.bot.as_ref().unwrap();
 
-        debug!("Executing task: {} ({})", task_id, task.task_type.description());
+        debug!(
+            "Executing task: {} ({})",
+            task_id,
+            task.task_type.description()
+        );
 
         let result: CliResult<()> = match &task.task_type {
             TaskType::SendText { chat_id, message } => {
-                let parser = MessageTextParser::new().add(MessageTextFormat::Plain(message.clone()));
-                let request = RequestMessagesSendText::new(ChatId(chat_id.clone())).set_text(parser)
+                let parser =
+                    MessageTextParser::new().add(MessageTextFormat::Plain(message.clone()));
+                let request = RequestMessagesSendText::new(ChatId(chat_id.clone()))
+                    .set_text(parser)
                     .map_err(|e| CliError::InputError(format!("Failed to create message: {e}")))?;
-                bot.send_api_request(request).await.map_err(CliError::ApiError).map(|_| ())
-            },
+                bot.send_api_request(request)
+                    .await
+                    .map_err(CliError::ApiError)
+                    .map(|_| ())
+            }
             TaskType::SendFile { chat_id, file_path } => {
                 let request = RequestMessagesSendFile::new((
                     ChatId(chat_id.clone()),
                     MultipartName::File(file_path.clone()),
                 ));
-                bot.send_api_request(request).await.map_err(CliError::ApiError).map(|_| ())
-            },
+                bot.send_api_request(request)
+                    .await
+                    .map_err(CliError::ApiError)
+                    .map(|_| ())
+            }
             TaskType::SendVoice { chat_id, file_path } => {
                 let request = RequestMessagesSendVoice::new((
                     ChatId(chat_id.clone()),
                     MultipartName::File(file_path.clone()),
                 ));
-                bot.send_api_request(request).await.map_err(CliError::ApiError).map(|_| ())
-            },
+                bot.send_api_request(request)
+                    .await
+                    .map_err(CliError::ApiError)
+                    .map(|_| ())
+            }
             TaskType::SendAction { chat_id, action } => {
                 let chat_action = match action.as_str() {
                     "typing" => ChatActions::Typing,
@@ -238,15 +245,18 @@ impl Scheduler {
                     _ => return Err(CliError::InputError(format!("Unknown action: {}", action))),
                 };
                 let request = RequestChatsSendAction::new((ChatId(chat_id.clone()), chat_action));
-                bot.send_api_request(request).await.map_err(CliError::ApiError).map(|_| ())
-            },
+                bot.send_api_request(request)
+                    .await
+                    .map_err(CliError::ApiError)
+                    .map(|_| ())
+            }
         };
 
         match result {
             Ok(_) => {
                 info!("Successfully executed task: {}", task_id);
                 self.update_task_after_execution(task_id)?;
-            },
+            }
             Err(e) => {
                 error!("Failed to execute task {}: {}", task_id, e);
                 return Err(e);
@@ -275,7 +285,7 @@ impl Scheduler {
                 ScheduleType::Once(_) => {
                     // One-time task completed, disable it
                     task.enabled = false;
-                },
+                }
                 ScheduleType::Cron(_) | ScheduleType::Interval { .. } => {
                     // Calculate next run for recurring tasks
                     if let Ok(next_run) = next_run_result {
@@ -284,7 +294,7 @@ impl Scheduler {
                         warn!("Could not calculate next run for task: {}", task_id);
                         task.enabled = false;
                     }
-                },
+                }
             }
 
             // Check if max runs reached
@@ -300,7 +310,11 @@ impl Scheduler {
         Ok(())
     }
 
-    fn calculate_next_run(&self, schedule: &ScheduleType, from_time: Option<DateTime<Utc>>) -> CliResult<DateTime<Utc>> {
+    fn calculate_next_run(
+        &self,
+        schedule: &ScheduleType,
+        from_time: Option<DateTime<Utc>>,
+    ) -> CliResult<DateTime<Utc>> {
         let base_time = from_time.unwrap_or_else(Utc::now);
 
         match schedule {
@@ -309,10 +323,14 @@ impl Scheduler {
                 let schedule = Schedule::from_str(cron_expr)
                     .map_err(|e| CliError::InputError(format!("Invalid cron expression: {e}")))?;
 
-                schedule.upcoming(Utc).next()
-                    .ok_or_else(|| CliError::InputError("No upcoming time for cron expression".to_string()))
-            },
-            ScheduleType::Interval { duration_seconds, start_time } => {
+                schedule.upcoming(Utc).next().ok_or_else(|| {
+                    CliError::InputError("No upcoming time for cron expression".to_string())
+                })
+            }
+            ScheduleType::Interval {
+                duration_seconds,
+                start_time,
+            } => {
                 if base_time < *start_time {
                     Ok(*start_time)
                 } else {
@@ -335,7 +353,7 @@ impl Scheduler {
                     ScheduleType::Once(_) => {
                         // Remove completed one-time tasks
                         tasks_to_remove.push(task_id.clone());
-                    },
+                    }
                     _ => {
                         // Keep disabled recurring tasks (user might want to re-enable them)
                     }
@@ -364,8 +382,10 @@ impl Scheduler {
         let content = std::fs::read_to_string(&self.data_file)
             .map_err(|e| CliError::FileError(format!("Could not read scheduler data: {e}")))?;
 
-        let tasks: HashMap<String, ScheduledTask> = serde_json::from_str(&content)
-            .map_err(|e| CliError::UnexpectedError(format!("Could not parse scheduler data: {e}")))?;
+        let tasks: HashMap<String, ScheduledTask> =
+            serde_json::from_str(&content).map_err(|e| {
+                CliError::UnexpectedError(format!("Could not parse scheduler data: {e}"))
+            })?;
 
         self.tasks = tasks;
         info!("Loaded {} scheduled tasks", self.tasks.len());
@@ -388,9 +408,15 @@ impl TaskType {
     pub fn description(&self) -> String {
         match self {
             TaskType::SendText { chat_id, .. } => format!("Send text to {}", chat_id),
-            TaskType::SendFile { chat_id, file_path } => format!("Send file {} to {}", file_path, chat_id),
-            TaskType::SendVoice { chat_id, file_path } => format!("Send voice {} to {}", file_path, chat_id),
-            TaskType::SendAction { chat_id, action } => format!("Send {} action to {}", action, chat_id),
+            TaskType::SendFile { chat_id, file_path } => {
+                format!("Send file {} to {}", file_path, chat_id)
+            }
+            TaskType::SendVoice { chat_id, file_path } => {
+                format!("Send voice {} to {}", file_path, chat_id)
+            }
+            TaskType::SendAction { chat_id, action } => {
+                format!("Send {} action to {}", action, chat_id)
+            }
         }
     }
 }
@@ -400,11 +426,16 @@ impl ScheduleType {
         match self {
             ScheduleType::Once(time) => format!("Once at {}", time.format("%Y-%m-%d %H:%M:%S UTC")),
             ScheduleType::Cron(expr) => format!("Cron: {}", expr),
-            ScheduleType::Interval { duration_seconds, start_time } => {
-                format!("Every {} seconds from {}", duration_seconds, start_time.format("%Y-%m-%d %H:%M:%S UTC"))
+            ScheduleType::Interval {
+                duration_seconds,
+                start_time,
+            } => {
+                format!(
+                    "Every {} seconds from {}",
+                    duration_seconds,
+                    start_time.format("%Y-%m-%d %H:%M:%S UTC")
+                )
             }
         }
     }
 }
-
-

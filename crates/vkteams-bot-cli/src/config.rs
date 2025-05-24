@@ -312,8 +312,6 @@ impl Config {
         Ok(config)
     }
 
-
-
     /// Save configuration to file
     ///
     /// # Errors
@@ -512,9 +510,10 @@ impl Config {
                 },
             },
             proxy: overlay.proxy.or(base.proxy),
-            rate_limit: crate::utils::config_helpers::merge_rate_limit_configs(base.rate_limit, overlay.rate_limit),
+            rate_limit: crate::utils::config_helpers::merge_rate_limit_configs(
+                base.rate_limit,
+                overlay.rate_limit,
+            ),
         }
     }
-
-
 }

@@ -3,9 +3,9 @@
 //! This module contains validation functions for message text, message IDs,
 //! and other message-related content.
 
+use super::{validate_length, validate_not_empty};
 use crate::constants::validation;
 use crate::errors::prelude::{CliError, Result as CliResult};
-use super::{validate_not_empty, validate_length};
 
 /// Validate message text content
 ///
@@ -32,7 +32,7 @@ pub fn validate_message_text(message: &str) -> CliResult<()> {
     // Check for null bytes which can cause issues
     if message.contains('\0') {
         return Err(CliError::InputError(
-            "Message cannot contain null bytes".to_string()
+            "Message cannot contain null bytes".to_string(),
         ));
     }
 
@@ -51,7 +51,10 @@ pub fn validate_message_id(message_id: &str) -> CliResult<()> {
     validate_not_empty(message_id, "Message ID")?;
 
     // Message IDs should be alphanumeric with possible hyphens and underscores
-    if !message_id.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+    if !message_id
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+    {
         return Err(CliError::InputError(
             "Message ID contains invalid characters. Only alphanumeric, hyphen, and underscore are allowed".to_string()
         ));
@@ -75,7 +78,9 @@ pub fn validate_message_formatting(message: &str) -> CliResult<()> {
         if line.len() > max_line_length {
             return Err(CliError::InputError(format!(
                 "Line {} is too long ({} characters, max {})",
-                line_num + 1, line.len(), max_line_length
+                line_num + 1,
+                line.len(),
+                max_line_length
             )));
         }
     }
@@ -90,7 +95,7 @@ pub fn validate_message_formatting(message: &str) -> CliResult<()> {
     for pattern in &suspicious_patterns {
         if message.to_lowercase().contains(pattern) {
             return Err(CliError::InputError(
-                "Message contains potentially unsafe URL patterns".to_string()
+                "Message contains potentially unsafe URL patterns".to_string(),
             ));
         }
     }
@@ -111,7 +116,7 @@ pub fn validate_message_content(message: &str) -> CliResult<()> {
     let max_repeated_chars = 50;
     let mut current_char = '\0';
     let mut repeat_count = 0;
-    
+
     for ch in message.chars() {
         if ch == current_char {
             repeat_count += 1;
@@ -128,11 +133,13 @@ pub fn validate_message_content(message: &str) -> CliResult<()> {
     }
 
     // Check for excessive uppercase (potential shouting)
-    let uppercase_ratio = message.chars()
+    let uppercase_ratio = message
+        .chars()
         .filter(|c| c.is_alphabetic())
         .map(|c| if c.is_uppercase() { 1.0 } else { 0.0 })
-        .sum::<f64>() / message.chars().filter(|c| c.is_alphabetic()).count().max(1) as f64;
-    
+        .sum::<f64>()
+        / message.chars().filter(|c| c.is_alphabetic()).count().max(1) as f64;
+
     if uppercase_ratio > 0.8 && message.len() > 20 {
         // This is more of a warning than an error for CLI usage
         // Users might legitimately want to send uppercase messages
@@ -168,7 +175,8 @@ pub fn validate_message_context(message: &str, is_group_chat: bool) -> CliResult
         if word.len() > max_word_length {
             return Err(CliError::InputError(format!(
                 "Message contains a word that is too long ({} characters, max {})",
-                word.len(), max_word_length
+                word.len(),
+                max_word_length
             )));
         }
     }
@@ -203,11 +211,11 @@ mod tests {
         assert!(validate_message_text("").is_err());
         assert!(validate_message_text("   ").is_err());
         assert!(validate_message_text("A").is_ok());
-        
+
         // Test max length
         let long_message = "a".repeat(4097);
         assert!(validate_message_text(&long_message).is_err());
-        
+
         let max_length_message = "a".repeat(4096);
         assert!(validate_message_text(&max_length_message).is_ok());
     }
@@ -226,11 +234,11 @@ mod tests {
     #[test]
     fn test_validate_message_formatting() {
         assert!(validate_message_formatting("Normal message").is_ok());
-        
+
         // Test long line
         let long_line = "a".repeat(1001);
         assert!(validate_message_formatting(&long_line).is_err());
-        
+
         // Test suspicious patterns
         assert!(validate_message_formatting("Click [here](javascript:alert('xss'))").is_err());
         assert!(validate_message_formatting("Safe [link](https://example.com)").is_ok());
@@ -239,11 +247,11 @@ mod tests {
     #[test]
     fn test_validate_message_content() {
         assert!(validate_message_content("Normal message").is_ok());
-        
+
         // Test excessive repetition
         let repeated = "a".repeat(51);
         assert!(validate_message_content(&repeated).is_err());
-        
+
         let acceptable_repeat = "a".repeat(50);
         assert!(validate_message_content(&acceptable_repeat).is_ok());
     }
@@ -252,7 +260,7 @@ mod tests {
     fn test_validate_message_context() {
         assert!(validate_message_context("Hello everyone", true).is_ok());
         assert!(validate_message_context("Hello everyone", false).is_ok());
-        
+
         // Test long word
         let long_word = format!("This is a {} word", "a".repeat(201));
         assert!(validate_message_context(&long_word, false).is_err());
@@ -268,7 +276,7 @@ mod tests {
     fn test_validate_message_comprehensive() {
         assert!(validate_message_comprehensive("Hello, world!", false).is_ok());
         assert!(validate_message_comprehensive("", false).is_err());
-        
+
         let problematic_message = "a".repeat(51); // Too much repetition
         assert!(validate_message_comprehensive(&problematic_message, false).is_err());
     }

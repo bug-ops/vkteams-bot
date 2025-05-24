@@ -1,7 +1,7 @@
-use crate::errors::prelude::{CliError, Result as CliResult};
 use crate::config::Config;
+use crate::errors::prelude::{CliError, Result as CliResult};
 use crate::progress;
-use crate::utils::{validate_file_path, validate_directory_path};
+use crate::utils::{validate_directory_path, validate_file_path};
 use futures::StreamExt;
 use std::fmt::Debug;
 use std::path::PathBuf;
@@ -18,11 +18,11 @@ use vkteams_bot::prelude::*;
 // /// - Returns `CliError::FileError` if the file doesn't exist or cannot be opened
 // pub async fn read_file_stream(file_path: &str) -> CliResult<tokio::fs::File> {
 //     validate_file_path(file_path)?;
-//     
+//
 //     let file = tokio::fs::File::open(file_path)
 //         .await
 //         .map_err(|e| CliError::FileError(format!("Failed to open file {file_path}: {e}")))?;
-//     
+//
 //     Ok(file)
 // }
 
@@ -45,7 +45,7 @@ pub async fn download_and_save_file(
     } else {
         ".".to_string()
     };
-    
+
     validate_directory_path(&target_dir)?;
 
     debug!("Getting file info for file ID: {}", file_id);
@@ -98,33 +98,29 @@ pub async fn download_and_save_file(
     let mut downloaded: u64 = 0;
 
     // Create a progress bar for the download
-    let progress_bar = progress::create_download_progress_bar(
-        config, 
-        total_size, 
-        &file_info.file_name
-    );
+    let progress_bar =
+        progress::create_download_progress_bar(config, total_size, &file_info.file_name);
 
     debug!("Streaming file content to disk");
     while let Some(chunk_result) = stream.next().await {
-        let chunk = chunk_result
-            .map_err(|e| {
-                progress::abandon_progress(&progress_bar, "Download failed");
-                CliError::FileError(format!("Error during download: {e}"))
-            })?;
+        let chunk = chunk_result.map_err(|e| {
+            progress::abandon_progress(&progress_bar, "Download failed");
+            CliError::FileError(format!("Error during download: {e}"))
+        })?;
 
-        file_writer
-            .write_all(&chunk)
-            .await
-            .map_err(|e| {
-                progress::abandon_progress(&progress_bar, "Write failed");
-                CliError::FileError(format!("Failed to write to file: {e}"))
-            })?;
+        file_writer.write_all(&chunk).await.map_err(|e| {
+            progress::abandon_progress(&progress_bar, "Write failed");
+            CliError::FileError(format!("Failed to write to file: {e}"))
+        })?;
 
         downloaded += chunk.len() as u64;
         progress::increment_progress(&progress_bar, chunk.len() as u64);
 
         // Log progress for large files (if progress bar is disabled)
-        if !config.ui.show_progress && total_size > 1024 * 1024 && downloaded % (1024 * 1024) < chunk.len() as u64 {
+        if !config.ui.show_progress
+            && total_size > 1024 * 1024
+            && downloaded % (1024 * 1024) < chunk.len() as u64
+        {
             let downloaded_mb = {
                 #[allow(clippy::cast_precision_loss)]
                 let val = (downloaded / 1_048_576) as f64;
@@ -137,22 +133,21 @@ pub async fn download_and_save_file(
             };
             info!(
                 "Download progress: {:.1}MB / {:.1}MB",
-                downloaded_mb,
-                total_mb
+                downloaded_mb, total_mb
             );
         }
     }
 
     debug!("Flushing and finalizing file");
-    file_writer
-        .flush()
-        .await
-        .map_err(|e| {
-            progress::abandon_progress(&progress_bar, "File flush failed");
-            CliError::FileError(format!("Failed to flush file data: {e}"))
-        })?;
+    file_writer.flush().await.map_err(|e| {
+        progress::abandon_progress(&progress_bar, "File flush failed");
+        CliError::FileError(format!("Failed to flush file data: {e}"))
+    })?;
 
-    progress::finish_progress(&progress_bar, &format!("Downloaded to {}", file_path.display()));
+    progress::finish_progress(
+        &progress_bar,
+        &format!("Downloaded to {}", file_path.display()),
+    );
     info!("Successfully downloaded file to: {}", file_path.display());
     Ok(file_path)
 }
@@ -175,13 +170,15 @@ pub async fn upload_file(
     } else if let Some(upload_dir) = &config.files.upload_dir {
         upload_dir.clone()
     } else {
-        return Err(CliError::InputError("No file path provided and no default upload directory configured".to_string()));
+        return Err(CliError::InputError(
+            "No file path provided and no default upload directory configured".to_string(),
+        ));
     };
-    
+
     validate_file_path(&source_path)?;
 
     debug!("Preparing to upload file: {}", source_path);
-    
+
     // Get the file size for the progress bar
     let file_size = match progress::calculate_upload_size(&source_path) {
         Ok(size) => size,
@@ -190,26 +187,27 @@ pub async fn upload_file(
             0 // If we can't determine size, progress bar will be indeterminate
         }
     };
-    
+
     // Create a progress bar for upload
     let progress_bar = progress::create_upload_progress_bar(config, file_size, &source_path);
-    
+
     // Start the upload
     let result = match bot
         .send_api_request(RequestMessagesSendFile::new((
             ChatId(user_id.to_string()),
             MultipartName::File(source_path.to_string()),
         )))
-        .await {
-            Ok(res) => {
-                progress::finish_progress(&progress_bar, "Upload complete");
-                res
-            },
-            Err(e) => {
-                progress::abandon_progress(&progress_bar, "Upload failed");
-                return Err(CliError::ApiError(e));
-            }
-        };
+        .await
+    {
+        Ok(res) => {
+            progress::finish_progress(&progress_bar, "Upload complete");
+            res
+        }
+        Err(e) => {
+            progress::abandon_progress(&progress_bar, "Upload failed");
+            return Err(CliError::ApiError(e));
+        }
+    };
 
     info!("Successfully uploaded file: {}", source_path);
     Ok(result)
@@ -233,13 +231,15 @@ pub async fn upload_voice(
     } else if let Some(upload_dir) = &config.files.upload_dir {
         upload_dir.clone()
     } else {
-        return Err(CliError::InputError("No file path provided and no default upload directory configured".to_string()));
+        return Err(CliError::InputError(
+            "No file path provided and no default upload directory configured".to_string(),
+        ));
     };
-    
+
     validate_file_path(&source_path)?;
 
     debug!("Preparing to upload voice message: {}", source_path);
-    
+
     // Get the file size for the progress bar
     let file_size = match progress::calculate_upload_size(&source_path) {
         Ok(size) => size,
@@ -248,26 +248,27 @@ pub async fn upload_voice(
             0 // If we can't determine size, progress bar will be indeterminate
         }
     };
-    
+
     // Create a progress bar for upload
     let progress_bar = progress::create_upload_progress_bar(config, file_size, &source_path);
-    
+
     // Start the voice upload
     let result = match bot
         .send_api_request(RequestMessagesSendVoice::new((
             ChatId(user_id.to_string()),
             MultipartName::File(source_path.to_string()),
         )))
-        .await {
-            Ok(res) => {
-                progress::finish_progress(&progress_bar, "Voice upload complete");
-                res
-            },
-            Err(e) => {
-                progress::abandon_progress(&progress_bar, "Voice upload failed");
-                return Err(CliError::ApiError(e));
-            }
-        };
+        .await
+    {
+        Ok(res) => {
+            progress::finish_progress(&progress_bar, "Voice upload complete");
+            res
+        }
+        Err(e) => {
+            progress::abandon_progress(&progress_bar, "Voice upload failed");
+            return Err(CliError::ApiError(e));
+        }
+    };
 
     info!("Successfully uploaded voice message: {}", source_path);
     Ok(result)

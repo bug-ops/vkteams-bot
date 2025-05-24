@@ -4,11 +4,11 @@
 
 use crate::commands::Command;
 use crate::errors::prelude::{CliError, Result as CliResult};
-use crate::scheduler::{Scheduler, TaskType, ScheduleType};
+use crate::scheduler::{ScheduleType, Scheduler, TaskType};
 use crate::utils::parse_schedule_time;
 use async_trait::async_trait;
-use clap::{Subcommand, ValueHint};
 use chrono::Utc;
+use clap::{Subcommand, ValueHint};
 use colored::Colorize;
 use std::str::FromStr;
 use vkteams_bot::prelude::*;
@@ -145,12 +145,8 @@ impl Command for SchedulingCommands {
             SchedulingCommands::Schedule { message_type } => {
                 execute_schedule(bot, message_type).await
             }
-            SchedulingCommands::Scheduler { action } => {
-                execute_scheduler_action(bot, action).await
-            }
-            SchedulingCommands::Task { action } => {
-                execute_task_action(bot, action).await
-            }
+            SchedulingCommands::Scheduler { action } => execute_scheduler_action(bot, action).await,
+            SchedulingCommands::Task { action } => execute_task_action(bot, action).await,
         }
     }
 
@@ -177,12 +173,19 @@ async fn execute_schedule(_bot: &Bot, message_type: &ScheduleMessageType) -> Cli
         .map_err(|_| CliError::InputError("Bot token not available".to_string()))?;
     let url = std::env::var("VKTEAMS_BOT_API_URL")
         .map_err(|_| CliError::InputError("Bot URL not available".to_string()))?;
-    let scheduler_bot = Bot::with_params(APIVersionUrl::V1, token, url)
-        .map_err(CliError::ApiError)?;
+    let scheduler_bot =
+        Bot::with_params(APIVersionUrl::V1, token, url).map_err(CliError::ApiError)?;
     scheduler.set_bot(scheduler_bot);
 
     let (task_type, schedule, max_runs) = match message_type {
-        ScheduleMessageType::Text { chat_id, message, time, cron, interval, max_runs } => {
+        ScheduleMessageType::Text {
+            chat_id,
+            message,
+            time,
+            cron,
+            interval,
+            max_runs,
+        } => {
             let task = TaskType::SendText {
                 chat_id: chat_id.clone(),
                 message: message.clone(),
@@ -190,7 +193,14 @@ async fn execute_schedule(_bot: &Bot, message_type: &ScheduleMessageType) -> Cli
             let schedule = parse_schedule_args(time, cron, interval)?;
             (task, schedule, *max_runs)
         }
-        ScheduleMessageType::File { chat_id, file_path, time, cron, interval, max_runs } => {
+        ScheduleMessageType::File {
+            chat_id,
+            file_path,
+            time,
+            cron,
+            interval,
+            max_runs,
+        } => {
             let task = TaskType::SendFile {
                 chat_id: chat_id.clone(),
                 file_path: file_path.clone(),
@@ -198,7 +208,14 @@ async fn execute_schedule(_bot: &Bot, message_type: &ScheduleMessageType) -> Cli
             let schedule = parse_schedule_args(time, cron, interval)?;
             (task, schedule, *max_runs)
         }
-        ScheduleMessageType::Voice { chat_id, file_path, time, cron, interval, max_runs } => {
+        ScheduleMessageType::Voice {
+            chat_id,
+            file_path,
+            time,
+            cron,
+            interval,
+            max_runs,
+        } => {
             let task = TaskType::SendVoice {
                 chat_id: chat_id.clone(),
                 file_path: file_path.clone(),
@@ -206,7 +223,14 @@ async fn execute_schedule(_bot: &Bot, message_type: &ScheduleMessageType) -> Cli
             let schedule = parse_schedule_args(time, cron, interval)?;
             (task, schedule, *max_runs)
         }
-        ScheduleMessageType::Action { chat_id, action, time, cron, interval, max_runs } => {
+        ScheduleMessageType::Action {
+            chat_id,
+            action,
+            time,
+            cron,
+            interval,
+            max_runs,
+        } => {
             let task = TaskType::SendAction {
                 chat_id: chat_id.clone(),
                 action: action.clone(),
@@ -217,7 +241,10 @@ async fn execute_schedule(_bot: &Bot, message_type: &ScheduleMessageType) -> Cli
     };
 
     let task_id = scheduler.add_task(task_type, schedule, max_runs)?;
-    println!("✅ Task scheduled successfully with ID: {}", task_id.green());
+    println!(
+        "✅ Task scheduled successfully with ID: {}",
+        task_id.green()
+    );
     Ok(())
 }
 
@@ -229,8 +256,8 @@ async fn execute_scheduler_action(_bot: &Bot, action: &SchedulerAction) -> CliRe
         .map_err(|_| CliError::InputError("Bot token not available".to_string()))?;
     let url = std::env::var("VKTEAMS_BOT_API_URL")
         .map_err(|_| CliError::InputError("Bot URL not available".to_string()))?;
-    let scheduler_bot = Bot::with_params(APIVersionUrl::V1, token, url)
-        .map_err(CliError::ApiError)?;
+    let scheduler_bot =
+        Bot::with_params(APIVersionUrl::V1, token, url).map_err(CliError::ApiError)?;
     scheduler.set_bot(scheduler_bot);
 
     match action {
@@ -246,27 +273,46 @@ async fn execute_scheduler_action(_bot: &Bot, action: &SchedulerAction) -> CliRe
             let tasks = scheduler.list_tasks();
             let enabled_count = tasks.iter().filter(|t| t.enabled).count();
             let total_count = tasks.len();
-            
+
             println!("📊 Scheduler Status:");
             println!("  Total tasks: {}", total_count);
             println!("  Enabled tasks: {}", enabled_count.to_string().green());
-            println!("  Disabled tasks: {}", (total_count - enabled_count).to_string().yellow());
+            println!(
+                "  Disabled tasks: {}",
+                (total_count - enabled_count).to_string().yellow()
+            );
         }
         SchedulerAction::List => {
             let tasks = scheduler.list_tasks();
-            
+
             if tasks.is_empty() {
                 println!("📭 No scheduled tasks found");
                 return Ok(());
             }
-            
+
             println!("📋 Scheduled Tasks:");
             for task in tasks {
-                let status = if task.enabled { "✅ Active".green() } else { "⏸️ Disabled".yellow() };
-                println!("  {} [{}] {}", task.id, status, task.task_type.description());
+                let status = if task.enabled {
+                    "✅ Active".green()
+                } else {
+                    "⏸️ Disabled".yellow()
+                };
+                println!(
+                    "  {} [{}] {}",
+                    task.id,
+                    status,
+                    task.task_type.description()
+                );
                 println!("    Schedule: {}", task.schedule.description());
-                println!("    Runs: {}/{}", task.run_count, task.max_runs.map_or("∞".to_string(), |m| m.to_string()));
-                println!("    Next run: {}", task.next_run.format("%Y-%m-%d %H:%M:%S UTC"));
+                println!(
+                    "    Runs: {}/{}",
+                    task.run_count,
+                    task.max_runs.map_or("∞".to_string(), |m| m.to_string())
+                );
+                println!(
+                    "    Next run: {}",
+                    task.next_run.format("%Y-%m-%d %H:%M:%S UTC")
+                );
                 println!();
             }
         }
@@ -282,8 +328,8 @@ async fn execute_task_action(_bot: &Bot, action: &TaskAction) -> CliResult<()> {
         .map_err(|_| CliError::InputError("Bot token not available".to_string()))?;
     let url = std::env::var("VKTEAMS_BOT_API_URL")
         .map_err(|_| CliError::InputError("Bot URL not available".to_string()))?;
-    let scheduler_bot = Bot::with_params(APIVersionUrl::V1, token, url)
-        .map_err(CliError::ApiError)?;
+    let scheduler_bot =
+        Bot::with_params(APIVersionUrl::V1, token, url).map_err(CliError::ApiError)?;
     scheduler.set_bot(scheduler_bot);
 
     match action {
@@ -293,10 +339,27 @@ async fn execute_task_action(_bot: &Bot, action: &TaskAction) -> CliResult<()> {
                 println!("  ID: {}", task.id);
                 println!("  Type: {}", task.task_type.description());
                 println!("  Schedule: {}", task.schedule.description());
-                println!("  Status: {}", if task.enabled { "✅ Active".green() } else { "⏸️ Disabled".yellow() });
-                println!("  Created: {}", task.created_at.format("%Y-%m-%d %H:%M:%S UTC"));
-                println!("  Runs: {}/{}", task.run_count, task.max_runs.map_or("∞".to_string(), |m| m.to_string()));
-                println!("  Next run: {}", task.next_run.format("%Y-%m-%d %H:%M:%S UTC"));
+                println!(
+                    "  Status: {}",
+                    if task.enabled {
+                        "✅ Active".green()
+                    } else {
+                        "⏸️ Disabled".yellow()
+                    }
+                );
+                println!(
+                    "  Created: {}",
+                    task.created_at.format("%Y-%m-%d %H:%M:%S UTC")
+                );
+                println!(
+                    "  Runs: {}/{}",
+                    task.run_count,
+                    task.max_runs.map_or("∞".to_string(), |m| m.to_string())
+                );
+                println!(
+                    "  Next run: {}",
+                    task.next_run.format("%Y-%m-%d %H:%M:%S UTC")
+                );
                 if let Some(last_run) = task.last_run {
                     println!("  Last run: {}", last_run.format("%Y-%m-%d %H:%M:%S UTC"));
                 }
@@ -358,7 +421,9 @@ fn parse_schedule_args(
         Ok(ScheduleType::Cron(cron_expr.clone()))
     } else if let Some(interval_secs) = interval {
         if *interval_secs == 0 {
-            return Err(CliError::InputError("Interval must be greater than 0".to_string()));
+            return Err(CliError::InputError(
+                "Interval must be greater than 0".to_string(),
+            ));
         }
         Ok(ScheduleType::Interval {
             duration_seconds: *interval_secs,

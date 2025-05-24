@@ -4,7 +4,7 @@
 //! and scheduling-related time values.
 
 use crate::errors::prelude::{CliError, Result as CliResult};
-use chrono::{DateTime, Utc, Duration, NaiveDateTime, NaiveDate};
+use chrono::{DateTime, Duration, NaiveDate, NaiveDateTime, Utc};
 use cron::Schedule;
 use std::str::FromStr;
 
@@ -18,7 +18,9 @@ use std::str::FromStr;
 /// * `Err(CliError::InputError)` if the cron expression is invalid
 pub fn validate_cron_expression(cron_expr: &str) -> CliResult<()> {
     if cron_expr.trim().is_empty() {
-        return Err(CliError::InputError("Cron expression cannot be empty".to_string()));
+        return Err(CliError::InputError(
+            "Cron expression cannot be empty".to_string(),
+        ));
     }
 
     Schedule::from_str(cron_expr)
@@ -37,7 +39,9 @@ pub fn validate_cron_expression(cron_expr: &str) -> CliResult<()> {
 /// * `Err(CliError::InputError)` if the datetime string is invalid
 pub fn validate_datetime_string(datetime_str: &str) -> CliResult<DateTime<Utc>> {
     if datetime_str.trim().is_empty() {
-        return Err(CliError::InputError("Datetime string cannot be empty".to_string()));
+        return Err(CliError::InputError(
+            "Datetime string cannot be empty".to_string(),
+        ));
     }
 
     parse_datetime_flexible(datetime_str)
@@ -70,8 +74,8 @@ pub fn parse_datetime_flexible(time_str: &str) -> CliResult<DateTime<Utc>> {
         }
         if let Ok(naive_date) = NaiveDate::parse_from_str(time_str, format) {
             return Ok(DateTime::from_naive_utc_and_offset(
-                naive_date.and_hms_opt(0, 0, 0).unwrap(), 
-                Utc
+                naive_date.and_hms_opt(0, 0, 0).unwrap(),
+                Utc,
             ));
         }
     }
@@ -97,9 +101,11 @@ pub fn parse_datetime_flexible(time_str: &str) -> CliResult<DateTime<Utc>> {
 /// * `Err(CliError::InputError)` if parsing fails
 pub fn parse_relative_time(time_str: &str) -> CliResult<DateTime<Utc>> {
     let time_str = time_str.trim().to_lowercase();
-    
+
     if time_str.is_empty() {
-        return Err(CliError::InputError("Relative time cannot be empty".to_string()));
+        return Err(CliError::InputError(
+            "Relative time cannot be empty".to_string(),
+        ));
     }
 
     let now = Utc::now();
@@ -153,7 +159,11 @@ pub fn parse_relative_time(time_str: &str) -> CliResult<DateTime<Utc>> {
 /// # Returns
 /// * `Ok(())` if the duration is within valid bounds
 /// * `Err(CliError::InputError)` if the duration is invalid
-pub fn validate_duration_bounds(duration_seconds: u64, min_seconds: u64, max_seconds: u64) -> CliResult<()> {
+pub fn validate_duration_bounds(
+    duration_seconds: u64,
+    min_seconds: u64,
+    max_seconds: u64,
+) -> CliResult<()> {
     if duration_seconds < min_seconds {
         return Err(CliError::InputError(format!(
             "Duration too short: {} seconds (minimum: {} seconds)",
@@ -201,7 +211,7 @@ pub fn validate_future_datetime(datetime: DateTime<Utc>) -> CliResult<()> {
 pub fn validate_reasonable_future(datetime: DateTime<Utc>, max_future_days: i64) -> CliResult<()> {
     let now = Utc::now();
     let max_future = now + Duration::days(max_future_days);
-    
+
     if datetime > max_future {
         return Err(CliError::InputError(format!(
             "Datetime is too far in the future. Given: {}, Maximum allowed: {}",
@@ -243,7 +253,7 @@ mod tests {
     #[test]
     fn test_parse_relative_time() {
         let _now = Utc::now();
-        
+
         assert!(parse_relative_time("30s").is_ok());
         assert!(parse_relative_time("5m").is_ok());
         assert!(parse_relative_time("2h").is_ok());
@@ -251,7 +261,7 @@ mod tests {
         assert!(parse_relative_time("1w").is_ok());
         assert!(parse_relative_time("now").is_ok());
         assert!(parse_relative_time("tomorrow").is_ok());
-        
+
         assert!(parse_relative_time("invalid").is_err());
         assert!(parse_relative_time("").is_err());
     }
@@ -262,7 +272,7 @@ mod tests {
         assert!(parse_datetime_flexible("2024-01-01 12:00").is_ok());
         assert!(parse_datetime_flexible("2024-01-01").is_ok());
         assert!(parse_datetime_flexible("30m").is_ok());
-        
+
         assert!(parse_datetime_flexible("invalid-date").is_err());
     }
 
@@ -277,7 +287,7 @@ mod tests {
     fn test_validate_future_datetime() {
         let future = Utc::now() + Duration::hours(1);
         let past = Utc::now() - Duration::hours(1);
-        
+
         assert!(validate_future_datetime(future).is_ok());
         assert!(validate_future_datetime(past).is_err());
     }
@@ -286,7 +296,7 @@ mod tests {
     fn test_validate_reasonable_future() {
         let near_future = Utc::now() + Duration::days(30);
         let far_future = Utc::now() + Duration::days(400);
-        
+
         assert!(validate_reasonable_future(near_future, 365).is_ok());
         assert!(validate_reasonable_future(far_future, 365).is_err());
     }

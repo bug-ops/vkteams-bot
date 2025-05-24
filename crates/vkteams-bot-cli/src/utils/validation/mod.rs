@@ -24,7 +24,10 @@ pub trait Validator<T> {
 /// Validate that a string is not empty after trimming
 pub fn validate_not_empty(value: &str, field_name: &str) -> CliResult<()> {
     if value.trim().is_empty() {
-        return Err(CliError::InputError(format!("{} cannot be empty", field_name)));
+        return Err(CliError::InputError(format!(
+            "{} cannot be empty",
+            field_name
+        )));
     }
     Ok(())
 }

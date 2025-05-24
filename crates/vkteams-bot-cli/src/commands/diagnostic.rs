@@ -3,12 +3,12 @@
 //! This module contains all commands related to diagnostics, testing, and system information.
 
 use crate::commands::{Command, OutputFormat};
+use crate::config::Config;
 use crate::constants::ui::emoji;
 use crate::errors::prelude::{CliError, Result as CliResult};
 use crate::file_utils;
-use crate::config::Config;
-use crate::utils::{validate_file_id, validate_directory_path};
 use crate::utils::output::print_success_result;
+use crate::utils::{validate_directory_path, validate_file_id};
 use async_trait::async_trait;
 use clap::{Subcommand, ValueHint};
 use colored::Colorize;
@@ -57,24 +57,16 @@ pub enum DiagnosticCommands {
 impl Command for DiagnosticCommands {
     async fn execute(&self, bot: &Bot) -> CliResult<()> {
         match self {
-            DiagnosticCommands::GetSelf { detailed } => {
-                execute_get_self(bot, *detailed).await
-            }
+            DiagnosticCommands::GetSelf { detailed } => execute_get_self(bot, *detailed).await,
             DiagnosticCommands::GetEvents { listen } => {
                 execute_get_events(bot, listen.unwrap_or(false)).await
             }
             DiagnosticCommands::GetFile { file_id, file_path } => {
                 execute_get_file(bot, file_id, file_path).await
             }
-            DiagnosticCommands::HealthCheck => {
-                execute_health_check(bot).await
-            }
-            DiagnosticCommands::NetworkTest => {
-                execute_network_test(bot).await
-            }
-            DiagnosticCommands::SystemInfo => {
-                execute_system_info().await
-            }
+            DiagnosticCommands::HealthCheck => execute_health_check(bot).await,
+            DiagnosticCommands::NetworkTest => execute_network_test(bot).await,
+            DiagnosticCommands::SystemInfo => execute_system_info().await,
             DiagnosticCommands::RateLimitTest { requests, delay_ms } => {
                 execute_rate_limit_test(bot, *requests, *delay_ms).await
             }
@@ -101,10 +93,13 @@ impl Command for DiagnosticCommands {
                     validate_directory_path(file_path)?;
                 }
             }
-            DiagnosticCommands::RateLimitTest { requests, delay_ms: _ } => {
+            DiagnosticCommands::RateLimitTest {
+                requests,
+                delay_ms: _,
+            } => {
                 if *requests == 0 || *requests > 1000 {
                     return Err(CliError::InputError(
-                        "Number of requests must be between 1 and 1000".to_string()
+                        "Number of requests must be between 1 and 1000".to_string(),
                     ));
                 }
             }
@@ -118,9 +113,11 @@ impl Command for DiagnosticCommands {
 
 async fn execute_get_self(bot: &Bot, detailed: bool) -> CliResult<()> {
     debug!("Getting bot information");
-    
+
     let request = RequestSelfGet::new(());
-    let result = bot.send_api_request(request).await
+    let result = bot
+        .send_api_request(request)
+        .await
         .map_err(CliError::ApiError)?;
 
     if detailed {
@@ -133,17 +130,20 @@ async fn execute_get_self(bot: &Bot, detailed: bool) -> CliResult<()> {
             println!("{}", json_str.green());
         }
     }
-    
+
     Ok(())
 }
 
 async fn execute_get_events(bot: &Bot, listen: bool) -> CliResult<()> {
     debug!("Getting events, listen mode: {}", listen);
-    
+
     if listen {
         info!("Starting event listener (long polling)...");
-        println!("{} Starting event listener. Press Ctrl+C to stop.", emoji::ROCKET);
-        
+        println!(
+            "{} Starting event listener. Press Ctrl+C to stop.",
+            emoji::ROCKET
+        );
+
         match bot.event_listener(handle_event).await {
             Ok(()) => (),
             Err(e) => return Err(CliError::ApiError(e)),
@@ -157,28 +157,36 @@ async fn execute_get_events(bot: &Bot, listen: bool) -> CliResult<()> {
         info!("Successfully retrieved events");
         print_success_result(&result, &OutputFormat::Pretty)?;
     }
-    
+
     Ok(())
 }
 
 async fn execute_get_file(bot: &Bot, file_id: &str, file_path: &str) -> CliResult<()> {
     debug!("Downloading file {} to {}", file_id, file_path);
-    
+
     let config = Config::default(); // TODO: Pass actual config
-    let downloaded_path = file_utils::download_and_save_file(bot, file_id, file_path, &config).await?;
-    
+    let downloaded_path =
+        file_utils::download_and_save_file(bot, file_id, file_path, &config).await?;
+
     info!("Successfully downloaded file with ID: {}", file_id);
-    println!("{} File downloaded to: {}", emoji::CHECK, downloaded_path.display().to_string().green());
-    
+    println!(
+        "{} File downloaded to: {}",
+        emoji::CHECK,
+        downloaded_path.display().to_string().green()
+    );
+
     Ok(())
 }
 
 async fn execute_health_check(bot: &Bot) -> CliResult<()> {
-    println!("{} Performing comprehensive health check...", emoji::TEST_TUBE.bold().blue());
+    println!(
+        "{} Performing comprehensive health check...",
+        emoji::TEST_TUBE.bold().blue()
+    );
     println!();
-    
+
     let mut all_passed = true;
-    
+
     // Test 1: Basic connectivity
     print!("{} Testing basic API connectivity... ", emoji::GEAR);
     match bot.send_api_request(RequestSelfGet::new(())).await {
@@ -188,7 +196,7 @@ async fn execute_health_check(bot: &Bot) -> CliResult<()> {
             all_passed = false;
         }
     }
-    
+
     // Test 2: Configuration check
     print!("{} Checking configuration... ", emoji::GEAR);
     match Config::from_file() {
@@ -205,7 +213,7 @@ async fn execute_health_check(bot: &Bot) -> CliResult<()> {
             all_passed = false;
         }
     }
-    
+
     // Test 3: Network latency
     print!("{} Testing network latency... ", emoji::GEAR);
     let start = std::time::Instant::now();
@@ -215,7 +223,11 @@ async fn execute_health_check(bot: &Bot) -> CliResult<()> {
             if latency.as_millis() < 1000 {
                 println!("{} - {}ms", "PASS".green(), latency.as_millis());
             } else {
-                println!("{} - High latency: {}ms", "WARN".yellow(), latency.as_millis());
+                println!(
+                    "{} - High latency: {}ms",
+                    "WARN".yellow(),
+                    latency.as_millis()
+                );
             }
         }
         Err(e) => {
@@ -223,30 +235,34 @@ async fn execute_health_check(bot: &Bot) -> CliResult<()> {
             all_passed = false;
         }
     }
-    
+
     println!();
     if all_passed {
         println!("{} All health checks passed!", emoji::CHECK.bold().green());
     } else {
-        println!("{} Some health checks failed. Check configuration and network connectivity.", emoji::WARNING.bold().yellow());
+        println!(
+            "{} Some health checks failed. Check configuration and network connectivity.",
+            emoji::WARNING.bold().yellow()
+        );
     }
-    
+
     Ok(())
 }
 
 async fn execute_network_test(bot: &Bot) -> CliResult<()> {
-    println!("{} Testing network connectivity...", emoji::GEAR.bold().blue());
+    println!(
+        "{} Testing network connectivity...",
+        emoji::GEAR.bold().blue()
+    );
     println!();
-    
+
     // Test multiple endpoints with timing
-    let endpoints = vec![
-        ("Bot Info", RequestSelfGet::new(())),
-    ];
-    
+    let endpoints = vec![("Bot Info", RequestSelfGet::new(()))];
+
     for (name, request) in endpoints {
         print!("Testing {}: ", name);
         let start = std::time::Instant::now();
-        
+
         match bot.send_api_request(request).await {
             Ok(_) => {
                 let duration = start.elapsed();
@@ -257,37 +273,37 @@ async fn execute_network_test(bot: &Bot) -> CliResult<()> {
             }
         }
     }
-    
+
     println!();
     println!("{} Network test completed", emoji::CHECK);
-    
+
     Ok(())
 }
 
 async fn execute_system_info() -> CliResult<()> {
     println!("{} System Information", emoji::INFO.bold().blue());
     println!();
-    
+
     // Runtime information
     println!("{}", "Runtime:".bold().green());
     println!("  OS: {}", std::env::consts::OS);
     println!("  Architecture: {}", std::env::consts::ARCH);
     println!("  Family: {}", std::env::consts::FAMILY);
-    
+
     // Current directory
     if let Ok(current_dir) = std::env::current_dir() {
         println!("  Current directory: {}", current_dir.display());
     }
-    
+
     // Environment variables
     println!("\n{}", "Environment:".bold().green());
     let env_vars = [
         "VKTEAMS_BOT_API_TOKEN",
-        "VKTEAMS_BOT_API_URL", 
+        "VKTEAMS_BOT_API_URL",
         "VKTEAMS_PROXY",
         "VKTEAMS_LOG_LEVEL",
     ];
-    
+
     for var in &env_vars {
         match std::env::var(var) {
             Ok(value) => {
@@ -300,59 +316,73 @@ async fn execute_system_info() -> CliResult<()> {
             Err(_) => println!("  {}: {}", var, "Not set".dimmed()),
         }
     }
-    
+
     // Configuration file status
     println!("\n{}", "Configuration:".bold().green());
     match Config::from_file() {
         Ok(_) => println!("  Configuration file: {}", "Found".green()),
         Err(_) => println!("  Configuration file: {}", "Not found".red()),
     }
-    
+
     Ok(())
 }
 
 async fn execute_rate_limit_test(bot: &Bot, requests: u32, delay_ms: u64) -> CliResult<()> {
-    println!("{} Testing rate limits with {} requests ({}ms delay)...", 
-             emoji::ROCKET.bold().blue(), requests, delay_ms);
+    println!(
+        "{} Testing rate limits with {} requests ({}ms delay)...",
+        emoji::ROCKET.bold().blue(),
+        requests,
+        delay_ms
+    );
     println!();
-    
+
     let mut successful = 0;
     let mut failed = 0;
     let start_time = std::time::Instant::now();
-    
+
     for i in 1..=requests {
         let request_start = std::time::Instant::now();
-        
+
         match bot.send_api_request(RequestSelfGet::new(())).await {
             Ok(_) => {
                 successful += 1;
                 let duration = request_start.elapsed();
-                println!("Request {}/{}: {} ({}ms)", 
-                        i, requests, "OK".green(), duration.as_millis());
+                println!(
+                    "Request {}/{}: {} ({}ms)",
+                    i,
+                    requests,
+                    "OK".green(),
+                    duration.as_millis()
+                );
             }
             Err(e) => {
                 failed += 1;
-                println!("Request {}/{}: {} - {}", 
-                        i, requests, "FAILED".red(), e);
+                println!("Request {}/{}: {} - {}", i, requests, "FAILED".red(), e);
             }
         }
-        
+
         if i < requests {
             tokio::time::sleep(tokio::time::Duration::from_millis(delay_ms)).await;
         }
     }
-    
+
     let total_time = start_time.elapsed();
-    
+
     println!();
     println!("{}", "Rate Limit Test Results:".bold().green());
     println!("  Total requests: {}", requests);
     println!("  Successful: {}", successful.to_string().green());
     println!("  Failed: {}", failed.to_string().red());
-    println!("  Success rate: {:.1}%", (successful as f64 / requests as f64) * 100.0);
+    println!(
+        "  Success rate: {:.1}%",
+        (successful as f64 / requests as f64) * 100.0
+    );
     println!("  Total time: {:.2}s", total_time.as_secs_f64());
-    println!("  Average rate: {:.1} req/s", requests as f64 / total_time.as_secs_f64());
-    
+    println!(
+        "  Average rate: {:.1} req/s",
+        requests as f64 / total_time.as_secs_f64()
+    );
+
     Ok(())
 }
 
@@ -365,17 +395,16 @@ where
     T: serde::Serialize + std::fmt::Debug,
 {
     debug!("Last event id: {:?}", bot.get_last_event_id().await);
-    
+
     if let Ok(json_str) = serde_json::to_string_pretty(&result) {
         println!("{}", json_str.green());
     } else {
         println!("Event: {:?}", result);
     }
-    
+
     Ok(())
 }
 
 // Validation functions are now imported from utils/validation module
 
 // Utility functions
-

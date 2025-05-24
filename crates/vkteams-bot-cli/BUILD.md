@@ -1,40 +1,45 @@
 # VK Teams Bot CLI - Build Guide
 
-Quick guide for building and setting up VK Teams Bot CLI with automatic shell completion.
+Quick guide for building and setting up VK Teams Bot CLI with shell completion.
 
 ## 🚀 Quick Start
 
 ### 1. Build
-```bash
-# Standard build (completions auto-generated)
-cargo build --release
 
-# Force completion generation if needed
-VKTEAMS_GENERATE_COMPLETIONS=1 cargo build --release
+```bash
+# Standard build
+cargo build --release
 ```
 
 ### 2. Install Completions
-```bash
-# Use auto-generated installer (recommended)
-./target/completions/install-completions.sh
 
-# Or use Makefile
-make install-completions
+```bash
+# Generate and install completion for your shell
+vkteams-bot-cli completion bash --install
+vkteams-bot-cli completion zsh --install
+vkteams-bot-cli completion fish --install
+
+# Or generate to file
+vkteams-bot-cli completion bash > ~/.local/share/bash-completion/completions/vkteams-bot-cli
 ```
 
-### 3. Done!
+### 3. Done
+
 Your shell now has Tab completion for `vkteams-bot-cli` commands.
 
-## 📁 What Gets Generated
+## 📁 Generated Completions
 
-After building, you'll find:
-```
-target/completions/
-├── vkteams-bot-cli.bash          # Bash completion
-├── _vkteams-bot-cli              # Zsh completion  
-├── vkteams-bot-cli.fish          # Fish completion
-├── vkteams-bot-cli.ps1           # PowerShell completion
-└── install-completions.sh       # Auto-generated installer
+Use the CLI to generate completions for your shell:
+
+```bash
+# Generate to stdout
+vkteams-bot-cli completion bash
+vkteams-bot-cli completion zsh
+vkteams-bot-cli completion fish
+vkteams-bot-cli completion powershell
+
+# Generate to file
+vkteams-bot-cli completion bash --output completion.bash
 ```
 
 ## 🔧 Make Targets
@@ -42,15 +47,15 @@ target/completions/
 Essential targets for development:
 
 ```bash
-make build                # Build with completions
+make build                # Build the CLI
 make test                 # Run all tests
-make install-completions  # Install completions
-make test-completions     # Test completion system
+make install-completions  # Install completions using CLI
 make clean                # Clean build artifacts
 make demo                 # Show CLI capabilities
 ```
 
 Development targets:
+
 ```bash
 make dev                  # Development build
 make check                # Cargo check
@@ -61,82 +66,71 @@ make ci                   # Full CI pipeline
 
 ## ⚙️ Build Features
 
-### Automatic Completion Generation
-- **Enabled by default** with `completion` feature
-- Generated during `cargo build --release`
-- Stored in `target/completions/`
-- Auto-generates installation script
+### Runtime Completion Generation
 
-### Build Script (`build.rs`)
-- Creates completion scripts at build time
+- **Enabled by default** with `completion` feature
+- Generated using `vkteams-bot-cli completion` command
 - Supports all shells: bash, zsh, fish, PowerShell
-- Generates smart installer with shell auto-detection
-- Falls back gracefully if generation fails
+- Always up-to-date with current CLI structure
 
 ### Feature Flags
+
 ```bash
-# Build with completions (default)
+# Build with completion support (default)
 cargo build --release --features completion
 
-# Build without completions
+# Build without completion support
 cargo build --release --no-default-features
-
-# Force completion generation
-VKTEAMS_GENERATE_COMPLETIONS=1 cargo build --release
 ```
 
 ## 🔍 Troubleshooting
 
-**No completions generated?**
+**Completion feature not available?**
+
 ```bash
 # Check if feature is enabled
 cargo build --release --features completion
-
-# Force generation
-VKTEAMS_GENERATE_COMPLETIONS=1 cargo build --release
-
-# Check output
-ls -la target/completions/
 ```
 
-**Installation script not working?**
+**Completion not working?**
+
 ```bash
-# Make sure it's executable
-chmod +x target/completions/install-completions.sh
+# Test completion generation
+vkteams-bot-cli completion bash
+
+# Install for your shell
+vkteams-bot-cli completion bash --install
+vkteams-bot-cli completion zsh --install
 
 # Check your shell
 echo $SHELL
-
-# Manual installation
-cp target/completions/vkteams-bot-cli.bash ~/.bashrc
 ```
 
-**CLI completion not working?**
-```bash
-# Test completion generation
-./target/release/vkteams-bot-cli completion bash
+**Manual installation needed?**
 
-# Use runtime installer
-./target/release/vkteams-bot-cli completion bash --install
+```bash
+# Generate and install manually
+vkteams-bot-cli completion bash > ~/.local/share/bash-completion/completions/vkteams-bot-cli
+source ~/.local/share/bash-completion/completions/vkteams-bot-cli
 ```
 
 ## 📦 Distribution
 
 For packaging and distribution:
+
 ```bash
-# Build release with completions
+# Build release
 cargo build --release
 
 # Package includes:
-# - target/release/vkteams-bot-cli (binary)
-# - target/completions/* (completion scripts)
-# - target/completions/install-completions.sh (installer)
+# - target/release/vkteams-bot-cli (binary with completion generation capability)
+# Users can generate completions using: vkteams-bot-cli completion <shell>
 ```
 
 ## 🎯 Key Benefits
 
-- ✅ **Zero-config**: Completions generated automatically
-- ✅ **One-click install**: Auto-generated installer script
-- ✅ **Always up-to-date**: Generated from current code
+- ✅ **Runtime generation**: Always matches current CLI structure
+- ✅ **Simple installation**: Built-in installation command
+- ✅ **Always up-to-date**: Generated from actual command definitions
 - ✅ **Cross-platform**: Works on Linux, macOS, Windows
-- ✅ **Fallback safe**: Runtime generation if build fails
+- ✅ **No build dependencies**: Cleaner build process

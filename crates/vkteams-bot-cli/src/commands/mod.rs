@@ -7,21 +7,21 @@ use async_trait::async_trait;
 use clap::Subcommand;
 use vkteams_bot::prelude::Bot;
 
-pub mod messaging;
 pub mod chat;
-pub mod scheduling;
 pub mod config;
 pub mod diagnostic;
+pub mod messaging;
+pub mod scheduling;
 
 /// Trait that all CLI commands must implement
 #[async_trait]
 pub trait Command {
     /// Execute the command
     async fn execute(&self, bot: &Bot) -> CliResult<()>;
-    
+
     /// Get command name for logging
     fn name(&self) -> &'static str;
-    
+
     /// Validate command arguments before execution
     fn validate(&self) -> CliResult<()> {
         Ok(())
@@ -33,10 +33,10 @@ pub trait Command {
 pub trait CommandExecutor {
     /// Execute the command and return structured result
     async fn execute_with_result(&self, bot: &Bot) -> CommandResult;
-    
+
     /// Get command name for logging
     fn name(&self) -> &'static str;
-    
+
     /// Validate command arguments before execution
     fn validate(&self) -> CliResult<()> {
         Ok(())
@@ -76,7 +76,7 @@ impl CommandResult {
             data: None,
         }
     }
-    
+
     pub fn success_with_message(message: impl Into<String>) -> Self {
         Self {
             success: true,
@@ -84,7 +84,7 @@ impl CommandResult {
             data: None,
         }
     }
-    
+
     pub fn success_with_data(data: serde_json::Value) -> Self {
         Self {
             success: true,
@@ -92,7 +92,7 @@ impl CommandResult {
             data: Some(data),
         }
     }
-    
+
     pub fn error(message: impl Into<String>) -> Self {
         Self {
             success: false,
@@ -113,10 +113,12 @@ impl CommandResult {
                         println!("{} {}", emoji::CHECK, message.green());
                     }
                     if let Some(data) = &self.data {
-                        let json_str = serde_json::to_string_pretty(data)
-                            .map_err(|e| crate::errors::prelude::CliError::UnexpectedError(
-                                format!("Failed to serialize data: {}", e)
-                            ))?;
+                        let json_str = serde_json::to_string_pretty(data).map_err(|e| {
+                            crate::errors::prelude::CliError::UnexpectedError(format!(
+                                "Failed to serialize data: {}",
+                                e
+                            ))
+                        })?;
                         println!("{}", json_str.green());
                     }
                 } else if let Some(message) = &self.message {
@@ -124,10 +126,12 @@ impl CommandResult {
                 }
             }
             OutputFormat::Json => {
-                let json_output = serde_json::to_string_pretty(self)
-                    .map_err(|e| crate::errors::prelude::CliError::UnexpectedError(
-                        format!("Failed to serialize result: {}", e)
-                    ))?;
+                let json_output = serde_json::to_string_pretty(self).map_err(|e| {
+                    crate::errors::prelude::CliError::UnexpectedError(format!(
+                        "Failed to serialize result: {}",
+                        e
+                    ))
+                })?;
                 println!("{}", json_output);
             }
             OutputFormat::Table => {
@@ -152,19 +156,19 @@ pub enum Commands {
     // Messaging commands
     #[command(flatten)]
     Messaging(messaging::MessagingCommands),
-    
-    // Chat management commands  
+
+    // Chat management commands
     #[command(flatten)]
     Chat(chat::ChatCommands),
-    
+
     // Scheduling commands
     #[command(flatten)]
     Scheduling(scheduling::SchedulingCommands),
-    
+
     // Configuration commands
     #[command(flatten)]
     Config(config::ConfigCommands),
-    
+
     // Diagnostic commands
     #[command(flatten)]
     Diagnostic(diagnostic::DiagnosticCommands),
@@ -181,7 +185,7 @@ impl Command for Commands {
             Commands::Diagnostic(cmd) => cmd.execute(bot).await,
         }
     }
-    
+
     fn name(&self) -> &'static str {
         match self {
             Commands::Messaging(cmd) => cmd.name(),
@@ -191,7 +195,7 @@ impl Command for Commands {
             Commands::Diagnostic(cmd) => cmd.name(),
         }
     }
-    
+
     fn validate(&self) -> CliResult<()> {
         match self {
             Commands::Messaging(cmd) => cmd.validate(),

@@ -82,7 +82,7 @@ impl CliError {
     //         CliError::InputError(msg) => format!("{INPUT_ERROR}{msg}"),
     //         CliError::UnexpectedError(msg) => format!("{UNEXPECTED_ERROR}{msg}"),
     //     };
-    // 
+    //
     //     eprintln!("{}", error_message.red());
     //     exit(self.exit_code());
     // }
@@ -90,10 +90,9 @@ impl CliError {
 
 /// A module to re-export all error types and constants
 pub mod prelude {
-    pub use super::{CliError, Result};
     pub use super::{
-        API_ERROR, DIR_NOT_FOUND, DOWNLOAD_ERROR, FILE_NOT_FOUND,
-        INPUT_ERROR, NOT_A_DIR, NOT_A_FILE, READ_ERROR, 
-        UNEXPECTED_ERROR, WRITE_ERROR,
+        API_ERROR, DIR_NOT_FOUND, DOWNLOAD_ERROR, FILE_NOT_FOUND, INPUT_ERROR, NOT_A_DIR,
+        NOT_A_FILE, READ_ERROR, UNEXPECTED_ERROR, WRITE_ERROR,
     };
+    pub use super::{CliError, Result};
 }
