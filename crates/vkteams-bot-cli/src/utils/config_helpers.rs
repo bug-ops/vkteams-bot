@@ -5,7 +5,7 @@
 
 use crate::config::Config;
 use crate::errors::prelude::{CliError, Result as CliResult};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 /// Get a list of possible config file paths in order of preference
 ///
@@ -15,13 +15,13 @@ pub fn get_config_paths() -> Vec<PathBuf> {
     let mut paths = Vec::new();
 
     // Current directory
-    paths.push(PathBuf::from(crate::config::CONFIG_FILE_NAME));
+    paths.push(PathBuf::from(crate::constants::config::CONFIG_FILE_NAME));
 
     // User config directory
     if let Some(home_dir) = dirs::home_dir() {
         let mut user_config = home_dir;
-        user_config.push(crate::config::DEFAULT_CONFIG_DIR);
-        user_config.push(crate::config::CONFIG_FILE_NAME);
+        user_config.push(crate::constants::config::DEFAULT_CONFIG_DIR);
+        user_config.push(crate::constants::config::CONFIG_FILE_NAME);
         paths.push(user_config);
     }
 
@@ -30,7 +30,7 @@ pub fn get_config_paths() -> Vec<PathBuf> {
     {
         let mut system_config = PathBuf::from("/etc");
         system_config.push("vkteams-bot");
-        system_config.push(crate::config::CONFIG_FILE_NAME);
+        system_config.push(crate::constants::config::CONFIG_FILE_NAME);
         paths.push(system_config);
     }
 
@@ -227,11 +227,11 @@ pub fn validate_config(config: &Config) -> CliResult<()> {
 
     // Validate directories exist if specified
     if let Some(download_dir) = &config.files.download_dir {
-        validate_directory_path(download_dir)?;
+        crate::utils::validation::validate_directory_path(download_dir)?;
     }
 
     if let Some(upload_dir) = &config.files.upload_dir {
-        validate_directory_path(upload_dir)?;
+        crate::utils::validation::validate_directory_path(upload_dir)?;
     }
 
     // Validate logging configuration
@@ -293,17 +293,7 @@ pub fn validate_config(config: &Config) -> CliResult<()> {
     Ok(())
 }
 
-/// Helper function to validate directory paths
-fn validate_directory_path(path: &str) -> CliResult<()> {
-    let path_obj = Path::new(path);
-    if path_obj.exists() && !path_obj.is_dir() {
-        return Err(CliError::InputError(format!(
-            "Path exists but is not a directory: {}",
-            path
-        )));
-    }
-    Ok(())
-}
+
 
 /// Load configuration with environment variable overrides
 ///
@@ -350,7 +340,7 @@ pub fn get_existing_config_path() -> Option<PathBuf> {
 /// * `Err(CliError)` if directory creation fails
 pub fn create_default_config_dirs() -> CliResult<()> {
     if let Some(home_dir) = dirs::home_dir() {
-        let config_dir = home_dir.join(crate::config::DEFAULT_CONFIG_DIR);
+        let config_dir = home_dir.join(crate::constants::config::DEFAULT_CONFIG_DIR);
         std::fs::create_dir_all(&config_dir).map_err(|e| {
             CliError::FileError(format!("Failed to create config directory: {}", e))
         })?;
@@ -400,7 +390,7 @@ mod tests {
     fn test_get_config_paths() {
         let paths = get_config_paths();
         assert!(!paths.is_empty());
-        assert!(paths[0].ends_with(crate::config::CONFIG_FILE_NAME));
+        assert!(paths[0].ends_with(crate::constants::config::CONFIG_FILE_NAME));
     }
 
     #[test]

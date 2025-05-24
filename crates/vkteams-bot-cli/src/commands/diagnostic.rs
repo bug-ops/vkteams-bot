@@ -2,12 +2,13 @@
 //!
 //! This module contains all commands related to diagnostics, testing, and system information.
 
-use crate::commands::Command;
+use crate::commands::{Command, OutputFormat};
 use crate::constants::ui::emoji;
 use crate::errors::prelude::{CliError, Result as CliResult};
 use crate::file_utils;
 use crate::config::Config;
 use crate::utils::{validate_file_id, validate_directory_path};
+use crate::utils::output::print_success_result;
 use async_trait::async_trait;
 use clap::Subcommand;
 use colored::Colorize;
@@ -124,7 +125,7 @@ async fn execute_get_self(bot: &Bot, detailed: bool) -> CliResult<()> {
 
     if detailed {
         info!("Bot information retrieved successfully");
-        print_success_result(&result)?;
+        print_success_result(&result, &OutputFormat::Pretty)?;
     } else {
         // Show simplified bot info
         println!("{} Bot is configured and accessible", emoji::CHECK);
@@ -154,7 +155,7 @@ async fn execute_get_events(bot: &Bot, listen: bool) -> CliResult<()> {
             .map_err(CliError::ApiError)?;
 
         info!("Successfully retrieved events");
-        print_success_result(&result)?;
+        print_success_result(&result, &OutputFormat::Pretty)?;
     }
     
     Ok(())
@@ -378,13 +379,3 @@ where
 
 // Utility functions
 
-fn print_success_result<T>(result: &T) -> CliResult<()>
-where
-    T: serde::Serialize,
-{
-    let json_str = serde_json::to_string_pretty(result)
-        .map_err(|e| CliError::UnexpectedError(format!("Failed to serialize response: {e}")))?;
-    
-    println!("{}", json_str.green());
-    Ok(())
-}

@@ -2,13 +2,13 @@
 //!
 //! This module contains all commands related to chat management and information.
 
-use crate::commands::Command;
+use crate::commands::{Command, OutputFormat};
 use crate::constants::api::actions;
 use crate::errors::prelude::{CliError, Result as CliResult};
 use crate::utils::{validate_chat_id, validate_chat_title, validate_chat_about, validate_chat_action, validate_cursor};
+use crate::utils::output::print_success_result;
 use async_trait::async_trait;
 use clap::Subcommand;
-use colored::Colorize;
 use tracing::{debug, info};
 use vkteams_bot::prelude::*;
 
@@ -130,7 +130,7 @@ async fn execute_get_chat_info(bot: &Bot, chat_id: &str) -> CliResult<()> {
         .map_err(CliError::ApiError)?;
 
     info!("Successfully retrieved chat info for {}", chat_id);
-    print_success_result(&result)?;
+    print_success_result(&result, &OutputFormat::Pretty)?;
     Ok(())
 }
 
@@ -142,7 +142,7 @@ async fn execute_get_profile(bot: &Bot, user_id: &str) -> CliResult<()> {
         .map_err(CliError::ApiError)?;
 
     info!("Successfully retrieved profile for user {}", user_id);
-    print_success_result(&result)?;
+    print_success_result(&result, &OutputFormat::Pretty)?;
     Ok(())
 }
 
@@ -167,7 +167,7 @@ async fn execute_get_chat_members(bot: &Bot, chat_id: &str, cursor: Option<&str>
         .map_err(CliError::ApiError)?;
 
     info!("Successfully retrieved members for chat {}", chat_id);
-    print_success_result(&result)?;
+    print_success_result(&result, &OutputFormat::Pretty)?;
     Ok(())
 }
 
@@ -183,7 +183,7 @@ async fn execute_set_chat_title(bot: &Bot, chat_id: &str, title: &str) -> CliRes
         .map_err(CliError::ApiError)?;
 
     info!("Successfully set title for chat {}: {}", chat_id, title);
-    print_success_result(&result)?;
+    print_success_result(&result, &OutputFormat::Pretty)?;
     Ok(())
 }
 
@@ -199,7 +199,7 @@ async fn execute_set_chat_about(bot: &Bot, chat_id: &str, about: &str) -> CliRes
         .map_err(CliError::ApiError)?;
 
     info!("Successfully set description for chat {}: {}", chat_id, about);
-    print_success_result(&result)?;
+    print_success_result(&result, &OutputFormat::Pretty)?;
     Ok(())
 }
 
@@ -226,20 +226,8 @@ async fn execute_send_action(bot: &Bot, chat_id: &str, action: &str) -> CliResul
         .map_err(CliError::ApiError)?;
 
     info!("Successfully sent {} action to chat {}", action, chat_id);
-    print_success_result(&result)?;
+    print_success_result(&result, &OutputFormat::Pretty)?;
     Ok(())
 }
 
 // Validation functions are now imported from utils/validation module
-
-// Output function
-fn print_success_result<T>(result: &T) -> CliResult<()>
-where
-    T: serde::Serialize,
-{
-    let json_str = serde_json::to_string_pretty(result)
-        .map_err(|e| CliError::UnexpectedError(format!("Failed to serialize response: {}", e)))?;
-    
-    println!("{}", json_str.green());
-    Ok(())
-}

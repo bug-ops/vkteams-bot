@@ -128,37 +128,7 @@ pub fn get_file_size(path: &Path) -> CliResult<u64> {
     Ok(metadata.len())
 }
 
-/// Check if a path is safe for file operations (no path traversal)
-///
-/// # Arguments
-/// * `path` - The path to validate
-///
-/// # Returns
-/// * `Ok(())` if the path is safe
-/// * `Err(CliError::InputError)` if the path contains unsafe elements
-pub fn validate_safe_path(path: &str) -> CliResult<()> {
-    if path.contains("..") || path.contains("~") {
-        return Err(CliError::InputError(
-            "Path contains unsafe elements (.. or ~)".to_string()
-        ));
-    }
 
-    // Check for absolute paths on Windows that might be problematic
-    #[cfg(windows)]
-    {
-        if path.len() >= 2 && path.chars().nth(1) == Some(':') {
-            // Allow C:, D:, etc. but validate they're reasonable
-            let drive = path.chars().next().unwrap().to_ascii_uppercase();
-            if !('A'..='Z').contains(&drive) {
-                return Err(CliError::InputError(
-                    "Invalid drive letter in path".to_string()
-                ));
-            }
-        }
-    }
-
-    Ok(())
-}
 
 /// Normalize a path string to use consistent separators
 ///
@@ -310,6 +280,7 @@ mod tests {
 
     #[test]
     fn test_validate_safe_path() {
+        use crate::utils::validation::validate_safe_path;
         assert!(validate_safe_path("safe/path/file.txt").is_ok());
         assert!(validate_safe_path("../unsafe/path").is_err());
         assert!(validate_safe_path("~/home/path").is_err());

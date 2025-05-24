@@ -15,6 +15,7 @@ pub mod error_handling;
 pub use bot::{create_bot_instance, create_dummy_bot, needs_bot_instance};
 pub use time::{parse_schedule_time, parse_schedule_time_compat, parse_relative_time, format_duration, format_datetime};
 pub use config_helpers::{get_config_paths, merge_configs, validate_config, load_config_with_env_overrides};
+pub use output::{print_success_result, print_success_message, print_error_message, print_warning_message, print_info_message};
 
 // Re-export all validation functions
 pub use validation::{
@@ -29,6 +30,5 @@ pub use validation::{
 };
 
 // TODO: Enable these when needed
-// pub use output::*;
 // pub use path::*;
 // pub use error_handling::*;

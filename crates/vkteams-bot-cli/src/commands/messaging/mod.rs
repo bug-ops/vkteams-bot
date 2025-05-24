@@ -2,12 +2,13 @@
 //!
 //! This module contains all commands related to sending and managing messages.
 
-use crate::commands::Command;
+use crate::commands::{Command, OutputFormat};
 use crate::constants::ui::emoji;
 use crate::errors::prelude::{CliError, Result as CliResult};
 use crate::file_utils;
 use crate::config::Config;
 use crate::utils::{validate_chat_id, validate_message_text, validate_message_id, validate_file_path, validate_voice_file_path};
+use crate::utils::output::print_success_result;
 
 use async_trait::async_trait;
 use clap::Subcommand;
@@ -155,7 +156,7 @@ async fn execute_send_text(bot: &Bot, chat_id: &str, message: &str) -> CliResult
         .map_err(CliError::ApiError)?;
 
     info!("Successfully sent text message to {}", chat_id);
-    print_success_result(&result)?;
+    print_success_result(&result, &OutputFormat::Pretty)?;
     Ok(())
 }
 
@@ -196,7 +197,7 @@ async fn execute_edit_message(bot: &Bot, chat_id: &str, message_id: &str, new_te
         .map_err(CliError::ApiError)?;
 
     info!("Successfully edited message {} in {}", message_id, chat_id);
-    print_success_result(&result)?;
+    print_success_result(&result, &OutputFormat::Pretty)?;
     Ok(())
 }
 
@@ -212,7 +213,7 @@ async fn execute_delete_message(bot: &Bot, chat_id: &str, message_id: &str) -> C
         .map_err(CliError::ApiError)?;
 
     info!("Successfully deleted message {} from {}", message_id, chat_id);
-    print_success_result(&result)?;
+    print_success_result(&result, &OutputFormat::Pretty)?;
     Ok(())
 }
 
@@ -228,7 +229,7 @@ async fn execute_pin_message(bot: &Bot, chat_id: &str, message_id: &str) -> CliR
         .map_err(CliError::ApiError)?;
 
     info!("Successfully pinned message {} in {}", message_id, chat_id);
-    print_success_result(&result)?;
+    print_success_result(&result, &OutputFormat::Pretty)?;
     Ok(())
 }
 
@@ -244,20 +245,8 @@ async fn execute_unpin_message(bot: &Bot, chat_id: &str, message_id: &str) -> Cl
         .map_err(CliError::ApiError)?;
 
     info!("Successfully unpinned message {} from {}", message_id, chat_id);
-    print_success_result(&result)?;
+    print_success_result(&result, &OutputFormat::Pretty)?;
     Ok(())
 }
 
 // Validation functions are now imported from utils/validation module
-
-// Output function
-fn print_success_result<T>(result: &T) -> CliResult<()>
-where
-    T: serde::Serialize,
-{
-    let json_str = serde_json::to_string_pretty(result)
-        .map_err(|e| CliError::UnexpectedError(format!("Failed to serialize response: {}", e)))?;
-
-    println!("{}", json_str.green());
-    Ok(())
-}

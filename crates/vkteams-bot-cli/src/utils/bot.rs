@@ -104,53 +104,7 @@ pub fn setup_bot_environment(config: &Config) {
     }
 }
 
-/// Validate bot configuration before creating instance
-///
-/// # Arguments
-/// * `config` - The configuration to validate
-///
-/// # Returns
-/// * `Ok(())` if configuration is valid
-/// * `Err(CliError)` if configuration is invalid
-pub fn validate_bot_config(config: &Config) -> CliResult<()> {
-    if config.api.token.is_none() {
-        return Err(CliError::InputError(
-            "API token is required for bot operations".to_string()
-        ));
-    }
-    
-    if config.api.url.is_none() {
-        return Err(CliError::InputError(
-            "API URL is required for bot operations".to_string()
-        ));
-    }
-    
-    // Validate URL format
-    if let Some(url) = &config.api.url {
-        if !url.starts_with("http://") && !url.starts_with("https://") {
-            return Err(CliError::InputError(
-                "API URL must start with http:// or https://".to_string()
-            ));
-        }
-    }
-    
-    // Validate token format (basic check)
-    if let Some(token) = &config.api.token {
-        if token.trim().is_empty() {
-            return Err(CliError::InputError(
-                "API token cannot be empty".to_string()
-            ));
-        }
-        
-        if token.len() < 10 {
-            return Err(CliError::InputError(
-                "API token appears to be too short".to_string()
-            ));
-        }
-    }
-    
-    Ok(())
-}
+
 
 /// Test bot connectivity with a simple API call
 ///
@@ -215,28 +169,28 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_bot_config() {
+    fn test_validate_config() {
         let mut config = Config::default();
         
         // Empty config should fail
-        assert!(validate_bot_config(&config).is_err());
+        assert!(crate::utils::config_helpers::validate_config(&config).is_err());
         
         // Config with only token should fail
         config.api.token = Some("test_token_12345".to_string());
-        assert!(validate_bot_config(&config).is_err());
+        assert!(crate::utils::config_helpers::validate_config(&config).is_err());
         
         // Config with token and URL should pass
         config.api.url = Some("https://api.teams.vk.com".to_string());
-        assert!(validate_bot_config(&config).is_ok());
+        assert!(crate::utils::config_helpers::validate_config(&config).is_ok());
         
         // Invalid URL should fail
         config.api.url = Some("invalid-url".to_string());
-        assert!(validate_bot_config(&config).is_err());
+        assert!(crate::utils::config_helpers::validate_config(&config).is_err());
         
         // Short token should fail
         config.api.token = Some("short".to_string());
         config.api.url = Some("https://api.teams.vk.com".to_string());
-        assert!(validate_bot_config(&config).is_err());
+        assert!(crate::utils::config_helpers::validate_config(&config).is_err());
     }
 
     #[test]

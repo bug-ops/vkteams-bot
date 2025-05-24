@@ -5,7 +5,7 @@
 use crate::commands::Command;
 use crate::errors::prelude::{CliError, Result as CliResult};
 use crate::scheduler::{Scheduler, TaskType, ScheduleType};
-use crate::scheduler::parse_schedule_time;
+use crate::utils::parse_schedule_time;
 use async_trait::async_trait;
 use clap::Subcommand;
 use chrono::Utc;

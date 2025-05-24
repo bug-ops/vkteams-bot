@@ -2,13 +2,11 @@ use crate::errors::prelude::{CliError, Result as CliResult};
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use toml;
 
-// Constants for configuration
-pub const CONFIG_FILE_NAME: &str = "cli_config.toml";
-pub const DEFAULT_CONFIG_DIR: &str = ".config/vkteams-bot";
-pub const ENV_PREFIX: &str = "VKTEAMS_";
+// Use constants from the constants module
+use crate::constants::config::{CONFIG_FILE_NAME, DEFAULT_CONFIG_DIR, ENV_PREFIX};
 
 /// Configuration structure for VK Teams Bot CLI
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -226,7 +224,7 @@ impl Config {
     /// - Returns `CliError::FileError` if there is an error reading the config file
     /// - Returns `CliError::UnexpectedError` if there is an error parsing the config
     pub fn from_file() -> CliResult<Self> {
-        let config_paths = Self::get_config_paths();
+        let config_paths = crate::utils::config_helpers::get_config_paths();
 
         for path in config_paths {
             if path.exists() {
@@ -253,32 +251,7 @@ impl Config {
         Ok(config)
     }
 
-    /// Get a list of possible config file paths in order of preference
-    fn get_config_paths() -> Vec<PathBuf> {
-        let mut paths = Vec::new();
 
-        // Current directory
-        paths.push(PathBuf::from(CONFIG_FILE_NAME));
-
-        // User config directory
-        if let Some(home_dir) = dirs::home_dir() {
-            let mut user_config = home_dir;
-            user_config.push(DEFAULT_CONFIG_DIR);
-            user_config.push(CONFIG_FILE_NAME);
-            paths.push(user_config);
-        }
-
-        // System config directory
-        #[cfg(unix)]
-        {
-            let mut system_config = PathBuf::from("/etc");
-            system_config.push("vkteams-bot");
-            system_config.push(CONFIG_FILE_NAME);
-            paths.push(system_config);
-        }
-
-        paths
-    }
 
     /// Save configuration to file
     ///

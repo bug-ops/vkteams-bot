@@ -10,7 +10,8 @@ pub mod utils;
 use commands::{Commands, Command, CommandExecutor, CommandResult, OutputFormat};
 use config::Config;
 use constants::{ui::emoji, exit_codes};
-use errors::prelude::{CliError, Result as CliResult};
+use errors::prelude::Result as CliResult;
+use utils::{create_bot_instance, create_dummy_bot, needs_bot_instance};
 use clap::Parser;
 use colored::Colorize;
 use std::process::exit;
@@ -235,54 +236,8 @@ async fn try_execute_with_result(command: &Commands, bot: &Bot) -> Option<Comman
     }
 }
 
-/// Check if a command needs a real bot instance for execution
-fn needs_bot_instance(command: &Commands) -> bool {
-    match command {
-        Commands::Config(_) => false,
-        Commands::Diagnostic(commands::diagnostic::DiagnosticCommands::SystemInfo) => false,
-        Commands::Diagnostic(_) => true,
-        _ => true,
-    }
-}
 
-/// Create a bot instance from configuration
-fn create_bot_instance(config: &Config) -> CliResult<Bot> {
-    let token = config.api.token.as_ref()
-        .ok_or_else(|| CliError::InputError(
-            "API token is required. Set VKTEAMS_BOT_API_TOKEN or configure via 'vkteams-bot-cli setup'".to_string()
-        ))?;
-    
-    let url = config.api.url.as_ref()
-        .ok_or_else(|| CliError::InputError(
-            "API URL is required. Set VKTEAMS_BOT_API_URL or configure via 'vkteams-bot-cli setup'".to_string()
-        ))?;
 
-    // Set environment variables for bot initialization
-    unsafe {
-        std::env::set_var("VKTEAMS_BOT_API_TOKEN", token);
-        std::env::set_var("VKTEAMS_BOT_API_URL", url);
-        
-        if let Some(proxy) = &config.proxy {
-            std::env::set_var("VKTEAMS_PROXY", &proxy.url);
-        }
-    }
 
-    Bot::with_params(APIVersionUrl::V1, token.clone(), url.clone())
-        .map_err(CliError::ApiError)
-}
-
-/// Create a dummy bot instance for commands that don't need real API access
-fn create_dummy_bot() -> Bot {
-    // Create a dummy bot for commands that don't need real API access
-    // This is safe because those commands won't actually use the bot
-    Bot::with_params(
-        APIVersionUrl::V1, 
-        "dummy_token".to_string(), 
-        "https://dummy.api.com".to_string()
-    ).unwrap_or_else(|_| {
-        // If even dummy bot creation fails, we'll handle it in the command execution
-        panic!("Failed to create dummy bot - this should not happen")
-    })
-}
 
 
