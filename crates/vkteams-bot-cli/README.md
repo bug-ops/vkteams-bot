@@ -522,6 +522,13 @@ url = "http://proxy:8080"
 # user = "username"     # optional
 # password = "password" # optional
 
+[rate_limit]
+enabled = false        # Disable rate limiting for CLI usage
+limit = 1000          # Maximum requests per time window
+duration = 60         # Time window in seconds
+retry_delay = 500     # Delay between retries in milliseconds
+retry_attempts = 3    # Maximum retry attempts
+
 [scheduler]
 data_file = "/home/user/.config/vkteams-bot/scheduler_tasks.json"
 check_interval = 60    # seconds

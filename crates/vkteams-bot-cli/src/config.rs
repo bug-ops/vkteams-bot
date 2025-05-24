@@ -30,6 +30,10 @@ pub struct Config {
     /// Proxy configuration
     #[serde(default)]
     pub proxy: Option<ProxyConfig>,
+
+    /// Rate limiting configuration
+    #[serde(default)]
+    pub rate_limit: RateLimitConfig,
 }
 
 /// API Configuration options
@@ -197,6 +201,63 @@ pub fn default_progress_refresh_rate() -> u64 {
     100
 }
 
+/// Rate limiting configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RateLimitConfig {
+    /// Enable or disable rate limiting
+    #[serde(default = "default_rate_limit_enabled")]
+    pub enabled: bool,
+
+    /// Maximum requests per time window
+    #[serde(default = "default_rate_limit_limit")]
+    pub limit: usize,
+
+    /// Time window duration in seconds
+    #[serde(default = "default_rate_limit_duration")]
+    pub duration: u64,
+
+    /// Delay between retry attempts in milliseconds
+    #[serde(default = "default_rate_limit_retry_delay")]
+    pub retry_delay: u64,
+
+    /// Maximum number of retry attempts
+    #[serde(default = "default_rate_limit_retry_attempts")]
+    pub retry_attempts: u16,
+}
+
+impl Default for RateLimitConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_rate_limit_enabled(),
+            limit: default_rate_limit_limit(),
+            duration: default_rate_limit_duration(),
+            retry_delay: default_rate_limit_retry_delay(),
+            retry_attempts: default_rate_limit_retry_attempts(),
+        }
+    }
+}
+
+/// Default values for rate limiting configuration
+pub fn default_rate_limit_enabled() -> bool {
+    false // Disabled by default for CLI usage
+}
+
+pub fn default_rate_limit_limit() -> usize {
+    1000 // More generous limit for CLI
+}
+
+pub fn default_rate_limit_duration() -> u64 {
+    60
+}
+
+pub fn default_rate_limit_retry_delay() -> u64 {
+    500 // Shorter delay for CLI
+}
+
+pub fn default_rate_limit_retry_attempts() -> u16 {
+    3
+}
+
 impl Config {
     /// Load configuration from all available sources
     ///
@@ -361,6 +422,25 @@ impl Config {
             });
         }
 
+        // Rate limiting config
+        if let Ok(enabled_str) = env::var(format!("{ENV_PREFIX}RATE_LIMIT_ENABLED")) {
+            if let Ok(enabled_val) = enabled_str.parse::<bool>() {
+                config.rate_limit.enabled = enabled_val;
+            }
+        }
+
+        if let Ok(limit_str) = env::var(format!("{ENV_PREFIX}RATE_LIMIT_LIMIT")) {
+            if let Ok(limit_val) = limit_str.parse::<usize>() {
+                config.rate_limit.limit = limit_val;
+            }
+        }
+
+        if let Ok(duration_str) = env::var(format!("{ENV_PREFIX}RATE_LIMIT_DURATION")) {
+            if let Ok(duration_val) = duration_str.parse::<u64>() {
+                config.rate_limit.duration = duration_val;
+            }
+        }
+
         Ok(config)
     }
 
@@ -432,6 +512,9 @@ impl Config {
                 },
             },
             proxy: overlay.proxy.or(base.proxy),
+            rate_limit: crate::utils::config_helpers::merge_rate_limit_configs(base.rate_limit, overlay.rate_limit),
         }
     }
+
+
 }
