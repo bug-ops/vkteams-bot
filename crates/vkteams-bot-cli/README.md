@@ -579,5 +579,3 @@ The scheduler runs as a background process that:
 - Automatically disables completed one-time tasks
 - Persists task data between restarts
 ```
-
-</edits>
