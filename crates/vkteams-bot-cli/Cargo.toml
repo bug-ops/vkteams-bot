@@ -44,7 +44,6 @@ colored = "3"
 serde = { version = "1", features = ["derive"] }
 exitcode = "1"
 futures = "0.3"
-bytes = "1.4"
 toml = "0.8"
 dirs = "6.0"
 indicatif = { version = "0.17", features = ["tokio"] }
@@ -59,7 +58,5 @@ default = ["completion"]
 completion = ["dep:clap_complete"]
 
 [dev-dependencies]
-serde_yaml = "0.9"
 dotenvy = "0.15"
 tempfile = "3.8"
-tokio-test = "0.4"

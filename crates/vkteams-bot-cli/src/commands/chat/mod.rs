@@ -32,7 +32,7 @@ pub enum ChatCommands {
     GetChatMembers {
         #[arg(short = 'c', long, required = true, value_name = "CHAT_ID", value_hint = ValueHint::Username)]
         chat_id: String,
-        #[arg(short = 'c', long, value_name = "CURSOR")]
+        #[arg(long, value_name = "CURSOR")]
         cursor: Option<String>,
     },
     /// Set chat title
