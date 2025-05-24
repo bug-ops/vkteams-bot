@@ -5,6 +5,7 @@
 use crate::commands::Command;
 use crate::constants::api::actions;
 use crate::errors::prelude::{CliError, Result as CliResult};
+use crate::utils::{validate_chat_id, validate_chat_title, validate_chat_about, validate_chat_action, validate_cursor};
 use async_trait::async_trait;
 use clap::Subcommand;
 use colored::Colorize;
@@ -112,7 +113,7 @@ impl Command for ChatCommands {
             }
             ChatCommands::SendAction { chat_id, action } => {
                 validate_chat_id(chat_id)?;
-                validate_action(action)?;
+                validate_chat_action(action)?;
             }
         }
         Ok(())
@@ -229,43 +230,7 @@ async fn execute_send_action(bot: &Bot, chat_id: &str, action: &str) -> CliResul
     Ok(())
 }
 
-// Validation functions (simplified for now)
-fn validate_chat_id(chat_id: &str) -> CliResult<()> {
-    if chat_id.trim().is_empty() {
-        return Err(CliError::InputError("Chat ID cannot be empty".to_string()));
-    }
-    Ok(())
-}
-
-fn validate_chat_title(title: &str) -> CliResult<()> {
-    if title.trim().is_empty() {
-        return Err(CliError::InputError("Chat title cannot be empty".to_string()));
-    }
-    Ok(())
-}
-
-fn validate_chat_about(about: &str) -> CliResult<()> {
-    if about.trim().is_empty() {
-        return Err(CliError::InputError("Chat description cannot be empty".to_string()));
-    }
-    Ok(())
-}
-
-fn validate_action(action: &str) -> CliResult<()> {
-    match action {
-        actions::TYPING | actions::LOOKING => Ok(()),
-        _ => Err(CliError::InputError(format!(
-            "Invalid action: {}. Available actions: {}, {}", 
-            action, actions::TYPING, actions::LOOKING
-        ))),
-    }
-}
-
-fn validate_cursor(cursor: &str) -> CliResult<()> {
-    cursor.parse::<u32>()
-        .map_err(|_| CliError::InputError("Cursor must be a valid number".to_string()))?;
-    Ok(())
-}
+// Validation functions are now imported from utils/validation module
 
 // Output function
 fn print_success_result<T>(result: &T) -> CliResult<()>

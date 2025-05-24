@@ -7,6 +7,7 @@ use crate::constants::ui::emoji;
 use crate::errors::prelude::{CliError, Result as CliResult};
 use crate::file_utils;
 use crate::config::Config;
+use crate::utils::{validate_chat_id, validate_message_text, validate_message_id, validate_file_path, validate_voice_file_path};
 
 use async_trait::async_trait;
 use clap::Subcommand;
@@ -247,58 +248,7 @@ async fn execute_unpin_message(bot: &Bot, chat_id: &str, message_id: &str) -> Cl
     Ok(())
 }
 
-// Validation functions (simplified for now)
-fn validate_chat_id(chat_id: &str) -> CliResult<()> {
-    if chat_id.trim().is_empty() {
-        return Err(CliError::InputError("Chat ID cannot be empty".to_string()));
-    }
-    Ok(())
-}
-
-fn validate_message_text(message: &str) -> CliResult<()> {
-    if message.trim().is_empty() {
-        return Err(CliError::InputError("Message cannot be empty".to_string()));
-    }
-    Ok(())
-}
-
-fn validate_message_id(message_id: &str) -> CliResult<()> {
-    if message_id.trim().is_empty() {
-        return Err(CliError::InputError("Message ID cannot be empty".to_string()));
-    }
-    Ok(())
-}
-
-fn validate_file_path(file_path: &str) -> CliResult<()> {
-    if file_path.trim().is_empty() {
-        return Err(CliError::InputError("File path cannot be empty".to_string()));
-    }
-    let path = std::path::Path::new(file_path);
-    if !path.exists() {
-        return Err(CliError::FileError(format!("File not found: {}", file_path)));
-    }
-    if !path.is_file() {
-        return Err(CliError::FileError(format!("Path is not a file: {}", file_path)));
-    }
-    Ok(())
-}
-
-fn validate_voice_file_path(file_path: &str) -> CliResult<()> {
-    validate_file_path(file_path)?;
-    let path = std::path::Path::new(file_path);
-    if let Some(extension) = path.extension() {
-        let ext = extension.to_string_lossy().to_lowercase();
-        match ext.as_str() {
-            "ogg" | "mp3" | "wav" | "m4a" | "aac" => Ok(()),
-            _ => Err(CliError::InputError(format!(
-                "Unsupported voice file format: {}. Supported formats: ogg, mp3, wav, m4a, aac",
-                ext
-            ))),
-        }
-    } else {
-        Err(CliError::InputError("Voice file must have an extension".to_string()))
-    }
-}
+// Validation functions are now imported from utils/validation module
 
 // Output function
 fn print_success_result<T>(result: &T) -> CliResult<()>

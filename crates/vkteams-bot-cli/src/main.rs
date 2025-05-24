@@ -5,8 +5,9 @@ pub mod errors;
 pub mod file_utils;
 pub mod progress;
 pub mod scheduler;
+pub mod utils;
 
-use commands::{Commands, Command, OutputFormat};
+use commands::{Commands, Command, CommandExecutor, CommandResult, OutputFormat};
 use config::Config;
 use constants::{ui::emoji, exit_codes};
 use errors::prelude::{CliError, Result as CliResult};
@@ -159,7 +160,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     }
 
     // Execute command
-    match execute_command(&cli.command, &config).await {
+    match execute_command(&cli.command, &config, &cli.output).await {
         Ok(()) => {
             debug!("Command executed successfully");
         }
@@ -208,15 +209,29 @@ fn save_configuration(config: &Config, path: &str) -> CliResult<()> {
 }
 
 /// Execute command
-async fn execute_command(command: &Commands, config: &Config) -> CliResult<()> {
+async fn execute_command(command: &Commands, config: &Config, output_format: &OutputFormat) -> CliResult<()> {
     // Check if command needs bot instance
-    if needs_bot_instance(command) {
-        let bot = create_bot_instance(config)?;
-        command.execute(&bot).await
+    let bot = if needs_bot_instance(command) {
+        create_bot_instance(config)?
     } else {
         // Commands that don't need bot (like config, examples, etc.)
-        let dummy_bot = create_dummy_bot();
-        command.execute(&dummy_bot).await
+        create_dummy_bot()
+    };
+
+    // Try to execute with new CommandResult system first
+    if let Some(result) = try_execute_with_result(command, &bot).await {
+        return result.display(output_format).map_err(|e| e);
+    }
+
+    // Fall back to old system for commands not yet migrated
+    command.execute(&bot).await
+}
+
+/// Try to execute command with CommandResult system
+async fn try_execute_with_result(command: &Commands, bot: &Bot) -> Option<CommandResult> {
+    match command {
+        Commands::Config(cmd) => Some(cmd.execute_with_result(bot).await),
+        _ => None, // Commands not yet migrated to CommandResult
     }
 }
 

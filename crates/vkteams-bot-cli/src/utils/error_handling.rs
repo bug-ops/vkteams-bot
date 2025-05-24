@@ -3,8 +3,8 @@
 //! This module provides utilities for error handling, logging, and
 //! error formatting throughout the CLI application.
 
-use crate::errors::prelude::{CliError, Result as CliResult};
 use crate::constants::ui::emoji;
+use crate::errors::prelude::{CliError, Result as CliResult};
 use colored::Colorize;
 use tracing::{debug, error, info};
 use vkteams_bot::error::BotError;
@@ -23,7 +23,7 @@ pub fn handle_api_error(error: BotError, context: Option<&str>) -> CliError {
     } else {
         error.to_string()
     };
-    
+
     debug!("API error occurred: {}", error_msg);
     CliError::ApiError(error)
 }
@@ -47,7 +47,11 @@ pub fn log_command_start(command_name: &str, args: Option<&str>) {
 /// * `command_name` - The name of the command that was executed
 /// * `success` - Whether the command succeeded
 /// * `duration` - Optional execution duration
-pub fn log_command_execution(command_name: &str, success: bool, duration: Option<std::time::Duration>) {
+pub fn log_command_execution(
+    command_name: &str,
+    success: bool,
+    duration: Option<std::time::Duration>,
+) {
     let duration_str = if let Some(d) = duration {
         format!(" (took {:.2}s)", d.as_secs_f64())
     } else {
@@ -55,34 +59,12 @@ pub fn log_command_execution(command_name: &str, success: bool, duration: Option
     };
 
     if success {
-        info!("Command '{}' completed successfully{}", command_name, duration_str);
+        info!(
+            "Command '{}' completed successfully{}",
+            command_name, duration_str
+        );
     } else {
         error!("Command '{}' failed{}", command_name, duration_str);
-    }
-}
-
-/// Setup logging based on configuration
-///
-/// # Arguments
-/// * `verbose` - Whether to enable verbose (debug) logging
-/// * `log_level` - Optional specific log level to use
-pub fn setup_logging(verbose: bool, log_level: Option<&str>) {
-    let level = if verbose {
-        "debug"
-    } else {
-        log_level.unwrap_or("info")
-    };
-
-    unsafe {
-        std::env::set_var("RUST_LOG", level);
-    }
-
-    // Initialize pretty_env_logger if not already initialized
-    if std::env::var("RUST_LOG_INITIALIZED").is_err() {
-        pretty_env_logger::init();
-        unsafe {
-            std::env::set_var("RUST_LOG_INITIALIZED", "1");
-        }
     }
 }
 
@@ -94,29 +76,49 @@ pub fn setup_logging(verbose: bool, log_level: Option<&str>) {
 pub fn print_error(error: &CliError, show_details: bool) {
     match error {
         CliError::ApiError(api_err) => {
-            eprintln!("{} API Error: {}", emoji::CROSS.red(), api_err.to_string().red());
+            eprintln!(
+                "{} API Error: {}",
+                emoji::CROSS.red(),
+                api_err.to_string().red()
+            );
             if show_details {
-                eprintln!("  {}", "This is likely a network or authentication issue.".dimmed());
-                eprintln!("  {}", "Try running 'vkteams-bot-cli validate' to test your configuration.".dimmed());
+                eprintln!(
+                    "  {}",
+                    "This is likely a network or authentication issue.".dimmed()
+                );
+                eprintln!(
+                    "  {}",
+                    "Try running 'vkteams-bot-cli validate' to test your configuration.".dimmed()
+                );
             }
         }
         CliError::FileError(msg) => {
             eprintln!("{} File Error: {}", emoji::CROSS.red(), msg.red());
             if show_details {
-                eprintln!("  {}", "Check that the file path is correct and you have the necessary permissions.".dimmed());
+                eprintln!(
+                    "  {}",
+                    "Check that the file path is correct and you have the necessary permissions."
+                        .dimmed()
+                );
             }
         }
         CliError::InputError(msg) => {
             eprintln!("{} Input Error: {}", emoji::CROSS.red(), msg.red());
             if show_details {
-                eprintln!("  {}", "Check your command arguments and try again.".dimmed());
+                eprintln!(
+                    "  {}",
+                    "Check your command arguments and try again.".dimmed()
+                );
                 eprintln!("  {}", "Use --help for usage information.".dimmed());
             }
         }
         CliError::UnexpectedError(msg) => {
             eprintln!("{} Unexpected Error: {}", emoji::CROSS.red(), msg.red());
             if show_details {
-                eprintln!("  {}", "This may be a bug. Please report it if the issue persists.".dimmed());
+                eprintln!(
+                    "  {}",
+                    "This may be a bug. Please report it if the issue persists.".dimmed()
+                );
             }
         }
     }
@@ -295,7 +297,8 @@ pub fn suggest_next_steps(error: &CliError) -> Vec<String> {
 
     if is_config_error(error) {
         suggestions.push("Run 'vkteams-bot-cli setup' to configure the CLI".to_string());
-        suggestions.push("Check your API token and URL with 'vkteams-bot-cli validate'".to_string());
+        suggestions
+            .push("Check your API token and URL with 'vkteams-bot-cli validate'".to_string());
     }
 
     match error {
@@ -340,10 +343,7 @@ mod tests {
 
     #[test]
     fn test_format_validation_errors() {
-        let errors = vec![
-            "First error".to_string(),
-            "Second error".to_string(),
-        ];
+        let errors = vec!["First error".to_string(), "Second error".to_string()];
         let formatted = format_validation_errors(&errors);
         assert!(formatted.contains("1. First error"));
         assert!(formatted.contains("2. Second error"));

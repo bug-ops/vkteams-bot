@@ -2,7 +2,7 @@
 //!
 //! This module contains all commands related to configuration management.
 
-use crate::commands::Command;
+use crate::commands::{Command, CommandExecutor, CommandResult};
 use crate::config::Config;
 use crate::constants::{ui::emoji, help};
 use crate::errors::prelude::{CliError, Result as CliResult};
@@ -47,6 +47,36 @@ impl Command for ConfigCommands {
             ConfigCommands::Validate => execute_validate(bot).await,
             ConfigCommands::Config { show, init, wizard } => {
                 execute_config(*show, *init, *wizard).await
+            }
+        }
+    }
+
+    fn name(&self) -> &'static str {
+        match self {
+            ConfigCommands::Setup => "setup",
+            ConfigCommands::Examples => "examples",
+            ConfigCommands::ListCommands => "list-commands",
+            ConfigCommands::Validate => "validate",
+            ConfigCommands::Config { .. } => "config",
+        }
+    }
+
+    fn validate(&self) -> CliResult<()> {
+        // Configuration commands don't need pre-validation
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl CommandExecutor for ConfigCommands {
+    async fn execute_with_result(&self, bot: &Bot) -> CommandResult {
+        match self {
+            ConfigCommands::Setup => execute_setup_with_result().await,
+            ConfigCommands::Examples => execute_examples_with_result().await,
+            ConfigCommands::ListCommands => execute_list_commands_with_result().await,
+            ConfigCommands::Validate => execute_validate_with_result(bot).await,
+            ConfigCommands::Config { show, init, wizard } => {
+                execute_config_with_result(*show, *init, *wizard).await
             }
         }
     }
@@ -119,6 +149,43 @@ async fn execute_setup() -> CliResult<()> {
     println!("Try: {} to test your setup", "vkteams-bot-cli get-self".green());
     
     Ok(())
+}
+
+// New CommandResult-based execution functions
+
+async fn execute_setup_with_result() -> CommandResult {
+    match execute_setup().await {
+        Ok(()) => CommandResult::success_with_message("Setup completed successfully"),
+        Err(e) => CommandResult::error(format!("Setup failed: {}", e)),
+    }
+}
+
+async fn execute_examples_with_result() -> CommandResult {
+    match execute_examples().await {
+        Ok(()) => CommandResult::success(),
+        Err(e) => CommandResult::error(format!("Failed to show examples: {}", e)),
+    }
+}
+
+async fn execute_list_commands_with_result() -> CommandResult {
+    match execute_list_commands().await {
+        Ok(()) => CommandResult::success(),
+        Err(e) => CommandResult::error(format!("Failed to list commands: {}", e)),
+    }
+}
+
+async fn execute_validate_with_result(bot: &Bot) -> CommandResult {
+    match execute_validate(bot).await {
+        Ok(()) => CommandResult::success_with_message("Validation completed successfully"),
+        Err(e) => CommandResult::error(format!("Validation failed: {}", e)),
+    }
+}
+
+async fn execute_config_with_result(show: bool, init: bool, wizard: bool) -> CommandResult {
+    match execute_config(show, init, wizard).await {
+        Ok(()) => CommandResult::success_with_message("Configuration operation completed"),
+        Err(e) => CommandResult::error(format!("Configuration operation failed: {}", e)),
+    }
 }
 
 async fn execute_examples() -> CliResult<()> {

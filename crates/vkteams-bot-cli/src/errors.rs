@@ -1,6 +1,4 @@
-use colored::Colorize;
 use std::fmt;
-use std::process::exit;
 use vkteams_bot::error::BotError;
 
 // Static error message prefixes to avoid repeated allocations
@@ -74,19 +72,20 @@ impl CliError {
         }
     }
 
-    /// Prints the error message and exits with appropriate code
-    pub fn exit_with_error(self) -> ! {
-        // Avoid unnecessary string allocation for commonly used error types
-        let error_message = match &self {
-            CliError::ApiError(err) => format!("{API_ERROR}{err}"),
-            CliError::FileError(msg) => format!("File Error: {msg}"),
-            CliError::InputError(msg) => format!("{INPUT_ERROR}{msg}"),
-            CliError::UnexpectedError(msg) => format!("{UNEXPECTED_ERROR}{msg}"),
-        };
-    
-        eprintln!("{}", error_message.red());
-        exit(self.exit_code());
-    }
+    // TODO: Enable this method when we need direct error exit functionality
+    // /// Prints the error message and exits with appropriate code
+    // pub fn exit_with_error(self) -> ! {
+    //     // Avoid unnecessary string allocation for commonly used error types
+    //     let error_message = match &self {
+    //         CliError::ApiError(err) => format!("{API_ERROR}{err}"),
+    //         CliError::FileError(msg) => format!("File Error: {msg}"),
+    //         CliError::InputError(msg) => format!("{INPUT_ERROR}{msg}"),
+    //         CliError::UnexpectedError(msg) => format!("{UNEXPECTED_ERROR}{msg}"),
+    //     };
+    // 
+    //     eprintln!("{}", error_message.red());
+    //     exit(self.exit_code());
+    // }
 }
 
 /// A module to re-export all error types and constants

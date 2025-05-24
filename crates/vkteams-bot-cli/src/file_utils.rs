@@ -1,68 +1,30 @@
 use crate::errors::prelude::{CliError, Result as CliResult};
 use crate::config::Config;
 use crate::progress;
+use crate::utils::{validate_file_path, validate_directory_path};
 use futures::StreamExt;
 use std::fmt::Debug;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tokio::io::AsyncWriteExt;
 use tracing::{debug, info};
 use vkteams_bot::prelude::*;
 
-/// Validates a file path exists
-///
-/// # Errors
-/// - Returns `CliError::FileError` if file doesn't exist or is not a regular file
-pub fn validate_file_path(file_path: &str) -> CliResult<()> {
-    let path = Path::new(file_path);
-    if !path.exists() {
-        return Err(CliError::FileError(format!(
-            "File not found: {file_path}"
-        )));
-    }
+// Validation functions are now imported from utils/validation module
 
-    if !path.is_file() {
-        return Err(CliError::FileError(format!(
-            "Path is not a file: {file_path}"
-        )));
-    }
-
-    Ok(())
-}
-
-/// Validates a directory path exists
-///
-/// # Errors
-/// - Returns `CliError::FileError` if directory doesn't exist or is not a directory
-pub fn validate_directory(dir_path: &str) -> CliResult<()> {
-    let path = Path::new(dir_path);
-    if !path.exists() {
-        return Err(CliError::FileError(format!(
-            "Directory not found: {dir_path}"
-        )));
-    }
-
-    if !path.is_dir() {
-        return Err(CliError::FileError(format!(
-            "Path is not a directory: {dir_path}"
-        )));
-    }
-
-    Ok(())
-}
-
-/// Streams a file from disk for uploading
-///
-/// # Errors
-/// - Returns `CliError::FileError` if the file doesn't exist or cannot be opened
-pub async fn read_file_stream(file_path: &str) -> CliResult<tokio::fs::File> {
-    validate_file_path(file_path)?;
-    
-    let file = tokio::fs::File::open(file_path)
-        .await
-        .map_err(|e| CliError::FileError(format!("Failed to open file {file_path}: {e}")))?;
-    
-    Ok(file)
-}
+// TODO: Enable this function when we need streaming file uploads
+// /// Streams a file from disk for uploading
+// ///
+// /// # Errors
+// /// - Returns `CliError::FileError` if the file doesn't exist or cannot be opened
+// pub async fn read_file_stream(file_path: &str) -> CliResult<tokio::fs::File> {
+//     validate_file_path(file_path)?;
+//     
+//     let file = tokio::fs::File::open(file_path)
+//         .await
+//         .map_err(|e| CliError::FileError(format!("Failed to open file {file_path}: {e}")))?;
+//     
+//     Ok(file)
+// }
 
 /// Stream downloads a file and saves it to disk
 ///
@@ -84,7 +46,7 @@ pub async fn download_and_save_file(
         ".".to_string()
     };
     
-    validate_directory(&target_dir)?;
+    validate_directory_path(&target_dir)?;
 
     debug!("Getting file info for file ID: {}", file_id);
     let file_info = bot

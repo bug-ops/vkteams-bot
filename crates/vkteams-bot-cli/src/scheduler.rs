@@ -407,6 +407,14 @@ impl ScheduleType {
     }
 }
 
+/// Parse a schedule time string with flexible format support
+///
+/// # Arguments
+/// * `time_str` - The time string to parse
+///
+/// # Returns
+/// * `Ok(DateTime<Utc>)` if successfully parsed
+/// * `Err(CliError::InputError)` if parsing fails
 pub fn parse_schedule_time(time_str: &str) -> CliResult<DateTime<Utc>> {
     // Try different formats
     let formats = [

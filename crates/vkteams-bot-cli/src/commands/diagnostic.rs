@@ -7,6 +7,7 @@ use crate::constants::ui::emoji;
 use crate::errors::prelude::{CliError, Result as CliResult};
 use crate::file_utils;
 use crate::config::Config;
+use crate::utils::{validate_file_id, validate_directory_path};
 use async_trait::async_trait;
 use clap::Subcommand;
 use colored::Colorize;
@@ -373,37 +374,7 @@ where
     Ok(())
 }
 
-// Validation functions
-
-fn validate_file_id(file_id: &str) -> CliResult<()> {
-    if file_id.trim().is_empty() {
-        return Err(CliError::InputError("File ID cannot be empty".to_string()));
-    }
-    
-    // Basic file ID format validation
-    if !file_id.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
-        return Err(CliError::InputError(
-            "File ID contains invalid characters. Only alphanumeric, underscore, and hyphen are allowed".to_string()
-        ));
-    }
-    
-    Ok(())
-}
-
-fn validate_directory_path(dir_path: &str) -> CliResult<()> {
-    if dir_path.trim().is_empty() {
-        return Ok(()); // Empty path is allowed, will use default
-    }
-    
-    let path = std::path::Path::new(dir_path);
-    if path.exists() && !path.is_dir() {
-        return Err(CliError::FileError(format!(
-            "Path exists but is not a directory: {}", dir_path
-        )));
-    }
-    
-    Ok(())
-}
+// Validation functions are now imported from utils/validation module
 
 // Utility functions
 

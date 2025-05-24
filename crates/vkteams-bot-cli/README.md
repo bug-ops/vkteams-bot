@@ -238,7 +238,7 @@ vkteams-bot-cli get-events -l true | grep -i "urgent"
 # Send typing indicator
 vkteams-bot-cli send-action -c chat456 -a typing
 
-# Send looking indicator  
+# Send looking indicator
 vkteams-bot-cli send-action -c chat456 -a looking
 ```
 
@@ -278,7 +278,7 @@ vkteams-bot-cli send-text -u "$CHAT_ID" -m "$MESSAGE"
 ### Environment-Specific Configuration
 
 ```bash
-# Environment  
+# Environment
 export VKTEAMS_BOT_API_URL="https://api.example.com"
 export VKTEAMS_LOG_LEVEL="info"
 
@@ -322,7 +322,7 @@ Example `cli_config.toml`:
 ```toml
 [api]
 token = "your_bot_token"
-url = "https://api.teams.vk.com"
+url = "https://example.com"
 timeout = 30
 max_retries = 3
 

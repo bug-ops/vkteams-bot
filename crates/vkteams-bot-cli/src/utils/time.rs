@@ -8,7 +8,7 @@ use chrono::{DateTime, Utc, Duration, NaiveDateTime, NaiveDate, Timelike, Dateli
 use cron::Schedule;
 use std::str::FromStr;
 
-/// Parse a schedule time string with flexible format support
+/// Parse a schedule time string with flexible format support (for scheduling commands)
 ///
 /// # Arguments
 /// * `time_str` - The time string to parse
@@ -44,6 +44,57 @@ pub fn parse_schedule_time(time_str: &str) -> CliResult<DateTime<Utc>> {
     // Try relative times
     if let Ok(dt) = parse_relative_time(time_str) {
         return Ok(dt);
+    }
+
+    Err(CliError::InputError(format!(
+        "Invalid time format: {}. Use YYYY-MM-DD HH:MM:SS, or relative time like '30m', '2h', '1d'",
+        time_str
+    )))
+}
+
+/// Parse a schedule time string with flexible format support (scheduler version)
+///
+/// This is a compatibility alias for the scheduler module.
+/// # Arguments
+/// * `time_str` - The time string to parse
+///
+/// # Returns
+/// * `Ok(DateTime<Utc>)` if successfully parsed
+/// * `Err(CliError::InputError)` if parsing fails
+pub fn parse_schedule_time_compat(time_str: &str) -> CliResult<DateTime<Utc>> {
+    // Try different formats (original scheduler formats)
+    let formats = [
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M",
+        "%Y-%m-%d",
+        "%H:%M:%S",
+        "%H:%M",
+    ];
+
+    for format in &formats {
+        if let Ok(naive_dt) = NaiveDateTime::parse_from_str(time_str, format) {
+            return Ok(DateTime::from_naive_utc_and_offset(naive_dt, Utc));
+        }
+        if let Ok(naive_date) = NaiveDate::parse_from_str(time_str, format) {
+            return Ok(DateTime::from_naive_utc_and_offset(naive_date.and_hms_opt(0, 0, 0).unwrap(), Utc));
+        }
+    }
+
+    // Try relative times
+    if time_str.ends_with('m') {
+        if let Ok(minutes) = time_str[..time_str.len()-1].parse::<i64>() {
+            return Ok(Utc::now() + Duration::minutes(minutes));
+        }
+    }
+    if time_str.ends_with('h') {
+        if let Ok(hours) = time_str[..time_str.len()-1].parse::<i64>() {
+            return Ok(Utc::now() + Duration::hours(hours));
+        }
+    }
+    if time_str.ends_with('d') {
+        if let Ok(days) = time_str[..time_str.len()-1].parse::<i64>() {
+            return Ok(Utc::now() + Duration::days(days));
+        }
     }
 
     Err(CliError::InputError(format!(
