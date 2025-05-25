@@ -1,0 +1,22 @@
+[package]
+name = "vkteams-bot-mcp"
+version = "0.1.0"
+authors = ["Andrei G. <k05h31@gmail.com>"]
+description = "VK Teams Bot API MCP"
+keywords = ["vk", "teams", "bot", "mcp"]
+categories = [
+    "asynchronous",
+    "api-bindings",
+    "web-programming::http-client",
+    "mcp",
+]
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+[[bin]]
+name = "vkteams-bot-mcp"
+path = "src/main.rs"
+
+[dependencies]
