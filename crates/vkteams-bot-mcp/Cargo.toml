@@ -15,8 +15,11 @@ categories = [
     "web-programming::http-server",
     "network-programming",
 ]
+readme = "README.md"
+
 license.workspace = true
 edition.workspace = true
+repository.workspace = true
 
 [[bin]]
 name = "vkteams-bot-mcp"
@@ -28,9 +31,9 @@ rmcp = { version = "0.1", features = ["server", "macros", "transport-io"] }
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-schemars = "0.9"
-vkteams-bot = { version = "0.10", path = "../vkteams-bot", default-features = false, features = [
+schemars = "0.8"
+anyhow = "1"
+async-trait = "0.1"
+vkteams-bot = { path = "../vkteams-bot", default-features = false, features = [
     "otlp",
 ] }
-async-trait = "0.1.88"
-base64 = "0.22"
