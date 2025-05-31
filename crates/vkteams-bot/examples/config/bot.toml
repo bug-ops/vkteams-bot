@@ -21,3 +21,28 @@ fmt_filter_directive = "axum=trace"
 fmt_filter_directive = "tower_http=debug"
 [[otlp.fmt]]
 fmt_filter_directive = "opentelemetry=info"
+# # Network configuration
+# [network]
+# # Number of retry attempts for failed requests
+# retries = 3
+# # Maximum backoff time in milliseconds
+# max_backoff_ms = 5000
+# # Request timeout in seconds
+# request_timeout_secs = 30
+# # Connection timeout in seconds
+# connect_timeout_secs = 10
+# # Pool idle timeout in seconds
+# pool_idle_timeout_secs = 90
+# # Maximum number of idle connections per host
+# max_idle_connections = 10
+# [listener]
+# #
+# max_events_per_batch = 50
+# #
+# empty_backoff_ms = 500
+# #
+# max_backoff_ms = 5000
+# #
+# use_exponential_backoff = true
+# #
+# max_memory_usage = 0

@@ -12,10 +12,8 @@ pub struct Config {
     pub otlp: OtlpConfig,
     #[cfg(feature = "ratelimit")]
     pub rate_limit: RateLimit,
-    #[serde(default)]
     pub network: NetworkConfig,
     #[cfg(feature = "longpoll")]
-    #[serde(default)]
     pub listener: EventListenerConfig,
 }
 /// Otlp variables
