@@ -22,7 +22,12 @@ pub struct ConnectionPool {
 
 impl Default for ConnectionPool {
     fn default() -> Self {
-        Self::new(Client::new(), 3, Duration::from_secs(5))
+        let cfg = &CONFIG.network;
+        Self::new(
+            Client::new(),
+            cfg.retries,
+            Duration::from_millis(cfg.max_backoff_ms),
+        )
     }
 }
 
@@ -37,17 +42,23 @@ impl ConnectionPool {
     }
 
     /// Create a connection pool with optimized settings for the VK Teams Bot API
-    pub fn optimized() -> Result<Self> {
+    pub fn optimized() -> Self {
         let cfg = &CONFIG.network;
-        let client = build_optimized_client()?;
+        let client = build_optimized_client().unwrap_or_else(|e| {
+            warn!(
+                "Failed to build optimized client. Use default instead: {}",
+                e
+            );
+            Client::new()
+        });
         let retries = cfg.retries;
         let max_backoff = Duration::from_millis(cfg.max_backoff_ms);
 
-        Ok(Self {
+        Self {
             client,
             retries,
             max_backoff,
-        })
+        }
     }
 
     /// Execute a request with exponential backoff retry strategy
