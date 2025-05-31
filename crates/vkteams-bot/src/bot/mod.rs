@@ -319,6 +319,18 @@ fn get_env_url() -> Result<String> {
     std::env::var(VKTEAMS_BOT_API_URL).map_err(BotError::from)
 }
 
+fn set_default_path(version: &APIVersionUrl) -> String {
+    version.to_string()
+}
+
+fn get_env_token() -> Result<String> {
+    std::env::var(VKTEAMS_BOT_API_TOKEN).map_err(BotError::from)
+}
+
+fn get_env_url() -> Result<String> {
+    std::env::var(VKTEAMS_BOT_API_URL).map_err(BotError::from)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
