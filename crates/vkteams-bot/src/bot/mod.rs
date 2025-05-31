@@ -305,7 +305,7 @@ impl Bot {
         debug!("Creating new bot with custom connection pool");
 
         let token = get_env_token()?;
-        let base_api_url = get_env_url()?.to_string();
+        let base_api_url = get_env_url()?;
 
         Self::with_connection_pool_and_params(version, token, base_api_url, connection_pool)
     }
