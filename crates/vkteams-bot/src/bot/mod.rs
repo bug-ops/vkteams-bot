@@ -63,21 +63,16 @@ impl Bot {
     pub fn new(version: APIVersionUrl) -> Self {
         debug!("Creating new bot with API version: {:?}", version);
 
-        let token = std::env::var(VKTEAMS_BOT_API_TOKEN)
-            .map_err(|e| BotError::Config(format!("Failed to get token: {}", e)))
-            .unwrap_or_else(|e| panic!("{}", e));
+        let token = get_env_token().expect("Failed to get token from environment");
         debug!("Token successfully obtained from environment");
 
-        let base_api_url = std::env::var(VKTEAMS_BOT_API_URL)
-            .map_err(|e| BotError::Config(format!("Failed to get API URL: {}", e)))
-            .unwrap_or_else(|e| panic!("{}", e));
+        let base_api_url = get_env_url().expect("Failed to get API URL from environment");
         debug!("API URL successfully obtained from environment");
 
-        Self::with_params(version, token, base_api_url)
-            .unwrap_or_else(|e| panic!("Failed to create bot: {}", e))
+        Self::with_params(version, token, base_api_url).expect("Failed to create bot")
     }
 
-    /// Creates a new `Bot` with direct parameters instead of environment variables
+    /// Creates a new `Bot` with direct parameters instead of environment variablesx
     ///
     /// This method allows you to create a bot by directly providing the token and API URL,
     /// instead of reading them from environment variables. This is particularly useful
@@ -127,7 +122,7 @@ impl Bot {
         let base_api_path = version.to_string();
         debug!("Set API base path: {}", base_api_path);
 
-        let connection_pool = ConnectionPool::optimized()?;
+        let connection_pool = ConnectionPool::optimized();
         debug!("Connection pool successfully created");
 
         Ok(Self {
@@ -285,6 +280,18 @@ impl Bot {
     }
 }
 
+fn get_env_token() -> Result<String> {
+    std::env::var(VKTEAMS_BOT_API_TOKEN).map_err(BotError::from)
+}
+
+fn get_env_url() -> Result<String> {
+    std::env::var(VKTEAMS_BOT_API_URL).map_err(BotError::from)
+}
+
+fn set_default_path(version: &APIVersionUrl) -> String {
+    version.to_string()
+}
+
 // Helper functions to create a new bot with a custom connection pool
 impl Bot {
     /// Create a new bot with a custom connection pool
@@ -297,11 +304,8 @@ impl Bot {
     ) -> Result<Self> {
         debug!("Creating new bot with custom connection pool");
 
-        let token = std::env::var(VKTEAMS_BOT_API_TOKEN)
-            .map_err(|e| BotError::Config(format!("Failed to get token: {}", e)))?;
-
-        let base_api_url = std::env::var(VKTEAMS_BOT_API_URL)
-            .map_err(|e| BotError::Config(format!("Failed to get API URL: {}", e)))?;
+        let token = get_env_token()?;
+        let base_api_url = get_env_url()?;
 
         Self::with_connection_pool_and_params(version, token, base_api_url, connection_pool)
     }
@@ -362,18 +366,15 @@ impl Bot {
         let base_api_url = Url::parse(&api_url).map_err(BotError::Url)?;
         debug!("API URL successfully parsed");
 
-        let base_api_path = match version {
-            APIVersionUrl::V1 => "/bot/v1/",
-        };
+        let base_api_path = set_default_path(&version);
 
         Ok(Self {
             connection_pool,
             token,
             base_api_url,
-            base_api_path: base_api_path.to_string(),
+            base_api_path,
             event_id: Arc::new(Mutex::new(0)),
-            #[cfg(feature = "ratelimit")]
-            rate_limiter: Default::default(),
+            ..Default::default()
         })
     }
 }

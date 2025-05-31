@@ -21,7 +21,6 @@ async fn main() -> Result<()> {
     println!("   ✅ Bucket starts with full capacity");
     println!("   ✅ Graceful shutdown support");
     println!("   ✅ High concurrency performance");
-    println!("");
 
     // Demo 1: Immediate availability
     demo_immediate_availability(Arc::clone(&rate_limiter)).await?;
@@ -68,7 +67,6 @@ async fn demo_immediate_availability(rate_limiter: Arc<RateLimiter>) -> Result<(
         "   Total time for 5 requests: {:.2}ms",
         start.elapsed().as_millis()
     );
-    println!("");
     Ok(())
 }
 
@@ -108,7 +106,6 @@ async fn demo_background_refill(rate_limiter: Arc<RateLimiter>) -> Result<()> {
         if allowed { "✅ Allowed" } else { "❌ Denied" }
     );
 
-    println!("");
     Ok(())
 }
 
@@ -167,7 +164,6 @@ async fn demo_concurrent_performance(rate_limiter: Arc<RateLimiter>) -> Result<(
         1000.0 / total_duration.as_secs_f64()
     );
 
-    println!("");
     Ok(())
 }
 
@@ -188,10 +184,10 @@ async fn demo_rate_limiting(rate_limiter: Arc<RateLimiter>) -> Result<()> {
         let allowed = rate_limiter.check_rate_limit(&chat_id).await;
         if allowed {
             allowed_count += 1;
-            results.push_str("✅");
+            results.push('✅');
         } else {
             denied_count += 1;
-            results.push_str("❌");
+            results.push('❌');
         }
 
         if i % 10 == 0 {
