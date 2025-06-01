@@ -24,11 +24,13 @@ There are two ways to initialize the bot:
 # Unix-like
 $ export VKTEAMS_BOT_API_TOKEN=<Your token here> #require
 $ export VKTEAMS_BOT_API_URL=<Your base api url> #require
+$ export VKTEAMS_BOT_CONFIG=<Your bot config path> #optional
 $ export VKTEAMS_PROXY=<Proxy> #optional
 
 # Windows
 $ set VKTEAMS_BOT_API_TOKEN=<Your token here> #require
 $ set VKTEAMS_BOT_API_URL=<Your base api url> #require
+$ set VKTEAMS_BOT_CONFIG=<Your bot config path> #optional
 $ set VKTEAMS_PROXY=<Proxy> #optional
 ```
 
