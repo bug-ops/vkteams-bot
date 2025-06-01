@@ -158,18 +158,23 @@ pub struct EventListenerConfig {
     pub max_memory_usage: usize,
 }
 
+#[cfg(feature = "longpoll")]
 fn default_max_events_per_batch() -> usize {
     50
 }
+#[cfg(feature = "longpoll")]
 fn default_empty_backoff_ms() -> u64 {
     500
 }
+#[cfg(feature = "longpoll")]
 fn default_max_backoff_ms() -> u64 {
     5000
 }
+#[cfg(feature = "longpoll")]
 fn default_use_exponential_backoff() -> bool {
     true
 }
+#[cfg(feature = "longpoll")]
 fn default_max_memory_usage() -> usize {
     0
 }
