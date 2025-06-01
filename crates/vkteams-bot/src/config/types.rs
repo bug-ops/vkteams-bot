@@ -74,6 +74,25 @@ impl Default for OtlpConfig {
     }
 }
 
+impl Default for OtlpConfig {
+    fn default() -> Self {
+        Self {
+            instance_id: default_instance_id(),
+            deployment_environment_name: default_deployment_environment_name(),
+            exporter_endpoint: default_exporter_endpoint(),
+            exporter_timeout: default_exporter_timeout(),
+            exporter_metric_interval: default_exporter_metric_interval(),
+            ratio: default_ratio(),
+            otel_filter_default: default_otlp_filter_default(),
+            fmt_filter_default: default_fmt_filter_default(),
+            fmt_ansi: default_fmt_ansi(),
+            fmt_filter_self_directive: default_fmt_filter_self_directive(),
+            otel: default_otel(),
+            fmt: default_fmt(),
+        }
+    }
+}
+
 fn default_instance_id() -> Cow<'static, str> {
     Cow::Borrowed("bot")
 }
