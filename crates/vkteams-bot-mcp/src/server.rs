@@ -103,7 +103,7 @@ impl Server {
         #[schemars(description = "Last event ID to get events")]
         last_event_id: Option<u32>,
     ) -> MCPResult {
-        let req = RequestEventsGet::new(last_event_id.unwrap_or(0));
+        let req = RequestEventsGet::new(last_event_id.unwrap_or(0)).with_poll_time(30);
         self.client()
             .send_api_request(req)
             .await

@@ -1,4 +1,4 @@
-use crate::config::CONFIG;
+use crate::config::{CONFIG, LogFormat};
 use opentelemetry::{KeyValue, global, trace::TracerProvider as _};
 use opentelemetry_otlp::{Protocol, WithExportConfig};
 use opentelemetry_sdk::{
@@ -125,41 +125,92 @@ pub fn init() -> Result<OtelGuard, Box<dyn std::error::Error>> {
     let tracer_provider = init_traces().ok();
     let meter_provider = init_metrics().ok();
 
-    // Create a formatting layer with the filter
-    let fmt_layer = tracing_subscriber::fmt::layer()
-        .with_ansi(cfg.fmt_ansi)
-        .with_thread_names(true)
-        .with_line_number(true)
-        .with_thread_ids(true)
-        .with_filter(fmt_filter()?);
-
     // Create basic configuration for the subscriber
-    let base_subscriber = tracing_subscriber::registry()
-        .with(filter_layer()?)
-        .with(fmt_layer);
+    let base_subscriber = tracing_subscriber::registry().with(filter_layer()?);
 
-    // Add appropriate layers depending on initialization results
-    if let (Some(meter), Some(tracer)) = (&meter_provider, &tracer_provider) {
-        // Both providers available
-        let tracer_instance = tracer.tracer(crate::api::types::SERVICE_NAME);
-        base_subscriber
-            .with(MetricsLayer::new(meter.clone()))
-            .with(OpenTelemetryLayer::new(tracer_instance))
-            .init();
-    } else if let Some(meter) = &meter_provider {
-        // Only metrics available
-        base_subscriber
-            .with(MetricsLayer::new(meter.clone()))
-            .init();
-    } else if let Some(tracer) = &tracer_provider {
-        // Only tracing available
-        let tracer_instance = tracer.tracer(crate::api::types::SERVICE_NAME);
-        base_subscriber
-            .with(OpenTelemetryLayer::new(tracer_instance))
-            .init();
+    if cfg.log_format == LogFormat::Json {
+        let base_subscriber = base_subscriber.with(
+            tracing_subscriber::fmt::layer()
+                .json()
+                .with_writer(std::io::stderr)
+                .with_filter(fmt_filter()?),
+        );
+        // Add appropriate layers depending on initialization results
+        if let (Some(meter), Some(tracer)) = (&meter_provider, &tracer_provider) {
+            let tracer_instance = tracer.tracer(crate::api::types::SERVICE_NAME);
+            base_subscriber
+                .with(MetricsLayer::new(meter.clone()))
+                .with(OpenTelemetryLayer::new(tracer_instance))
+                .init();
+        } else if let Some(meter) = &meter_provider {
+            base_subscriber
+                .with(MetricsLayer::new(meter.clone()))
+                .init();
+        } else if let Some(tracer) = &tracer_provider {
+            let tracer_instance = tracer.tracer(crate::api::types::SERVICE_NAME);
+            base_subscriber
+                .with(OpenTelemetryLayer::new(tracer_instance))
+                .init();
+        } else {
+            base_subscriber.init();
+        }
+    } else if cfg.log_format == LogFormat::Full {
+        let base_subscriber = base_subscriber.with(
+            tracing_subscriber::fmt::layer()
+                .pretty()
+                .with_ansi(cfg.fmt_ansi)
+                .with_writer(std::io::stderr)
+                .with_thread_names(true)
+                .with_line_number(true)
+                .with_thread_ids(true)
+                .with_filter(fmt_filter()?),
+        );
+        if let (Some(meter), Some(tracer)) = (&meter_provider, &tracer_provider) {
+            let tracer_instance = tracer.tracer(crate::api::types::SERVICE_NAME);
+            base_subscriber
+                .with(MetricsLayer::new(meter.clone()))
+                .with(OpenTelemetryLayer::new(tracer_instance))
+                .init();
+        } else if let Some(meter) = &meter_provider {
+            base_subscriber
+                .with(MetricsLayer::new(meter.clone()))
+                .init();
+        } else if let Some(tracer) = &tracer_provider {
+            let tracer_instance = tracer.tracer(crate::api::types::SERVICE_NAME);
+            base_subscriber
+                .with(OpenTelemetryLayer::new(tracer_instance))
+                .init();
+        } else {
+            base_subscriber.init();
+        }
     } else {
-        // No providers available
-        base_subscriber.init();
+        let base_subscriber = base_subscriber.with(
+            tracing_subscriber::fmt::layer()
+                .with_ansi(cfg.fmt_ansi)
+                .with_writer(std::io::stderr)
+                .with_thread_names(true)
+                .with_line_number(true)
+                .with_thread_ids(true)
+                .with_filter(fmt_filter()?),
+        );
+        if let (Some(meter), Some(tracer)) = (&meter_provider, &tracer_provider) {
+            let tracer_instance = tracer.tracer(crate::api::types::SERVICE_NAME);
+            base_subscriber
+                .with(MetricsLayer::new(meter.clone()))
+                .with(OpenTelemetryLayer::new(tracer_instance))
+                .init();
+        } else if let Some(meter) = &meter_provider {
+            base_subscriber
+                .with(MetricsLayer::new(meter.clone()))
+                .init();
+        } else if let Some(tracer) = &tracer_provider {
+            let tracer_instance = tracer.tracer(crate::api::types::SERVICE_NAME);
+            base_subscriber
+                .with(OpenTelemetryLayer::new(tracer_instance))
+                .init();
+        } else {
+            base_subscriber.init();
+        }
     }
 
     Ok(OtelGuard {
