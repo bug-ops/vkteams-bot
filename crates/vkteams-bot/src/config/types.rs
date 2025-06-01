@@ -14,8 +14,10 @@ pub struct Config {
     #[cfg(feature = "ratelimit")]
     #[serde(default)]
     pub rate_limit: RateLimit,
+    #[serde(default)]
     pub network: NetworkConfig,
     #[cfg(feature = "longpoll")]
+    #[serde(default)]
     pub listener: EventListenerConfig,
 }
 
@@ -241,7 +243,6 @@ fn default_max_events_per_batch() -> usize {
 fn default_empty_backoff_ms() -> u64 {
     500
 }
-#[cfg(feature = "longpoll")]
 fn default_max_backoff_ms() -> u64 {
     5000
 }
