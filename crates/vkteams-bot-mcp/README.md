@@ -1,7 +1,7 @@
 # VKTeams Bot MCP Server
 
 [![crates.io](https://img.shields.io/crates/v/vkteams-bot-mcp)](https://crates.io/crates/vkteams-bot-mcp)
-[![github.com](https://github.com/bug-ops/vkteams-bot/actions/workflows/Rust.yml/badge.svg)](https://github.com/bug-ops/vkteams-bot/actions)
+[![Unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
 
 **A Machine Control Protocol (MCP) server for VK Teams Bot API.**  
 Easily integrate VK Teams bots with LLM agents, automation systems, or any external service via a universal protocol.

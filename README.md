@@ -1,6 +1,7 @@
 # VK Teams Bot — Rust workspace for VK Teams Bot API (unofficial)
 
-[![github.com](https://github.com/bug-ops/vkteams-bot/actions/workflows/Rust.yml/badge.svg)](https://github.com/bug-ops/vkteams-bot/actions)
+[![github.com](https://github.com/bug-ops/vkteams-bot/actions/workflows/rust.yml/badge.svg)](https://github.com/bug-ops/vkteams-bot/actions)
+[![CodeQL](https://github.com/bug-ops/vkteams-bot/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/bug-ops/vkteams-bot/actions/workflows/github-code-scanning/codeql)
 [![Unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
 
 **A multifunctional toolkit for working with the VK Teams Bot API in Rust.**

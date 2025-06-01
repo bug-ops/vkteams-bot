@@ -2,7 +2,6 @@
 
 [![docs.rs](https://img.shields.io/docsrs/vkteams-bot/latest)](https://docs.rs/vkteams-bot/latest/vkteams_bot/)
 [![crates.io](https://img.shields.io/crates/v/vkteams-bot)](https://crates.io/crates/vkteams-bot)
-[![github.com](https://github.com/k05h31/vkteams-bot/workflows/Rust/badge.svg)](https://github.com/k05h31/vkteams-bot/actions)
 [![Unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
 
 ## Table of Contents
