@@ -1,18 +1,10 @@
-<<<<<<< HEAD
-
-# VK Teams Bot API CLI
-
-=======
-
 # VK Teams Bot API Cli
 
 [![docs.rs](https://img.shields.io/docsrs/vkteams-bot-cli/latest)](https://docs.rs/vkteams-bot-cli/latest/vkteams_bot_cli/)
->>>>>>> 3f6c614 (move cli)
 [![crates.io](https://img.shields.io/crates/v/vkteams-bot-cli)](https://crates.io/crates/vkteams-bot-cli)
 [![github.com](https://github.com/k05h31/vkteams-bot-cli/workflows/Rust/badge.svg)](https://github.com/k05h31/vkteams-bot/actions)
 [![Unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
 
-<<<<<<< HEAD
 🤖 **Powerful command-line interface for VK Teams Bot API** with interactive setup, progress bars, and comprehensive chat management features.
 
 ## ✨ Features
@@ -715,7 +707,7 @@ The scheduler runs as a background process that:
 - Manages task state and run counts
 - Automatically disables completed one-time tasks
 - Persists task data between restarts
-=======
+
 VK Teams Bot API terminal application.
 
 ## Table of Contents
@@ -818,5 +810,3 @@ vkteams-bot-cli config --show
 | `send-text` | Send text message |
 | `send-file` | Send file to chat |
 | `get-file`  | Download file from API |
-
->>>>>>> 3f6c614 (move cli)

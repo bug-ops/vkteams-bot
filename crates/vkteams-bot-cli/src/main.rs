@@ -110,7 +110,6 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     }
 
     debug!("Configuration loaded");
-
     // Validate command before execution
     if let Err(err) = cli.command.validate() {
         eprintln!(

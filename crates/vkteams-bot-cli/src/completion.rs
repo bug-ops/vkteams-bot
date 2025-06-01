@@ -79,6 +79,7 @@ pub fn generate_completion(shell: CompletionShell, output_path: Option<&Path>) -
 fn print_installation_instructions(shell: Shell, path: &Path) {
     println!("\nInstallation Instructions:");
     println!("{}", "=".repeat(50));
+
     match shell {
         Shell::Bash => {
             println!("Add the following line to your ~/.bashrc or ~/.bash_profile:");
@@ -132,12 +133,14 @@ pub fn generate_all_completions(output_dir: &Path) -> CliResult<()> {
     // Ensure output directory exists
     fs::create_dir_all(output_dir)
         .map_err(|e| CliError::FileError(format!("Failed to create output directory: {}", e)))?;
+
     let shells = [
         (CompletionShell::Bash, "vkteams-bot-cli.bash"),
         (CompletionShell::Zsh, "_vkteams-bot-cli"),
         (CompletionShell::Fish, "vkteams-bot-cli.fish"),
         (CompletionShell::PowerShell, "vkteams-bot-cli.ps1"),
     ];
+
     for (shell, filename) in &shells {
         let output_path = output_dir.join(filename);
         generate_completion(*shell, Some(&output_path))?;
@@ -233,6 +236,7 @@ fn get_system_completion_path(shell: CompletionShell) -> CliResult<std::path::Pa
 #[cfg(feature = "completion")]
 fn print_post_install_instructions(shell: CompletionShell) {
     println!("\nPost-installation steps:");
+
     match shell {
         CompletionShell::Bash => {
             println!("Add this to your ~/.bashrc if not already present:");
@@ -271,6 +275,7 @@ mod tests {
     fn test_generate_completion_to_file() {
         let temp_dir = tempdir().unwrap();
         let output_path = temp_dir.path().join("test_completion.bash");
+
         assert!(generate_completion(CompletionShell::Bash, Some(&output_path)).is_ok());
         assert!(output_path.exists());
     }
