@@ -3,12 +3,13 @@ name = "vkteams-bot-mcp"
 version = "0.1.0"
 authors = ["Andrei G. <k05h31@gmail.com>"]
 description = "VK Teams Bot API MCP"
-keywords = ["vk", "teams", "bot", "mcp"]
+keywords = ["vk", "teams", "bot", "mcp", "modelcontextprotocol"]
 categories = [
     "asynchronous",
     "api-bindings",
     "web-programming::http-client",
-    "mcp",
+    "web-programming::http-server",
+    "network-programming",
 ]
 readme = "README.md"
 
@@ -29,6 +30,7 @@ serde_json = "1"
 schemars = "0.9"
 anyhow = "1"
 async-trait = "0.1"
-vkteams-bot = { path = "../vkteams-bot", default-features = false, features = [
+vkteams-bot = { version = "0.9", path = "../vkteams-bot", default-features = false, features = [
     "otlp",
+    "longpoll",
 ] }
