@@ -2,22 +2,27 @@ use once_cell::sync::Lazy;
 use serde::{self, Deserialize, Serialize};
 use std::borrow::Cow;
 
-pub static APP_NAME: &str = "APP_NAME";
+pub static APP_FOLDER: &str = "VKTEAMS_BOT_CONFIG";
 pub static CONFIG: Lazy<Config> = Lazy::new(Config::new);
 /// Configuration file
 #[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct Config {
     #[cfg(feature = "otlp")]
+    #[serde(default)]
     pub otlp: OtlpConfig,
     #[cfg(feature = "ratelimit")]
+    #[serde(default)]
     pub rate_limit: RateLimit,
+    #[serde(default)]
     pub network: NetworkConfig,
     #[cfg(feature = "longpoll")]
+    #[serde(default)]
     pub listener: EventListenerConfig,
 }
+
 /// Otlp variables
-#[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
 #[repr(C)]
 pub struct OtlpConfig {
@@ -45,6 +50,25 @@ pub struct OtlpConfig {
     pub otel: Vec<OtelDirective>,
     #[serde(default = "default_fmt")]
     pub fmt: Vec<FmtDirective>,
+}
+
+impl Default for OtlpConfig {
+    fn default() -> Self {
+        Self {
+            instance_id: default_instance_id(),
+            deployment_environment_name: default_deployment_environment_name(),
+            exporter_endpoint: default_exporter_endpoint(),
+            exporter_timeout: default_exporter_timeout(),
+            exporter_metric_interval: default_exporter_metric_interval(),
+            ratio: default_ratio(),
+            otel_filter_default: default_otlp_filter_default(),
+            fmt_filter_default: default_fmt_filter_default(),
+            fmt_ansi: default_fmt_ansi(),
+            fmt_filter_self_directive: default_fmt_filter_self_directive(),
+            otel: default_otel(),
+            fmt: default_fmt(),
+        }
+    }
 }
 
 fn default_instance_id() -> Cow<'static, str> {
@@ -110,7 +134,7 @@ pub struct FmtDirective {
     pub fmt_filter_directive: Cow<'static, str>,
 }
 /// Rate limit configuration
-#[derive(Debug, Serialize, Deserialize, Default, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub struct RateLimit {
     #[serde(default = "default_limit")]
@@ -121,6 +145,17 @@ pub struct RateLimit {
     pub retry_delay: u64,
     #[serde(default = "default_retry_attempts")]
     pub retry_attempts: u16,
+}
+
+impl Default for RateLimit {
+    fn default() -> Self {
+        Self {
+            limit: default_limit(),
+            duration: default_duration(),
+            retry_delay: default_retry_delay(),
+            retry_attempts: default_retry_attempts(),
+        }
+    }
 }
 
 fn default_limit() -> usize {
@@ -138,7 +173,7 @@ fn default_retry_attempts() -> u16 {
 
 /// Configuration for event listener
 #[cfg(feature = "longpoll")]
-#[derive(Debug, Serialize, Deserialize, Default, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub struct EventListenerConfig {
     /// Maximum number of events to process in a single batch
@@ -158,6 +193,18 @@ pub struct EventListenerConfig {
     pub max_memory_usage: usize,
 }
 
+impl Default for EventListenerConfig {
+    fn default() -> Self {
+        Self {
+            max_events_per_batch: default_max_events_per_batch(),
+            empty_backoff_ms: default_empty_backoff_ms(),
+            max_backoff_ms: default_max_backoff_ms(),
+            use_exponential_backoff: default_use_exponential_backoff(),
+            max_memory_usage: default_max_memory_usage(),
+        }
+    }
+}
+
 #[cfg(feature = "longpoll")]
 fn default_max_events_per_batch() -> usize {
     50
@@ -166,7 +213,6 @@ fn default_max_events_per_batch() -> usize {
 fn default_empty_backoff_ms() -> u64 {
     500
 }
-#[cfg(feature = "longpoll")]
 fn default_max_backoff_ms() -> u64 {
     5000
 }
@@ -180,7 +226,7 @@ fn default_max_memory_usage() -> usize {
 }
 
 /// Network configuration
-#[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct NetworkConfig {
     /// Number of retry attempts for failed requests
@@ -201,6 +247,19 @@ pub struct NetworkConfig {
     /// Maximum number of idle connections per host
     #[serde(default = "default_max_idle_connections")]
     pub max_idle_connections: usize,
+}
+
+impl Default for NetworkConfig {
+    fn default() -> Self {
+        Self {
+            retries: default_retries(),
+            max_backoff_ms: default_max_backoff_ms(),
+            request_timeout_secs: default_request_timeout_secs(),
+            connect_timeout_secs: default_connect_timeout_secs(),
+            pool_idle_timeout_secs: default_pool_idle_timeout_secs(),
+            max_idle_connections: default_max_idle_connections(),
+        }
+    }
 }
 
 fn default_retries() -> usize {
