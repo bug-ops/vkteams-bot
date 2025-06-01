@@ -135,7 +135,7 @@ async fn execute_setup() -> CliResult<()> {
     );
     println!("This wizard will help you configure the CLI tool.\n");
 
-    let mut new_config = Config::default();
+    let mut new_config = toml::from_str::<Config>("").unwrap();
 
     // Get API token
     print!("Enter your VK Teams Bot API token: ");
@@ -640,7 +640,7 @@ async fn execute_config(show: bool, init: bool, wizard: bool) -> CliResult<()> {
         println!("{} Configuration Wizard", emoji::GEAR.bold().blue());
         println!("Current configuration will be updated.\n");
 
-        let mut new_config = Config::default();
+        let mut new_config = toml::from_str::<Config>("").unwrap();
 
         // Update API token
         if let Ok(current_config) = Config::from_file() {
@@ -707,7 +707,7 @@ async fn execute_config(show: bool, init: bool, wizard: bool) -> CliResult<()> {
 
     if init {
         // Create a default configuration file in the home directory
-        let config = Config::default();
+        let config = toml::from_str::<Config>("").unwrap();
         config.save(None)?;
         println!("Configuration file initialized.");
     }

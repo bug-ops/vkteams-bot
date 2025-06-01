@@ -117,7 +117,6 @@ fn print_installation_instructions(shell: Shell, path: &Path) {
             println!("Please refer to your shell's documentation for completion installation.");
         }
     }
-
     println!("\nAfter installation, restart your shell or source the file to enable completions.");
 }
 
