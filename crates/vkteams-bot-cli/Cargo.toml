@@ -1,11 +1,11 @@
 [package]
 name = "vkteams-bot-cli"
-version = "0.6.0"
+version = "0.6.1"
 edition = "2024"
 authors = ["Andrei G. <k05h31@gmail.com>"]
 description = "VK Teams Bot API CLI"
 license = "MIT"
-repository = "https://github.com/bug-ops/vkteams-bot/crates/vkteams-bot-cli/tree/master"
+repository = "https://github.com/bug-ops/vkteams-bot/tree/master/crates/vkteams-bot-cli"
 readme = "README.md"
 keywords = ["vk", "teams", "bot", "cli"]
 categories = [
@@ -29,7 +29,10 @@ clap = { version = "4.5", features = [
     'cargo',
 ] }
 clap_complete = { version = "4.5", optional = true }
-vkteams-bot = { path = "../vkteams-bot", features = ["longpoll", "otlp"] }
+vkteams-bot = { version = "0.9", path = "../vkteams-bot", features = [
+    "longpoll",
+    "otlp",
+] }
 once_cell = "1"
 tracing = "0.1"
 tokio = { version = "1", features = ["full", "io-util"] }
