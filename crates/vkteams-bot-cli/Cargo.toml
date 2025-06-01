@@ -29,7 +29,7 @@ clap = { version = "4.5", features = [
     'cargo',
 ] }
 clap_complete = { version = "4.5", optional = true }
-vkteams-bot = { version = "*", path = "../vkteams-bot", features = [
+vkteams-bot = { version = "0.9", path = "../vkteams-bot", features = [
     "longpoll",
     "otlp",
 ] }
