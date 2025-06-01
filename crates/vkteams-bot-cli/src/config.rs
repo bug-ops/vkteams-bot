@@ -1,4 +1,5 @@
 use crate::errors::prelude::{CliError, Result as CliResult};
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
@@ -7,9 +8,10 @@ use toml;
 
 // Use constants from the constants module
 use crate::constants::config::{CONFIG_FILE_NAME, DEFAULT_CONFIG_DIR, ENV_PREFIX};
+pub static CONFIG: Lazy<Config> = Lazy::new(|| Config::load().expect("Failed to load config"));
 
 /// Configuration structure for VK Teams Bot CLI
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     /// API Configuration
     #[serde(default)]
@@ -282,7 +284,7 @@ impl Config {
     /// - Returns `CliError::FileError` if there is an error reading the config file
     /// - Returns `CliError::UnexpectedError` if there is an error parsing the config
     pub fn load() -> CliResult<Self> {
-        let mut config = toml::from_str::<Config>("").unwrap();
+        let mut config = Config::default();
 
         // Try to load from config file
         if let Ok(file_config) = Self::from_file() {

@@ -374,7 +374,8 @@ impl Bot {
             base_api_url,
             base_api_path,
             event_id: Arc::new(Mutex::new(0)),
-            ..Default::default()
+            #[cfg(feature = "ratelimit")]
+            rate_limiter: Default::default(),
         })
     }
 }

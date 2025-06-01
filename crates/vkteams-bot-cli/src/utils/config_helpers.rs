@@ -414,15 +414,13 @@ mod tests {
 
     #[test]
     fn test_merge_configs() {
-        let mut base =
-            toml::from_str::<Config>("[api]\n[files]\n[logging]\n[ui]\n[proxy]\n[rate_limit]")
-                .unwrap();
+        let mut base = Config::default();
         base.api.token = Some("base_token".to_string());
         base.api.timeout = 30;
         base.rate_limit.enabled = true;
         base.rate_limit.limit = 500;
 
-        let mut overlay = toml::from_str::<Config>("").unwrap();
+        let mut overlay = Config::default();
         overlay.api.url = Some("https://api.example.com".to_string());
         overlay.api.timeout = 60;
         overlay.rate_limit.limit = 2000; // Use a non-default value
@@ -438,7 +436,7 @@ mod tests {
 
     #[test]
     fn test_validate_config() {
-        let mut config = toml::from_str::<Config>("").unwrap();
+        let mut config = Config::default();
 
         // Invalid config should fail
         assert!(
