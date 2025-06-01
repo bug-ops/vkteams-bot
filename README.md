@@ -1,53 +1,56 @@
-# VK Teams Bot API client
+# VK Teams Bot — Rust workspace for VK Teams Bot API (unofficial)
 
-[![docs.rs](https://img.shields.io/docsrs/vkteams-bot/latest)](https://docs.rs/vkteams-bot/latest/vkteams_bot/)
-[![crates.io](https://img.shields.io/crates/v/vkteams-bot)](https://crates.io/crates/vkteams-bot)
-[![github.com](https://github.com/k05h31/vkteams-bot/workflows/Rust/badge.svg)](https://github.com/k05h31/vkteams-bot/actions)
+[![github.com](https://github.com/bug-ops/vkteams-bot/actions/workflows/Rust.yml/badge.svg)](https://github.com/bug-ops/vkteams-bot/actions)
 [![Unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
 
-VK Teams Bot API client written in Rust.
+**A multifunctional toolkit for working with the VK Teams Bot API in Rust.**
 
-## Table of Contents
+## Workspace Structure
 
-- [Environment](#environment)
-- [Usage](#usage-examples)
+### Main Crates
 
-## Environment
+#### [`vkteams-bot`](crates/vkteams-bot)
 
-1. Begin with bot API following [instructions](https://teams.vk.com/botapi/?lang=en)
+The main client crate for the VK Teams Bot API.
 
-2. Set environment variables or save in `.env` file
+- Create bots
+- Send and receive messages
+- Work with chats and files
+- Usage examples: [`examples`](crates/vkteams-bot/examples)
 
-```bash
-# Unix-like
-$ export VKTEAMS_BOT_API_TOKEN=<Your token here> #require
-$ export VKTEAMS_BOT_API_URL=<Your base api url> #require
-$ export VKTEAMS_PROXY=<Proxy> #optional
+#### [`vkteams-bot-mcp`](crates/vkteams-bot-mcp)
 
-# Windows
-$ set VKTEAMS_BOT_API_TOKEN=<Your token here> #require
-$ set VKTEAMS_BOT_API_URL=<Your base api url> #require
-$ set VKTEAMS_PROXY=<Proxy> #optional
-```
+An MCP (Machine Control Protocol) server for integrating VK Teams bots with LLM agents, automation, and external services via a universal protocol (stdin/stdout, JSON).
 
-3. Put lines in you `Cargo.toml` file
+#### [`vkteams-bot-cli`](crates/vkteams-bot-cli)
 
-```toml
-[dependencies]
-vkteams_bot = { version = "0.9", features = ["full"] }
-log = "0.4"
-```
+A powerful CLI tool for bot management:
 
-## Usage examples
+- Sending messages
+- Working with files
+- Event monitoring
+- Task scheduler
+- Interactive setup
+- Shell completion and much more
 
-[Examples:](examples)
+#### [`vkteams-bot-macros`](crates/vkteams-bot-macros)
 
-- [new message](crates/vkteams-bot/examples/new_message.rs)
-- [new message / edit message](crates/vkteams-bot/examples/emul_chat_gpt.rs)
-- [event listener](crates/vkteams-bot/examples/event_listener.rs)
-- [answer callback query](crates/vkteams-bot/examples/callback_query.rs)
-- [chat - get info](crates/vkteams-bot/examples/chat_get_info.rs)
-- [chat admin - avatar set](crates/vkteams-bot/examples/chat_admin_avatar_set.rs)
-- [chat - download files](crates/vkteams-bot/examples/chat_get_file.rs)
-- [bot - webhook handler](crates/vkteams-bot/examples/prometheus_webhook.rs)
-- [bot - rate limit](crates/vkteams-bot/examples/ratelimit_test.rs)
+A set of macros to simplify working with the VK Teams Bot API (used internally).
+
+---
+
+## Documentation
+
+- [VK Teams Bot API (official documentation)](https://teams.vk.com/botapi/?lang=en)
+- [MCP protocol documentation](https://modelcontextprotocol.io/specification/2025-03-26)
+- [Documentation on docs.rs](https://docs.rs/vkteams-bot/latest/vkteams_bot/)
+
+## License
+
+MIT OR Apache-2.0
+
+---
+
+> This project is community-driven. PRs and ideas are welcome!
+
+---
