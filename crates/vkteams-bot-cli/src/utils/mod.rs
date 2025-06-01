@@ -46,5 +46,3 @@ pub use validation::{
     validate_range,
     validate_voice_file_path,
 };
-
-pub use path::{ensure_directory_exists, get_file_extension, get_file_name_from_path};

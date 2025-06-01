@@ -171,7 +171,8 @@ mod tests {
 
     #[test]
     fn test_validate_config() {
-        let mut config = toml::from_str("").unwrap();
+        let mut config =
+            toml::from_str("").unwrap();
         println!("{:?}", config);
 
         // Empty config should fail
