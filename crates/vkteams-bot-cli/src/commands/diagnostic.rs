@@ -150,7 +150,9 @@ async fn execute_get_events(bot: &Bot, listen: bool) -> CliResult<()> {
         }
     } else {
         let result = bot
-            .send_api_request(RequestEventsGet::new(bot.get_last_event_id().await))
+            .send_api_request(
+                RequestEventsGet::new(bot.get_last_event_id().await).with_poll_time(30),
+            )
             .await
             .map_err(CliError::ApiError)?;
 

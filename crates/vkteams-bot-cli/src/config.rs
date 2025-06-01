@@ -37,7 +37,7 @@ pub struct Config {
 }
 
 /// API Configuration options
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct ApiConfig {
     /// API token for VK Teams Bot
     pub token: Option<String>,
@@ -55,7 +55,7 @@ pub struct ApiConfig {
 }
 
 /// File handling configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct FileConfig {
     /// Default directory for downloads
     pub download_dir: Option<String>,
@@ -73,7 +73,7 @@ pub struct FileConfig {
 }
 
 /// Logging configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct LoggingConfig {
     /// Log level (error, warn, info, debug, trace)
     #[serde(default = "default_log_level")]
@@ -89,7 +89,7 @@ pub struct LoggingConfig {
 }
 
 /// UI and progress indicator configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct UiConfig {
     /// Enable or disable progress bars
     #[serde(default = "default_show_progress")]
@@ -115,48 +115,6 @@ pub struct ProxyConfig {
 
     /// Proxy password (if authentication is required)
     pub password: Option<String>,
-}
-
-impl Default for ApiConfig {
-    fn default() -> Self {
-        Self {
-            token: None,
-            url: None,
-            timeout: default_timeout(),
-            max_retries: default_retries(),
-        }
-    }
-}
-
-impl Default for FileConfig {
-    fn default() -> Self {
-        Self {
-            download_dir: None,
-            upload_dir: None,
-            max_file_size: default_max_file_size(),
-            buffer_size: default_buffer_size(),
-        }
-    }
-}
-
-impl Default for LoggingConfig {
-    fn default() -> Self {
-        Self {
-            level: default_log_level(),
-            format: default_log_format(),
-            colors: default_log_colors(),
-        }
-    }
-}
-
-impl Default for UiConfig {
-    fn default() -> Self {
-        Self {
-            show_progress: default_show_progress(),
-            progress_style: default_progress_style(),
-            progress_refresh_rate: default_progress_refresh_rate(),
-        }
-    }
 }
 
 // Default values functions

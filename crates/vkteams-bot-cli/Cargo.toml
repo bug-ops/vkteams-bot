@@ -5,7 +5,7 @@ edition = "2024"
 authors = ["Andrei G. <k05h31@gmail.com>"]
 description = "VK Teams Bot API CLI"
 license = "MIT"
-repository = "https://github.com/bug-ops/vkteams-bot/crates/vkteams-bot-cli/tree/master"
+repository = "https://github.com/bug-ops/vkteams-bot-cli/tree/master"
 readme = "README.md"
 keywords = ["vk", "teams", "bot", "cli"]
 categories = [
@@ -15,17 +15,9 @@ categories = [
     "command-line-interface",
 ]
 
-[lib]
-name = "vkteams_bot_cli"
-path = "src/lib.rs"
-
 [[bin]]
 name = "vkteams-bot-cli"
 path = "src/main.rs"
-repository = "https://github.com/bug-ops/vkteams-bot-cli/tree/master"
-readme = "README.md"
-keywords = ["vk", "teams", "bot", "cli"]
-categories = ["asynchronous", "api-bindings", "web-programming::http-client"]
 
 [dependencies]
 clap = { version = "4.5", features = [
@@ -37,8 +29,7 @@ clap = { version = "4.5", features = [
     'cargo',
 ] }
 clap_complete = { version = "4.5", optional = true }
-dotenvy = "0.15"
-vkteams-bot = { version = "0.9", features = ["longpoll", "otlp"] }
+vkteams-bot = { path = "../vkteams-bot", features = ["longpoll", "otlp"] }
 tracing = "0.1"
 tokio = { version = "1", features = ["full", "io-util"] }
 reqwest = { version = "0.12", features = ["json", "stream"] }
