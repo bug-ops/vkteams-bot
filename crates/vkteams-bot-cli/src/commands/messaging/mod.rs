@@ -3,7 +3,6 @@
 //! This module contains all commands related to sending and managing messages.
 
 use crate::commands::{Command, OutputFormat};
-use crate::config::Config;
 use crate::constants::ui::emoji;
 use crate::errors::prelude::{CliError, Result as CliResult};
 use crate::file_utils;
@@ -186,8 +185,7 @@ async fn execute_send_text(bot: &Bot, chat_id: &str, message: &str) -> CliResult
 async fn execute_send_file(bot: &Bot, chat_id: &str, file_path: &str) -> CliResult<()> {
     debug!("Sending file {} to {}", file_path, chat_id);
 
-    let config = Config::default(); // TODO: Pass actual config
-    file_utils::upload_file(bot, chat_id, file_path, &config).await?;
+    file_utils::upload_file(bot, chat_id, file_path).await?;
 
     info!("Successfully sent file to {}", chat_id);
     println!(
@@ -201,8 +199,7 @@ async fn execute_send_file(bot: &Bot, chat_id: &str, file_path: &str) -> CliResu
 async fn execute_send_voice(bot: &Bot, chat_id: &str, file_path: &str) -> CliResult<()> {
     debug!("Sending voice message {} to {}", file_path, chat_id);
 
-    let config = Config::default(); // TODO: Pass actual config
-    file_utils::upload_voice(bot, chat_id, file_path, &config).await?;
+    file_utils::upload_voice(bot, chat_id, file_path).await?;
 
     info!("Successfully sent voice message to {}", chat_id);
     println!(

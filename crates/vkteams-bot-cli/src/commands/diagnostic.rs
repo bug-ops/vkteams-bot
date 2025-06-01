@@ -150,7 +150,9 @@ async fn execute_get_events(bot: &Bot, listen: bool) -> CliResult<()> {
         }
     } else {
         let result = bot
-            .send_api_request(RequestEventsGet::new(bot.get_last_event_id().await))
+            .send_api_request(
+                RequestEventsGet::new(bot.get_last_event_id().await).with_poll_time(30),
+            )
             .await
             .map_err(CliError::ApiError)?;
 
@@ -164,9 +166,7 @@ async fn execute_get_events(bot: &Bot, listen: bool) -> CliResult<()> {
 async fn execute_get_file(bot: &Bot, file_id: &str, file_path: &str) -> CliResult<()> {
     debug!("Downloading file {} to {}", file_id, file_path);
 
-    let config = Config::default(); // TODO: Pass actual config
-    let downloaded_path =
-        file_utils::download_and_save_file(bot, file_id, file_path, &config).await?;
+    let downloaded_path = file_utils::download_and_save_file(bot, file_id, file_path).await?;
 
     info!("Successfully downloaded file with ID: {}", file_id);
     println!(

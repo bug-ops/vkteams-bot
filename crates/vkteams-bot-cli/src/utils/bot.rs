@@ -172,7 +172,9 @@ mod tests {
 
     #[test]
     fn test_validate_config() {
-        let mut config = Config::default();
+        let mut config =
+            toml::from_str("").unwrap();
+        println!("{:?}", config);
 
         // Empty config should fail
         assert!(crate::utils::config_helpers::validate_config(&config).is_err());
@@ -182,8 +184,12 @@ mod tests {
         assert!(crate::utils::config_helpers::validate_config(&config).is_err());
 
         // Config with token and URL should pass
-        config.api.url = Some("https://api.teams.vk.com".to_string());
-        assert!(crate::utils::config_helpers::validate_config(&config).is_ok());
+        config.api.url = Some("https://example.com".to_string());
+        assert!(
+            crate::utils::config_helpers::validate_config(&config)
+                .map_err(|e| eprintln!("{}", e))
+                .is_ok()
+        );
 
         // Invalid URL should fail
         config.api.url = Some("invalid-url".to_string());
@@ -191,7 +197,7 @@ mod tests {
 
         // Short token should fail
         config.api.token = Some("short".to_string());
-        config.api.url = Some("https://api.teams.vk.com".to_string());
+        config.api.url = Some("https://example.com".to_string());
         assert!(crate::utils::config_helpers::validate_config(&config).is_err());
     }
 

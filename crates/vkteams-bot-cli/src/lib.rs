@@ -17,6 +17,6 @@ pub mod utils;
 // Re-export commonly used types for convenience
 pub use cli::Cli;
 pub use commands::Command;
-pub use config::Config;
+pub use config::CONFIG;
 pub use errors::prelude::*;
 pub use utils::*;

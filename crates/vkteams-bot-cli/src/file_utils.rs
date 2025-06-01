@@ -1,4 +1,4 @@
-use crate::config::Config;
+use crate::config::CONFIG;
 use crate::errors::prelude::{CliError, Result as CliResult};
 use crate::progress;
 use crate::utils::{validate_directory_path, validate_file_path};
@@ -35,12 +35,12 @@ pub async fn download_and_save_file(
     bot: &Bot,
     file_id: &str,
     dir_path: &str,
-    config: &Config,
 ) -> CliResult<PathBuf> {
+    let cfg = &CONFIG.files;
     // Use directory from path or config or current directory
     let target_dir = if !dir_path.is_empty() {
         dir_path.to_string()
-    } else if let Some(download_dir) = &config.files.download_dir {
+    } else if let Some(download_dir) = &cfg.download_dir {
         download_dir.clone()
     } else {
         ".".to_string()
@@ -85,21 +85,20 @@ pub async fn download_and_save_file(
 
     let total_size = response.content_length().unwrap_or(0);
 
-    if total_size > config.files.max_file_size as u64 {
+    if total_size > cfg.max_file_size as u64 {
         return Err(CliError::FileError(format!(
             "File size exceeds maximum allowed size of {} bytes",
-            config.files.max_file_size
+            cfg.max_file_size
         )));
     }
 
-    let mut file_writer = tokio::io::BufWriter::with_capacity(config.files.buffer_size, file);
+    let mut file_writer = tokio::io::BufWriter::with_capacity(cfg.buffer_size, file);
 
     let mut stream = response.bytes_stream();
     let mut downloaded: u64 = 0;
 
     // Create a progress bar for the download
-    let progress_bar =
-        progress::create_download_progress_bar(config, total_size, &file_info.file_name);
+    let progress_bar = progress::create_download_progress_bar(total_size, &file_info.file_name);
 
     debug!("Streaming file content to disk");
     while let Some(chunk_result) = stream.next().await {
@@ -117,7 +116,7 @@ pub async fn download_and_save_file(
         progress::increment_progress(&progress_bar, chunk.len() as u64);
 
         // Log progress for large files (if progress bar is disabled)
-        if !config.ui.show_progress
+        if !&CONFIG.ui.show_progress
             && total_size > 1024 * 1024
             && downloaded % (1024 * 1024) < chunk.len() as u64
         {
@@ -162,12 +161,12 @@ pub async fn upload_file(
     bot: &Bot,
     user_id: &str,
     file_path: &str,
-    config: &Config,
 ) -> CliResult<impl serde::Serialize + Debug> {
+    let cfg = &CONFIG.files;
     // Use file path from arguments or config
     let source_path = if !file_path.is_empty() {
         file_path.to_string()
-    } else if let Some(upload_dir) = &config.files.upload_dir {
+    } else if let Some(upload_dir) = &cfg.upload_dir {
         upload_dir.clone()
     } else {
         return Err(CliError::InputError(
@@ -189,7 +188,7 @@ pub async fn upload_file(
     };
 
     // Create a progress bar for upload
-    let progress_bar = progress::create_upload_progress_bar(config, file_size, &source_path);
+    let progress_bar = progress::create_upload_progress_bar(file_size, &source_path);
 
     // Start the upload
     let result = match bot
@@ -223,12 +222,12 @@ pub async fn upload_voice(
     bot: &Bot,
     user_id: &str,
     file_path: &str,
-    config: &Config,
 ) -> CliResult<impl serde::Serialize + Debug> {
+    let cfg = &CONFIG.files;
     // Use file path from arguments or config
     let source_path = if !file_path.is_empty() {
         file_path.to_string()
-    } else if let Some(upload_dir) = &config.files.upload_dir {
+    } else if let Some(upload_dir) = &cfg.upload_dir {
         upload_dir.clone()
     } else {
         return Err(CliError::InputError(
@@ -250,7 +249,7 @@ pub async fn upload_voice(
     };
 
     // Create a progress bar for upload
-    let progress_bar = progress::create_upload_progress_bar(config, file_size, &source_path);
+    let progress_bar = progress::create_upload_progress_bar(file_size, &source_path);
 
     // Start the voice upload
     let result = match bot

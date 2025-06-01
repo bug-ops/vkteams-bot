@@ -66,8 +66,6 @@ use vkteams_bot::otlp;
 /// 4. Built-in defaults
 #[tokio::main]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
-    dotenvy::dotenv().expect("Unable to load .env file");
-
     let _guard = otlp::init()?;
 
     // Parse CLI arguments
@@ -111,8 +109,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    debug!("Configuration loaded успешно");
-
+    debug!("Configuration loaded");
     // Validate command before execution
     if let Err(err) = cli.command.validate() {
         eprintln!(
@@ -156,7 +153,7 @@ fn load_configuration(cli: &Cli) -> CliResult<Config> {
 /// ```toml
 /// [api]
 /// token = "your_bot_token"
-/// url = "https://api.teams.vk.com"
+/// url = "https://api.example.com"
 ///
 /// [files]
 /// download_dir = "/downloads"

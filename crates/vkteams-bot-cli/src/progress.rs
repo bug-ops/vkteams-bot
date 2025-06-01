@@ -1,35 +1,30 @@
-use crate::config::Config;
+use crate::config::CONFIG;
 use indicatif::{ProgressBar, ProgressState, ProgressStyle};
 use std::fmt::Write;
 use std::path::Path;
 use std::time::Duration;
 
 /// Creates a progress bar for file download operations
-pub fn create_download_progress_bar(
-    config: &Config,
-    total_size: u64,
-    file_name: &str,
-) -> Option<ProgressBar> {
-    if !config.ui.show_progress {
+pub fn create_download_progress_bar(total_size: u64, file_name: &str) -> Option<ProgressBar> {
+    if !&CONFIG.ui.show_progress {
         return None;
     }
+    let cfg = &CONFIG.ui;
 
     let pb = ProgressBar::new(total_size);
-    pb.set_style(create_progress_style(&config.ui.progress_style, "⬇️ "));
+    pb.set_style(create_progress_style("⬇️ "));
     pb.set_message(format!("Downloading {}", file_name));
-    pb.enable_steady_tick(Duration::from_millis(config.ui.progress_refresh_rate));
+    pb.enable_steady_tick(Duration::from_millis(cfg.progress_refresh_rate));
     Some(pb)
 }
 
 /// Creates a progress bar for file upload operations
-pub fn create_upload_progress_bar(
-    config: &Config,
-    total_size: u64,
-    file_path: &str,
-) -> Option<ProgressBar> {
-    if !config.ui.show_progress {
+pub fn create_upload_progress_bar(total_size: u64, file_path: &str) -> Option<ProgressBar> {
+    if !&CONFIG.ui.show_progress {
         return None;
     }
+
+    let cfg = &CONFIG.ui;
 
     let file_name = Path::new(file_path)
         .file_name()
@@ -37,16 +32,17 @@ pub fn create_upload_progress_bar(
         .unwrap_or(file_path);
 
     let pb = ProgressBar::new(total_size);
-    pb.set_style(create_progress_style(&config.ui.progress_style, "⬆️ "));
+    pb.set_style(create_progress_style("⬆️ "));
     pb.set_message(format!("Uploading {}", file_name));
-    pb.enable_steady_tick(Duration::from_millis(config.ui.progress_refresh_rate));
+    pb.enable_steady_tick(Duration::from_millis(cfg.progress_refresh_rate));
     Some(pb)
 }
 
 /// Creates a progress style based on the configuration
-fn create_progress_style(style_name: &str, prefix: &str) -> ProgressStyle {
+fn create_progress_style(prefix: &str) -> ProgressStyle {
     let prefix_owned = prefix.to_string();
-    match style_name {
+    let cfg = &CONFIG.ui;
+    match cfg.progress_style.as_str() {
         "ascii" => ProgressStyle::with_template(
             "{prefix}{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})",
         )
