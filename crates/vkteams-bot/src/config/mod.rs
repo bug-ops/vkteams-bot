@@ -1,7 +1,7 @@
 mod types;
 use crate::error::Result;
 use tracing::warn;
-use types::APP_NAME;
+use types::APP_FOLDER;
 pub use types::{CONFIG, Config, OtlpConfig};
 
 impl Config {
@@ -21,9 +21,7 @@ impl Config {
 }
 
 fn get_config() -> Result<Config> {
-    std::env::var(APP_NAME)
-        // Build config file path
-        .map(|app| format!(".config/{app}.toml"))
+    std::env::var(APP_FOLDER)
         // Read config file to string
         .map(std::fs::read_to_string)?
         // Parse config file to Config struct
