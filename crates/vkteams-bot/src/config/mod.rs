@@ -6,10 +6,7 @@ pub use types::{CONFIG, Config, LogFormat, OtlpConfig};
 impl Config {
     fn new() -> Self {
         // Get APP_NAME from .env file
-        match get_config() {
-            Ok(cfg) => cfg,
-            Err(_) => Config::default(),
-        }
+        get_config().unwrap_or_default()
     }
 }
 
