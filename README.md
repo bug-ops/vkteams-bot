@@ -21,7 +21,7 @@ The main client crate for the VK Teams Bot API.
 
 #### [`vkteams-bot-mcp`](crates/vkteams-bot-mcp)
 
-An MCP (Machine Control Protocol) server for integrating VK Teams bots with LLM agents, automation, and external services via a universal protocol (stdin/stdout, JSON).
+An MCP (Model Context Protocol) server for integrating VK Teams bots with LLM agents, automation, and external services via a universal protocol (stdin/stdout, JSON).
 
 #### [`vkteams-bot-cli`](crates/vkteams-bot-cli)
 

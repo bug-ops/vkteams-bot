@@ -3,7 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/vkteams-bot-mcp)](https://crates.io/crates/vkteams-bot-mcp)
 [![Unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
 
-**A Machine Control Protocol (MCP) server for VK Teams Bot API.**  
+**A Model Context Protocol (MCP) server for VK Teams Bot API.**  
 Easily integrate VK Teams bots with LLM agents, automation systems, or any external service via a universal protocol.
 
 ---
@@ -53,7 +53,7 @@ To send a message to the chat, send the following JSON to the server's stdin:
 
 ## Usage
 
-The server communicates via the [MCP protocol](https://github.com/ai-forever/rmcp) over standard input/output.  
+The server communicates via the [MCP protocol](https://github.com/modelcontextprotocol/rust-sdk) over standard input/output.  
 You can connect it to LLM agents, automation scripts, or use it as a standalone service.
 
 ### Supported Tools
