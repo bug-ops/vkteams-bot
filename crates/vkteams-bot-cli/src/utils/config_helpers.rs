@@ -361,7 +361,7 @@ pub fn validate_config(config: &Config) -> CliResult<()> {
 /// * `Ok(Config)` with the loaded and merged configuration
 /// * `Err(CliError)` if loading fails
 pub fn load_config_with_env_overrides() -> CliResult<Config> {
-    let mut config = Config::default();
+    let mut config = toml::from_str::<Config>("").unwrap();
 
     // Try to load from config file
     if let Ok(file_config) = Config::from_file() {
@@ -414,13 +414,15 @@ mod tests {
 
     #[test]
     fn test_merge_configs() {
-        let mut base = Config::default();
+        let mut base =
+            toml::from_str::<Config>("[api]\n[files]\n[logging]\n[ui]\n[proxy]\n[rate_limit]")
+                .unwrap();
         base.api.token = Some("base_token".to_string());
         base.api.timeout = 30;
         base.rate_limit.enabled = true;
         base.rate_limit.limit = 500;
 
-        let mut overlay = Config::default();
+        let mut overlay = toml::from_str::<Config>("").unwrap();
         overlay.api.url = Some("https://api.example.com".to_string());
         overlay.api.timeout = 60;
         overlay.rate_limit.limit = 2000; // Use a non-default value
@@ -436,19 +438,31 @@ mod tests {
 
     #[test]
     fn test_validate_config() {
-        let mut config = Config::default();
+        let mut config = toml::from_str::<Config>("").unwrap();
 
         // Invalid config should fail
-        assert!(validate_config(&config).is_err());
+        assert!(
+            validate_config(&config)
+                .map_err(|e| eprintln!("{}", e))
+                .is_err()
+        );
 
         // Valid config should pass
         config.api.token = Some("valid_token_123".to_string());
-        config.api.url = Some("https://api.teams.vk.com".to_string());
-        assert!(validate_config(&config).is_ok());
+        config.api.url = Some("https://example.com".to_string());
+        assert!(
+            validate_config(&config)
+                .map_err(|e| eprintln!("{}", e))
+                .is_ok()
+        );
 
         // Invalid URL should fail
         config.api.url = Some("invalid-url".to_string());
-        assert!(validate_config(&config).is_err());
+        assert!(
+            validate_config(&config)
+                .map_err(|e| eprintln!("{}", e))
+                .is_err()
+        );
     }
 
     #[test]

@@ -186,7 +186,7 @@ async fn execute_send_text(bot: &Bot, chat_id: &str, message: &str) -> CliResult
 async fn execute_send_file(bot: &Bot, chat_id: &str, file_path: &str) -> CliResult<()> {
     debug!("Sending file {} to {}", file_path, chat_id);
 
-    let config = Config::default(); // TODO: Pass actual config
+    let config = toml::from_str::<Config>("").unwrap();
     file_utils::upload_file(bot, chat_id, file_path, &config).await?;
 
     info!("Successfully sent file to {}", chat_id);
@@ -201,7 +201,7 @@ async fn execute_send_file(bot: &Bot, chat_id: &str, file_path: &str) -> CliResu
 async fn execute_send_voice(bot: &Bot, chat_id: &str, file_path: &str) -> CliResult<()> {
     debug!("Sending voice message {} to {}", file_path, chat_id);
 
-    let config = Config::default(); // TODO: Pass actual config
+    let config = toml::from_str::<Config>("").unwrap();
     file_utils::upload_voice(bot, chat_id, file_path, &config).await?;
 
     info!("Successfully sent voice message to {}", chat_id);

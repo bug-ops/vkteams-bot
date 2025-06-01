@@ -9,7 +9,7 @@ use toml;
 use crate::constants::config::{CONFIG_FILE_NAME, DEFAULT_CONFIG_DIR, ENV_PREFIX};
 
 /// Configuration structure for VK Teams Bot CLI
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     /// API Configuration
     #[serde(default)]
@@ -28,7 +28,7 @@ pub struct Config {
     pub ui: UiConfig,
 
     /// Proxy configuration
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub proxy: Option<ProxyConfig>,
 
     /// Rate limiting configuration
@@ -37,12 +37,14 @@ pub struct Config {
 }
 
 /// API Configuration options
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApiConfig {
     /// API token for VK Teams Bot
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub token: Option<String>,
 
     /// Base URL for API requests
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
 
     /// Timeout for API requests in seconds
@@ -54,13 +56,26 @@ pub struct ApiConfig {
     pub max_retries: u32,
 }
 
+impl Default for ApiConfig {
+    fn default() -> Self {
+        Self {
+            token: None,
+            url: None,
+            timeout: default_timeout(),
+            max_retries: default_retries(),
+        }
+    }
+}
+
 /// File handling configuration
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileConfig {
     /// Default directory for downloads
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub download_dir: Option<String>,
 
     /// Default directory for uploads
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub upload_dir: Option<String>,
 
     /// Maximum file size in bytes for uploads and downloads
@@ -72,8 +87,19 @@ pub struct FileConfig {
     pub buffer_size: usize,
 }
 
+impl Default for FileConfig {
+    fn default() -> Self {
+        Self {
+            download_dir: None,
+            upload_dir: None,
+            max_file_size: default_max_file_size(),
+            buffer_size: default_buffer_size(),
+        }
+    }
+}
+
 /// Logging configuration
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoggingConfig {
     /// Log level (error, warn, info, debug, trace)
     #[serde(default = "default_log_level")]
@@ -88,8 +114,18 @@ pub struct LoggingConfig {
     pub colors: bool,
 }
 
+impl Default for LoggingConfig {
+    fn default() -> Self {
+        Self {
+            level: default_log_level(),
+            format: default_log_format(),
+            colors: default_log_colors(),
+        }
+    }
+}
+
 /// UI and progress indicator configuration
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UiConfig {
     /// Enable or disable progress bars
     #[serde(default = "default_show_progress")]
@@ -104,17 +140,40 @@ pub struct UiConfig {
     pub progress_refresh_rate: u64,
 }
 
+impl Default for UiConfig {
+    fn default() -> Self {
+        Self {
+            show_progress: default_show_progress(),
+            progress_style: default_progress_style(),
+            progress_refresh_rate: default_progress_refresh_rate(),
+        }
+    }
+}
+
 /// Proxy configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProxyConfig {
     /// Proxy URL
+    #[serde(default)]
     pub url: String,
 
     /// Proxy user (if authentication is required)
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub user: Option<String>,
 
     /// Proxy password (if authentication is required)
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub password: Option<String>,
+}
+
+impl Default for ProxyConfig {
+    fn default() -> Self {
+        Self {
+            url: "".to_string(),
+            user: None,
+            password: None,
+        }
+    }
 }
 
 // Default values functions
@@ -223,7 +282,7 @@ impl Config {
     /// - Returns `CliError::FileError` if there is an error reading the config file
     /// - Returns `CliError::UnexpectedError` if there is an error parsing the config
     pub fn load() -> CliResult<Self> {
-        let mut config = Config::default();
+        let mut config = toml::from_str::<Config>("").unwrap();
 
         // Try to load from config file
         if let Ok(file_config) = Self::from_file() {
@@ -252,7 +311,7 @@ impl Config {
         }
 
         // Return default config if no file found
-        Ok(Config::default())
+        Ok(toml::from_str::<Config>("").unwrap())
     }
 
     /// Load configuration from a specific path
@@ -305,7 +364,7 @@ impl Config {
     /// - Returns `CliError::FileError` if there is an error with file operations
     /// - Returns `CliError::UnexpectedError` for unexpected errors
     pub fn from_env() -> CliResult<Self> {
-        let mut config = Config::default();
+        let mut config = toml::from_str::<Config>("").unwrap();
 
         // API config
         if let Ok(token) = env::var(format!("{ENV_PREFIX}BOT_API_TOKEN")) {

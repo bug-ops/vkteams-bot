@@ -166,7 +166,7 @@ async fn execute_get_events(bot: &Bot, listen: bool) -> CliResult<()> {
 async fn execute_get_file(bot: &Bot, file_id: &str, file_path: &str) -> CliResult<()> {
     debug!("Downloading file {} to {}", file_id, file_path);
 
-    let config = Config::default(); // TODO: Pass actual config
+    let config = toml::from_str::<Config>("").unwrap();
     let downloaded_path =
         file_utils::download_and_save_file(bot, file_id, file_path, &config).await?;
 
