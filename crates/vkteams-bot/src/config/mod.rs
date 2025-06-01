@@ -1,22 +1,12 @@
 mod types;
 use crate::error::Result;
-use tracing::warn;
 use types::APP_FOLDER;
-pub use types::{CONFIG, Config, OtlpConfig};
+pub use types::{CONFIG, Config, LogFormat, OtlpConfig};
 
 impl Config {
     fn new() -> Self {
         // Get APP_NAME from .env file
-        match get_config() {
-            Ok(cfg) => cfg,
-            Err(err) => {
-                warn!(
-                    "Failed to read config from file: {}. Use default instead",
-                    err
-                );
-                Config::default()
-            }
-        }
+        get_config().unwrap_or_default()
     }
 }
 

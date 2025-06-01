@@ -1,0 +1,34 @@
+[package]
+name = "vkteams-bot-mcp"
+version = "0.1.0"
+authors = ["Andrei G. <k05h31@gmail.com>"]
+description = "VK Teams Bot API MCP"
+keywords = ["vk", "teams", "bot", "mcp", "modelcontextprotocol"]
+categories = [
+    "asynchronous",
+    "api-bindings",
+    "web-programming::http-client",
+    "web-programming::http-server",
+    "network-programming",
+]
+readme = "README.md"
+
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "vkteams-bot-mcp"
+path = "src/main.rs"
+
+[dependencies]
+thiserror = "2"
+rmcp = { version = "0.1", features = ["server", "macros", "transport-io"] }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+schemars = "0.9"
+async-trait = "0.1"
+vkteams-bot = { version = "0.9", path = "../vkteams-bot", default-features = false, features = [
+    "otlp",
+] }

@@ -50,6 +50,8 @@ pub struct OtlpConfig {
     pub otel: Vec<OtelDirective>,
     #[serde(default = "default_fmt")]
     pub fmt: Vec<FmtDirective>,
+    #[serde(default)]
+    pub log_format: LogFormat,
 }
 
 impl Default for OtlpConfig {
@@ -67,6 +69,7 @@ impl Default for OtlpConfig {
             fmt_filter_self_directive: default_fmt_filter_self_directive(),
             otel: default_otel(),
             fmt: default_fmt(),
+            log_format: LogFormat::default(),
         }
     }
 }
@@ -193,6 +196,7 @@ pub struct EventListenerConfig {
     pub max_memory_usage: usize,
 }
 
+#[cfg(feature = "longpoll")]
 impl Default for EventListenerConfig {
     fn default() -> Self {
         Self {
@@ -276,4 +280,13 @@ fn default_pool_idle_timeout_secs() -> u64 {
 }
 fn default_max_idle_connections() -> usize {
     10
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum LogFormat {
+    Pretty,
+    #[default]
+    Json,
+    Full,
 }
