@@ -241,6 +241,7 @@ fn default_max_events_per_batch() -> usize {
 fn default_empty_backoff_ms() -> u64 {
     500
 }
+#[cfg(feature = "longpoll")]
 fn default_max_backoff_ms() -> u64 {
     5000
 }
