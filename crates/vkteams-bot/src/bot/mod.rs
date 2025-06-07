@@ -118,7 +118,7 @@ impl Bot {
         debug!("Creating new bot with API version: {:?}", version);
         debug!("Using provided token and API URL");
 
-        let base_api_url = Url::parse(&api_url).map_err(BotError::Url)?;
+        let base_api_url = Url::parse(api_url).map_err(BotError::Url)?;
         debug!("API URL successfully parsed");
 
         let base_api_path = version.to_string();
@@ -230,14 +230,14 @@ impl Bot {
                 let form = file_to_multipart(message.get_file()).await?;
 
                 self.connection_pool
-                    .get_or_init(|| ConnectionPool::optimized())
+                    .get_or_init(ConnectionPool::optimized)
                     .post_file(url, form)
                     .await?
             }
             HTTPMethod::GET => {
                 debug!("Sending GET request");
                 self.connection_pool
-                    .get_or_init(|| ConnectionPool::optimized())
+                    .get_or_init(ConnectionPool::optimized)
                     .get_text(url)
                     .await?
             }
