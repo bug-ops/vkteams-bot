@@ -47,7 +47,7 @@ use vkteams_bot::Bot;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let bot = Bot::new("API_TOKEN", "API_URL");
+    let bot = Bot::with_default_version("API_TOKEN", "API_URL");
     
     // Send a message
     bot.send_text("chat_id", "Hello, World! 🌍").await?;
@@ -84,7 +84,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 vkteams-bot-cli get-events -l true | grep "ALARM"
 
 # Batch file operations
-find ./reports -name "*.pdf" | xargs -I {} vkteams-bot-cli send-file -u team_lead -f {}
+find ./reports -name "*.pdf" | xargs -I {} vkteams-bot-cli send-file -u team_lead -p {}
 
 # Pipeline integration
 echo "Deployment successful! ✅" | vkteams-bot-cli send-text -u devops_chat
