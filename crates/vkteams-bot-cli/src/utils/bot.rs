@@ -32,7 +32,7 @@ pub fn create_bot_instance(config: &Config) -> CliResult<Bot> {
     // Set environment variables for bot initialization
     setup_bot_environment(config);
 
-    Bot::with_params(APIVersionUrl::V1, token.clone(), url.clone()).map_err(CliError::ApiError)
+    Bot::with_params(&APIVersionUrl::V1, token.as_str(), url.as_str()).map_err(CliError::ApiError)
 }
 
 /// Create a dummy bot instance for commands that don't need real API access
@@ -42,15 +42,12 @@ pub fn create_bot_instance(config: &Config) -> CliResult<Bot> {
 pub fn create_dummy_bot() -> Bot {
     // Create a dummy bot for commands that don't need real API access
     // This is safe because those commands won't actually use the bot
-    Bot::with_params(
-        APIVersionUrl::V1,
-        "dummy_token".to_string(),
-        "https://dummy.api.com".to_string(),
+    Bot::with_params(&APIVersionUrl::V1, "dummy_token", "https://dummy.api.com").unwrap_or_else(
+        |_| {
+            // If even dummy bot creation fails, we'll handle it in the command execution
+            panic!("Failed to create dummy bot - this should not happen")
+        },
     )
-    .unwrap_or_else(|_| {
-        // If even dummy bot creation fails, we'll handle it in the command execution
-        panic!("Failed to create dummy bot - this should not happen")
-    })
 }
 
 /// Check if a command needs a real bot instance for execution
@@ -172,8 +169,7 @@ mod tests {
 
     #[test]
     fn test_validate_config() {
-        let mut config =
-            toml::from_str("").unwrap();
+        let mut config = toml::from_str("").unwrap();
         println!("{:?}", config);
 
         // Empty config should fail

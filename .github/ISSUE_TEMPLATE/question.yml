@@ -1,0 +1,45 @@
+name: ❓ Question
+description: Ask a question about VKTeams-Bot
+title: "[QUESTION] "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for your question! 💭
+        Before asking, please check:
+        - 📚 [Documentation](https://docs.rs/vkteams-bot)
+        - 🔍 [Existing issues](https://github.com/bug-ops/vkteams-bot/issues)
+        - 📖 [Examples](https://github.com/bug-ops/vkteams-bot/tree/main/examples)
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Question Category
+      options:
+        - API Usage
+        - CLI Usage
+        - MCP Integration
+        - Performance
+        - Architecture
+        - Deployment
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: What would you like to know?
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What are you trying to achieve?
+  - type: textarea
+    id: tried
+    attributes:
+      label: What have you tried?
+      description: What approaches have you already attempted?

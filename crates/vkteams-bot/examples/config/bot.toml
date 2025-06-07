@@ -1,48 +1,54 @@
-[rate_limit]
-# https://teams.vk.com/botapi/faq/?lang=en (restrictions)
-limit = 1           # requests
-duration = 1        # seconds
-retry_delay = 50    # milliseconds
-retry_attempts = 50 # requests
 [otlp]
 instance_id = "vkteams-bot"
-deployment_environment_name = "development"
-exporter_endpoint = "http://localhost:4317"
-exporter_timeout = 5
-exporter_metric_interval = 5
+deployment_environment_name = "develop"
+exporter_endpoint = "http://jaeger:4317"
+exporter_timeout = 3
+exporter_metric_interval = 30
 ratio = 1.0
-otel_filter_default = "debug"
+otel_filter_default = "info"
 fmt_filter_default = "info"
 fmt_ansi = true
 fmt_filter_self_directive = "debug"
+[[otlp.otel]]
+otel_filter_directive = "h2=off"
 [[otlp.fmt]]
 fmt_filter_directive = "axum=trace"
 [[otlp.fmt]]
 fmt_filter_directive = "tower_http=debug"
 [[otlp.fmt]]
 fmt_filter_directive = "opentelemetry=info"
-# # Network configuration
-# [network]
-# # Number of retry attempts for failed requests
-# retries = 3
-# # Maximum backoff time in milliseconds
-# max_backoff_ms = 5000
-# # Request timeout in seconds
-# request_timeout_secs = 30
-# # Connection timeout in seconds
-# connect_timeout_secs = 10
-# # Pool idle timeout in seconds
-# pool_idle_timeout_secs = 90
-# # Maximum number of idle connections per host
-# max_idle_connections = 10
-# [listener]
-# #
-# max_events_per_batch = 50
-# #
-# empty_backoff_ms = 500
-# #
-# max_backoff_ms = 5000
-# #
-# use_exponential_backoff = true
-# #
-# max_memory_usage = 0
+log_format = "pretty"
+[rate_limit]
+# https://teams.vk.com/botapi/faq/?lang=en (restrictions)
+init_bucket = 1        # initial bucket count
+cleanup_interval = 600 # seconds (10 minutes)
+bucket_lifetime = 3600 # seconds (1 hour)
+limit = 1              # requests
+duration = 1           # seconds
+retry_delay = 50       # milliseconds
+retry_attempts = 50    # requests
+# Network configuration
+[network]
+# Number of retry attempts for failed requests
+retries = 3
+# Maximum backoff time in milliseconds
+max_backoff_ms = 5000
+# Request timeout in seconds
+request_timeout_secs = 30
+# Connection timeout in seconds
+connect_timeout_secs = 10
+# Pool idle timeout in seconds
+pool_idle_timeout_secs = 90
+# Maximum number of idle connections per host
+max_idle_connections = 10
+[listener]
+#
+max_events_per_batch = 50
+#
+empty_backoff_ms = 500
+#
+max_backoff_ms = 5000
+#
+use_exponential_backoff = true
+#
+max_memory_usage = 0

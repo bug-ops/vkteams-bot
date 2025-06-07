@@ -265,8 +265,11 @@ impl RateLimiter {
     #[tracing::instrument]
     pub fn new() -> Self {
         debug!("Creating high-performance RateLimiter");
+        let cfg = &CONFIG.rate_limit;
+        let capacity = u32::try_from(cfg.init_bucket)
+            .unwrap_or_else(|_| panic!("Rate limit capacity too large: {}", cfg.init_bucket));
         Self {
-            chat_buckets: Arc::new(DashMap::with_capacity(100)),
+            chat_buckets: Arc::new(DashMap::with_capacity(capacity as usize)),
             global_stats: Arc::new(RwLock::new(BucketStats::default())),
             last_cleanup: Arc::new(Mutex::new(Instant::now())),
         }
@@ -290,17 +293,18 @@ impl RateLimiter {
     /// Only runs periodically to avoid overhead
     async fn cleanup_inactive_buckets(&self) {
         let now = Instant::now();
+        let cfg = &CONFIG.rate_limit;
         let mut last_cleanup = self.last_cleanup.lock().await;
 
         // Only cleanup every 10 minutes
-        if now.duration_since(*last_cleanup) < Duration::from_secs(600) {
+        if now.duration_since(*last_cleanup) < Duration::from_secs(cfg.cleanup_interval) {
             return;
         }
 
         *last_cleanup = now;
         let mut removed_count = 0;
 
-        // Remove buckets that haven't been accessed in an hour
+        // Remove buckets that haven't been accessed longer than lifetime
         // Collect inactive buckets for removal
         let mut to_remove = Vec::new();
 
@@ -311,7 +315,7 @@ impl RateLimiter {
             if let Ok(stats) = bucket.stats.try_lock() {
                 let is_inactive = SystemTime::now()
                     .duration_since(stats.last_access)
-                    .map(|d| d >= Duration::from_secs(3600))
+                    .map(|d| d >= Duration::from_secs(cfg.bucket_lifetime))
                     .unwrap_or(false);
 
                 if is_inactive {

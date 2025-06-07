@@ -14,6 +14,7 @@ use crate::bot::ratelimit::RateLimiter;
 use crate::error::{BotError, Result};
 use net::ConnectionPool;
 use net::*;
+use once_cell::sync::OnceCell;
 use reqwest::Url;
 use serde::Serialize;
 use std::sync::Arc;
@@ -31,13 +32,13 @@ use tracing::debug;
 /// [`reqwest::Url`]: https://docs.rs/reqwest/latest/reqwest/struct.Url.html
 /// [`std::sync::Arc<_>`]: https://doc.rust-lang.org/std/sync/struct.Arc.html
 pub struct Bot {
-    pub(crate) connection_pool: ConnectionPool,
-    pub(crate) token: String,
+    pub(crate) connection_pool: OnceCell<ConnectionPool>,
+    pub(crate) token: Arc<str>,
     pub(crate) base_api_url: Url,
-    pub(crate) base_api_path: String,
+    pub(crate) base_api_path: Arc<str>,
     pub(crate) event_id: Arc<Mutex<EventId>>,
     #[cfg(feature = "ratelimit")]
-    pub(crate) rate_limiter: Arc<Mutex<RateLimiter>>,
+    pub(crate) rate_limiter: OnceCell<Arc<Mutex<RateLimiter>>>,
 }
 
 impl Bot {
@@ -69,7 +70,8 @@ impl Bot {
         let base_api_url = get_env_url().expect("Failed to get API URL from environment");
         debug!("API URL successfully obtained from environment");
 
-        Self::with_params(version, token, base_api_url).expect("Failed to create bot")
+        Self::with_params(&version, token.as_str(), base_api_url.as_str())
+            .expect("Failed to create bot")
     }
 
     /// Creates a new `Bot` with direct parameters instead of environment variablesx
@@ -99,9 +101,9 @@ impl Bot {
     /// #[tokio::main]
     /// async fn main() -> Result<()> {
     ///     let bot = Bot::with_params(
-    ///         APIVersionUrl::V1,
-    ///         "your_bot_token".to_string(),
-    ///         "https://api.example.com".to_string()
+    ///         &APIVersionUrl::V1,
+    ///         "your_bot_token",
+    ///         "https://api.example.com"
     ///     )?;
     ///
     ///     // Now use the bot...
@@ -112,27 +114,24 @@ impl Bot {
     ///
     /// For most cases, consider using [`with_default_version`](#method.with_default_version)
     /// which uses V1 API version and has a simpler signature.
-    pub fn with_params(version: APIVersionUrl, token: String, api_url: String) -> Result<Self> {
+    pub fn with_params(version: &APIVersionUrl, token: &str, api_url: &str) -> Result<Self> {
         debug!("Creating new bot with API version: {:?}", version);
         debug!("Using provided token and API URL");
 
-        let base_api_url = Url::parse(&api_url).map_err(BotError::Url)?;
+        let base_api_url = Url::parse(api_url).map_err(BotError::Url)?;
         debug!("API URL successfully parsed");
 
         let base_api_path = version.to_string();
         debug!("Set API base path: {}", base_api_path);
 
-        let connection_pool = ConnectionPool::optimized();
-        debug!("Connection pool successfully created");
-
         Ok(Self {
-            connection_pool,
-            token,
+            connection_pool: OnceCell::new(),
+            token: Arc::<str>::from(token),
             base_api_url,
-            base_api_path: base_api_path.to_string(),
+            base_api_path: Arc::<str>::from(base_api_path),
             event_id: Arc::new(Mutex::new(0)),
             #[cfg(feature = "ratelimit")]
-            rate_limiter: Default::default(),
+            rate_limiter: OnceCell::new(),
         })
     }
 
@@ -156,9 +155,9 @@ impl Bot {
 
     /// Append method path to `base_api_path`
     /// - `path`: [`String`] - append path to `base_api_path`
-    pub fn set_path(&self, path: String) -> String {
-        let mut full_path = self.base_api_path.clone();
-        full_path.push_str(&path);
+    pub fn set_path(&self, path: &str) -> String {
+        let mut full_path = self.base_api_path.as_ref().to_string();
+        full_path.push_str(path);
         full_path
     }
 
@@ -205,7 +204,11 @@ impl Bot {
         #[cfg(feature = "ratelimit")]
         {
             if let Some(chat_id) = message.get_chat_id() {
-                let mut rate_limiter = self.rate_limiter.lock().await;
+                let mut rate_limiter = self
+                    .rate_limiter
+                    .get_or_init(|| Arc::new(Mutex::new(RateLimiter::default())))
+                    .lock()
+                    .await;
                 if !rate_limiter.wait_if_needed(chat_id).await {
                     return Err(BotError::Validation(
                         "Rate limit exceeded for this chat".to_string(),
@@ -217,7 +220,7 @@ impl Bot {
         }
 
         let query = serde_url_params::to_string(&message)?;
-        let url = self.get_parsed_url(self.set_path(<Rq>::METHOD.to_string()), query.to_owned())?;
+        let url = self.get_parsed_url(self.set_path(<Rq>::METHOD), query.to_owned())?;
 
         debug!("Request URL: {}", url.path());
 
@@ -226,11 +229,17 @@ impl Bot {
                 debug!("Sending POST request with file");
                 let form = file_to_multipart(message.get_file()).await?;
 
-                self.connection_pool.post_file(url, form).await?
+                self.connection_pool
+                    .get_or_init(ConnectionPool::optimized)
+                    .post_file(url, form)
+                    .await?
             }
             HTTPMethod::GET => {
                 debug!("Sending GET request");
-                self.connection_pool.get_text(url).await?
+                self.connection_pool
+                    .get_or_init(ConnectionPool::optimized)
+                    .get_text(url)
+                    .await?
             }
         };
 
@@ -266,8 +275,8 @@ impl Bot {
     /// #[tokio::main]
     /// async fn main() -> Result<()> {
     ///     let bot = Bot::with_default_version(
-    ///         "your_bot_token".to_string(),
-    ///         "https://api.example.com".to_string()
+    ///         "your_bot_token",
+    ///         "https://api.example.com"
     ///     )?;
     ///
     ///     // Now use the bot...
@@ -275,8 +284,8 @@ impl Bot {
     ///     Ok(())
     /// }
     /// ```
-    pub fn with_default_version(token: String, api_url: String) -> Result<Self> {
-        Self::with_params(APIVersionUrl::V1, token, api_url)
+    pub fn with_default_version(token: &str, api_url: &str) -> Result<Self> {
+        Self::with_params(&APIVersionUrl::V1, token, api_url)
     }
 }
 
@@ -286,96 +295,4 @@ fn get_env_token() -> Result<String> {
 
 fn get_env_url() -> Result<String> {
     std::env::var(VKTEAMS_BOT_API_URL).map_err(BotError::from)
-}
-
-fn set_default_path(version: &APIVersionUrl) -> String {
-    version.to_string()
-}
-
-// Helper functions to create a new bot with a custom connection pool
-impl Bot {
-    /// Create a new bot with a custom connection pool
-    /// Useful for testing or specific connection requirements
-    ///
-    /// Gets token and API URL from environment variables
-    pub fn with_connection_pool(
-        version: APIVersionUrl,
-        connection_pool: ConnectionPool,
-    ) -> Result<Self> {
-        debug!("Creating new bot with custom connection pool");
-
-        let token = get_env_token()?;
-        let base_api_url = get_env_url()?;
-
-        Self::with_connection_pool_and_params(version, token, base_api_url, connection_pool)
-    }
-
-    /// Create a new bot with a custom connection pool and direct parameters
-    ///
-    /// This method provides maximum flexibility by allowing you to specify both
-    /// direct parameters (token and API URL) and a custom connection pool.
-    /// This is particularly useful for:
-    /// - Advanced testing scenarios with custom network configurations
-    /// - Specialized connection requirements (timeouts, retries, etc.)
-    /// - Sharing connection pools between multiple bot instances
-    ///
-    /// ## Parameters
-    /// - `version`: [`APIVersionUrl`] - API version to use
-    /// - `token`: [`String`] - Bot API token for authentication
-    /// - `api_url`: [`String`] - Base API URL for requests
-    /// - `connection_pool`: [`ConnectionPool`] - Custom configured connection pool
-    ///
-    /// ## Errors
-    /// - `BotError::Url` - URL parsing error if api_url is invalid
-    /// - Other errors that might be propagated from connection pool operations
-    ///
-    /// ## Example
-    /// ```no_run
-    /// use vkteams_bot::prelude::*;
-    /// use std::time::Duration;
-    ///
-    /// #[tokio::main]
-    /// async fn main() -> Result<()> {
-    ///     // Create a custom connection pool with specific settings
-    ///     let pool = ConnectionPool::new(
-    ///         reqwest::Client::new(),
-    ///         5, // 5 retries
-    ///         Duration::from_secs(10) // 10 second max backoff
-    ///     );
-    ///
-    ///     let bot = Bot::with_connection_pool_and_params(
-    ///         APIVersionUrl::V1,
-    ///         "your_bot_token".to_string(),
-    ///         "https://api.example.com".to_string(),
-    ///         pool
-    ///     )?;
-    ///
-    ///     // Now use the bot...
-    ///
-    ///     Ok(())
-    /// }
-    /// ```
-    pub fn with_connection_pool_and_params(
-        version: APIVersionUrl,
-        token: String,
-        api_url: String,
-        connection_pool: ConnectionPool,
-    ) -> Result<Self> {
-        debug!("Creating new bot with custom connection pool and direct parameters");
-
-        let base_api_url = Url::parse(&api_url).map_err(BotError::Url)?;
-        debug!("API URL successfully parsed");
-
-        let base_api_path = set_default_path(&version);
-
-        Ok(Self {
-            connection_pool,
-            token,
-            base_api_url,
-            base_api_path,
-            event_id: Arc::new(Mutex::new(0)),
-            #[cfg(feature = "ratelimit")]
-            rate_limiter: Default::default(),
-        })
-    }
 }
