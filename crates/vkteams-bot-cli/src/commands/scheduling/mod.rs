@@ -174,7 +174,7 @@ async fn execute_schedule(_bot: &Bot, message_type: &ScheduleMessageType) -> Cli
     let url = std::env::var("VKTEAMS_BOT_API_URL")
         .map_err(|_| CliError::InputError("Bot URL not available".to_string()))?;
     let scheduler_bot =
-        Bot::with_params(APIVersionUrl::V1, token, url).map_err(CliError::ApiError)?;
+        Bot::with_params(&APIVersionUrl::V1, &token, &url).map_err(CliError::ApiError)?;
     scheduler.set_bot(scheduler_bot);
 
     let (task_type, schedule, max_runs) = match message_type {
@@ -257,7 +257,7 @@ async fn execute_scheduler_action(_bot: &Bot, action: &SchedulerAction) -> CliRe
     let url = std::env::var("VKTEAMS_BOT_API_URL")
         .map_err(|_| CliError::InputError("Bot URL not available".to_string()))?;
     let scheduler_bot =
-        Bot::with_params(APIVersionUrl::V1, token, url).map_err(CliError::ApiError)?;
+        Bot::with_params(&APIVersionUrl::V1, &token, &url).map_err(CliError::ApiError)?;
     scheduler.set_bot(scheduler_bot);
 
     match action {
@@ -329,7 +329,7 @@ async fn execute_task_action(_bot: &Bot, action: &TaskAction) -> CliResult<()> {
     let url = std::env::var("VKTEAMS_BOT_API_URL")
         .map_err(|_| CliError::InputError("Bot URL not available".to_string()))?;
     let scheduler_bot =
-        Bot::with_params(APIVersionUrl::V1, token, url).map_err(CliError::ApiError)?;
+        Bot::with_params(&APIVersionUrl::V1, &token, &url).map_err(CliError::ApiError)?;
     scheduler.set_bot(scheduler_bot);
 
     match action {

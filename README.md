@@ -1,47 +1,137 @@
-# VK Teams Bot — Rust workspace for VK Teams Bot API (unofficial)
+# VKTeams-Bot 🚀
 
-[![github.com](https://github.com/bug-ops/vkteams-bot/actions/workflows/rust.yml/badge.svg)](https://github.com/bug-ops/vkteams-bot/actions)
+[![Crates.io](https://img.shields.io/crates/v/vkteams-bot)](https://crates.io/crates/vkteams-bot)
+[![Downloads](https://img.shields.io/crates/d/vkteams-bot)](https://crates.io/crates/vkteams-bot)
+[![docs.rs](https://docs.rs/vkteams-bot/badge.svg)](https://docs.rs/vkteams-bot)
+[![Build Status](https://github.com/bug-ops/vkteams-bot/workflows/CI/badge.svg)](https://github.com/bug-ops/vkteams-bot/actions)
 [![CodeQL](https://github.com/bug-ops/vkteams-bot/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/bug-ops/vkteams-bot/actions/workflows/github-code-scanning/codeql)
-[![Unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
+[![License](https://img.shields.io/crates/l/vkteams-bot)](LICENSE)
 
-**A multifunctional toolkit for working with the VK Teams Bot API in Rust.**
+> **The modern, high-performance VK Teams Bot API toolkit for Rust** 🦀  
+> Complete ecosystem: Client library + CLI tools + MCP server for AI integration
 
-## Workspace Structure
+## ✨ Why VKTeams-Bot?
 
-### Main Crates
+- **🚀 Blazing Fast**: Rust performance with zero-cost abstractions
+- **🛠️ Complete Toolkit**: Library, CLI, and MCP server in one ecosystem  
+- **🤖 AI-Ready**: Native Model Context Protocol (MCP) support for LLM integration
+- **⚡ Developer-First**: Intuitive CLI with auto-completion and colored output
+- **🏢 Enterprise-Grade**: Memory-safe, concurrent, production-ready
+- **📦 Modular**: Use only what you need - each component works independently
 
-#### [`vkteams-bot`](crates/vkteams-bot)
+## 🚀 Quick Start
 
-The main client crate for the VK Teams Bot API.
+### Install CLI (Fastest way to get started)
 
-- Create bots
-- Send and receive messages
-- Work with chats and files
-- Usage examples: [`examples`](crates/vkteams-bot/examples)
+```bash
+cargo install vkteams-bot-cli
 
-#### [`vkteams-bot-mcp`](crates/vkteams-bot-mcp)
+# Set your credentials
+export VKTEAMS_BOT_API_TOKEN="your_token_here"
+export VKTEAMS_BOT_API_URL="your_api_url"
 
-An MCP (Model Context Protocol) server for integrating VK Teams bots with LLM agents, automation, and external services via a universal protocol (stdin/stdout, JSON).
+# Send your first message
+vkteams-bot-cli send-text -u user123 -m "Hello from Rust! 🦀"
+```
 
-#### [`vkteams-bot-cli`](crates/vkteams-bot-cli)
+### Use as Library
 
-A powerful CLI tool for bot management:
+```toml
+[dependencies]
+vkteams-bot = "0.9"
+tokio = { version = "1.0", features = ["full"] }
+```
 
-- Sending messages
-- Working with files
-- Event monitoring
-- Task scheduler
-- Interactive setup
-- Shell completion and much more
+```rust
+use vkteams_bot::Bot;
 
-#### [`vkteams-bot-macros`](crates/vkteams-bot-macros)
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let bot = Bot::new("API_TOKEN", "API_URL");
+    
+    // Send a message
+    bot.send_text("chat_id", "Hello, World! 🌍").await?;
+    
+    // Listen for events
+    let events = bot.get_events().await?;
+    println!("Received {} events", events.len());
+    
+    Ok(())
+}
+```
 
-A set of macros to simplify working with the VK Teams Bot API (used internally).
+## 🔧 Complete Ecosystem
 
----
+| Component | Description | Crate |
+|-----------|-------------|-------|
+| 📚 **Core Library** | High-performance async VK Teams Bot API client | [`vkteams-bot`](https://crates.io/crates/vkteams-bot) |
+| 🖥️ **CLI Tool** | Feature-complete command-line interface | [`vkteams-bot-cli`](https://crates.io/crates/vkteams-bot-cli) |
+| 🤖 **MCP Server** | AI/LLM integration via Model Context Protocol | [`vkteams-bot-mcp`](https://crates.io/crates/vkteams-bot-mcp) |
+| ⚙️ **Macros** | Development productivity macros | [`vkteams-bot-macros`](https://crates.io/crates/vkteams-bot-macros) |
 
-## Documentation
+## 🎯 Use Cases
 
-- [VK Teams Bot API (official documentation)](https://teams.vk.com/botapi/?lang=en)
-- [MCP protocol documentation](https://modelcontextprotocol.io/specification/2025-03-26)
-- [Documentation on docs.rs](https://docs.rs/vkteams-bot/latest/vkteams_bot/)
+- **🏢 Enterprise Chat Automation**: HR bots, IT support, business process automation
+- **🤖 AI-Powered Assistants**: LLM integration with Claude, ChatGPT via MCP
+- **⚡ DevOps Integration**: CI/CD notifications, monitoring alerts, deployment status
+- **📊 Business Intelligence**: Data reporting, analytics dashboards, scheduled reports
+- **🔧 Internal Tools**: Custom workflows, approval processes, team coordination
+
+## 🚀 CLI Highlights
+
+```bash
+# Interactive event monitoring with filtering
+vkteams-bot-cli get-events -l true | grep "ALARM"
+
+# Batch file operations
+find ./reports -name "*.pdf" | xargs -I {} vkteams-bot-cli send-file -u team_lead -f {}
+
+# Pipeline integration
+echo "Deployment successful! ✅" | vkteams-bot-cli send-text -u devops_chat
+
+# File management
+vkteams-bot-cli get-file -i file123 -f ./downloads/report.pdf
+```
+
+## 🤖 AI Integration (MCP)
+
+Integrate VK Teams bots directly with AI assistants:
+
+```json
+// Claude Desktop config
+{
+  "mcpServers": {
+    "vkteams-bot": {
+      "command": "vkteams-bot-mcp",
+      "env": {
+        "VKTEAMS_BOT_API_TOKEN": "your_token",
+        "VKTEAMS_BOT_API_URL": "your_api_url"
+      }
+    }
+  }
+}
+```
+
+Now Claude can send messages, manage files, and interact with your VK Teams directly!
+
+## 🛠️ Development
+
+```bash
+# Clone and build
+git clone https://github.com/bug-ops/vkteams-bot
+cd vkteams-bot
+cargo build --release
+
+# Run tests
+cargo test
+
+# Check documentation
+cargo doc --open
+```
+
+## 📖 Documentation
+
+- **📚 API Docs**: [docs.rs/vkteams-bot](https://docs.rs/vkteams-bot)
+- **🎯 VK Teams Bot API**: [teams.vk.com/botapi](https://teams.vk.com/botapi/?lang=en)
+- **📝 Examples**: [GitHub Examples](https://github.com/bug-ops/vkteams-bot/tree/main/examples)
+- **🤖 MCP Protocol**: [Model Context Protocol](https://spec.modelcontextprotocol.io/)

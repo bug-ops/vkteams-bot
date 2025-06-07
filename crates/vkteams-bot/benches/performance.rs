@@ -4,7 +4,11 @@ use tokio::runtime::Runtime;
 use vkteams_bot::Bot;
 use vkteams_bot::prelude::*;
 
+#[global_allocator]
+static DHAT: dhat::Alloc = dhat::Alloc;
+
 fn benchmark_bot_creation(c: &mut Criterion) {
+    let _profiler = dhat::Profiler::new_heap();
     c.bench_function("bot_creation", |b| {
         b.iter(|| {
             let _bot = Bot::new(black_box(APIVersionUrl::V1));
@@ -13,6 +17,7 @@ fn benchmark_bot_creation(c: &mut Criterion) {
 }
 
 fn benchmark_message_serialization(c: &mut Criterion) {
+    let _profiler = dhat::Profiler::new_heap();
     let rt = Runtime::new().unwrap();
 
     c.bench_function("message_serialization", |b| {
@@ -31,6 +36,7 @@ fn benchmark_message_serialization(c: &mut Criterion) {
 }
 
 fn benchmark_memory_usage(c: &mut Criterion) {
+    let _profiler = dhat::Profiler::new_heap();
     c.bench_function("memory_efficiency", |b| {
         b.iter(|| {
             // Create 1000 bot instances to test memory efficiency

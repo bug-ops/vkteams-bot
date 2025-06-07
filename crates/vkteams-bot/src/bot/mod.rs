@@ -14,6 +14,7 @@ use crate::bot::ratelimit::RateLimiter;
 use crate::error::{BotError, Result};
 use net::ConnectionPool;
 use net::*;
+use once_cell::sync::OnceCell;
 use reqwest::Url;
 use serde::Serialize;
 use std::sync::Arc;
@@ -31,10 +32,10 @@ use tracing::debug;
 /// [`reqwest::Url`]: https://docs.rs/reqwest/latest/reqwest/struct.Url.html
 /// [`std::sync::Arc<_>`]: https://doc.rust-lang.org/std/sync/struct.Arc.html
 pub struct Bot {
-    pub(crate) connection_pool: ConnectionPool,
-    pub(crate) token: String,
+    pub(crate) connection_pool: OnceCell<ConnectionPool>,
+    pub(crate) token: Arc<str>,
     pub(crate) base_api_url: Url,
-    pub(crate) base_api_path: String,
+    pub(crate) base_api_path: Arc<str>,
     pub(crate) event_id: Arc<Mutex<EventId>>,
     #[cfg(feature = "ratelimit")]
     pub(crate) rate_limiter: Arc<Mutex<RateLimiter>>,
@@ -69,7 +70,8 @@ impl Bot {
         let base_api_url = get_env_url().expect("Failed to get API URL from environment");
         debug!("API URL successfully obtained from environment");
 
-        Self::with_params(version, token, base_api_url).expect("Failed to create bot")
+        Self::with_params(&version, token.as_str(), base_api_url.as_str())
+            .expect("Failed to create bot")
     }
 
     /// Creates a new `Bot` with direct parameters instead of environment variablesx
@@ -112,7 +114,7 @@ impl Bot {
     ///
     /// For most cases, consider using [`with_default_version`](#method.with_default_version)
     /// which uses V1 API version and has a simpler signature.
-    pub fn with_params(version: APIVersionUrl, token: String, api_url: String) -> Result<Self> {
+    pub fn with_params(version: &APIVersionUrl, token: &str, api_url: &str) -> Result<Self> {
         debug!("Creating new bot with API version: {:?}", version);
         debug!("Using provided token and API URL");
 
@@ -122,14 +124,11 @@ impl Bot {
         let base_api_path = version.to_string();
         debug!("Set API base path: {}", base_api_path);
 
-        let connection_pool = ConnectionPool::optimized();
-        debug!("Connection pool successfully created");
-
         Ok(Self {
-            connection_pool,
-            token,
+            connection_pool: OnceCell::new(),
+            token: Arc::<str>::from(token),
             base_api_url,
-            base_api_path: base_api_path.to_string(),
+            base_api_path: Arc::<str>::from(base_api_path),
             event_id: Arc::new(Mutex::new(0)),
             #[cfg(feature = "ratelimit")]
             rate_limiter: Default::default(),
@@ -156,9 +155,9 @@ impl Bot {
 
     /// Append method path to `base_api_path`
     /// - `path`: [`String`] - append path to `base_api_path`
-    pub fn set_path(&self, path: String) -> String {
-        let mut full_path = self.base_api_path.clone();
-        full_path.push_str(&path);
+    pub fn set_path(&self, path: &str) -> String {
+        let mut full_path = self.base_api_path.as_ref().to_string();
+        full_path.push_str(path);
         full_path
     }
 
@@ -217,7 +216,7 @@ impl Bot {
         }
 
         let query = serde_url_params::to_string(&message)?;
-        let url = self.get_parsed_url(self.set_path(<Rq>::METHOD.to_string()), query.to_owned())?;
+        let url = self.get_parsed_url(self.set_path(<Rq>::METHOD), query.to_owned())?;
 
         debug!("Request URL: {}", url.path());
 
@@ -226,11 +225,17 @@ impl Bot {
                 debug!("Sending POST request with file");
                 let form = file_to_multipart(message.get_file()).await?;
 
-                self.connection_pool.post_file(url, form).await?
+                self.connection_pool
+                    .get_or_init(|| ConnectionPool::optimized())
+                    .post_file(url, form)
+                    .await?
             }
             HTTPMethod::GET => {
                 debug!("Sending GET request");
-                self.connection_pool.get_text(url).await?
+                self.connection_pool
+                    .get_or_init(|| ConnectionPool::optimized())
+                    .get_text(url)
+                    .await?
             }
         };
 
@@ -275,8 +280,8 @@ impl Bot {
     ///     Ok(())
     /// }
     /// ```
-    pub fn with_default_version(token: String, api_url: String) -> Result<Self> {
-        Self::with_params(APIVersionUrl::V1, token, api_url)
+    pub fn with_default_version(token: &str, api_url: &str) -> Result<Self> {
+        Self::with_params(&APIVersionUrl::V1, token, api_url)
     }
 }
 
@@ -300,7 +305,7 @@ impl Bot {
     /// Gets token and API URL from environment variables
     pub fn with_connection_pool(
         version: APIVersionUrl,
-        connection_pool: ConnectionPool,
+        connection_pool: OnceCell<ConnectionPool>,
     ) -> Result<Self> {
         debug!("Creating new bot with custom connection pool");
 
@@ -359,7 +364,7 @@ impl Bot {
         version: APIVersionUrl,
         token: String,
         api_url: String,
-        connection_pool: ConnectionPool,
+        connection_pool: OnceCell<ConnectionPool>,
     ) -> Result<Self> {
         debug!("Creating new bot with custom connection pool and direct parameters");
 
@@ -370,9 +375,9 @@ impl Bot {
 
         Ok(Self {
             connection_pool,
-            token,
+            token: Arc::<str>::from(token),
             base_api_url,
-            base_api_path,
+            base_api_path: Arc::<str>::from(base_api_path),
             event_id: Arc::new(Mutex::new(0)),
             #[cfg(feature = "ratelimit")]
             rate_limiter: Default::default(),
