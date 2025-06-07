@@ -5,7 +5,7 @@ use std::sync::LazyLock;
 use tracing::{error, info};
 use vkteams_bot::prelude::*;
 // Environment variable for the chat id
-const CHAT_ID: &str = "VKTEAMS_CHAT_ID";
+const CHAT_ID: &str = "VKTEAMS_BOT_CHAT_ID";
 const TMPL_NAME: &str = "alert";
 // define the Tera template
 pub static TEMPLATES: LazyLock<tera::Tera> =

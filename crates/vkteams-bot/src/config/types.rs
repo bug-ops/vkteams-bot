@@ -285,8 +285,8 @@ fn default_max_idle_connections() -> usize {
 #[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum LogFormat {
-    Pretty,
     #[default]
+    Pretty,
     Json,
     Full,
 }

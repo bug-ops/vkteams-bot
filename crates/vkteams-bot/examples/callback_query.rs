@@ -3,7 +3,7 @@ use vkteams_bot::prelude::*;
 
 const CALLBACK_DATA: &str = "callback_button_#1";
 const CALLBACK_TEXT: &str = "callback_text";
-const VKTEAMS_CHAT_ID: &str = "VKTEAMS_CHAT_ID";
+const VKTEAMS_BOT_CHAT_ID: &str = "VKTEAMS_BOT_CHAT_ID";
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -16,7 +16,7 @@ async fn main() -> Result<()> {
     let bot = Bot::default();
     // Get chat_id from .env file
     let chat_id = ChatId(
-        std::env::var(VKTEAMS_CHAT_ID)
+        std::env::var(VKTEAMS_BOT_CHAT_ID)
             .expect("Unable to find VKTEAMS_CHAT_ID in .env file")
             .to_string(),
     );

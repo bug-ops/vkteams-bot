@@ -1,0 +1,67 @@
+name: 🐛 Bug Report
+description: File a bug report to help us improve
+title: "[BUG] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! 🐛
+  - type: input
+    id: version
+    attributes:
+      label: VKTeams-Bot Version
+      description: What version of vkteams-bot are you running?
+      placeholder: "0.9.7"
+  - type: input
+    id: component
+    attributes:
+      label: Component
+      description: Which component is affected?
+      placeholder: "vkteams-bot"
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which component should this feature be added to?
+      options:
+        - vkteams-bot (core library)
+        - vkteams-bot-cli (CLI tool)
+        - vkteams-bot-mcp (MCP server)
+        - vkteams-bot-macros (macros)
+        - Documentation
+        - New component
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem description
+      description: Is your feature request related to a problem?
+      placeholder: I'm always frustrated when...
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the solution you'd like
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe alternatives you've considered
+  - type: textarea
+    id: api-design
+    attributes:
+      label: API Design (if applicable)
+      description: How should this feature look in the API?
+      render: rust
+  - type: checkboxes
+    id: breaking-change
+    attributes:
+      label: Breaking Change
+      description: Would this be a breaking change?
+      options:
+        - label: This would be a breaking change
+        - label: This would be backward compatible

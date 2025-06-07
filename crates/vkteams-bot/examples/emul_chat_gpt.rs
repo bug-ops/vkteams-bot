@@ -24,8 +24,8 @@ async fn send(bot: &Bot) -> Result<()> {
     let mut html_parser = MessageTextParser::new();
     // Get chat_id from .env
     let chat_id = ChatId(
-        std::env::var("VKTEAMS_CHAT_ID")
-            .expect("Unable to find VKTEAMS_CHAT_ID in .env file")
+        std::env::var("VKTEAMS_BOT_CHAT_ID")
+            .expect("Unable to find VKTEAMS_BOT_CHAT_ID in .env file")
             .to_string(),
     );
     // Split text by words
