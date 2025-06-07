@@ -38,7 +38,7 @@ pub struct Bot {
     pub(crate) base_api_path: Arc<str>,
     pub(crate) event_id: Arc<Mutex<EventId>>,
     #[cfg(feature = "ratelimit")]
-    pub(crate) rate_limiter: Arc<Mutex<RateLimiter>>,
+    pub(crate) rate_limiter: OnceCell<Arc<Mutex<RateLimiter>>>,
 }
 
 impl Bot {
@@ -131,7 +131,7 @@ impl Bot {
             base_api_path: Arc::<str>::from(base_api_path),
             event_id: Arc::new(Mutex::new(0)),
             #[cfg(feature = "ratelimit")]
-            rate_limiter: Default::default(),
+            rate_limiter: OnceCell::new(),
         })
     }
 
@@ -204,7 +204,11 @@ impl Bot {
         #[cfg(feature = "ratelimit")]
         {
             if let Some(chat_id) = message.get_chat_id() {
-                let mut rate_limiter = self.rate_limiter.lock().await;
+                let mut rate_limiter = self
+                    .rate_limiter
+                    .get_or_init(|| Arc::new(Mutex::new(RateLimiter::default())))
+                    .lock()
+                    .await;
                 if !rate_limiter.wait_if_needed(chat_id).await {
                     return Err(BotError::Validation(
                         "Rate limit exceeded for this chat".to_string(),
@@ -380,7 +384,7 @@ impl Bot {
             base_api_path: Arc::<str>::from(base_api_path),
             event_id: Arc::new(Mutex::new(0)),
             #[cfg(feature = "ratelimit")]
-            rate_limiter: Default::default(),
+            rate_limiter: OnceCell::new(),
         })
     }
 }

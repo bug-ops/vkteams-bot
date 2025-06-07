@@ -148,6 +148,12 @@ pub struct RateLimit {
     pub retry_delay: u64,
     #[serde(default = "default_retry_attempts")]
     pub retry_attempts: u16,
+    #[serde(default = "default_init_bucket")]
+    pub init_bucket: usize,
+    #[serde(default = "default_cleanup_interval")]
+    pub cleanup_interval: u64,
+    #[serde(default = "default_bucket_lifetime")]
+    pub bucket_lifetime: u64,
 }
 
 impl Default for RateLimit {
@@ -157,21 +163,39 @@ impl Default for RateLimit {
             duration: default_duration(),
             retry_delay: default_retry_delay(),
             retry_attempts: default_retry_attempts(),
+            init_bucket: default_init_bucket(),
+            cleanup_interval: default_cleanup_interval(),
+            bucket_lifetime: default_bucket_lifetime(),
         }
     }
 }
-
+#[cfg(feature = "ratelimit")]
 fn default_limit() -> usize {
     100
 }
+#[cfg(feature = "ratelimit")]
 fn default_duration() -> u64 {
     60
 }
+#[cfg(feature = "ratelimit")]
 fn default_retry_delay() -> u64 {
     1000
 }
+#[cfg(feature = "ratelimit")]
 fn default_retry_attempts() -> u16 {
     3
+}
+#[cfg(feature = "ratelimit")]
+fn default_init_bucket() -> usize {
+    1
+}
+#[cfg(feature = "ratelimit")]
+fn default_cleanup_interval() -> u64 {
+    600
+}
+#[cfg(feature = "ratelimit")]
+fn default_bucket_lifetime() -> u64 {
+    3600
 }
 
 /// Configuration for event listener
