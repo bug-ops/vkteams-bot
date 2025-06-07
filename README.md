@@ -90,7 +90,7 @@ find ./reports -name "*.pdf" | xargs -I {} vkteams-bot-cli send-file -u team_lea
 echo "Deployment successful! ✅" | vkteams-bot-cli send-text -u devops_chat
 
 # File management
-vkteams-bot-cli get-file -i file123 -f ./downloads/report.pdf
+vkteams-bot-cli get-file -f file123 -p ./downloads/report.pdf
 ```
 
 ## 🤖 AI Integration (MCP)
