@@ -1,9 +1,21 @@
 [package]
 name = "vkteams-bot-mcp"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Andrei G. <k05h31@gmail.com>"]
-description = "VK Teams Bot API MCP"
-keywords = ["vk", "teams", "bot", "mcp", "modelcontextprotocol"]
+keywords = [
+    "vkteams",
+    "bot",
+    "api",
+    "chatbot",
+    "automation",
+    "mcp",
+    "modelcontextprotocol",
+]
+description = "High-performance VK Teams Bot API toolkit with CLI and MCP server support"
+readme = "README.md"
+homepage = "https://github.com/bug-ops/vkteams-bot"
+repository = "https://github.com/bug-ops/vkteams-bot"
+documentation = "https://docs.rs/vkteams-bot"
 categories = [
     "asynchronous",
     "api-bindings",
@@ -11,11 +23,8 @@ categories = [
     "web-programming::http-server",
     "network-programming",
 ]
-readme = "README.md"
-
 license.workspace = true
 edition.workspace = true
-repository.workspace = true
 
 [[bin]]
 name = "vkteams-bot-mcp"
