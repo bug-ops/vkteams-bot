@@ -308,7 +308,7 @@ impl Bot {
     ///
     /// Gets token and API URL from environment variables
     pub fn with_connection_pool(
-        version: APIVersionUrl,
+        version: &APIVersionUrl,
         connection_pool: OnceCell<ConnectionPool>,
     ) -> Result<Self> {
         debug!("Creating new bot with custom connection pool");
@@ -316,7 +316,7 @@ impl Bot {
         let token = get_env_token()?;
         let base_api_url = get_env_url()?;
 
-        Self::with_connection_pool_and_params(version, token, base_api_url, connection_pool)
+        Self::with_connection_pool_and_params(version, &token, &base_api_url, connection_pool)
     }
 
     /// Create a new bot with a custom connection pool and direct parameters
@@ -365,9 +365,9 @@ impl Bot {
     /// }
     /// ```
     pub fn with_connection_pool_and_params(
-        version: APIVersionUrl,
-        token: String,
-        api_url: String,
+        version: &APIVersionUrl,
+        token: &str,
+        api_url: &str,
         connection_pool: OnceCell<ConnectionPool>,
     ) -> Result<Self> {
         debug!("Creating new bot with custom connection pool and direct parameters");
