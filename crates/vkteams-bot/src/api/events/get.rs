@@ -21,7 +21,6 @@ bot_api_method! {
 use crate::prelude::*;
 #[test]
 fn test_print_out() {
-    let _guard = otlp::init().map_err(|e| BotError::Otlp(e.into()));
     let j = r#"
         {
           "events": [
@@ -55,9 +54,9 @@ fn test_print_out() {
         }
         "#;
     match serde_json::from_str::<ResponseEventsGet>(j) {
-        Ok(response) => tracing::info!("{:?}", response),
+        Ok(response) => println!("{:?}", response),
         Err(e) => {
-            tracing::error!("Error deserializing response: {}", e);
+            eprintln!("Error deserializing response: {}", e);
         }
     };
 }
