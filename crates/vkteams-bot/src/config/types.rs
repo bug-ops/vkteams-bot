@@ -137,6 +137,7 @@ pub struct FmtDirective {
     pub fmt_filter_directive: Cow<'static, str>,
 }
 /// Rate limit configuration
+#[cfg(feature = "ratelimit")]
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub struct RateLimit {
@@ -156,6 +157,7 @@ pub struct RateLimit {
     pub bucket_lifetime: u64,
 }
 
+#[cfg(feature = "ratelimit")]
 impl Default for RateLimit {
     fn default() -> Self {
         Self {
