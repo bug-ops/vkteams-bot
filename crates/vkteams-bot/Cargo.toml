@@ -1,5 +1,5 @@
 [package]
-keywords = ["vkteams", "bot", "api", "chatbot", "automation", "mcp"]
+keywords = ["vkteams", "bot", "api", "automation", "mcp"]
 categories = ["api-bindings", "command-line-utilities", "web-programming"]
 description = "High-performance VK Teams Bot API toolkit with CLI and MCP server support"
 readme = "README.md"
