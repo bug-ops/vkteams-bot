@@ -13,12 +13,6 @@ body:
       label: VKTeams-Bot Version
       description: What version of vkteams-bot are you running?
       placeholder: "0.9.7"
-  - type: input
-    id: component
-    attributes:
-      label: Component
-      description: Which component is affected?
-      placeholder: "vkteams-bot"
   - type: dropdown
     id: component
     attributes:
