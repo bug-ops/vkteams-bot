@@ -5,6 +5,7 @@ use std::fmt::*;
 use std::time::Duration;
 #[cfg(feature = "templates")]
 use tera::{Context, Tera};
+use tracing::debug;
 
 /// Environment variable name for bot API URL
 pub const VKTEAMS_BOT_API_URL: &str = "VKTEAMS_BOT_API_URL";
