@@ -74,7 +74,7 @@ pub fn derive_get_field(input: TokenStream) -> TokenStream {
         _ => return quote! {}.into(),
     };
 
-    // Проверяем наличие chat_id: ChatId
+    // Check for chat_id: ChatId
     let has_chat_id = fields.iter().any(|f| {
         f.ident.as_ref().map(|id| id == "chat_id").unwrap_or(false)
             && match &f.ty {
@@ -87,7 +87,7 @@ pub fn derive_get_field(input: TokenStream) -> TokenStream {
                 _ => false,
             }
     });
-    // Проверяем наличие multipart: MultipartName
+    // Check for multipart: MultipartName
     let has_multipart = fields.iter().any(|f| {
         f.ident
             .as_ref()
