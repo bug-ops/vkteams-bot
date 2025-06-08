@@ -93,15 +93,7 @@ pub fn derive_get_field(input: TokenStream) -> TokenStream {
             .as_ref()
             .map(|id| id == "multipart")
             .unwrap_or(false)
-            && match &f.ty {
-                Type::Path(type_path) => type_path
-                    .path
-                    .segments
-                    .last()
-                    .map(|s| s.ident == "MultipartName")
-                    .unwrap_or(false),
-                _ => false,
-            }
+            && is_type_named(&f.ty, "MultipartName")
     });
 
     let chat_id_impl = if has_chat_id {
@@ -124,16 +116,16 @@ pub fn derive_get_field(input: TokenStream) -> TokenStream {
     let multipart_impl = if has_multipart {
         quote! {
             impl #name {
-                pub fn _get_multipart(&self) -> crate::api::types::MultipartName {
-                    self.multipart
+                pub fn _get_multipart(&self) -> &crate::api::types::MultipartName {
+                    &self.multipart
                 }
             }
         }
     } else {
         quote! {
             impl #name {
-                pub fn _get_multipart(&self) -> crate::api::types::MultipartName {
-                    crate::api::types::MultipartName::None
+                pub fn _get_multipart(&self) -> &crate::api::types::MultipartName {
+                    &crate::api::types::MultipartName::None
                 }
             }
         }
@@ -143,4 +135,12 @@ pub fn derive_get_field(input: TokenStream) -> TokenStream {
         #multipart_impl
     };
     expanded.into()
+}
+
+fn is_type_named(ty: &Type, name: &str) -> bool {
+    match ty {
+        Type::Path(type_path) => type_path.path.segments.iter().any(|seg| seg.ident == name),
+        Type::Group(group) => is_type_named(&group.elem, name),
+        _ => false,
+    }
 }

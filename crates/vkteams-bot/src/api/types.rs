@@ -5,7 +5,6 @@ use std::fmt::*;
 use std::time::Duration;
 #[cfg(feature = "templates")]
 use tera::{Context, Tera};
-use tracing::debug;
 
 /// Environment variable name for bot API URL
 pub const VKTEAMS_BOT_API_URL: &str = "VKTEAMS_BOT_API_URL";
@@ -49,9 +48,8 @@ pub trait BotRequest {
     const HTTP_METHOD: HTTPMethod = HTTPMethod::GET;
     type RequestType: Serialize + Debug + Default;
     type ResponseType: Serialize + DeserializeOwned + Debug + Default;
-    fn get_multipart(&self) -> MultipartName {
-        debug!("File not specified. Using default value.");
-        MultipartName::None
+    fn get_multipart(&self) -> &MultipartName {
+        &MultipartName::None
     }
     fn new(args: Self::Args) -> Self;
     fn get_chat_id(&self) -> Option<&ChatId>;
