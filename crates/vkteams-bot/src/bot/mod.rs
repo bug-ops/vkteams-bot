@@ -231,7 +231,7 @@ impl Bot {
                     message,
                     message.get_multipart()
                 );
-                let form = file_to_multipart(message.get_multipart()).await?;
+                let form = file_to_multipart(&message.get_multipart()).await?;
 
                 self.connection_pool
                     .get_or_init(ConnectionPool::optimized)
