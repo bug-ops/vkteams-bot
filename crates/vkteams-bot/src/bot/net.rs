@@ -256,9 +256,9 @@ pub async fn file_to_multipart(file: &MultipartName) -> Result<Form> {
         _ => return Err(BotError::Validation("File not specified".to_string())),
     };
     //Create stream from file
-    let file_stream = make_stream(filename.to_owned()).await?;
+    let file_stream = make_stream(filename).await?;
     //Create part from stream
-    let part = Part::stream(file_stream).file_name(filename.to_owned());
+    let part = Part::stream(file_stream).file_name(filename.to_string());
     //Create multipart form
     Ok(Form::new().part(name, part))
 }
@@ -268,9 +268,9 @@ pub async fn file_to_multipart(file: &MultipartName) -> Result<Form> {
 /// ## Errors
 /// - `BotError::Io` - error opening file
 #[tracing::instrument(skip(path))]
-async fn make_stream(path: String) -> Result<Body> {
+async fn make_stream(path: &String) -> Result<Body> {
     //Open file and check if it exists
-    let file = File::open(path.to_owned()).await?;
+    let file = File::open(path).await?;
     //Create stream from file
     let file_stream = Body::wrap_stream(FramedRead::new(file, BytesCodec::new()));
     Ok(file_stream)

@@ -1,0 +1,228 @@
+{
+    "events": [
+        {
+            "eventId": 1312,
+            "payload": {
+                "chat": {
+                    "chatId": "87654@chat.agent",
+                    "title": "TEST",
+                    "type": "group"
+                },
+                "from": {
+                    "firstName": "Bob",
+                    "lastName": "Smith",
+                    "userId": "bob.smoth@example.com"
+                },
+                "msgId": "7513183...869",
+                "parts": [
+                    {
+                        "payload": {
+                            "message": {
+                                "from": {
+                                    "firstName": "Alice",
+                                    "lastName": "Johnson",
+                                    "userId": "alice.johnson@example.com"
+                                },
+                                "msgId": "7513183580768441700",
+                                "text": "Hello, Bob! 👋 \n\nToday is Saturday, June 1, 2999.",
+                                "timestamp": 1749299369
+                            }
+                        },
+                        "type": "reply"
+                    }
+                ],
+                "text": "Please send me an abstract picture",
+                "timestamp": 1749427
+            },
+            "type": "newMessage"
+        },
+        {
+            "eventId": 1313,
+            "payload": {
+                "chat": {
+                    "chatId": "87654@chat.agent",
+                    "title": "TEST",
+                    "type": "group"
+                },
+                "editedTimestamp": 1749432,
+                "from": {
+                    "firstName": "Bob",
+                    "lastName": "Smith",
+                    "userId": "bob.smoth@example.com"
+                },
+                "msgId": "7513183...869",
+                "parts": [
+                    {
+                        "payload": {
+                            "message": {
+                                "from": {
+                                    "firstName": "Alice",
+                                    "lastName": "Johnson",
+                                    "userId": "alice.johnson@example.com"
+                                },
+                                "msgId": "7513183...1700",
+                                "text": "Hello, Bob! 👋 \n\nToday is Saturday, June 1, 2999.",
+                                "timestamp": 1749369
+                            }
+                        },
+                        "type": "reply"
+                    }
+                ],
+                "text": "Please send me an abstract picture",
+                "timestamp": 1749427
+            },
+            "type": "editedMessage"
+        },
+        {
+            "eventId": 1314,
+            "payload": {
+                "chat": {
+                    "chatId": "87654@chat.agent",
+                    "title": "TEST",
+                    "type": "group"
+                },
+                "from": {
+                    "firstName": "Bob",
+                    "lastName": "Smith",
+                    "userId": "bob.smoth@example.com"
+                },
+                "msgId": "7513184...97128",
+                "text": "Please send me an abstract picture",
+                "timestamp": 1749563
+            },
+            "type": "newMessage"
+        },
+        {
+            "eventId": 1315,
+            "payload": {
+                "chat": {
+                    "chatId": "87654@chat.agent",
+                    "title": "TEST",
+                    "type": "group"
+                },
+                "from": {
+                    "firstName": "Bob",
+                    "lastName": "Smith",
+                    "userId": "bob.smoth@example.com"
+                },
+                "msgId": "7513185...5049",
+                "text": "Test",
+                "timestamp": 1749708
+            },
+            "type": "newMessage"
+        },
+        {
+            "eventId": 1316,
+            "payload": {
+                "chat": {
+                    "chatId": "87654@chat.agent",
+                    "title": "TEST",
+                    "type": "group"
+                },
+                "from": {
+                    "firstName": "Bob",
+                    "lastName": "Smith",
+                    "userId": "bob.smoth@example.com"
+                },
+                "msgId": "7513185...53834",
+                "parts": [
+                    {
+                        "payload": {
+                            "message": {
+                                "from": {
+                                    "firstName": "erptestbot",
+                                    "nick": "erptestbot",
+                                    "userId": "1000003205"
+                                },
+                                "msgId": "7513183...1538",
+                                "text": "👋 Hi all!",
+                                "timestamp": 1749284
+                            }
+                        },
+                        "type": "reply"
+                    }
+                ],
+                "text": "Please send me an abstract picture",
+                "timestamp": 17499812
+            },
+            "type": "newMessage"
+        },
+        {
+            "eventId": 1317,
+            "payload": {
+                "chat": {
+                    "chatId": "87654@chat.agent",
+                    "title": "TEST",
+                    "type": "group"
+                },
+                "from": {
+                    "firstName": "Bob",
+                    "lastName": "Smith",
+                    "userId": "bob.smoth@example.com"
+                },
+                "msgId": "7513201...190",
+                "text": "test",
+                "timestamp": 17493499
+            },
+            "type": "newMessage"
+        },
+        {
+            "eventId": 1318,
+            "payload": {
+                "chat": {
+                    "chatId": "87654@chat.agent",
+                    "title": "TEST",
+                    "type": "group"
+                },
+                "from": {
+                    "firstName": "Bob",
+                    "lastName": "Smith",
+                    "userId": "bob.smoth@example.com"
+                },
+                "msgId": "7513202...1007",
+                "text": "test",
+                "timestamp": 17493870
+            },
+            "type": "newMessage"
+        },
+        {
+            "eventId": 1319,
+            "payload": {
+                "chat": {
+                    "chatId": "87654@chat.agent",
+                    "title": "TEST",
+                    "type": "group"
+                },
+                "from": {
+                    "firstName": "Bob",
+                    "lastName": "Smith",
+                    "userId": "bob.smoth@example.com"
+                },
+                "msgId": "7513204...2576",
+                "text": "test",
+                "timestamp": 17494328
+            },
+            "type": "newMessage"
+        },
+        {
+            "eventId": 1320,
+            "payload": {
+                "chat": {
+                    "chatId": "87654@chat.agent",
+                    "title": "TEST",
+                    "type": "group"
+                },
+                "from": {
+                    "firstName": "Bob",
+                    "lastName": "Smith",
+                    "userId": "bob.smoth@example.com"
+                },
+                "msgId": "7513398...4471",
+                "text": "test",
+                "timestamp": 17499331
+            },
+            "type": "newMessage"
+        }
+    ],
+    "ok": true
+}
