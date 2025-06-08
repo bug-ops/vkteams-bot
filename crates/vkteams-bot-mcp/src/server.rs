@@ -54,7 +54,7 @@ Features:
     - Set chat title, about, rules, and avatar (set_chat_title, set_chat_about, set_chat_rules, set_chat_avatar)
     - Send chat actions (typing/looking) (send_action)
     - Block, unblock, delete, and resolve pending users (block_user, unblock_user, delete_chat_members, resolve_pending)
-Important: When sending messages to the bot, you must use the formatting template
+Important! When sending text messages to the bot, you must use the formatting template (HTML):
     - <b>bold</b>, <strong>bold</strong>
     - <i>italic</i>, <em>italic</em>
     - <u>underline</u>, <ins>underline</ins>
