@@ -12,7 +12,7 @@ async fn main() -> Result<()> {
     let bot = Bot::default();
     // Get events from the API
     let res = bot
-        .send_api_request(RequestEventsGet::new(bot.get_last_event_id().await))
+        .send_api_request(RequestEventsGet::new(bot.get_last_event_id().await).with_poll_time(30))
         .await?;
     // Check if there are any events with new messages event type
     for event in res.events {
