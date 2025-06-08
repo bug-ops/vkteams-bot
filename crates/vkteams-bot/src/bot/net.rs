@@ -247,7 +247,7 @@ pub async fn get_bytes_response(client: Client, url: Url) -> Result<Vec<u8>> {
 /// - `BotError::Validation` - file not specified
 /// - `BotError::Io` - error working with file
 #[tracing::instrument(skip(file))]
-pub async fn file_to_multipart(file: &MultipartName) -> Result<Form> {
+pub async fn file_to_multipart(file: MultipartName) -> Result<Form> {
     //Get name of the form part
     let name = file.to_string();
     //Get filename

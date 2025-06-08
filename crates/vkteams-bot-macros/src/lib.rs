@@ -124,16 +124,16 @@ pub fn derive_get_field(input: TokenStream) -> TokenStream {
     let multipart_impl = if has_multipart {
         quote! {
             impl #name {
-                pub fn _get_multipart(&self) -> &crate::api::types::MultipartName {
-                    &self.multipart
+                pub fn _get_multipart(&self) -> crate::api::types::MultipartName {
+                    self.multipart
                 }
             }
         }
     } else {
         quote! {
             impl #name {
-                pub fn _get_multipart(&self) -> &crate::api::types::MultipartName {
-                    &crate::api::types::MultipartName::None
+                pub fn _get_multipart(&self) -> crate::api::types::MultipartName {
+                    crate::api::types::MultipartName::None
                 }
             }
         }

@@ -73,7 +73,7 @@ macro_rules! bot_api_method {
                 self._get_chat_id()
             }
 
-            fn get_multipart(&self) -> &$crate::api::types::MultipartName {
+            fn get_multipart(&self) -> $crate::api::types::MultipartName {
                 self._get_multipart()
             }
         }
