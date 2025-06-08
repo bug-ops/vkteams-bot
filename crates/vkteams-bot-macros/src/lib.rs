@@ -61,3 +61,86 @@ pub fn derive_chat_id(input: TokenStream) -> TokenStream {
 
     impl_block.into()
 }
+
+#[proc_macro_derive(GetField)]
+pub fn derive_get_field(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = input.ident;
+    let fields = match input.data {
+        Data::Struct(data) => match data.fields {
+            Fields::Named(fields) => fields.named,
+            _ => return quote! {}.into(),
+        },
+        _ => return quote! {}.into(),
+    };
+
+    // Проверяем наличие chat_id: ChatId
+    let has_chat_id = fields.iter().any(|f| {
+        f.ident.as_ref().map(|id| id == "chat_id").unwrap_or(false)
+            && match &f.ty {
+                Type::Path(type_path) => type_path
+                    .path
+                    .segments
+                    .last()
+                    .map(|s| s.ident == "ChatId")
+                    .unwrap_or(false),
+                _ => false,
+            }
+    });
+    // Проверяем наличие multipart: MultipartName
+    let has_multipart = fields.iter().any(|f| {
+        f.ident
+            .as_ref()
+            .map(|id| id == "multipart")
+            .unwrap_or(false)
+            && match &f.ty {
+                Type::Path(type_path) => type_path
+                    .path
+                    .segments
+                    .last()
+                    .map(|s| s.ident == "MultipartName")
+                    .unwrap_or(false),
+                _ => false,
+            }
+    });
+
+    let chat_id_impl = if has_chat_id {
+        quote! {
+            impl #name {
+                pub fn _get_chat_id(&self) -> Option<&crate::api::types::ChatId> {
+                    Some(&self.chat_id)
+                }
+            }
+        }
+    } else {
+        quote! {
+            impl #name {
+                pub fn _get_chat_id(&self) -> Option<&crate::api::types::ChatId> {
+                    None
+                }
+            }
+        }
+    };
+    let multipart_impl = if has_multipart {
+        quote! {
+            impl #name {
+                pub fn _get_multipart(&self) -> crate::api::types::MultipartName {
+                    self.multipart
+                }
+            }
+        }
+    } else {
+        quote! {
+            impl #name {
+                pub fn _get_multipart(&self) -> crate::api::types::MultipartName {
+                    crate::api::types::MultipartName::None
+                }
+            }
+        }
+    };
+    let expanded = quote! {
+        #chat_id_impl
+        #multipart_impl
+    };
+    expanded.into()
+}

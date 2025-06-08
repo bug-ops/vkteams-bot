@@ -7,7 +7,7 @@ repository = "https://github.com/bug-ops/vkteams-bot/tree/master"
 homepage = "https://github.com/bug-ops/vkteams-bot"
 documentation = "https://docs.rs/vkteams-bot"
 name = "vkteams-bot"
-version = "0.9.8"
+version = "0.9.9"
 authors = ["Andrei G. <k05h31@gmail.com>"]
 license.workspace = true
 edition.workspace = true
@@ -57,7 +57,7 @@ tonic-health = { version = "0.13", optional = true }
 http = "1.2"
 paste = "1"
 url = "2.5"
-vkteams-bot-macros = { version = "0.1", path = "../vkteams-bot-macros" }
+vkteams-bot-macros = { version = "0.2", path = "../vkteams-bot-macros" }
 dashmap = "6"
 rand = "0.9"
 

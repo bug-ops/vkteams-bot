@@ -48,7 +48,7 @@ pub trait BotRequest {
     const HTTP_METHOD: HTTPMethod = HTTPMethod::GET;
     type RequestType: Serialize + Debug + Default;
     type ResponseType: Serialize + DeserializeOwned + Debug + Default;
-    fn get_file(&self) -> MultipartName {
+    fn get_multipart(&self) -> MultipartName {
         MultipartName::None
     }
     fn new(args: Self::Args) -> Self;

@@ -227,7 +227,7 @@ impl Bot {
         let body = match <Rq>::HTTP_METHOD {
             HTTPMethod::POST => {
                 debug!("Sending POST request with file");
-                let form = file_to_multipart(message.get_file()).await?;
+                let form = file_to_multipart(message.get_multipart()).await?;
 
                 self.connection_pool
                     .get_or_init(ConnectionPool::optimized)
