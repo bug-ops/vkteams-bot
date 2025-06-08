@@ -5,6 +5,7 @@ use std::fmt::*;
 use std::time::Duration;
 #[cfg(feature = "templates")]
 use tera::{Context, Tera};
+use tracing::debug;
 
 /// Environment variable name for bot API URL
 pub const VKTEAMS_BOT_API_URL: &str = "VKTEAMS_BOT_API_URL";
@@ -175,8 +176,8 @@ pub struct EventPayloadNewMessage {
     pub text: String,
     pub chat: Chat,
     pub from: From,
-    #[serde(default)]
-    pub format: MessageFormat,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub format: Option<MessageFormat>,
     #[serde(default)]
     pub parts: Vec<MessageParts>,
     pub timestamp: Timestamp,
@@ -190,7 +191,8 @@ pub struct EventPayloadEditedMessage {
     pub timestamp: Timestamp,
     pub chat: Chat,
     pub from: From,
-    pub format: MessageFormat,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub format: Option<MessageFormat>,
     pub edited_timestamp: Timestamp,
 }
 /// Message payload event type deleteMessage
@@ -210,8 +212,8 @@ pub struct EventPayloadPinnedMessage {
     pub from: From,
     #[serde(default)]
     pub text: String,
-    #[serde(default)]
-    pub format: MessageFormat,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub format: Option<MessageFormat>,
     #[serde(default)]
     pub parts: Vec<MessageParts>, //FIXME API response conflict with documentation
     pub timestamp: Timestamp,
@@ -495,37 +497,51 @@ pub struct PhotoUrl {
     pub url: String,
 }
 // Intermediate structure for deserializing API responses with the "ok" field
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
-pub struct ApiResponseWrapper<T> {
-    #[serde(flatten)]
-    variant: Option<ApiOkResponse>,
-    #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    payload: Option<T>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
-struct ApiOkResponse {
-    ok: bool,
-    description: String,
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(untagged)]
+pub enum ApiResponseWrapper<T> {
+    PayloadWithOk {
+        ok: bool,
+        #[serde(flatten)]
+        payload: T,
+    },
+    PayloadOnly(T),
+    Error {
+        ok: bool,
+        description: String,
+    },
 }
 
 // Implementation of From for automatic conversion from ApiResponseWrapper to Result
 impl<T> std::convert::From<ApiResponseWrapper<T>> for Result<T>
 where
-    T: Default,
+    T: Default + Serialize + DeserializeOwned,
 {
     fn from(wrapper: ApiResponseWrapper<T>) -> Self {
-        match wrapper.variant {
-            Some(result) => {
-                if result.ok {
-                    Ok(wrapper.payload.unwrap_or_default())
+        match wrapper {
+            ApiResponseWrapper::PayloadWithOk { ok, payload } => {
+                if ok {
+                    debug!("Answer is ok, payload received");
+                    Ok(payload)
                 } else {
+                    debug!("Answer is not ok, but description is not provided");
                     Err(BotError::Api(ApiError {
-                        description: result.description,
+                        description: "Unspecified error".to_string(),
                     }))
                 }
             }
-            None => Ok(wrapper.payload.unwrap_or_default()),
+            ApiResponseWrapper::PayloadOnly(payload) => {
+                debug!("Answer is ok, payload received");
+                Ok(payload)
+            }
+            ApiResponseWrapper::Error { ok, description } => {
+                if ok {
+                    debug!("Answer is ok, BUT error description is provided");
+                } else {
+                    debug!("Answer is NOT ok and error description is provided");
+                }
+                Err(BotError::Api(ApiError { description }))
+            }
         }
     }
 }

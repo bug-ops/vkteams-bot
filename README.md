@@ -1,4 +1,4 @@
-# VKTeams-Bot 🚀
+# VKTeams-Bot (unofficial)
 
 [![Crates.io](https://img.shields.io/crates/v/vkteams-bot)](https://crates.io/crates/vkteams-bot)
 [![Downloads](https://img.shields.io/crates/d/vkteams-bot)](https://crates.io/crates/vkteams-bot)
@@ -10,9 +10,9 @@
 > **The modern, high-performance VK Teams Bot API toolkit for Rust** 🦀  
 > Complete ecosystem: Client library + CLI tools + MCP server for AI integration
 
-## ✨ Why VKTeams-Bot?
+## ✨ Why?
 
-- **🚀 Blazing Fast**: Rust performance with zero-cost abstractions
+- **🚀 Fast**: Rust performance with zero-cost abstractions
 - **🛠️ Complete Toolkit**: Library, CLI, and MCP server in one ecosystem  
 - **🤖 AI-Ready**: Native Model Context Protocol (MCP) support for LLM integration
 - **⚡ Developer-First**: Intuitive CLI with auto-completion and colored output

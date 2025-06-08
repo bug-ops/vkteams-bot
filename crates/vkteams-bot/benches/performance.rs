@@ -35,6 +35,22 @@ fn benchmark_message_serialization(c: &mut Criterion) {
     });
 }
 
+fn bench_deserialize_response_events_get(c: &mut Criterion) {
+    let j = std::fs::read_to_string("tests/chats_events_get.json").unwrap();
+
+    c.bench_function("ResponseEventsGet", |b| {
+        b.iter(|| {
+            let _: ResponseEventsGet = serde_json::from_str(&j).unwrap();
+        })
+    });
+
+    c.bench_function("ApiResponseWrapper<ResponseEventsGet>", |b| {
+        b.iter(|| {
+            let _: ApiResponseWrapper<ResponseEventsGet> = serde_json::from_str(&j).unwrap();
+        })
+    });
+}
+
 fn benchmark_memory_usage(c: &mut Criterion) {
     // let _profiler = dhat::Profiler::new_heap();
     c.bench_function("memory_efficiency", |b| {
@@ -52,6 +68,7 @@ criterion_group!(
     benches,
     benchmark_bot_creation,
     benchmark_message_serialization,
-    benchmark_memory_usage
+    benchmark_memory_usage,
+    bench_deserialize_response_events_get
 );
 criterion_main!(benches);

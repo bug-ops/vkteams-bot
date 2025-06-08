@@ -20,43 +20,17 @@ bot_api_method! {
 #[cfg(test)]
 use crate::prelude::*;
 #[test]
-fn test_print_out() {
-    let j = r#"
-        {
-          "events": [
-            {
-              "eventId": 1299,
-              "payload": {
-                "chat": {
-                  "chatId": "123456@chat.agent",
-                  "title": "TEST",
-                  "type": "group"
-                },
-                "from": {
-                  "firstName": "Test",
-                  "lastName": "Tests",
-                  "userId": "test@examle.com"
-                },
-                "msgId": "1111117815001117942",
-                "parts": [
-                  {
-                    "payload": { "fileId": "zFDf9...1bg" },
-                    "type": "file"
-                  }
-                ],
-                "text": "https://files-n.internal.example.com/get/zFDf9...1bg",
-                "timestamp": 1747470306
-              },
-              "type": "newMessage"
-            }
-          ],
-          "ok": true
-        }
-        "#;
-    match serde_json::from_str::<ResponseEventsGet>(j) {
-        Ok(response) => println!("{:?}", response),
-        Err(e) => {
+fn test_chats_events_get_deserialization() {
+    let j = std::fs::read_to_string("tests/chats_events_get.json").unwrap();
+    // Test deserialization of ResponseEventsGet
+    let _ = serde_json::from_str::<ResponseEventsGet>(j.as_str()).map_err(|e| {
+        eprintln!("Error deserializing response: {}", e);
+        assert!(false);
+    });
+    // Test deserialization of ApiResponseWrapper<ResponseEventsGet>
+    let _ =
+        serde_json::from_str::<ApiResponseWrapper<ResponseEventsGet>>(j.as_str()).map_err(|e| {
             eprintln!("Error deserializing response: {}", e);
-        }
-    };
+            assert!(false);
+        });
 }
