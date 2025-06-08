@@ -81,7 +81,33 @@ impl Server {
     async fn send_text(
         &self,
         #[tool(param)]
-        #[schemars(description = TEXT_FORMATTING_GUIDELINES)]
+        #[schemars(description = r#"New text.
+        You must use the formatting template (HTML):
+            <b>bold</b>, <strong>bold</strong>
+            <i>italic</i>, <em>italic</em>
+            <u>underline</u>, <ins>underline</ins>
+            <s>strikethrough</s>, <strike>strikethrough</strike>, <del>strikethrough</del>
+            <a href="http://www.example.com/">inline URL</a>
+            <a>@[{chat_id}]</a> - inline mention of a user where {chat_id} is the chat ID of the user
+            <code>inline fixed-width code</code>
+            <pre>pre-formatted fixed-width code block</pre>
+            <pre><code class="python">pre-formatted fixed-width code block written in the Python programming language</code></pre>
+            Ordered list:
+            <ol>
+                <li>First element</li>
+                <li>Second element</li>
+            </ol>
+            Unordered list:
+            <ul>
+                <li>First element</li>
+                <li>Second element</li>
+            </ul>
+            Quote:
+            <blockquote>
+                Begin of quote.
+                End of quote.
+            </blockquote>
+        "#)]
         text: String,
         #[tool(param)]
         #[schemars(description = "Reply to message ID (optional)")]
