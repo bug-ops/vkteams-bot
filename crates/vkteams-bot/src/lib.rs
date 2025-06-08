@@ -21,6 +21,7 @@
 #[macro_export]
 macro_rules! bot_api_method {
     (
+        $(#[$req_attr:meta])*
         method = $method:literal,
         $(http_method = $http_method:expr,)?
         request = $Req:ident {
@@ -36,9 +37,11 @@ macro_rules! bot_api_method {
         },
     ) => {
         use serde::{Deserialize, Serialize};
-        #[derive(Serialize, Deserialize, Clone, Debug, Default, vkteams_bot_macros::ChatId)]
+        use vkteams_bot_macros::GetField;
+        #[derive(Serialize, Deserialize, Clone, Debug, Default, GetField)]
         #[serde(rename_all = "camelCase")]
         #[non_exhaustive]
+        $(#[$req_attr])*
         pub struct $Req {
             $( pub $req_f : $ReqT, )*
             $( $(#[$opt_attr])*
@@ -68,6 +71,10 @@ macro_rules! bot_api_method {
 
             fn get_chat_id(&self) -> Option<&$crate::api::types::ChatId> {
                 self._get_chat_id()
+            }
+
+            fn get_multipart(&self) -> &$crate::api::types::MultipartName {
+                self._get_multipart()
             }
         }
 

@@ -1,6 +1,7 @@
 //! Send a file to a chat method `messages/sendFile`
 //! [More info](https://teams.vk.com/botapi/#/messages/get_messages_sendFile)
 use crate::prelude::*;
+
 bot_api_method! {
     method = "messages/sendFile",
     http_method = HTTPMethod::POST,
