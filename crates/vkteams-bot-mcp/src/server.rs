@@ -41,7 +41,45 @@ impl ServerHandler for Server {
     tool_box!(@derive);
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
-            instructions: Some("VKTeams MCP Server — a server for managing a VK Teams bot via MCP (Machine Control Protocol).\n\nFeatures:\n- Send text messages to chat (send_text)\n- Get bot information (self_get)\n- Get chat information (chat_info)\n- Get file information (file_info)\n- Get events (events_get)\n\nTo send a message, use the send_text tool with the text parameter.\nExample: {\"tool\": \"send_text\", \"params\": {\"text\": \"Hello!\"}}\n\nYou must pre-configure the environment variables VKTEAMS_BOT_API_TOKEN, VKTEAMS_BOT_API_URL, VKTEAMS_BOT_CHAT_ID.\n\nDocumentation: https://teams.vk.com/botapi/?lang=en".into()),
+            instructions: Some(r#"VKTeams MCP Server — a server for managing a VK Teams bot via MCP (Machine Control Protocol).
+Features:
+    - Send text messages to chat (send_text)
+    - Get bot information (self_get)
+    - Get chat information (chat_info)
+    - Get file information (file_info)
+    - Get events (events_get)
+    - Send files and voice messages (send_file, send_voice)
+    - Edit, delete, pin, and unpin messages (edit_message, delete_message, pin_message, unpin_message)
+    - Get chat members, admins, pending and blocked users (get_chat_members, get_chat_admins, get_chat_pending_users, get_chat_blocked_users)
+    - Set chat title, about, rules, and avatar (set_chat_title, set_chat_about, set_chat_rules, set_chat_avatar)
+    - Send chat actions (typing/looking) (send_action)
+    - Block, unblock, delete, and resolve pending users (block_user, unblock_user, delete_chat_members, resolve_pending)
+Important: When sending messages to the bot, you must use the formatting template
+    - <b>bold</b>, <strong>bold</strong>
+    - <i>italic</i>, <em>italic</em>
+    - <u>underline</u>, <ins>underline</ins>
+    - <s>strikethrough</s>, <strike>strikethrough</strike>, <del>strikethrough</del>
+    - <a href="http://www.example.com/">inline URL</a>
+    - <a>inline mention of a user</a>
+    - <code>inline fixed-width code</code>
+    - <pre>pre-formatted fixed-width code block</pre>
+    - <pre><code class="python">pre-formatted fixed-width code block written in the Python programming language</code></pre>
+    - Ordered list:
+    <ol>
+        <li>First element</li>
+        <li>Second element</li>
+    </ol>
+    - Unordered list:
+    <ul>
+        <li>First element</li>
+        <li>Second element</li>
+    </ul>
+    - Quote:
+    <blockquote>
+        Begin of quote.
+        End of quote.
+    </blockquote>
+            "#.into()),
             ..Default::default()
         }
     }
