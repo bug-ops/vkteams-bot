@@ -74,7 +74,7 @@ pub fn derive_get_field(input: TokenStream) -> TokenStream {
         _ => return quote! {}.into(),
     };
 
-    // Проверяем наличие chat_id: ChatId
+    // Check for chat_id: ChatId
     let has_chat_id = fields.iter().any(|f| {
         f.ident.as_ref().map(|id| id == "chat_id").unwrap_or(false)
             && match &f.ty {
@@ -87,21 +87,13 @@ pub fn derive_get_field(input: TokenStream) -> TokenStream {
                 _ => false,
             }
     });
-    // Проверяем наличие multipart: MultipartName
+    // Check for multipart: MultipartName
     let has_multipart = fields.iter().any(|f| {
         f.ident
             .as_ref()
             .map(|id| id == "multipart")
             .unwrap_or(false)
-            && match &f.ty {
-                Type::Path(type_path) => type_path
-                    .path
-                    .segments
-                    .last()
-                    .map(|s| s.ident == "MultipartName")
-                    .unwrap_or(false),
-                _ => false,
-            }
+            && is_type_named(&f.ty, "MultipartName")
     });
 
     let chat_id_impl = if has_chat_id {
@@ -124,16 +116,16 @@ pub fn derive_get_field(input: TokenStream) -> TokenStream {
     let multipart_impl = if has_multipart {
         quote! {
             impl #name {
-                pub fn _get_multipart(&self) -> crate::api::types::MultipartName {
-                    self.multipart
+                pub fn _get_multipart(&self) -> &crate::api::types::MultipartName {
+                    &self.multipart
                 }
             }
         }
     } else {
         quote! {
             impl #name {
-                pub fn _get_multipart(&self) -> crate::api::types::MultipartName {
-                    crate::api::types::MultipartName::None
+                pub fn _get_multipart(&self) -> &crate::api::types::MultipartName {
+                    &crate::api::types::MultipartName::None
                 }
             }
         }
@@ -143,4 +135,12 @@ pub fn derive_get_field(input: TokenStream) -> TokenStream {
         #multipart_impl
     };
     expanded.into()
+}
+
+fn is_type_named(ty: &Type, name: &str) -> bool {
+    match ty {
+        Type::Path(type_path) => type_path.path.segments.iter().any(|seg| seg.ident == name),
+        Type::Group(group) => is_type_named(&group.elem, name),
+        _ => false,
+    }
 }

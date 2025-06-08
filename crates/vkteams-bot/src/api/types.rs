@@ -48,8 +48,8 @@ pub trait BotRequest {
     const HTTP_METHOD: HTTPMethod = HTTPMethod::GET;
     type RequestType: Serialize + Debug + Default;
     type ResponseType: Serialize + DeserializeOwned + Debug + Default;
-    fn get_multipart(&self) -> MultipartName {
-        MultipartName::None
+    fn get_multipart(&self) -> &MultipartName {
+        &MultipartName::None
     }
     fn new(args: Self::Args) -> Self;
     fn get_chat_id(&self) -> Option<&ChatId>;
