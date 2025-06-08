@@ -143,4 +143,3 @@ fn is_type_named(ty: &Type, name: &str) -> bool {
         Type::Group(group) => is_type_named(&group.elem, name),
         _ => false,
     }
-}
