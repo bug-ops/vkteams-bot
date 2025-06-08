@@ -3,7 +3,7 @@ use crate::types::Server;
 use rmcp::tool_box;
 use rmcp::{
     ServerHandler,
-    model::{CallToolResult, Content, ErrorData, ServerInfo},
+    model::{CallToolResult, Content, ErrorData, ServerCapabilities, ServerInfo},
     tool,
 };
 use serde::Serialize;
@@ -40,45 +40,25 @@ where
 impl ServerHandler for Server {
     tool_box!(@derive);
     fn get_info(&self) -> ServerInfo {
+        let capabilities = ServerCapabilities::builder()
+            .enable_tools()
+            .enable_prompts()
+            .build();
         ServerInfo {
-            instructions: Some(r#"VKTeams MCP Server — a server for managing a VK Teams bot via MCP (Machine Control Protocol).
-Features:
-    - Send text messages to chat (send_text)
-    - Get bot information (self_get)
-    - Get chat information (chat_info)
-    - Get file information (file_info)
-    - Get events (events_get)
-    - Send files and voice messages (send_file, send_voice)
-    - Edit, delete, pin, and unpin messages (edit_message, delete_message, pin_message, unpin_message)
-    - Get chat members, admins, pending and blocked users (get_chat_members, get_chat_admins, get_chat_pending_users, get_chat_blocked_users)
-    - Set chat title, about, rules, and avatar (set_chat_title, set_chat_about, set_chat_rules, set_chat_avatar)
-    - Send chat actions (typing/looking) (send_action)
-    - Block, unblock, delete, and resolve pending users (block_user, unblock_user, delete_chat_members, resolve_pending)
-Important! When sending text messages to the bot, you must use the formatting template (HTML):
-    - <b>bold</b>, <strong>bold</strong>
-    - <i>italic</i>, <em>italic</em>
-    - <u>underline</u>, <ins>underline</ins>
-    - <s>strikethrough</s>, <strike>strikethrough</strike>, <del>strikethrough</del>
-    - <a href="http://www.example.com/">inline URL</a>
-    - <a>inline mention of a user</a>
-    - <code>inline fixed-width code</code>
-    - <pre>pre-formatted fixed-width code block</pre>
-    - <pre><code class="python">pre-formatted fixed-width code block written in the Python programming language</code></pre>
-    - Ordered list:
-    <ol>
-        <li>First element</li>
-        <li>Second element</li>
-    </ol>
-    - Unordered list:
-    <ul>
-        <li>First element</li>
-        <li>Second element</li>
-    </ul>
-    - Quote:
-    <blockquote>
-        Begin of quote.
-        End of quote.
-    </blockquote>
+            capabilities,
+            instructions: Some(r#"VKTeams MCP Server — a server for managing a VK Teams bot via MCP (Model Context Protocol).
+        Tools:
+            - Send text messages to chat (send_text)
+            - Get bot information (self_get)
+            - Get chat information (chat_info)
+            - Get file information (file_info)
+            - Get events (events_get)
+            - Send files and voice messages (send_file, send_voice)
+            - Edit, delete, pin, and unpin messages (edit_message, delete_message, pin_message, unpin_message)
+            - Get chat members, admins, pending and blocked users (get_chat_members, get_chat_admins, get_chat_pending_users, get_chat_blocked_users)
+            - Set chat title, about, rules, and avatar (set_chat_title, set_chat_about, set_chat_rules, set_chat_avatar)
+            - Send chat actions (typing/looking) (send_action)
+            - Block, unblock, delete, and resolve pending users (block_user, unblock_user, delete_chat_members, resolve_pending)
             "#.into()),
             ..Default::default()
         }
@@ -101,10 +81,55 @@ impl Server {
     async fn send_text(
         &self,
         #[tool(param)]
-        #[schemars(description = "Text to send in chat")]
+        #[schemars(description = r#"Text to send in chat.
+        You must use the formatting template (HTML):
+            <b>bold</b>, <strong>bold</strong>
+            <i>italic</i>, <em>italic</em>
+            <u>underline</u>, <ins>underline</ins>
+            <s>strikethrough</s>, <strike>strikethrough</strike>, <del>strikethrough</del>
+            <a href="http://www.example.com/">inline URL</a>
+            <a>@[{chat_id}]</a> - inline mention of a user where {chat_id} is the chat ID of the user
+            <code>inline fixed-width code</code>
+            <pre>pre-formatted fixed-width code block</pre>
+            <pre><code class="python">pre-formatted fixed-width code block written in the Python programming language</code></pre>
+            Ordered list:
+            <ol>
+                <li>First element</li>
+                <li>Second element</li>
+            </ol>
+            Unordered list:
+            <ul>
+                <li>First element</li>
+                <li>Second element</li>
+            </ul>
+            Quote:
+            <blockquote>
+                Begin of quote.
+                End of quote.
+            </blockquote>"#)]
         text: String,
+        #[tool(param)]
+        #[schemars(description = "Reply to message ID (optional)")]
+        reply_msg_id: Option<String>,
+        #[tool(param)]
+        #[schemars(description = "Forward message ID (optional)")]
+        forward_msg_id: Option<String>,
+        #[tool(param)]
+        #[schemars(description = "Forward from chat ID (optional)")]
+        forward_from_chat_id: Option<String>,
     ) -> MCPResult {
-        let req = RequestMessagesSendText::new(ChatId(self.chat_id.clone())).with_text(text);
+        let mut req = RequestMessagesSendText::new(ChatId(self.chat_id.clone()))
+            .with_text(text)
+            .with_parse_mode(ParseMode::HTML);
+        if let Some(reply_to_msg_id) = reply_msg_id {
+            req = req.with_reply_msg_id(MsgId(reply_to_msg_id));
+        }
+        if let Some(forward_msg_id) = forward_msg_id {
+            req = req.with_forward_msg_id(MsgId(forward_msg_id));
+        }
+        if let Some(forward_from_chat_id) = forward_from_chat_id {
+            req = req.with_forward_chat_id(ChatId(forward_from_chat_id));
+        }
         self.client()
             .send_api_request(req)
             .await
@@ -148,7 +173,7 @@ impl Server {
             .map_err(McpError::from)
             .into_mcp_result()
     }
-
+    //TODO upload file directly in binary
     #[tool(description = "Send file to chat")]
     async fn send_file(
         &self,
@@ -192,12 +217,38 @@ impl Server {
         #[schemars(description = "Message ID")]
         msg_id: String,
         #[tool(param)]
-        #[schemars(description = "New text")]
+        #[schemars(description = r#"New text.
+        You must use the formatting template (HTML):
+            <b>bold</b>, <strong>bold</strong>
+            <i>italic</i>, <em>italic</em>
+            <u>underline</u>, <ins>underline</ins>
+            <s>strikethrough</s>, <strike>strikethrough</strike>, <del>strikethrough</del>
+            <a href="http://www.example.com/">inline URL</a>
+            <a>@[{chat_id}]</a> - inline mention of a user where {chat_id} is the chat ID of the user
+            <code>inline fixed-width code</code>
+            <pre>pre-formatted fixed-width code block</pre>
+            <pre><code class="python">pre-formatted fixed-width code block written in the Python programming language</code></pre>
+            Ordered list:
+            <ol>
+                <li>First element</li>
+                <li>Second element</li>
+            </ol>
+            Unordered list:
+            <ul>
+                <li>First element</li>
+                <li>Second element</li>
+            </ul>
+            Quote:
+            <blockquote>
+                Begin of quote.
+                End of quote.
+            </blockquote>
+        "#)]
         text: String,
     ) -> MCPResult {
         let req = RequestMessagesEditText::new((ChatId(self.chat_id.clone()), MsgId(msg_id)))
-            .set_text(MessageTextParser::new().add(MessageTextFormat::Plain(text)))
-            .map_err(McpError::from)?;
+            .with_text(text)
+            .with_parse_mode(ParseMode::HTML);
         self.client()
             .send_api_request(req)
             .await
