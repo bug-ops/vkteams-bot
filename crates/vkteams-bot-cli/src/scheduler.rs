@@ -221,7 +221,7 @@ impl Scheduler {
             TaskType::SendFile { chat_id, file_path } => {
                 let request = RequestMessagesSendFile::new((
                     ChatId(chat_id.clone()),
-                    MultipartName::File(file_path.clone()),
+                    MultipartName::FilePath(file_path.clone()),
                 ));
                 bot.send_api_request(request)
                     .await
@@ -231,7 +231,7 @@ impl Scheduler {
             TaskType::SendVoice { chat_id, file_path } => {
                 let request = RequestMessagesSendVoice::new((
                     ChatId(chat_id.clone()),
-                    MultipartName::File(file_path.clone()),
+                    MultipartName::FilePath(file_path.clone()),
                 ));
                 bot.send_api_request(request)
                     .await

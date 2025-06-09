@@ -249,18 +249,19 @@ pub async fn get_bytes_response(client: Client, url: Url) -> Result<Vec<u8>> {
 #[tracing::instrument(skip(file))]
 pub async fn file_to_multipart(file: &MultipartName) -> Result<Form> {
     //Get name of the form part
-    let name = file.to_string();
-    //Get filename
-    let filename = match file {
-        MultipartName::File(name) | MultipartName::Image(name) => name,
-        _ => return Err(BotError::Validation("File not specified".to_string())),
-    };
-    //Create stream from file
-    let file_stream = make_stream(filename).await?;
-    //Create part from stream
-    let part = Part::stream(file_stream).file_name(filename.to_string());
-    //Create multipart form
-    Ok(Form::new().part(name, part))
+    match file {
+        MultipartName::FilePath(name) | MultipartName::ImagePath(name) => {
+            let file_stream = make_stream(name).await?;
+            let part = Part::stream(file_stream).file_name(name.to_string());
+            Ok(Form::new().part(name.to_string(), part))
+        }
+        MultipartName::FileContent { filename, content }
+        | MultipartName::ImageContent { filename, content } => {
+            let part = Part::bytes(content.clone()).file_name(filename.clone());
+            Ok(Form::new().part(filename.to_string(), part))
+        }
+        _ => Err(BotError::Validation("File not specified".to_string())),
+    }
 }
 /// Create stream from file
 /// - `path` - file path

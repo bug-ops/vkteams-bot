@@ -455,8 +455,16 @@ pub enum ChatActions {
 /// Multipart name
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub enum MultipartName {
-    File(String),
-    Image(String),
+    FilePath(String),
+    ImagePath(String),
+    FileContent {
+        filename: String,
+        content: Vec<u8>,
+    },
+    ImageContent {
+        filename: String,
+        content: Vec<u8>,
+    },
     #[default]
     None,
 }
@@ -567,8 +575,8 @@ impl Display for MultipartName {
     /// Format [`MultipartName`] to string
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
-            MultipartName::File(..) => write!(f, "file"),
-            MultipartName::Image(..) => write!(f, "image"),
+            MultipartName::FilePath(..) | MultipartName::FileContent { .. } => write!(f, "file"),
+            MultipartName::ImagePath(..) | MultipartName::ImageContent { .. } => write!(f, "image"),
             _ => write!(f, ""),
         }
     }

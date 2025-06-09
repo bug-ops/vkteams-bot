@@ -15,3 +15,4 @@ compose.yaml
 .svg
 .*ignore
 .venv
+.cursor

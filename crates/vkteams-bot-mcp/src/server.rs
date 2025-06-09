@@ -8,6 +8,7 @@ use rmcp::{
 };
 use serde::Serialize;
 use std::result::Result;
+use vkteams_bot::prelude::ParseMode;
 use vkteams_bot::prelude::*;
 
 pub trait IntoCallToolResult<T>
@@ -174,18 +175,53 @@ impl Server {
             .map_err(McpError::from)
             .into_mcp_result()
     }
-    //TODO upload file directly in binary
     #[tool(description = "Send file to chat")]
     async fn send_file(
         &self,
         #[tool(param)]
-        #[schemars(description = "Path to file")]
-        file_path: String,
+        #[schemars(description = "File name")]
+        file_name: String,
+        #[tool(param)]
+        #[schemars(description = "File content")]
+        file_content: Vec<u8>,
+        #[tool(param)]
+        #[schemars(description = "Text message (optional)")]
+        text: Option<String>,
+        #[tool(param)]
+        #[schemars(description = "Reply to message ID (optional)")]
+        reply_msg_id: Option<String>,
+        #[tool(param)]
+        #[schemars(description = "Forward from chat ID (optional)")]
+        forward_chat_id: Option<String>,
+        #[tool(param)]
+        #[schemars(description = "Forward message ID (optional)")]
+        forward_msg_id: Option<String>,
+        #[tool(param)]
+        #[schemars(description = "Inline keyboard markup (optional)")]
+        inline_keyboard_markup: Option<String>,
     ) -> MCPResult {
-        let req = RequestMessagesSendFile::new((
+        let mut req = RequestMessagesSendFile::new((
             ChatId(self.chat_id.clone()),
-            MultipartName::File(file_path),
+            MultipartName::FileContent {
+                filename: file_name.clone(),
+                content: file_content.clone(),
+            },
         ));
+        if let Some(text) = text {
+            req = req.with_text(text);
+        }
+        if let Some(reply_msg_id) = reply_msg_id {
+            req = req.with_reply_msg_id(MsgId(reply_msg_id));
+        }
+        if let Some(forward_chat_id) = forward_chat_id {
+            req = req.with_forward_chat_id(ChatId(forward_chat_id));
+        }
+        if let Some(forward_msg_id) = forward_msg_id {
+            req = req.with_forward_msg_id(MsgId(forward_msg_id));
+        }
+        if let Some(inline_keyboard_markup) = inline_keyboard_markup {
+            req = req.with_inline_keyboard_markup(inline_keyboard_markup);
+        }
         self.client()
             .send_api_request(req)
             .await
@@ -197,12 +233,18 @@ impl Server {
     async fn send_voice(
         &self,
         #[tool(param)]
-        #[schemars(description = "Path to voice file")]
-        file_path: String,
+        #[schemars(description = "File name")]
+        file_name: String,
+        #[tool(param)]
+        #[schemars(description = "File content")]
+        file_content: Vec<u8>,
     ) -> MCPResult {
         let req = RequestMessagesSendVoice::new((
             ChatId(self.chat_id.clone()),
-            MultipartName::File(file_path),
+            MultipartName::FileContent {
+                filename: file_name.clone(),
+                content: file_content.clone(),
+            },
         ));
         self.client()
             .send_api_request(req)
@@ -482,12 +524,18 @@ impl Server {
     async fn set_chat_avatar(
         &self,
         #[tool(param)]
-        #[schemars(description = "Path to image file")]
-        file_path: String,
+        #[schemars(description = "File name")]
+        file_name: String,
+        #[tool(param)]
+        #[schemars(description = "File content")]
+        file_content: Vec<u8>,
     ) -> MCPResult {
         let req = RequestChatsAvatarSet::new((
             ChatId(self.chat_id.clone()),
-            MultipartName::Image(file_path),
+            MultipartName::ImageContent {
+                filename: file_name.clone(),
+                content: file_content.clone(),
+            },
         ));
         self.client()
             .send_api_request(req)

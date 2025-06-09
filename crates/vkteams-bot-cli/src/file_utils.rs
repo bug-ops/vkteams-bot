@@ -194,7 +194,7 @@ pub async fn upload_file(
     let result = match bot
         .send_api_request(RequestMessagesSendFile::new((
             ChatId(user_id.to_string()),
-            MultipartName::File(source_path.to_string()),
+            MultipartName::FilePath(source_path.to_string()),
         )))
         .await
     {
@@ -255,7 +255,7 @@ pub async fn upload_voice(
     let result = match bot
         .send_api_request(RequestMessagesSendVoice::new((
             ChatId(user_id.to_string()),
-            MultipartName::File(source_path.to_string()),
+            MultipartName::FilePath(source_path.to_string()),
         )))
         .await
     {

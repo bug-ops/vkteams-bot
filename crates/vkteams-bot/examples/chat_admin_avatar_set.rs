@@ -76,7 +76,7 @@ pub async fn avatar_set(bot: &Bot, chat_id: ChatId) -> Result<()> {
         // tests folder contains test.jpg file
         .send_api_request(RequestChatsAvatarSet::new((
             chat_id,
-            MultipartName::Image(String::from("tests/test.jpg")),
+            MultipartName::ImagePath(String::from("tests/test.jpg")),
         )))
         .await?;
     Ok(())
