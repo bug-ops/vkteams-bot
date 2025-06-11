@@ -54,3 +54,5 @@ completion = ["dep:clap_complete"]
 [dev-dependencies]
 dotenvy = "0.15"
 tempfile = "3.8"
+dialoguer = { version = "0.11", features = ["fuzzy-select"] }
+console = "0.15"
