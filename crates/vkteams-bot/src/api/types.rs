@@ -443,7 +443,7 @@ pub enum ChatType {
     Channel,
 }
 /// Chat actions
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum ChatActions {
     Looking,
