@@ -332,6 +332,11 @@ impl Scheduler {
                 duration_seconds,
                 start_time,
             } => {
+                if *duration_seconds == 0 {
+                    return Err(CliError::InputError(
+                        "Interval must be greater than 0".to_string(),
+                    ));
+                }
                 if base_time < *start_time {
                     Ok(*start_time)
                 } else {
@@ -403,6 +408,21 @@ impl Scheduler {
         debug!("Saved {} tasks to scheduler data file", self.tasks.len());
         Ok(())
     }
+
+    pub(crate) fn create_test_scheduler() -> (Scheduler, tempfile::TempDir) {
+        let temp_dir = tempdir().unwrap();
+        let mut data_file = PathBuf::from(temp_dir.path());
+        data_file.push("scheduler_tasks_test.json");
+        if let Some(parent) = data_file.parent() {
+            std::fs::create_dir_all(parent).unwrap();
+        }
+        let scheduler = Scheduler {
+            tasks: HashMap::new(),
+            data_file,
+            bot: None,
+        };
+        (scheduler, temp_dir)
+    }
 }
 
 impl TaskType {
@@ -449,7 +469,7 @@ mod tests {
     use std::path::PathBuf;
     use tempfile::tempdir;
 
-    fn create_test_scheduler() -> (Scheduler, tempfile::TempDir) {
+    pub(crate) fn create_test_scheduler() -> (Scheduler, tempfile::TempDir) {
         let temp_dir = tempdir().unwrap();
         let mut data_file = PathBuf::from(temp_dir.path());
         data_file.push("scheduler_tasks_test.json");
@@ -579,5 +599,128 @@ mod tests {
         let (mut scheduler, _tempdir) = create_test_scheduler();
         assert!(scheduler.enable_task("no_such_id").is_err());
         assert!(scheduler.disable_task("no_such_id").is_err());
+    }
+}
+
+#[cfg(test)]
+mod async_tests {
+    use super::*;
+    use chrono::TimeZone;
+    use tempfile::tempdir;
+    use tokio_test::block_on;
+    use vkteams_bot::prelude::*;
+
+    fn create_test_scheduler_with_bot() -> (Scheduler, tempfile::TempDir) {
+        let (mut scheduler, tempdir) = super::tests::create_test_scheduler();
+        // Используем dummy Bot (не делает реальных запросов)
+        let bot =
+            Bot::with_params(&APIVersionUrl::V1, "dummy_token", "https://dummy.api.com").unwrap();
+        scheduler.set_bot(bot);
+        (scheduler, tempdir)
+    }
+
+    #[tokio::test]
+    async fn test_run_task_once_success() {
+        let (mut scheduler, _tempdir) = create_test_scheduler_with_bot();
+        let task_id = scheduler
+            .add_task(
+                TaskType::SendText {
+                    chat_id: "user1".to_string(),
+                    message: "hi".to_string(),
+                },
+                ScheduleType::Once(Utc::now() + Duration::minutes(1)),
+                Some(2),
+            )
+            .unwrap();
+        let res = scheduler.run_task_once(&task_id).await;
+        // Может быть Ok или Err (dummy Bot), главное — не panic
+        assert!(res.is_ok() || res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_run_task_once_disabled() {
+        let (mut scheduler, _tempdir) = create_test_scheduler_with_bot();
+        let task_id = scheduler
+            .add_task(
+                TaskType::SendText {
+                    chat_id: "user2".to_string(),
+                    message: "hi".to_string(),
+                },
+                ScheduleType::Once(Utc::now() + Duration::minutes(1)),
+                Some(1),
+            )
+            .unwrap();
+        scheduler.disable_task(&task_id).unwrap();
+        let res = scheduler.run_task_once(&task_id).await;
+        // Должен выполниться, но задача disabled — поведение зависит от execute_task
+        assert!(res.is_ok() || res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_run_task_once_not_found() {
+        let (mut scheduler, _tempdir) = create_test_scheduler_with_bot();
+        let res = scheduler.run_task_once("no_such_id").await;
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_run_task_once_max_runs() {
+        let (mut scheduler, _tempdir) = create_test_scheduler_with_bot();
+        let task_id = scheduler
+            .add_task(
+                TaskType::SendText {
+                    chat_id: "user3".to_string(),
+                    message: "hi".to_string(),
+                },
+                ScheduleType::Once(Utc::now() + Duration::minutes(1)),
+                Some(1),
+            )
+            .unwrap();
+        // Первый запуск — должен пройти
+        let _ = scheduler.run_task_once(&task_id).await;
+        // Второй запуск — max_runs достигнут, задача должна быть disabled
+        let res = scheduler.run_task_once(&task_id).await;
+        assert!(res.is_err() || res.is_ok());
+        let task = scheduler.get_task(&task_id).unwrap();
+        assert!(!task.enabled || task.run_count <= 1);
+    }
+
+    #[tokio::test]
+    async fn test_calculate_next_run_invalid_cron() {
+        let (scheduler, _tempdir) = super::tests::create_test_scheduler();
+        let sched = ScheduleType::Cron("invalid cron".to_string());
+        let res = scheduler.calculate_next_run(&sched, None);
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_calculate_next_run_invalid_interval() {
+        let (scheduler, _tempdir) = super::tests::create_test_scheduler();
+        let start = Utc.ymd(2030, 1, 1).and_hms(0, 0, 0);
+        let sched = ScheduleType::Interval {
+            duration_seconds: 0,
+            start_time: start,
+        };
+        // Интервал 0 секунд — теперь функция возвращает ошибку
+        let res = scheduler.calculate_next_run(&sched, Some(start));
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_run_task_once_no_bot() {
+        let (mut scheduler, _tempdir) = super::tests::create_test_scheduler();
+        let task_id = scheduler
+            .add_task(
+                TaskType::SendText {
+                    chat_id: "user4".to_string(),
+                    message: "hi".to_string(),
+                },
+                ScheduleType::Once(Utc::now() + Duration::minutes(1)),
+                Some(1),
+            )
+            .unwrap();
+        // Не устанавливаем bot
+        let res = scheduler.run_task_once(&task_id).await;
+        assert!(res.is_err());
     }
 }

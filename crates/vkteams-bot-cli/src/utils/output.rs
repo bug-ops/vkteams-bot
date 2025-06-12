@@ -309,4 +309,98 @@ mod tests {
 
         assert!(print_pretty_result(&test_data).is_ok());
     }
+
+    #[test]
+    fn test_print_success_message_all_formats() {
+        let msg = "Success!";
+        print_success_message(msg, &OutputFormat::Pretty);
+        print_success_message(msg, &OutputFormat::Json);
+        print_success_message(msg, &OutputFormat::Table);
+        print_success_message(msg, &OutputFormat::Quiet);
+    }
+
+    #[test]
+    fn test_print_error_message_all_formats() {
+        let msg = "Error!";
+        print_error_message(msg, &OutputFormat::Pretty);
+        print_error_message(msg, &OutputFormat::Json);
+        print_error_message(msg, &OutputFormat::Table);
+        print_error_message(msg, &OutputFormat::Quiet);
+    }
+
+    #[test]
+    fn test_print_warning_message_all_formats() {
+        let msg = "Warning!";
+        print_warning_message(msg, &OutputFormat::Pretty);
+        print_warning_message(msg, &OutputFormat::Json);
+        print_warning_message(msg, &OutputFormat::Table);
+        print_warning_message(msg, &OutputFormat::Quiet);
+    }
+
+    #[test]
+    fn test_print_info_message_all_formats() {
+        let msg = "Info!";
+        print_info_message(msg, &OutputFormat::Pretty);
+        print_info_message(msg, &OutputFormat::Json);
+        print_info_message(msg, &OutputFormat::Table);
+        print_info_message(msg, &OutputFormat::Quiet);
+    }
+
+    #[test]
+    fn test_print_list_all_formats() {
+        let items = vec!["one", "two", "three"];
+        assert!(print_list(&items, "Test List", &OutputFormat::Pretty).is_ok());
+        assert!(print_list(&items, "Test List", &OutputFormat::Json).is_ok());
+        assert!(print_list(&items, "Test List", &OutputFormat::Table).is_ok());
+        assert!(print_list(&items, "Test List", &OutputFormat::Quiet).is_ok());
+        // Edge: empty list
+        let empty: Vec<String> = vec![];
+        assert!(print_list(&empty, "Empty", &OutputFormat::Pretty).is_ok());
+    }
+
+    #[test]
+    fn test_print_key_value_pairs_all_formats() {
+        let mut pairs = std::collections::HashMap::new();
+        pairs.insert("key1".to_string(), "value1".to_string());
+        pairs.insert("key2".to_string(), "value2".to_string());
+        assert!(print_key_value_pairs(&pairs, "Pairs", &OutputFormat::Pretty).is_ok());
+        assert!(print_key_value_pairs(&pairs, "Pairs", &OutputFormat::Json).is_ok());
+        assert!(print_key_value_pairs(&pairs, "Pairs", &OutputFormat::Table).is_ok());
+        assert!(print_key_value_pairs(&pairs, "Pairs", &OutputFormat::Quiet).is_ok());
+        // Edge: empty map
+        let empty: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+        assert!(print_key_value_pairs(&empty, "Empty", &OutputFormat::Pretty).is_ok());
+    }
+
+    #[test]
+    fn test_print_progress_message_all_formats() {
+        let msg = "Progress...";
+        print_progress_message(msg, &OutputFormat::Pretty);
+        print_progress_message(msg, &OutputFormat::Json);
+        print_progress_message(msg, &OutputFormat::Table);
+        print_progress_message(msg, &OutputFormat::Quiet);
+    }
+
+    #[test]
+    fn test_print_section_header_all_formats() {
+        let title = "Section Title";
+        print_section_header(title, &OutputFormat::Pretty);
+        print_section_header(title, &OutputFormat::Json);
+        print_section_header(title, &OutputFormat::Table);
+        print_section_header(title, &OutputFormat::Quiet);
+    }
+
+    #[test]
+    fn test_print_statistics_all_formats() {
+        let mut stats = std::collections::HashMap::new();
+        stats.insert("stat1".to_string(), 10u64);
+        stats.insert("stat2".to_string(), 20u64);
+        assert!(print_statistics(&stats, "Stats", &OutputFormat::Pretty).is_ok());
+        assert!(print_statistics(&stats, "Stats", &OutputFormat::Json).is_ok());
+        assert!(print_statistics(&stats, "Stats", &OutputFormat::Table).is_ok());
+        assert!(print_statistics(&stats, "Stats", &OutputFormat::Quiet).is_ok());
+        // Edge: empty stats
+        let empty: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+        assert!(print_statistics(&empty, "Empty", &OutputFormat::Pretty).is_ok());
+    }
 }
