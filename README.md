@@ -1,6 +1,7 @@
 # VKTeams-Bot (unofficial)
 
 [![Crates.io](https://img.shields.io/crates/v/vkteams-bot)](https://crates.io/crates/vkteams-bot)
+[![codecov](https://codecov.io/github/bug-ops/vkteams-bot/graph/badge.svg?token=XV23ZKSZRA)](https://codecov.io/github/bug-ops/vkteams-bot)
 [![Downloads](https://img.shields.io/crates/d/vkteams-bot)](https://crates.io/crates/vkteams-bot)
 [![docs.rs](https://docs.rs/vkteams-bot/badge.svg)](https://docs.rs/vkteams-bot)
 [![Build Status](https://github.com/bug-ops/vkteams-bot/workflows/Rust/badge.svg)](https://github.com/bug-ops/vkteams-bot/actions)
