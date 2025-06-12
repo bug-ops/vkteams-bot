@@ -26,9 +26,7 @@ jobs:
     - uses: taiki-e/install-action@nextest
     
     - name: Run tests with coverage
-      run: |
-        cd crates/${{ matrix.crate }}
-        cargo llvm-cov nextest --all-features --lcov --output-path lcov.info
+      run: cargo llvm-cov nextest -p ${{ matrix.crate }} -v --all-features --lcov --output-path lcov.info
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5
