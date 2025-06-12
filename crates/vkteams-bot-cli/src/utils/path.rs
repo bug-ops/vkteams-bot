@@ -287,6 +287,9 @@ pub fn get_unique_filename(base_path: &Path) -> PathBuf {
 mod tests {
     use super::*;
     use proptest::prelude::*;
+    use std::fs;
+    use std::os::unix::fs::PermissionsExt;
+    use std::path::PathBuf;
     use tempfile::tempdir;
 
     #[test]
@@ -359,6 +362,74 @@ mod tests {
         let unique2 = get_unique_filename(&file_path);
         assert_ne!(unique2, file_path);
         assert!(!unique2.exists());
+    }
+
+    #[test]
+    fn test_is_file_readable_cases() {
+        let temp_dir = tempdir().unwrap();
+        let file_path = temp_dir.path().join("file.txt");
+        let dir_path = temp_dir.path().join("subdir");
+        let non_existent = temp_dir.path().join("nope.txt");
+
+        // Файл не существует
+        assert!(!is_file_readable(&non_existent));
+
+        // Создаём файл
+        fs::write(&file_path, "test").unwrap();
+        assert!(is_file_readable(&file_path));
+
+        // Директория
+        fs::create_dir(&dir_path).unwrap();
+        assert!(!is_file_readable(&dir_path));
+    }
+
+    #[test]
+    fn test_is_directory_writable_cases() {
+        let temp_dir = tempdir().unwrap();
+        let dir_path = temp_dir.path().join("writedir");
+        let file_path = temp_dir.path().join("file.txt");
+        let non_existent = temp_dir.path().join("nope");
+
+        // Несуществующая директория
+        assert!(!is_directory_writable(&non_existent));
+
+        // Обычная директория
+        fs::create_dir(&dir_path).unwrap();
+        assert!(is_directory_writable(&dir_path));
+
+        // Файл вместо директории
+        fs::write(&file_path, "test").unwrap();
+        assert!(!is_directory_writable(&file_path));
+
+        // Директория без прав (только для Unix)
+        #[cfg(unix)]
+        {
+            use std::fs::Permissions;
+            fs::set_permissions(&dir_path, Permissions::from_mode(0o400)).unwrap();
+            assert!(!is_directory_writable(&dir_path));
+            // Вернуть права для очистки
+            fs::set_permissions(&dir_path, Permissions::from_mode(0o700)).unwrap();
+        }
+    }
+
+    #[test]
+    fn test_join_path_components_cases() {
+        let base = PathBuf::from("/tmp");
+        let empty: [&str; 0] = [];
+        let single = ["foo"];
+        let multi = ["foo", "bar", "baz.txt"];
+
+        assert_eq!(join_path_components(&base, &empty), base);
+        assert_eq!(join_path_components(&base, &single), base.join("foo"));
+        assert_eq!(
+            join_path_components(&base, &multi),
+            base.join("foo/bar/baz.txt")
+        );
+
+        // Абсолютный компонент (должен добавляться как подкаталог)
+        let abs = ["/abs", "file.txt"];
+        let joined = join_path_components(&base, &abs);
+        assert!(joined.ends_with("abs/file.txt"));
     }
 
     proptest! {

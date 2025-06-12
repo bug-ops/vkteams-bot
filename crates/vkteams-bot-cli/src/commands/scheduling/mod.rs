@@ -437,79 +437,78 @@ fn parse_schedule_args(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tokio::runtime::Runtime;
 
-    #[test]
-    fn test_schedule_text_valid() {
-        let cmd = ScheduleMessageType::Text {
-            chat_id: "user123".to_string(),
-            message: "Hello".to_string(),
-            time: Some("2030-01-01T00:00:00Z".to_string()),
-            cron: None,
-            interval: None,
-            max_runs: None,
-        };
-        match cmd {
-            ScheduleMessageType::Text { ref chat_id, .. } => assert_eq!(chat_id, "user123"),
-            _ => panic!("Expected Text variant"),
-        }
+    fn dummy_bot() -> Bot {
+        Bot::with_params(&APIVersionUrl::V1, "dummy_token", "https://dummy.api.com").unwrap()
     }
 
     #[test]
-    fn test_schedule_text_invalid_chat_id() {
-        let cmd = ScheduleMessageType::Text {
-            chat_id: "user with space".to_string(),
-            message: "Hello".to_string(),
-            time: None,
-            cron: None,
-            interval: None,
-            max_runs: None,
+    fn test_execute_schedule_api_error() {
+        let cmd = SchedulingCommands::Schedule {
+            message_type: ScheduleMessageType::Text {
+                chat_id: "12345@chat".to_string(),
+                message: "hello".to_string(),
+                time: None,
+                cron: None,
+                interval: None,
+                max_runs: None,
+            },
         };
-        match cmd {
-            ScheduleMessageType::Text { ref chat_id, .. } => assert_eq!(chat_id, "user with space"),
-            _ => panic!("Expected Text variant"),
-        }
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        // Ожидаем ошибку из-за отсутствия переменных окружения
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_err());
     }
 
     #[test]
-    fn test_schedule_file_invalid_path() {
-        let cmd = ScheduleMessageType::File {
-            chat_id: "user123".to_string(),
-            file_path: "nonexistent.file".to_string(),
-            time: None,
-            cron: None,
-            interval: None,
-            max_runs: None,
+    fn test_execute_scheduler_action_api_error() {
+        let cmd = SchedulingCommands::Scheduler {
+            action: SchedulerAction::Status,
         };
-        match cmd {
-            ScheduleMessageType::File { ref chat_id, .. } => assert_eq!(chat_id, "user123"),
-            _ => panic!("Expected File variant"),
-        }
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        // Ожидаем ошибку из-за отсутствия переменных окружения
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_err());
     }
 
     #[test]
-    fn test_schedule_action_invalid_action() {
-        let cmd = ScheduleMessageType::Action {
-            chat_id: "user123".to_string(),
-            action: "invalid".to_string(),
-            time: None,
-            cron: None,
-            interval: None,
-            max_runs: None,
+    fn test_execute_task_action_api_error() {
+        let cmd = SchedulingCommands::Task {
+            action: TaskAction::Show {
+                task_id: "id".to_string(),
+            },
         };
-        match cmd {
-            ScheduleMessageType::Action { ref action, .. } => assert_eq!(action, "invalid"),
-            _ => panic!("Expected Action variant"),
-        }
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        // Ожидаем ошибку из-за отсутствия переменных окружения
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_err());
     }
 
     #[test]
-    fn test_task_action_empty_id() {
-        let cmd = TaskAction::Show {
-            task_id: "".to_string(),
-        };
-        match cmd {
-            TaskAction::Show { ref task_id } => assert!(task_id.is_empty()),
-            _ => panic!("Expected Show variant"),
-        }
+    fn test_parse_schedule_args_time_invalid() {
+        let res = parse_schedule_args(&Some("not-a-time".to_string()), &None, &None);
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_parse_schedule_args_cron_invalid() {
+        let res = parse_schedule_args(&None, &Some("* * * *".to_string()), &None);
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_parse_schedule_args_interval_zero() {
+        let res = parse_schedule_args(&None, &None, &Some(0));
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_parse_schedule_args_all_none() {
+        let res = parse_schedule_args(&None, &None, &None);
+        assert!(res.is_err());
     }
 }
