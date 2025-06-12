@@ -514,7 +514,7 @@ mod tests {
     #[test]
     fn test_get_existing_config_path_none() {
         // Для искусственно несуществующего пути
-        let orig = get_config_paths();
+        let _orig = get_config_paths();
         // Подменяем get_config_paths временно (если бы был DI)
         // Здесь просто проверяем, что функция не паникует
         let _ = get_existing_config_path();

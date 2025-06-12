@@ -12,6 +12,7 @@ use crate::utils::{
 };
 use async_trait::async_trait;
 use clap::{Subcommand, ValueHint};
+use tokio::runtime::Runtime;
 use tracing::{debug, info};
 use vkteams_bot::prelude::*;
 
@@ -276,5 +277,164 @@ mod tests {
         let input = "";
         let res = validate_cursor(input);
         assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_validate_set_chat_title_invalid() {
+        let cmd = ChatCommands::SetChatTitle {
+            chat_id: "12345@chat".to_string(),
+            title: "".to_string(),
+        };
+        let res = cmd.validate();
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_validate_set_chat_about_invalid() {
+        let cmd = ChatCommands::SetChatAbout {
+            chat_id: "12345@chat".to_string(),
+            about: "".to_string(),
+        };
+        let res = cmd.validate();
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_validate_send_action_invalid() {
+        let cmd = ChatCommands::SendAction {
+            chat_id: "12345@chat".to_string(),
+            action: "invalid_action".to_string(),
+        };
+        let res = cmd.validate();
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_validate_get_profile_invalid() {
+        let cmd = ChatCommands::GetProfile {
+            user_id: "".to_string(),
+        };
+        let res = cmd.validate();
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_validate_get_chat_members_invalid_cursor() {
+        let cmd = ChatCommands::GetChatMembers {
+            chat_id: "12345@chat".to_string(),
+            cursor: Some("not_a_number".to_string()),
+        };
+        let res = cmd.validate();
+        assert!(res.is_err()); // cursor должен быть числом
+    }
+
+    #[test]
+    fn test_validate_get_chat_members_empty_cursor() {
+        let cmd = ChatCommands::GetChatMembers {
+            chat_id: "12345@chat".to_string(),
+            cursor: Some("".to_string()),
+        };
+        let res = cmd.validate();
+        assert!(res.is_err());
+    }
+
+    // Property-based тесты для title/about/action (короткие и длинные строки)
+    #[test]
+    fn test_validate_set_chat_title_long() {
+        let cmd = ChatCommands::SetChatTitle {
+            chat_id: "12345@chat".to_string(),
+            title: "a".repeat(300),
+        };
+        let res = cmd.validate();
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_validate_set_chat_about_long() {
+        let cmd = ChatCommands::SetChatAbout {
+            chat_id: "12345@chat".to_string(),
+            about: "a".repeat(300),
+        };
+        let res = cmd.validate();
+        assert!(res.is_ok()); // валидация не ограничивает длину
+    }
+
+    fn dummy_bot() -> Bot {
+        Bot::with_params(&APIVersionUrl::V1, "dummy_token", "https://dummy.api.com").unwrap()
+    }
+
+    #[test]
+    fn test_execute_get_chat_info_api_error() {
+        let cmd = ChatCommands::GetChatInfo {
+            chat_id: "12345@chat".to_string(),
+        };
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_execute_get_profile_api_error() {
+        let cmd = ChatCommands::GetProfile {
+            user_id: "user123".to_string(),
+        };
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_execute_get_chat_members_api_error() {
+        let cmd = ChatCommands::GetChatMembers {
+            chat_id: "12345@chat".to_string(),
+            cursor: None,
+        };
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_execute_set_chat_title_api_error() {
+        let cmd = ChatCommands::SetChatTitle {
+            chat_id: "12345@chat".to_string(),
+            title: "New Title".to_string(),
+        };
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_execute_set_chat_about_api_error() {
+        let cmd = ChatCommands::SetChatAbout {
+            chat_id: "12345@chat".to_string(),
+            about: "About text".to_string(),
+        };
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_execute_send_action_invalid_action() {
+        let cmd = ChatCommands::SendAction {
+            chat_id: "12345@chat".to_string(),
+            action: "invalid".to_string(),
+        };
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_err());
+        let err = res.unwrap_err();
+        match err {
+            CliError::InputError(msg) => assert!(msg.contains("Unknown action")),
+            _ => panic!("Expected InputError for unknown action"),
+        }
     }
 }

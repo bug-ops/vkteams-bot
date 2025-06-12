@@ -15,6 +15,17 @@ use std::path::{Path, PathBuf};
 /// # Returns
 /// * `Ok(())` if the directory exists or was created successfully
 /// * `Err(CliError::FileError)` if directory creation fails
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+/// use vkteams_bot_cli::utils::ensure_directory_exists;
+/// let tmp = tempfile::tempdir().unwrap();
+/// let dir = tmp.path().join("subdir");
+/// ensure_directory_exists(&dir).unwrap();
+/// assert!(dir.exists());
+/// ```
 pub fn ensure_directory_exists(path: &Path) -> CliResult<()> {
     if !path.exists() {
         fs::create_dir_all(path).map_err(|e| {
@@ -40,6 +51,15 @@ pub fn ensure_directory_exists(path: &Path) -> CliResult<()> {
 ///
 /// # Returns
 /// * The file name as a string, or the full path if no file name can be extracted
+///
+/// # Examples
+///
+/// ```
+/// use vkteams_bot_cli::utils::get_file_name_from_path;
+/// assert_eq!(get_file_name_from_path("/tmp/file.txt"), "file.txt");
+/// assert_eq!(get_file_name_from_path("/tmp/"), "tmp");
+/// assert_eq!(get_file_name_from_path("") , "");
+/// ```
 pub fn get_file_name_from_path(path: &str) -> String {
     Path::new(path)
         .file_name()
@@ -56,6 +76,15 @@ pub fn get_file_name_from_path(path: &str) -> String {
 /// # Returns
 /// * `Some(String)` containing the extension (without the dot)
 /// * `None` if there is no extension
+///
+/// # Examples
+///
+/// ```
+/// use vkteams_bot_cli::utils::get_file_extension;
+/// assert_eq!(get_file_extension("/tmp/file.txt"), Some("txt".to_string()));
+/// assert_eq!(get_file_extension("/tmp/file"), None);
+/// assert_eq!(get_file_extension(""), None);
+/// ```
 pub fn get_file_extension(path: &str) -> Option<String> {
     Path::new(path)
         .extension()

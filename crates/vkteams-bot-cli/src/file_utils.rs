@@ -331,3 +331,58 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod more_edge_tests {
+    use super::*;
+    use std::fs::{self, File};
+    use std::io::Write;
+    use std::os::unix::fs::PermissionsExt;
+    use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn test_download_and_save_file_api_error() {
+        let bot =
+            Bot::with_params(&APIVersionUrl::V1, "dummy_token", "https://dummy.api.com").unwrap();
+        let tmp = tempdir().unwrap();
+        let res = download_and_save_file(&bot, "fileid", tmp.path().to_str().unwrap()).await;
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_download_and_save_file_write_error() {
+        let bot =
+            Bot::with_params(&APIVersionUrl::V1, "dummy_token", "https://dummy.api.com").unwrap();
+        let tmp = tempdir().unwrap();
+        let dir = tmp.path().join("readonly");
+        fs::create_dir(&dir).unwrap();
+        let mut perms = fs::metadata(&dir).unwrap().permissions();
+        perms.set_mode(0o400); // read-only
+        fs::set_permissions(&dir, perms).unwrap();
+        let res = download_and_save_file(&bot, "fileid", dir.to_str().unwrap()).await;
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_upload_file_api_error() {
+        let bot =
+            Bot::with_params(&APIVersionUrl::V1, "dummy_token", "https://dummy.api.com").unwrap();
+        let tmp = tempdir().unwrap();
+        let file_path = tmp.path().join("file.txt");
+        File::create(&file_path).unwrap();
+        let res = upload_file(&bot, "user123", file_path.to_str().unwrap()).await;
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_upload_file_too_large() {
+        let bot =
+            Bot::with_params(&APIVersionUrl::V1, "dummy_token", "https://dummy.api.com").unwrap();
+        let tmp = tempdir().unwrap();
+        let file_path = tmp.path().join("bigfile.bin");
+        let mut f = File::create(&file_path).unwrap();
+        f.write_all(&vec![0u8; 200 * 1024 * 1024]).unwrap(); // 200MB
+        let res = upload_file(&bot, "user123", file_path.to_str().unwrap()).await;
+        assert!(res.is_err());
+    }
+}

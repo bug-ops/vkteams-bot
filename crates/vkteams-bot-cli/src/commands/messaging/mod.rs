@@ -15,6 +15,7 @@ use crate::utils::{
 use async_trait::async_trait;
 use clap::{Subcommand, ValueHint};
 use colored::Colorize;
+use tokio::runtime::Runtime;
 use tracing::{debug, info};
 use vkteams_bot::prelude::*;
 
@@ -377,5 +378,94 @@ mod tests {
             message_id: "msg123".to_string(),
         };
         assert!(cmd.validate().is_err());
+    }
+
+    fn dummy_bot() -> Bot {
+        Bot::with_params(&APIVersionUrl::V1, "dummy_token", "https://dummy.api.com").unwrap()
+    }
+
+    #[test]
+    fn test_execute_send_text_api_error() {
+        let cmd = MessagingCommands::SendText {
+            chat_id: "12345@chat".to_string(),
+            message: "hello".to_string(),
+        };
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_execute_send_file_api_error() {
+        let cmd = MessagingCommands::SendFile {
+            chat_id: "12345@chat".to_string(),
+            file_path: "/tmp/file.txt".to_string(),
+        };
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_execute_send_voice_api_error() {
+        let cmd = MessagingCommands::SendVoice {
+            chat_id: "12345@chat".to_string(),
+            file_path: "/tmp/voice.ogg".to_string(),
+        };
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_execute_edit_message_api_error() {
+        let cmd = MessagingCommands::EditMessage {
+            chat_id: "12345@chat".to_string(),
+            message_id: "msgid".to_string(),
+            new_text: "new text".to_string(),
+        };
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_execute_delete_message_api_error() {
+        let cmd = MessagingCommands::DeleteMessage {
+            chat_id: "12345@chat".to_string(),
+            message_id: "msgid".to_string(),
+        };
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_execute_pin_message_api_error() {
+        let cmd = MessagingCommands::PinMessage {
+            chat_id: "12345@chat".to_string(),
+            message_id: "msgid".to_string(),
+        };
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_execute_unpin_message_api_error() {
+        let cmd = MessagingCommands::UnpinMessage {
+            chat_id: "12345@chat".to_string(),
+            message_id: "msgid".to_string(),
+        };
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_err());
     }
 }

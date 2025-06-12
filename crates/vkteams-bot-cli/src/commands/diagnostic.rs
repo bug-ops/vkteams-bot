@@ -12,6 +12,7 @@ use crate::utils::{validate_directory_path, validate_file_id};
 use async_trait::async_trait;
 use clap::{Subcommand, ValueHint};
 use colored::Colorize;
+use tokio::runtime::Runtime;
 use tracing::{debug, info};
 use vkteams_bot::prelude::*;
 
@@ -413,6 +414,132 @@ where
 mod tests {
     use super::*;
 
+    fn dummy_bot() -> Bot {
+        Bot::with_params(&APIVersionUrl::V1, "dummy_token", "https://dummy.api.com").unwrap()
+    }
+
+    #[test]
+    fn test_validate_get_file_empty_file_id() {
+        let cmd = DiagnosticCommands::GetFile {
+            file_id: "".to_string(),
+            file_path: "/tmp".to_string(),
+        };
+        let res = cmd.validate();
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_validate_get_file_invalid_path() {
+        let cmd = DiagnosticCommands::GetFile {
+            file_id: "fileid".to_string(),
+            file_path: "".to_string(),
+        };
+        let res = cmd.validate();
+        assert!(res.is_ok()); // пустой путь допустим
+    }
+
+    #[test]
+    fn test_validate_rate_limit_zero() {
+        let cmd = DiagnosticCommands::RateLimitTest {
+            requests: 0,
+            delay_ms: 100,
+        };
+        let res = cmd.validate();
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_validate_rate_limit_too_many() {
+        let cmd = DiagnosticCommands::RateLimitTest {
+            requests: 1001,
+            delay_ms: 100,
+        };
+        let res = cmd.validate();
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_validate_rate_limit_valid() {
+        let cmd = DiagnosticCommands::RateLimitTest {
+            requests: 10,
+            delay_ms: 100,
+        };
+        let res = cmd.validate();
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_execute_get_self_api_error() {
+        let cmd = DiagnosticCommands::GetSelf { detailed: true };
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_execute_get_events_api_error() {
+        let cmd = DiagnosticCommands::GetEvents {
+            listen: Some(false),
+        };
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_execute_get_file_api_error() {
+        let cmd = DiagnosticCommands::GetFile {
+            file_id: "fileid".to_string(),
+            file_path: "/tmp".to_string(),
+        };
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_execute_health_check_api_error() {
+        let cmd = DiagnosticCommands::HealthCheck;
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_execute_network_test_api_error() {
+        let cmd = DiagnosticCommands::NetworkTest;
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_execute_system_info() {
+        let cmd = DiagnosticCommands::SystemInfo;
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        // SystemInfo не требует bot, но для совместимости передаём
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_execute_rate_limit_test_api_error() {
+        let cmd = DiagnosticCommands::RateLimitTest {
+            requests: 2,
+            delay_ms: 10,
+        };
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_ok());
+    }
+
     #[test]
     fn test_diagnostic_commands_variants() {
         let get_self = DiagnosticCommands::GetSelf { detailed: true };
@@ -455,40 +582,5 @@ mod tests {
             assert_eq!(requests, 10);
             assert_eq!(delay_ms, 100);
         }
-    }
-
-    #[test]
-    fn test_rate_limit_validation() {
-        let valid = DiagnosticCommands::RateLimitTest {
-            requests: 1,
-            delay_ms: 0,
-        };
-        assert!(valid.validate().is_ok());
-        let too_low = DiagnosticCommands::RateLimitTest {
-            requests: 0,
-            delay_ms: 0,
-        };
-        assert!(too_low.validate().is_err());
-        let too_high = DiagnosticCommands::RateLimitTest {
-            requests: 1001,
-            delay_ms: 0,
-        };
-        assert!(too_high.validate().is_err());
-    }
-
-    #[test]
-    fn test_get_file_validation() {
-        let valid = DiagnosticCommands::GetFile {
-            file_id: "file123".to_string(),
-            file_path: "".to_string(),
-        };
-        // file_id валиден, file_path пустой — ок
-        assert!(valid.validate().is_ok());
-        let invalid = DiagnosticCommands::GetFile {
-            file_id: "".to_string(),
-            file_path: "".to_string(),
-        };
-        // file_id пустой — ошибка
-        assert!(invalid.validate().is_err());
     }
 }

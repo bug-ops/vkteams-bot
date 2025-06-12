@@ -1,7 +1,5 @@
 use assert_cmd::Command;
 use predicates::str::contains;
-use std::env;
-use std::fs;
 
 #[test]
 fn test_main_invalid_config_path() {

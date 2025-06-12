@@ -465,7 +465,6 @@ impl ScheduleType {
 mod tests {
     use super::*;
     use chrono::TimeZone;
-    use std::fs;
     use std::path::PathBuf;
     use tempfile::tempdir;
 
@@ -606,9 +605,6 @@ mod tests {
 mod async_tests {
     use super::*;
     use chrono::TimeZone;
-    use tempfile::tempdir;
-    use tokio_test::block_on;
-    use vkteams_bot::prelude::*;
 
     fn create_test_scheduler_with_bot() -> (Scheduler, tempfile::TempDir) {
         let (mut scheduler, tempdir) = super::tests::create_test_scheduler();
