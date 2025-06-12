@@ -272,3 +272,153 @@ pub async fn upload_voice(
     info!("Successfully uploaded voice message: {}", source_path);
     Ok(result)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::utils::create_dummy_bot;
+    use proptest::prelude::*;
+    use std::fs;
+    use tempfile::tempdir;
+    use tokio_test::block_on;
+
+    #[tokio::test]
+    async fn test_upload_file_empty_path() {
+        let bot = create_dummy_bot();
+        let res = upload_file(&bot, "user123", "").await;
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_upload_file_nonexistent() {
+        let bot = create_dummy_bot();
+        let res = upload_file(&bot, "user123", "no_such_file.txt").await;
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_upload_voice_invalid_format() {
+        let bot = create_dummy_bot();
+        let temp_dir = tempdir().unwrap();
+        let file_path = temp_dir.path().join("voice.txt");
+        fs::write(&file_path, "test").unwrap();
+        let res = upload_voice(&bot, "user123", file_path.to_str().unwrap()).await;
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_download_and_save_file_invalid_dir() {
+        let bot = create_dummy_bot();
+        let res = download_and_save_file(&bot, "fileid123", "/no/such/dir").await;
+        assert!(res.is_err());
+    }
+
+    proptest! {
+        #[test]
+        fn prop_upload_file_random_path(user_id in ".{0,32}", file_path in ".{0,128}") {
+            let bot = create_dummy_bot();
+            let fut = upload_file(&bot, &user_id, &file_path);
+            let res = block_on(fut);
+            prop_assert!(res.is_err());
+        }
+
+        #[test]
+        fn prop_upload_voice_random_path(user_id in ".{0,32}", file_path in ".{0,128}") {
+            let bot = create_dummy_bot();
+            let fut = upload_voice(&bot, &user_id, &file_path);
+            let res = block_on(fut);
+            prop_assert!(res.is_err());
+        }
+    }
+}
+
+#[cfg(test)]
+mod more_edge_tests {
+    use super::*;
+    use std::fs::{self, File};
+    use std::io::Write;
+    use std::os::unix::fs::PermissionsExt;
+    use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn test_download_and_save_file_api_error() {
+        let bot =
+            Bot::with_params(&APIVersionUrl::V1, "dummy_token", "https://dummy.api.com").unwrap();
+        let tmp = tempdir().unwrap();
+        let res = download_and_save_file(&bot, "fileid", tmp.path().to_str().unwrap()).await;
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_download_and_save_file_write_error() {
+        let bot =
+            Bot::with_params(&APIVersionUrl::V1, "dummy_token", "https://dummy.api.com").unwrap();
+        let tmp = tempdir().unwrap();
+        let dir = tmp.path().join("readonly");
+        fs::create_dir(&dir).unwrap();
+        let mut perms = fs::metadata(&dir).unwrap().permissions();
+        perms.set_mode(0o400); // read-only
+        fs::set_permissions(&dir, perms).unwrap();
+        let res = download_and_save_file(&bot, "fileid", dir.to_str().unwrap()).await;
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_upload_file_api_error() {
+        let bot =
+            Bot::with_params(&APIVersionUrl::V1, "dummy_token", "https://dummy.api.com").unwrap();
+        let tmp = tempdir().unwrap();
+        let file_path = tmp.path().join("file.txt");
+        File::create(&file_path).unwrap();
+        let res = upload_file(&bot, "user123", file_path.to_str().unwrap()).await;
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_upload_file_too_large() {
+        let bot =
+            Bot::with_params(&APIVersionUrl::V1, "dummy_token", "https://dummy.api.com").unwrap();
+        let tmp = tempdir().unwrap();
+        let file_path = tmp.path().join("bigfile.bin");
+        let mut f = File::create(&file_path).unwrap();
+        f.write_all(&vec![0u8; 200 * 1024 * 1024]).unwrap(); // 200MB
+        let res = upload_file(&bot, "user123", file_path.to_str().unwrap()).await;
+        assert!(res.is_err());
+    }
+}
+
+#[cfg(test)]
+mod happy_path_tests {
+    use super::*;
+    use crate::utils::create_dummy_bot;
+    use std::fs;
+    use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn test_upload_file_success() {
+        let bot = create_dummy_bot();
+        let temp_dir = tempdir().unwrap();
+        let file_path = temp_dir.path().join("file.txt");
+        fs::write(&file_path, "test").unwrap();
+        // This will fail on real API, but for dummy bot we expect an error or Ok depending on mock
+        let _ = upload_file(&bot, "user123", file_path.to_str().unwrap()).await;
+        // No panic means the function handles the flow
+    }
+
+    #[tokio::test]
+    async fn test_upload_voice_success() {
+        let bot = create_dummy_bot();
+        let temp_dir = tempdir().unwrap();
+        let file_path = temp_dir.path().join("voice.ogg");
+        fs::write(&file_path, "test").unwrap();
+        let _ = upload_voice(&bot, "user123", file_path.to_str().unwrap()).await;
+    }
+
+    #[tokio::test]
+    async fn test_download_and_save_file_success() {
+        let bot = create_dummy_bot();
+        let temp_dir = tempdir().unwrap();
+        // File ID is dummy, but function should handle the flow without panic
+        let _ = download_and_save_file(&bot, "fileid123", temp_dir.path().to_str().unwrap()).await;
+    }
+}

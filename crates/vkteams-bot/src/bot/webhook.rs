@@ -174,3 +174,137 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::error::ApiError;
+    use crate::error::BotError;
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use serde::{Deserialize, Serialize};
+    use tower::ServiceExt; // for .oneshot
+
+    #[derive(Clone, Default, Debug, Serialize, Deserialize)]
+    struct DummyWebhookType {
+        pub value: String,
+    }
+
+    #[derive(Clone, Default)]
+    struct DummyState {
+        pub fail_path: bool,
+        pub fail_deserialize: bool,
+        pub fail_handler: bool,
+    }
+
+    #[async_trait]
+    impl WebhookState for DummyState {
+        type WebhookType = DummyWebhookType;
+
+        fn get_path(&self) -> Result<String> {
+            if self.fail_path {
+                Err(BotError::Config("bad path".to_string()))
+            } else {
+                Ok("/webhook".to_string())
+            }
+        }
+
+        fn deserialize(&self, json: String) -> Result<Self::WebhookType> {
+            if self.fail_deserialize {
+                Err(BotError::Serialization(serde_json::Error::io(
+                    std::io::Error::new(std::io::ErrorKind::Other, "fail deserialize"),
+                )))
+            } else {
+                serde_json::from_str(&json).map_err(BotError::Serialization)
+            }
+        }
+
+        async fn handler(&self, msg: Self::WebhookType) -> Result<()> {
+            if self.fail_handler {
+                Err(BotError::Api(ApiError {
+                    description: String::from("fail handler"),
+                }))
+            } else if msg.value == "error" {
+                Err(BotError::Api(ApiError {
+                    description: String::from("error value"),
+                }))
+            } else {
+                Ok(())
+            }
+        }
+    }
+
+    impl FromRef<AppState<DummyState>> for DummyState {
+        fn from_ref(state: &AppState<DummyState>) -> DummyState {
+            state.ext.clone()
+        }
+    }
+
+    #[tokio::test]
+    async fn test_build_router_success() {
+        let state = DummyState::default();
+        let router = build_router(state);
+        assert!(router.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_build_router_fail_path() {
+        let state = DummyState {
+            fail_path: true,
+            ..Default::default()
+        };
+        let router = build_router(state);
+        assert!(router.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_webhook_handler_success() {
+        let state = DummyState::default();
+        let router = build_router(state).unwrap();
+        let payload = serde_json::json!({"value": "ok"}).to_string();
+        let req = Request::builder()
+            .method("POST")
+            .uri("/webhook")
+            .header("content-type", "application/json")
+            .body(Body::from(payload))
+            .unwrap();
+        let resp = router.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_webhook_handler_deserialize_error() {
+        let state = DummyState {
+            fail_deserialize: true,
+            ..Default::default()
+        };
+        let router = build_router(state).unwrap();
+        let payload = serde_json::json!({"value": "ok"}).to_string();
+        let req = Request::builder()
+            .method("POST")
+            .uri("/webhook")
+            .header("content-type", "application/json")
+            .body(Body::from(payload))
+            .unwrap();
+        let resp = router.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn test_webhook_handler_handler_error() {
+        let state = DummyState {
+            fail_handler: true,
+            ..Default::default()
+        };
+        let router = build_router(state).unwrap();
+        let payload = serde_json::json!({"value": "ok"}).to_string();
+        let req = Request::builder()
+            .method("POST")
+            .uri("/webhook")
+            .header("content-type", "application/json")
+            .body(Body::from(payload))
+            .unwrap();
+        let resp = router.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+}

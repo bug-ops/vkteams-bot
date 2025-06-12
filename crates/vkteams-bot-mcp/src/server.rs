@@ -603,3 +603,110 @@ impl Server {
         delete_chat_members,
     });
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::Server;
+    use rmcp::ServerHandler;
+    use serde_json::json;
+    use std::result::Result;
+    use std::sync::Arc;
+
+    #[test]
+    fn test_server_get_info() {
+        // Set env vars for Server::default
+        unsafe {
+            std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_chat_id");
+            std::env::set_var("VKTEAMS_BOT_API_TOKEN", "dummy_token");
+            std::env::set_var("VKTEAMS_BOT_API_URL", "https://dummy.api");
+        }
+        let server = Server::default();
+        let info = server.get_info();
+        // Check that tools are enabled in capabilities
+        assert!(info.capabilities.tools.is_some());
+        assert!(info.instructions.is_some());
+    }
+
+    #[test]
+    fn test_into_mcp_result_ok() {
+        let ok: Result<serde_json::Value, crate::errors::McpError> = Ok(json!({"a": 1}));
+        let res = ok.into_mcp_result();
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_into_mcp_result_err() {
+        let err: Result<serde_json::Value, crate::errors::McpError> =
+            Err(crate::errors::McpError::Other("fail".to_string()));
+        let res = err.into_mcp_result();
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_send_action_invalid() {
+        // Set required env vars for Bot::default
+        unsafe {
+            std::env::set_var("VKTEAMS_BOT_API_TOKEN", "dummy_token");
+            std::env::set_var("VKTEAMS_BOT_API_URL", "https://dummy.api");
+        }
+        let server = Server {
+            bot: Arc::new(Bot::default()),
+            chat_id: "test_chat_id".to_string(),
+        };
+        // Should return error for invalid action
+        let res = server.send_action("invalid_action".to_string()).await;
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_resolve_pending_minimal() {
+        // Set required env vars for Bot::default
+        unsafe {
+            std::env::set_var("VKTEAMS_BOT_API_TOKEN", "dummy_token");
+            std::env::set_var("VKTEAMS_BOT_API_URL", "https://dummy.api");
+        }
+        let server = Server {
+            bot: Arc::new(Bot::default()),
+            chat_id: "test_chat_id".to_string(),
+        };
+        // Should return error because dummy bot will fail
+        let res = server.resolve_pending(true, None, None).await;
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_delete_chat_members_empty_members() {
+        // Set required env vars for Bot::default
+        unsafe {
+            std::env::set_var("VKTEAMS_BOT_API_TOKEN", "dummy_token");
+            std::env::set_var("VKTEAMS_BOT_API_URL", "https://dummy.api");
+        }
+        let server = Server {
+            bot: Arc::new(Bot::default()),
+            chat_id: "test_chat_id".to_string(),
+        };
+        let res = server
+            .delete_chat_members("user1".to_string(), "".to_string())
+            .await;
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_set_chat_avatar_invalid_path() {
+        // Set required env vars for Bot::default
+        unsafe {
+            std::env::set_var("VKTEAMS_BOT_API_TOKEN", "dummy_token");
+            std::env::set_var("VKTEAMS_BOT_API_URL", "https://dummy.api");
+        }
+        let server = Server {
+            bot: Arc::new(Bot::default()),
+            chat_id: "test_chat_id".to_string(),
+        };
+        // Should return error for invalid file path
+        let res = server
+            .set_chat_avatar("/invalid/path/to/avatar.png".to_string())
+            .await;
+        assert!(res.is_err());
+    }
+}

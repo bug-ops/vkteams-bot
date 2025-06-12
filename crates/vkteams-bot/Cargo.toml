@@ -58,6 +58,7 @@ url = "2.5"
 vkteams-bot-macros = { version = "0.2", path = "../vkteams-bot-macros" }
 dashmap = "6"
 rand = "0.9"
+tower = { version = "0.4", features = ["util"] }
 
 [features]
 default = ["longpoll"]
@@ -86,6 +87,8 @@ criterion = { version = "0.6", features = [
     "html_reports",
 ] }
 dhat = { version = "0.3" }
+tempfile = "3"
+proptest = "1.4"
 
 [[bench]]
 name = "performance"

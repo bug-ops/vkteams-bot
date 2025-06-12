@@ -408,3 +408,179 @@ where
 // Validation functions are now imported from utils/validation module
 
 // Utility functions
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio::runtime::Runtime;
+
+    fn dummy_bot() -> Bot {
+        Bot::with_params(&APIVersionUrl::V1, "dummy_token", "https://dummy.api.com").unwrap()
+    }
+
+    #[test]
+    fn test_validate_get_file_empty_file_id() {
+        let cmd = DiagnosticCommands::GetFile {
+            file_id: "".to_string(),
+            file_path: "/tmp".to_string(),
+        };
+        let res = cmd.validate();
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_validate_get_file_invalid_path() {
+        let cmd = DiagnosticCommands::GetFile {
+            file_id: "fileid".to_string(),
+            file_path: "".to_string(),
+        };
+        let res = cmd.validate();
+        assert!(res.is_ok()); // пустой путь допустим
+    }
+
+    #[test]
+    fn test_validate_rate_limit_zero() {
+        let cmd = DiagnosticCommands::RateLimitTest {
+            requests: 0,
+            delay_ms: 100,
+        };
+        let res = cmd.validate();
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_validate_rate_limit_too_many() {
+        let cmd = DiagnosticCommands::RateLimitTest {
+            requests: 1001,
+            delay_ms: 100,
+        };
+        let res = cmd.validate();
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_validate_rate_limit_valid() {
+        let cmd = DiagnosticCommands::RateLimitTest {
+            requests: 10,
+            delay_ms: 100,
+        };
+        let res = cmd.validate();
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_execute_get_self_api_error() {
+        let cmd = DiagnosticCommands::GetSelf { detailed: true };
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_execute_get_events_api_error() {
+        let cmd = DiagnosticCommands::GetEvents {
+            listen: Some(false),
+        };
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_execute_get_file_api_error() {
+        let cmd = DiagnosticCommands::GetFile {
+            file_id: "fileid".to_string(),
+            file_path: "/tmp".to_string(),
+        };
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_execute_health_check_api_error() {
+        let cmd = DiagnosticCommands::HealthCheck;
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_execute_network_test_api_error() {
+        let cmd = DiagnosticCommands::NetworkTest;
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_execute_system_info() {
+        let cmd = DiagnosticCommands::SystemInfo;
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        // SystemInfo не требует bot, но для совместимости передаём
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_execute_rate_limit_test_api_error() {
+        let cmd = DiagnosticCommands::RateLimitTest {
+            requests: 2,
+            delay_ms: 10,
+        };
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_diagnostic_commands_variants() {
+        let get_self = DiagnosticCommands::GetSelf { detailed: true };
+        assert_eq!(get_self.name(), "get-self");
+        if let DiagnosticCommands::GetSelf { detailed } = get_self {
+            assert!(detailed);
+        }
+
+        let get_events = DiagnosticCommands::GetEvents { listen: Some(true) };
+        assert_eq!(get_events.name(), "get-events");
+        if let DiagnosticCommands::GetEvents { listen } = get_events {
+            assert_eq!(listen, Some(true));
+        }
+
+        let get_file = DiagnosticCommands::GetFile {
+            file_id: "file123".to_string(),
+            file_path: "/tmp".to_string(),
+        };
+        assert_eq!(get_file.name(), "get-file");
+        if let DiagnosticCommands::GetFile { file_id, file_path } = get_file {
+            assert_eq!(file_id, "file123");
+            assert_eq!(file_path, "/tmp");
+        }
+
+        let health = DiagnosticCommands::HealthCheck;
+        assert_eq!(health.name(), "health-check");
+
+        let net = DiagnosticCommands::NetworkTest;
+        assert_eq!(net.name(), "network-test");
+
+        let sys = DiagnosticCommands::SystemInfo;
+        assert_eq!(sys.name(), "system-info");
+
+        let rate = DiagnosticCommands::RateLimitTest {
+            requests: 10,
+            delay_ms: 100,
+        };
+        assert_eq!(rate.name(), "rate-limit-test");
+        if let DiagnosticCommands::RateLimitTest { requests, delay_ms } = rate {
+            assert_eq!(requests, 10);
+            assert_eq!(delay_ms, 100);
+        }
+    }
+}

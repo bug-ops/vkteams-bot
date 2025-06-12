@@ -6,7 +6,6 @@ examples/.env
 .idea
 .zed
 Cargo.lock
-.config
 .cargo
 .ron
 .yaml
@@ -16,3 +15,6 @@ compose.yaml
 .*ignore
 .venv
 .cursor
+isolation_rules
+tasks.md
+-
