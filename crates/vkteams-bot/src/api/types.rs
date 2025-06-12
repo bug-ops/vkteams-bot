@@ -49,9 +49,7 @@ pub trait BotRequest {
     const HTTP_METHOD: HTTPMethod = HTTPMethod::GET;
     type RequestType: Serialize + Debug + Default;
     type ResponseType: Serialize + DeserializeOwned + Debug + Default;
-    fn get_multipart(&self) -> &MultipartName {
-        &MultipartName::None
-    }
+    fn get_multipart(&self) -> &MultipartName;
     fn new(args: Self::Args) -> Self;
     fn get_chat_id(&self) -> Option<&ChatId>;
 }
@@ -91,40 +89,40 @@ pub enum MessageTextFormat {
 pub struct MessageTextParser {
     /// Array of text formats
     //TODO: Add support for multiple text formats in one row
-    pub(crate) text: Vec<MessageTextFormat>,
+    pub text: Vec<MessageTextFormat>,
     // Context for templates
     #[cfg(feature = "templates")]
-    pub(crate) ctx: Context,
+    pub ctx: Context,
     // Template name
     #[cfg(feature = "templates")]
-    pub(crate) name: String,
+    pub name: String,
     // Tera template engine
     #[cfg(feature = "templates")]
-    pub(crate) tmpl: Tera,
+    pub tmpl: Tera,
     /// ## Parse mode
     /// - `HTML` - HTML
     /// - `MarkdownV2` - Markdown
-    pub(crate) parse_mode: ParseMode,
+    pub parse_mode: ParseMode,
 }
 /// Keyboard for send message methods
 /// One of variants must be set:
 /// - {`text`: String,`url`: String,`style`: [`ButtonStyle`]} - simple buttons
 /// - {`text`: String,`callback_data`: String,`style`: [`ButtonStyle`]} - buttons with callback
-#[derive(Serialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ButtonKeyboard {
-    pub(crate) text: String, // formatting is not supported
+    pub text: String, // formatting is not supported
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) url: Option<String>,
+    pub url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) callback_data: Option<String>,
+    pub callback_data: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) style: Option<ButtonStyle>,
+    pub style: Option<ButtonStyle>,
 }
-#[derive(Serialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 /// Array of keyboard buttons
 pub struct Keyboard {
-    pub(crate) buttons: Vec<Vec<ButtonKeyboard>>,
+    pub buttons: Vec<Vec<ButtonKeyboard>>,
 }
 /// Keyboard buttons style
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
@@ -136,7 +134,7 @@ pub enum ButtonStyle {
     Base,
 }
 /// Message text format parse mode
-#[derive(Serialize, Deserialize, Clone, Copy, Debug, Default)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ParseMode {
     MarkdownV2,
     #[default]
@@ -428,7 +426,7 @@ pub struct From {
     pub user_id: UserId,
 }
 /// Languages
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum Languages {
     #[default]
@@ -445,7 +443,7 @@ pub enum ChatType {
     Channel,
 }
 /// Chat actions
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum ChatActions {
     Looking,
@@ -582,5 +580,11 @@ impl Default for Keyboard {
             // Empty vector of [`KeyboardButton`]
             buttons: vec![vec![]],
         }
+    }
+}
+
+impl std::fmt::Display for UserId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }

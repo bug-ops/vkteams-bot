@@ -17,11 +17,12 @@ use net::*;
 use once_cell::sync::OnceCell;
 use reqwest::Url;
 use serde::Serialize;
+use std::fmt;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::debug;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 /// Bot class with attributes
 /// - `connection_pool`: [`ConnectionPool`] - Pool of HTTP connections for API requests
 /// - `token`: [`String`] - Bot API token
@@ -39,6 +40,18 @@ pub struct Bot {
     pub(crate) event_id: Arc<Mutex<EventId>>,
     #[cfg(feature = "ratelimit")]
     pub(crate) rate_limiter: OnceCell<Arc<Mutex<RateLimiter>>>,
+}
+
+impl fmt::Debug for Bot {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Bot")
+            .field("connection_pool", &"<pool>")
+            .field("token", &self.token)
+            .field("base_api_url", &self.base_api_url)
+            .field("base_api_path", &self.base_api_path)
+            .field("event_id", &self.event_id)
+            .finish()
+    }
 }
 
 impl Bot {
@@ -299,4 +312,89 @@ fn get_env_token() -> Result<String> {
 
 fn get_env_url() -> Result<String> {
     std::env::var(VKTEAMS_BOT_API_URL).map_err(BotError::from)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use reqwest::Url;
+    use std::sync::Arc;
+    use tokio::runtime::Runtime;
+
+    fn test_runtime() -> Runtime {
+        Runtime::new().unwrap()
+    }
+
+    #[test]
+    fn test_bot_with_params_valid() {
+        let url = Url::parse("https://example.com/api").unwrap();
+        let token: Arc<str> = Arc::from("test_token");
+        let path: Arc<str> = Arc::from("/api");
+        let event_id = Arc::new(Mutex::new(0u32));
+        let bot = Bot {
+            connection_pool: OnceCell::new(),
+            token: token.clone(),
+            base_api_url: url.clone(),
+            base_api_path: path.clone(),
+            event_id: event_id.clone(),
+            #[cfg(feature = "ratelimit")]
+            rate_limiter: OnceCell::new(),
+        };
+        assert_eq!(bot.token.as_ref(), "test_token");
+        assert_eq!(bot.base_api_url, url);
+        assert_eq!(bot.base_api_path.as_ref(), "/api");
+    }
+
+    #[test]
+    fn test_bot_with_params_invalid_url() {
+        let url = Url::parse("");
+        assert!(url.is_err());
+    }
+
+    #[test]
+    fn test_bot_with_default_version_valid() {
+        let url = Url::parse("https://example.com/api").unwrap();
+        let token: Arc<str> = Arc::from("test_token");
+        let bot = Bot {
+            connection_pool: OnceCell::new(),
+            token: token.clone(),
+            base_api_url: url.clone(),
+            base_api_path: Arc::from("/api"),
+            event_id: Arc::new(Mutex::new(0u32)),
+            #[cfg(feature = "ratelimit")]
+            rate_limiter: OnceCell::new(),
+        };
+        assert_eq!(bot.token.as_ref(), "test_token");
+    }
+
+    #[test]
+    fn test_bot_with_default_version_invalid_url() {
+        let url = Url::parse("not a url");
+        assert!(url.is_err());
+    }
+
+    #[test]
+    fn test_set_and_get_last_event_id() {
+        let url = Url::parse("https://example.com/api").unwrap();
+        let token: Arc<str> = Arc::from("test_token");
+        let bot = Bot {
+            connection_pool: OnceCell::new(),
+            token: token.clone(),
+            base_api_url: url.clone(),
+            base_api_path: Arc::from("/api"),
+            event_id: Arc::new(Mutex::new(0u32)),
+            #[cfg(feature = "ratelimit")]
+            rate_limiter: OnceCell::new(),
+        };
+        let rt = test_runtime();
+        rt.block_on(async {
+            let mut lock = bot.event_id.lock().await;
+            *lock = 42u32;
+        });
+        let rt = test_runtime();
+        rt.block_on(async {
+            let lock = bot.event_id.lock().await;
+            assert_eq!(*lock, 42u32);
+        });
+    }
 }

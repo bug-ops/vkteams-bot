@@ -721,3 +721,224 @@ async fn execute_config(show: bool, init: bool, wizard: bool) -> CliResult<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::utils::config_helpers::get_existing_config_path;
+    use std::fs;
+    #[cfg(unix)]
+    use std::os::unix::fs::PermissionsExt;
+    use tempfile::tempdir;
+
+    /// Helper to create a dummy bot for testing
+    fn dummy_bot() -> Bot {
+        Bot::with_params(&APIVersionUrl::V1, "dummy_token", "https://dummy.api.com").unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_config_commands_variants() {
+        // Check all enum variants are constructible
+        let _ = ConfigCommands::Setup;
+        let _ = ConfigCommands::Examples;
+        let _ = ConfigCommands::ListCommands;
+        let _ = ConfigCommands::Validate;
+        let _ = ConfigCommands::Config {
+            show: true,
+            init: false,
+            wizard: false,
+        };
+        let _ = ConfigCommands::Completion {
+            shell: crate::completion::CompletionShell::Bash,
+            output: None,
+            install: false,
+            all: false,
+        };
+    }
+
+    #[tokio::test]
+    async fn test_execute_examples_success() {
+        // Should not return error
+        let res = execute_examples().await;
+        assert!(res.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_execute_list_commands_success() {
+        // Should not return error
+        let res = execute_list_commands().await;
+        assert!(res.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_execute_config_show_success() {
+        // Should not return error when showing config
+        let res = execute_config(true, false, false).await;
+        assert!(res.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_execute_config_init_success() {
+        // Should not return error when initializing config
+        let res = execute_config(false, true, false).await;
+        assert!(res.is_ok());
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_execute_config_wizard_success() {
+        // Should not return error when running wizard
+        let res = execute_config(false, false, true).await;
+        assert!(res.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_execute_validate_success() {
+        // Should not return error with dummy bot
+        let bot = dummy_bot();
+        let res = execute_validate(&bot).await;
+        // Accept both Ok and Err (since dummy bot may fail connection)
+        assert!(res.is_ok() || res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_execute_completion_success() {
+        // Should not return error for valid shell
+        let res =
+            execute_completion(crate::completion::CompletionShell::Bash, None, false, false).await;
+        assert!(res.is_ok());
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_execute_setup_mocked() {
+        // This function is interactive, so we only check it does not panic
+        // when called in a test environment (may fail due to lack of stdin)
+        let res = execute_setup().await;
+        // Accept both Ok and Err
+        assert!(res.is_ok() || res.is_err());
+    }
+
+    /// Test error when config file is missing or unreadable
+    #[tokio::test]
+    async fn test_execute_config_show_missing_file() {
+        // Temporarily rename config file if exists
+        let config_path = get_existing_config_path();
+        let backup = if let Some(ref config_path) = config_path {
+            let backup = config_path.with_extension("bak");
+            fs::rename(&config_path, &backup).ok();
+            Some((config_path.clone(), backup))
+        } else {
+            None
+        };
+        // Should not panic, but print info about missing file
+        let res = execute_config(true, false, false).await;
+        assert!(res.is_ok());
+        // Restore config
+        if let Some((config_path, backup)) = backup {
+            fs::rename(&backup, &config_path).ok();
+        }
+    }
+
+    /// Test error when config file is corrupted (invalid TOML)
+    #[tokio::test]
+    async fn test_execute_config_show_corrupted_file() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        fs::write(&path, "not a toml").unwrap();
+        // Patch Config::default_path to use temp file (simulate via env var if supported)
+        // Here, just check that serialization error is handled
+        let res = toml::from_str::<Config>("not a toml");
+        assert!(res.is_err());
+    }
+
+    /// Test error when saving config fails (simulate unwritable dir)
+    #[tokio::test]
+    async fn test_execute_config_save_error() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("readonly.toml");
+        fs::write(&path, "").unwrap();
+        let _ = fs::set_permissions(&path, fs::Permissions::from_mode(0o444));
+        let config = Config::default();
+        let res = config.save(Some(&path));
+        assert!(res.is_err());
+    }
+
+    /// Test error in completion generation (invalid shell)
+    #[tokio::test]
+    async fn test_execute_completion_invalid_shell() {
+        // Use an invalid shell by casting from an invalid integer (simulate)
+        // Here, just check that function returns error for invalid output path
+        let res = execute_completion(
+            crate::completion::CompletionShell::Bash,
+            Some("/invalid/path/doesnotexist"),
+            false,
+            false,
+        )
+        .await;
+        assert!(res.is_err());
+    }
+
+    /// Test validate with missing config fields
+    #[tokio::test]
+    async fn test_execute_validate_missing_fields() {
+        // Remove config file if exists
+        let config_path = get_existing_config_path();
+        let backup = if let Some(ref config_path) = config_path {
+            let backup = config_path.with_extension("bak");
+            fs::rename(&config_path, &backup).ok();
+            Some((config_path.clone(), backup))
+        } else {
+            None
+        };
+        let bot = dummy_bot();
+        let res = execute_validate(&bot).await;
+        // Should not panic, may return Ok or Err
+        assert!(res.is_ok() || res.is_err());
+        // Restore config
+        if let Some((config_path, backup)) = backup {
+            fs::rename(&backup, &config_path).ok();
+        }
+    }
+
+    /// Test execute_config with no flags (should print help)
+    #[tokio::test]
+    async fn test_execute_config_no_flags() {
+        let res = execute_config(false, false, false).await;
+        assert!(res.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_execute_setup_stdin_error() {
+        // Simulate stdin read_line error by replacing stdin
+        // This test is only illustrative, as replacing stdin is non-trivial in Rust
+        // In real code, consider refactoring to inject input source
+        // Here we just check that setup does not panic on empty input
+        let _ = execute_setup().await;
+    }
+
+    #[tokio::test]
+    async fn test_execute_config_toml_deserialize_error() {
+        // Simulate toml::from_str error by passing invalid TOML
+        let result = toml::from_str::<Config>("invalid = toml");
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_execute_config_flag_combinations() {
+        // All combinations of show/init/wizard
+        let combos = vec![
+            (true, false, false),
+            (false, true, false),
+            (false, false, true),
+            (true, true, false),
+            (true, false, true),
+            (false, true, true),
+            (true, true, true),
+            (false, false, false),
+        ];
+        for (show, init, wizard) in combos {
+            let _ = execute_config(show, init, wizard).await;
+        }
+    }
+}

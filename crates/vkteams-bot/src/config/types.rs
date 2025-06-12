@@ -316,3 +316,62 @@ pub enum LogFormat {
     Json,
     Full,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use toml;
+
+    #[test]
+    fn test_config_defaults() {
+        let config = Config::default();
+        #[cfg(feature = "otlp")]
+        {
+            // Проверяем, что otlp присутствует и instance_id по умолчанию "bot"
+            assert_eq!(config.otlp.instance_id, "bot");
+        }
+        #[cfg(feature = "ratelimit")]
+        {
+            // Проверяем значения по умолчанию для rate_limit
+            assert_eq!(config.rate_limit.limit, 100);
+        }
+        // Проверяем network config
+        assert_eq!(config.network.retries, 3);
+        assert_eq!(config.network.request_timeout_secs, 30);
+    }
+
+    #[test]
+    fn test_serialize_deserialize_config() {
+        let mut config = Config::default();
+        #[cfg(feature = "otlp")]
+        {
+            config.otlp.instance_id = "test_id".into();
+        }
+        config.network.retries = 7;
+        let toml_str = toml::to_string(&config).unwrap();
+        let deser: Config = toml::from_str(&toml_str).unwrap();
+        #[cfg(feature = "otlp")]
+        {
+            assert_eq!(deser.otlp.instance_id, "test_id");
+        }
+        assert_eq!(deser.network.retries, 7);
+    }
+
+    #[cfg(feature = "ratelimit")]
+    #[test]
+    fn test_default_limit() {
+        assert_eq!(default_limit(), 100);
+    }
+
+    #[cfg(feature = "ratelimit")]
+    #[test]
+    fn test_default_duration() {
+        assert_eq!(default_duration(), 60);
+    }
+
+    #[cfg(feature = "ratelimit")]
+    #[test]
+    fn test_default_retry_delay() {
+        assert_eq!(default_retry_delay(), 1000);
+    }
+}

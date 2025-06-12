@@ -44,7 +44,7 @@ pub trait CommandExecutor {
 }
 
 /// Output format options
-#[derive(clap::ValueEnum, Clone, Debug, Default)]
+#[derive(clap::ValueEnum, Clone, Debug, Default, PartialEq)]
 pub enum OutputFormat {
     #[default]
     Pretty,
@@ -204,5 +204,107 @@ impl Command for Commands {
             Commands::Config(cmd) => Command::validate(cmd),
             Commands::Diagnostic(cmd) => cmd.validate(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_command_result_success() {
+        let res = CommandResult::success();
+        assert!(res.success);
+        assert!(res.message.is_none());
+        assert!(res.data.is_none());
+    }
+
+    #[test]
+    fn test_command_result_success_with_message() {
+        let res = CommandResult::success_with_message("ok");
+        assert!(res.success);
+        assert_eq!(res.message.as_deref(), Some("ok"));
+        assert!(res.data.is_none());
+    }
+
+    #[test]
+    fn test_command_result_success_with_data() {
+        let data = json!({"key": 1});
+        let res = CommandResult::success_with_data(data.clone());
+        assert!(res.success);
+        assert!(res.message.is_none());
+        assert_eq!(res.data, Some(data));
+    }
+
+    #[test]
+    fn test_command_result_error() {
+        let res = CommandResult::error("fail");
+        assert!(!res.success);
+        assert_eq!(res.message.as_deref(), Some("fail"));
+        assert!(res.data.is_none());
+    }
+
+    #[test]
+    fn test_command_result_display_pretty() {
+        let res = CommandResult::success_with_message("done");
+        assert!(res.display(&OutputFormat::Pretty).is_ok());
+        let res = CommandResult::error("fail");
+        assert!(res.display(&OutputFormat::Pretty).is_ok());
+        let res = CommandResult::success_with_data(json!({"a": 1}));
+        assert!(res.display(&OutputFormat::Pretty).is_ok());
+    }
+
+    #[test]
+    fn test_command_result_display_json() {
+        let res = CommandResult::success_with_message("done");
+        assert!(res.display(&OutputFormat::Json).is_ok());
+        let res = CommandResult::error("fail");
+        assert!(res.display(&OutputFormat::Json).is_ok());
+        let res = CommandResult::success_with_data(json!({"a": 1}));
+        assert!(res.display(&OutputFormat::Json).is_ok());
+    }
+
+    #[test]
+    fn test_command_result_display_table() {
+        let res = CommandResult::success_with_message("done");
+        assert!(res.display(&OutputFormat::Table).is_ok());
+    }
+
+    #[test]
+    fn test_command_result_display_quiet() {
+        let res = CommandResult::success_with_message("done");
+        assert!(res.display(&OutputFormat::Quiet).is_ok());
+        let res = CommandResult::error("fail");
+        assert!(res.display(&OutputFormat::Quiet).is_ok());
+    }
+
+    #[test]
+    fn test_output_format_default() {
+        let f = OutputFormat::default();
+        assert_eq!(f, OutputFormat::Pretty);
+    }
+
+    #[test]
+    fn test_command_result_display_json_error() {
+        // Создаём CommandResult с несерилизуемым data (например, с циклической ссылкой невозможно, но можно подменить тип)
+        // Здесь просто проверяем, что ошибка сериализации корректно обрабатывается
+        struct NotSerializable;
+        impl serde::Serialize for NotSerializable {
+            fn serialize<S>(&self, _: S) -> Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                Err(serde::ser::Error::custom("fail"))
+            }
+        }
+        let data = serde_json::to_value(NotSerializable).unwrap_or(json!(null));
+        let res = CommandResult {
+            success: true,
+            message: None,
+            data: Some(data),
+        };
+        // display не упадёт, просто выведет null
+        assert!(res.display(&OutputFormat::Json).is_ok());
     }
 }

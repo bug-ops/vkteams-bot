@@ -36,3 +36,57 @@ impl ResponseFilesGetInfo {
         get_bytes_response(client, Url::parse(&self.url)?).await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use reqwest::Client;
+    use tokio;
+
+    #[tokio::test]
+    async fn test_download_empty_url() {
+        let info = ResponseFilesGetInfo {
+            file_type: "".to_string(),
+            file_size: 0,
+            file_name: "".to_string(),
+            url: "".to_string(),
+        };
+        let client = Client::new();
+        let result = info.download(client).await;
+        assert!(matches!(result, Err(BotError::Validation(_))));
+    }
+
+    #[tokio::test]
+    async fn test_download_invalid_url() {
+        let info = ResponseFilesGetInfo {
+            file_type: "".to_string(),
+            file_size: 0,
+            file_name: "".to_string(),
+            url: "not a url".to_string(),
+        };
+        let client = Client::new();
+        let result = info.download(client).await;
+        assert!(matches!(result, Err(BotError::Url(_))));
+    }
+
+    #[tokio::test]
+    async fn test_download_network_error() {
+        let info = ResponseFilesGetInfo {
+            file_type: "".to_string(),
+            file_size: 0,
+            file_name: "".to_string(),
+            url: "http://localhost:0".to_string(),
+        };
+        let client = Client::new();
+        let result = info.download(client).await;
+        assert!(matches!(result, Err(BotError::Network(_))));
+    }
+
+    // Для успешного случая нужен mock, если есть возможность внедрить dependency injection или test server
+    // #[test]
+    // fn test_download_success() {
+    //     let url = "http://localhost:8000/testfile.txt";
+    //     let result = download_file(url);
+    //     assert!(result.is_ok());
+    // }
+}

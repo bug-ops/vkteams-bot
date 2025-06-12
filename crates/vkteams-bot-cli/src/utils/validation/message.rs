@@ -281,3 +281,36 @@ mod tests {
         assert!(validate_message_comprehensive(&problematic_message, false).is_err());
     }
 }
+
+#[cfg(test)]
+mod prop_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn prop_validate_message_text_random(s in ".{0,8192}") {
+            let _ = validate_message_text(&s);
+        }
+
+        #[test]
+        fn prop_validate_message_id_random(s in ".{0,256}") {
+            let _ = validate_message_id(&s);
+        }
+
+        #[test]
+        fn prop_validate_message_formatting_random(s in ".{0,4096}") {
+            let _ = validate_message_formatting(&s);
+        }
+
+        #[test]
+        fn prop_validate_message_content_random(s in ".{0,4096}") {
+            let _ = validate_message_content(&s);
+        }
+
+        #[test]
+        fn prop_validate_message_context_random(s in ".{0,4096}", is_group in proptest::bool::ANY) {
+            let _ = validate_message_context(&s, is_group);
+        }
+    }
+}

@@ -15,6 +15,17 @@ use std::path::{Path, PathBuf};
 /// # Returns
 /// * `Ok(())` if the directory exists or was created successfully
 /// * `Err(CliError::FileError)` if directory creation fails
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+/// use vkteams_bot_cli::utils::ensure_directory_exists;
+/// let tmp = tempfile::tempdir().unwrap();
+/// let dir = tmp.path().join("subdir");
+/// ensure_directory_exists(&dir).unwrap();
+/// assert!(dir.exists());
+/// ```
 pub fn ensure_directory_exists(path: &Path) -> CliResult<()> {
     if !path.exists() {
         fs::create_dir_all(path).map_err(|e| {
@@ -40,6 +51,15 @@ pub fn ensure_directory_exists(path: &Path) -> CliResult<()> {
 ///
 /// # Returns
 /// * The file name as a string, or the full path if no file name can be extracted
+///
+/// # Examples
+///
+/// ```
+/// use vkteams_bot_cli::utils::get_file_name_from_path;
+/// assert_eq!(get_file_name_from_path("/tmp/file.txt"), "file.txt");
+/// assert_eq!(get_file_name_from_path("/tmp/"), "tmp");
+/// assert_eq!(get_file_name_from_path("") , "");
+/// ```
 pub fn get_file_name_from_path(path: &str) -> String {
     Path::new(path)
         .file_name()
@@ -56,6 +76,15 @@ pub fn get_file_name_from_path(path: &str) -> String {
 /// # Returns
 /// * `Some(String)` containing the extension (without the dot)
 /// * `None` if there is no extension
+///
+/// # Examples
+///
+/// ```
+/// use vkteams_bot_cli::utils::get_file_extension;
+/// assert_eq!(get_file_extension("/tmp/file.txt"), Some("txt".to_string()));
+/// assert_eq!(get_file_extension("/tmp/file"), None);
+/// assert_eq!(get_file_extension(""), None);
+/// ```
 pub fn get_file_extension(path: &str) -> Option<String> {
     Path::new(path)
         .extension()
@@ -257,6 +286,10 @@ pub fn get_unique_filename(base_path: &Path) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
+    use std::fs;
+    use std::os::unix::fs::PermissionsExt;
+    use std::path::PathBuf;
     use tempfile::tempdir;
 
     #[test]
@@ -329,5 +362,122 @@ mod tests {
         let unique2 = get_unique_filename(&file_path);
         assert_ne!(unique2, file_path);
         assert!(!unique2.exists());
+    }
+
+    #[test]
+    fn test_is_file_readable_cases() {
+        let temp_dir = tempdir().unwrap();
+        let file_path = temp_dir.path().join("file.txt");
+        let dir_path = temp_dir.path().join("subdir");
+        let non_existent = temp_dir.path().join("nope.txt");
+
+        // Файл не существует
+        assert!(!is_file_readable(&non_existent));
+
+        // Создаём файл
+        fs::write(&file_path, "test").unwrap();
+        assert!(is_file_readable(&file_path));
+
+        // Директория
+        fs::create_dir(&dir_path).unwrap();
+        assert!(!is_file_readable(&dir_path));
+    }
+
+    #[test]
+    fn test_is_directory_writable_cases() {
+        let temp_dir = tempdir().unwrap();
+        let dir_path = temp_dir.path().join("writedir");
+        let file_path = temp_dir.path().join("file.txt");
+        let non_existent = temp_dir.path().join("nope");
+
+        // Несуществующая директория
+        assert!(!is_directory_writable(&non_existent));
+
+        // Обычная директория
+        fs::create_dir(&dir_path).unwrap();
+        assert!(is_directory_writable(&dir_path));
+
+        // Файл вместо директории
+        fs::write(&file_path, "test").unwrap();
+        assert!(!is_directory_writable(&file_path));
+
+        // Директория без прав (только для Unix)
+        #[cfg(unix)]
+        {
+            use std::fs::Permissions;
+            fs::set_permissions(&dir_path, Permissions::from_mode(0o400)).unwrap();
+            assert!(!is_directory_writable(&dir_path));
+            // Вернуть права для очистки
+            fs::set_permissions(&dir_path, Permissions::from_mode(0o700)).unwrap();
+        }
+    }
+
+    #[test]
+    fn test_join_path_components_cases() {
+        let base = PathBuf::from("/tmp");
+        let empty: [&str; 0] = [];
+        let single = ["foo"];
+        let multi = ["foo", "bar", "baz.txt"];
+
+        assert_eq!(join_path_components(&base, &empty), base);
+        assert_eq!(join_path_components(&base, &single), base.join("foo"));
+        assert_eq!(
+            join_path_components(&base, &multi),
+            base.join("foo/bar/baz.txt")
+        );
+
+        // Абсолютный компонент (должен добавляться как подкаталог)
+        let abs = ["/abs", "file.txt"];
+        let joined = join_path_components(&base, &abs);
+        assert!(joined.ends_with("abs/file.txt"));
+    }
+
+    proptest! {
+        #[test]
+        fn prop_sanitize_filename_random(s in ".{0,512}") {
+            // Обрезаем строку так, чтобы не превышать 255 байт и не попадать на середину unicode-символа
+            let mut s_trunc = String::new();
+            let mut total_bytes = 0;
+            for c in s.chars() {
+                let c_len = c.len_utf8();
+                if total_bytes + c_len > 255 {
+                    break;
+                }
+                s_trunc.push(c);
+                total_bytes += c_len;
+            }
+            let sanitized = sanitize_filename(&s_trunc);
+            // Не должно быть пустых строк
+            prop_assert!(!sanitized.is_empty());
+            // Не должно быть запрещённых символов
+            for c in ['<', '>', ':', '"', '|', '?', '*', '/', '\\'] {
+                prop_assert!(!sanitized.contains(c));
+            }
+            // Длина не превышает 255
+            prop_assert!(sanitized.len() <= 255);
+        }
+
+        #[test]
+        fn prop_get_file_name_from_path_random(s in ".{0,512}") {
+            let name = get_file_name_from_path(&s);
+            if s.is_empty() {
+                prop_assert!(name.is_empty());
+            } else {
+                prop_assert!(!name.is_empty());
+            }
+        }
+
+        #[test]
+        fn prop_get_file_extension_random(s in ".{0,512}") {
+            // Не должно паниковать
+            let _ = get_file_extension(&s);
+        }
+
+        #[test]
+        fn prop_normalize_path_random(s in ".{0,512}") {
+            let norm = normalize_path(&s);
+            // Не должно паниковать, результат строка
+            prop_assert!(norm.len() <= s.len() + 10);
+        }
     }
 }

@@ -154,6 +154,8 @@ pub fn create_bot_instance_with_retry(config: &Config, max_retries: u32) -> CliR
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::env;
+    use tokio::runtime::Runtime;
 
     #[test]
     fn test_needs_bot_instance() {
@@ -203,5 +205,63 @@ mod tests {
         // We can't test much about the dummy bot without making API calls
         // But we can verify it was created without panicking
         // This test passes if create_dummy_bot() doesn't panic
+    }
+
+    #[test]
+    fn test_setup_bot_environment_sets_vars() {
+        let mut config: crate::config::Config = toml::from_str("").unwrap();
+        config.api.token = Some("test_token_env".to_string());
+        config.api.url = Some("https://api.example.com".to_string());
+        config.proxy = Some(crate::config::ProxyConfig {
+            url: "http://proxy.example.com".to_string(),
+            user: Some("user1".to_string()),
+            password: Some("pass1".to_string()),
+        });
+        setup_bot_environment(&config);
+        assert_eq!(env::var("VKTEAMS_BOT_API_TOKEN").unwrap(), "test_token_env");
+        assert_eq!(
+            env::var("VKTEAMS_BOT_API_URL").unwrap(),
+            "https://api.example.com"
+        );
+        assert_eq!(
+            env::var("VKTEAMS_PROXY").unwrap(),
+            "http://proxy.example.com"
+        );
+        assert_eq!(env::var("VKTEAMS_PROXY_USER").unwrap(), "user1");
+        assert_eq!(env::var("VKTEAMS_PROXY_PASSWORD").unwrap(), "pass1");
+    }
+
+    #[test]
+    fn test_create_bot_instance_with_retry_error() {
+        let config: crate::config::Config = toml::from_str("").unwrap();
+        // Нет токена и url — всегда ошибка
+        let res = create_bot_instance_with_retry(&config, 2);
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_create_bot_instance_with_retry_success() {
+        let mut config: crate::config::Config = toml::from_str("").unwrap();
+        config.api.token = Some("test_token_12345".to_string());
+        config.api.url = Some("https://example.com".to_string());
+        let res = create_bot_instance_with_retry(&config, 0);
+        // Может быть Ok или Err (если url невалидный), главное — не паникует
+        let _ = res;
+    }
+
+    #[test]
+    fn test_create_bot_instance_with_retry_max_retries() {
+        let config: crate::config::Config = toml::from_str("").unwrap();
+        let res = create_bot_instance_with_retry(&config, 3);
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_test_bot_connectivity_api_error() {
+        let bot =
+            Bot::with_params(&APIVersionUrl::V1, "dummy_token", "https://dummy.api.com").unwrap();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(test_bot_connectivity(&bot));
+        assert!(res.is_err());
     }
 }

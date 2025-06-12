@@ -121,3 +121,9 @@ mod api {
 }
 
 pub use self::bot::Bot;
+
+// Экспорт типов для property-based тестов
+pub use crate::api::types::{
+    ApiResponseWrapper, ButtonKeyboard, ButtonStyle, Chat, ChatId, EventMessage,
+    EventPayloadNewMessage, EventType, From, Keyboard, MsgId, Timestamp, UserId,
+};

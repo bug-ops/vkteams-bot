@@ -256,3 +256,31 @@ mod tests {
         assert!(validate_directory_path("   ").is_ok());
     }
 }
+
+#[cfg(test)]
+mod prop_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn prop_validate_file_id_random(s in ".{0,256}") {
+            let _ = validate_file_id(&s);
+        }
+
+        #[test]
+        fn prop_is_supported_voice_format_random(s in ".{0,32}") {
+            let _ = is_supported_voice_format(&s);
+        }
+
+        #[test]
+        fn prop_is_supported_file_format_random(s in ".{0,32}") {
+            let _ = is_supported_file_format(&s);
+        }
+
+        #[test]
+        fn prop_validate_safe_path_random(s in ".{0,256}") {
+            let _ = validate_safe_path(&s);
+        }
+    }
+}

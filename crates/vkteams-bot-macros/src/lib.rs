@@ -144,3 +144,21 @@ fn is_type_named(ty: &Type, name: &str) -> bool {
         _ => false,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use syn::parse_str;
+
+    #[test]
+    fn test_is_type_named_true() {
+        let ty: Type = parse_str("DummyChatId").unwrap();
+        assert!(is_type_named(&ty, "DummyChatId"));
+    }
+
+    #[test]
+    fn test_is_type_named_false() {
+        let ty: Type = parse_str("DummyChatId").unwrap();
+        assert!(!is_type_named(&ty, "OtherType"));
+    }
+}

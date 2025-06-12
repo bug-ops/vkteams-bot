@@ -281,6 +281,8 @@ pub fn print_statistics(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::commands::OutputFormat;
+    use std::collections::HashMap;
 
     #[derive(serde::Serialize)]
     struct TestStruct {
@@ -308,5 +310,117 @@ mod tests {
         };
 
         assert!(print_pretty_result(&test_data).is_ok());
+    }
+
+    #[test]
+    fn test_print_success_message_all_formats() {
+        let msg = "Success!";
+        print_success_message(msg, &OutputFormat::Pretty);
+        print_success_message(msg, &OutputFormat::Json);
+        print_success_message(msg, &OutputFormat::Table);
+        print_success_message(msg, &OutputFormat::Quiet);
+    }
+
+    #[test]
+    fn test_print_error_message_all_formats() {
+        let msg = "Error!";
+        print_error_message(msg, &OutputFormat::Pretty);
+        print_error_message(msg, &OutputFormat::Json);
+        print_error_message(msg, &OutputFormat::Table);
+        print_error_message(msg, &OutputFormat::Quiet);
+    }
+
+    #[test]
+    fn test_print_warning_message_all_formats() {
+        let msg = "Warning!";
+        print_warning_message(msg, &OutputFormat::Pretty);
+        print_warning_message(msg, &OutputFormat::Json);
+        print_warning_message(msg, &OutputFormat::Table);
+        print_warning_message(msg, &OutputFormat::Quiet);
+    }
+
+    #[test]
+    fn test_print_info_message_all_formats() {
+        let msg = "info message";
+        for format in [
+            OutputFormat::Pretty,
+            OutputFormat::Json,
+            OutputFormat::Table,
+            OutputFormat::Quiet,
+        ] {
+            print_info_message(msg, &format);
+        }
+    }
+
+    #[test]
+    fn test_print_list_all_formats() {
+        let items = vec!["item1", "item2"];
+        for format in [
+            OutputFormat::Pretty,
+            OutputFormat::Json,
+            OutputFormat::Table,
+            OutputFormat::Quiet,
+        ] {
+            assert!(print_list(&items, "Title", &format).is_ok());
+            assert!(print_list::<String>(&[], "", &format).is_ok());
+        }
+    }
+
+    #[test]
+    fn test_print_key_value_pairs_all_formats() {
+        let mut pairs = HashMap::new();
+        pairs.insert("key1".to_string(), "val1".to_string());
+        pairs.insert("key2".to_string(), "val2".to_string());
+        for format in [
+            OutputFormat::Pretty,
+            OutputFormat::Json,
+            OutputFormat::Table,
+            OutputFormat::Quiet,
+        ] {
+            assert!(print_key_value_pairs(&pairs, "Title", &format).is_ok());
+            assert!(print_key_value_pairs(&HashMap::new(), "", &format).is_ok());
+        }
+    }
+
+    #[test]
+    fn test_print_progress_message_all_formats() {
+        let msg = "progress...";
+        for format in [
+            OutputFormat::Pretty,
+            OutputFormat::Json,
+            OutputFormat::Table,
+            OutputFormat::Quiet,
+        ] {
+            print_progress_message(msg, &format);
+        }
+    }
+
+    #[test]
+    fn test_print_section_header_all_formats() {
+        for format in [
+            OutputFormat::Pretty,
+            OutputFormat::Table,
+            OutputFormat::Json,
+            OutputFormat::Quiet,
+        ] {
+            print_section_header("Section", &format);
+            print_section_header("", &format);
+        }
+    }
+
+    #[test]
+    fn test_print_statistics_all_formats() {
+        let mut stats = HashMap::new();
+        stats.insert("stat1".to_string(), 42u64);
+        stats.insert("stat2".to_string(), 0u64);
+        for format in [
+            OutputFormat::Pretty,
+            OutputFormat::Json,
+            OutputFormat::Table,
+            OutputFormat::Quiet,
+        ] {
+            assert!(print_statistics(&stats, "Stats", &format).is_ok());
+            assert!(print_statistics(&HashMap::new(), "", &format).is_ok());
+        }
     }
 }

@@ -1,0 +1,7 @@
+[profile.default]
+default-filter = 'not test(integration)'
+
+[profile.ci]
+default-filter = 'all()'
+[profile.ci.junit]
+path = 'junit.xml'

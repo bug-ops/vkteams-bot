@@ -301,3 +301,26 @@ mod tests {
         assert!(validate_reasonable_future(far_future, 365).is_err());
     }
 }
+
+#[cfg(test)]
+mod prop_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn prop_validate_cron_expression_random(s in ".{0,128}") {
+            let _ = validate_cron_expression(&s);
+        }
+
+        #[test]
+        fn prop_parse_datetime_flexible_random(s in ".{0,128}") {
+            let _ = parse_datetime_flexible(&s);
+        }
+
+        #[test]
+        fn prop_parse_relative_time_random(s in ".{0,32}") {
+            let _ = parse_relative_time(&s);
+        }
+    }
+}

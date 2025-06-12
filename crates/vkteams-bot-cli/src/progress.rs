@@ -98,3 +98,49 @@ pub fn abandon_progress(progress_bar: &Option<ProgressBar>, message: &str) {
         pb.abandon_with_message(message.to_string());
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::env::temp_dir;
+    use std::fs::File;
+    use std::io::Write;
+
+    #[test]
+    fn test_create_download_progress_bar_current_config() {
+        // Проверяем, что функция возвращает Some или None в зависимости от текущего show_progress
+        let pb = create_download_progress_bar(100, "file.txt");
+        // Просто проверяем, что функция не паникует
+        let _ = pb;
+    }
+
+    #[test]
+    fn test_create_upload_progress_bar_current_config() {
+        let pb = create_upload_progress_bar(100, "file.txt");
+        let _ = pb;
+    }
+
+    #[test]
+    fn test_increment_finish_abandon_progress() {
+        let pb = create_download_progress_bar(100, "file.txt");
+        increment_progress(&pb, 10);
+        finish_progress(&pb, "done");
+        let pb2 = create_upload_progress_bar(100, "file.txt");
+        abandon_progress(&pb2, "abandoned");
+    }
+
+    #[test]
+    fn test_calculate_upload_size_ok_and_err() {
+        // Создаём временный файл
+        let mut path = temp_dir();
+        path.push("vkteams_test_file.tmp");
+        let mut file = File::create(&path).unwrap();
+        file.write_all(b"1234567890").unwrap();
+        let size = calculate_upload_size(path.to_str().unwrap()).unwrap();
+        assert_eq!(size, 10);
+        std::fs::remove_file(&path).unwrap();
+        // Ошибка для несуществующего файла
+        let err = calculate_upload_size("/nonexistent/file");
+        assert!(err.is_err());
+    }
+}

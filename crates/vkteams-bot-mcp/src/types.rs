@@ -22,3 +22,22 @@ impl Default for Server {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_server_default_and_client() {
+        // Set required env vars for default
+        unsafe {
+            std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_chat_id");
+            std::env::set_var("VKTEAMS_BOT_API_TOKEN", "dummy_token");
+            std::env::set_var("VKTEAMS_BOT_API_URL", "https://dummy.api");
+        }
+        let server = Server::default();
+        assert_eq!(server.chat_id, "test_chat_id");
+        let bot = server.client();
+        assert!(Arc::strong_count(&bot) >= 1);
+    }
+}
