@@ -110,7 +110,7 @@ impl MessageTextHTMLParser for MessageTextParser {
                     if let MessageTextFormat::None = item {
                         continue;
                     }
-                    result.push_str(&self.parse_html(item).unwrap_or_default());
+                    result.push_str(&self.parse_html(item)?);
                 }
                 Ok((result, self.parse_mode))
             }

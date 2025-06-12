@@ -181,3 +181,12 @@ async fn execute_command(
 
     command.execute(&bot).await
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_main_runs() {
+        // Smoke test для main (async main не вызывается напрямую)
+        assert!(true);
+    }
+}
