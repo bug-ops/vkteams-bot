@@ -38,4 +38,4 @@ jobs:
 
     strategy:
       matrix:
-        crate: [vkteams-bot, vkteams-bot-cli, vkteams-bot-mcp, vkteams-bot-macros]
+        crate: [vkteams-bot, vkteams-bot-cli, vkteams-bot-mcp]
