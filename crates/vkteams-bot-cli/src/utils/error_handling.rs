@@ -356,4 +356,52 @@ mod tests {
         assert!(message.contains("Invalid input"));
         assert!(message.contains("--help"));
     }
+
+    #[test]
+    fn test_print_error_all_types() {
+        let api_err = CliError::ApiError(vkteams_bot::error::BotError::Config("fail".to_string()));
+        let file_err = CliError::FileError("file fail".to_string());
+        let input_err = CliError::InputError("input fail".to_string());
+        let unexpected_err = CliError::UnexpectedError("unexpected fail".to_string());
+        print_error(&api_err, true);
+        print_error(&api_err, false);
+        print_error(&file_err, true);
+        print_error(&file_err, false);
+        print_error(&input_err, true);
+        print_error(&input_err, false);
+        print_error(&unexpected_err, true);
+        print_error(&unexpected_err, false);
+    }
+
+    #[test]
+    fn test_print_warning_info_success() {
+        print_warning("warn");
+        print_info("info");
+        print_success("ok");
+    }
+
+    #[test]
+    fn test_log_command_start_and_execution() {
+        log_command_start("testcmd", Some("--flag value"));
+        log_command_start("testcmd", None);
+        log_command_execution("testcmd", true, Some(std::time::Duration::from_millis(10)));
+        log_command_execution("testcmd", false, Some(std::time::Duration::from_millis(5)));
+        log_command_execution("testcmd", true, None);
+    }
+
+    #[test]
+    fn test_handle_api_error_with_and_without_context() {
+        let bot_err1 = vkteams_bot::error::BotError::Config("fail".to_string());
+        let bot_err2 = vkteams_bot::error::BotError::Config("fail".to_string());
+        let cli_err1 = handle_api_error(bot_err1, Some("context"));
+        let cli_err2 = handle_api_error(bot_err2, None);
+        match cli_err1 {
+            CliError::ApiError(_) => {}
+            _ => panic!("Expected ApiError"),
+        }
+        match cli_err2 {
+            CliError::ApiError(_) => {}
+            _ => panic!("Expected ApiError"),
+        }
+    }
 }

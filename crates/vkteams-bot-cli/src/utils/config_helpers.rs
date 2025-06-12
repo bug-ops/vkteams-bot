@@ -503,4 +503,27 @@ mod tests {
         assert_eq!(merged.retry_delay, 800);
         assert_eq!(merged.retry_attempts, 5);
     }
+
+    #[test]
+    fn test_load_config_with_env_overrides() {
+        // Проверяем, что функция не паникует и возвращает Config (может быть пустой)
+        let res = load_config_with_env_overrides();
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_get_existing_config_path_none() {
+        // Для искусственно несуществующего пути
+        let orig = get_config_paths();
+        // Подменяем get_config_paths временно (если бы был DI)
+        // Здесь просто проверяем, что функция не паникует
+        let _ = get_existing_config_path();
+    }
+
+    #[test]
+    fn test_create_default_config_dirs() {
+        // Проверяем, что функция не паникует и возвращает Ok
+        let res = create_default_config_dirs();
+        assert!(res.is_ok());
+    }
 }
