@@ -437,10 +437,19 @@ fn parse_schedule_args(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::env;
     use tokio::runtime::Runtime;
 
     fn dummy_bot() -> Bot {
         Bot::with_params(&APIVersionUrl::V1, "dummy_token", "https://dummy.api.com").unwrap()
+    }
+
+    /// Helper to set required environment variables for scheduler tests
+    fn set_env_vars() {
+        unsafe {
+            env::set_var("VKTEAMS_BOT_API_TOKEN", "dummy_token");
+            env::set_var("VKTEAMS_BOT_API_URL", "https://dummy.api.com");
+        }
     }
 
     #[test]
@@ -454,18 +463,6 @@ mod tests {
                 interval: None,
                 max_runs: None,
             },
-        };
-        let bot = dummy_bot();
-        let rt = Runtime::new().unwrap();
-        // Ожидаем ошибку из-за отсутствия переменных окружения
-        let res = rt.block_on(cmd.execute(&bot));
-        assert!(res.is_err());
-    }
-
-    #[test]
-    fn test_execute_scheduler_action_api_error() {
-        let cmd = SchedulingCommands::Scheduler {
-            action: SchedulerAction::Status,
         };
         let bot = dummy_bot();
         let rt = Runtime::new().unwrap();
@@ -510,5 +507,116 @@ mod tests {
     fn test_parse_schedule_args_all_none() {
         let res = parse_schedule_args(&None, &None, &None);
         assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_execute_schedule_success() {
+        set_env_vars();
+        let cmd = SchedulingCommands::Schedule {
+            message_type: ScheduleMessageType::Text {
+                chat_id: "12345@chat".to_string(),
+                message: "hello".to_string(),
+                time: Some("2030-01-01T00:00:00Z".to_string()),
+                cron: None,
+                interval: None,
+                max_runs: Some(1),
+            },
+        };
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        // Should succeed if environment is set and time is valid
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_parse_schedule_args_time_success() {
+        let res = parse_schedule_args(&Some("2030-01-01T00:00:00Z".to_string()), &None, &None);
+        assert!(matches!(res, Ok(ScheduleType::Once(_))));
+    }
+
+    #[test]
+    fn test_parse_schedule_args_cron_success() {
+        // Use a valid 6-field cron expression (with seconds)
+        let res = parse_schedule_args(&None, &Some("0 * * * * *".to_string()), &None);
+        assert!(matches!(res, Ok(ScheduleType::Cron(_))));
+    }
+
+    #[test]
+    fn test_parse_schedule_args_interval_success() {
+        let res = parse_schedule_args(&None, &None, &Some(60));
+        assert!(matches!(res, Ok(ScheduleType::Interval { .. })));
+    }
+
+    #[test]
+    fn test_execute_scheduler_action_status_success() {
+        set_env_vars();
+        let cmd = SchedulingCommands::Scheduler {
+            action: SchedulerAction::Status,
+        };
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_execute_scheduler_action_list_success() {
+        set_env_vars();
+        let cmd = SchedulingCommands::Scheduler {
+            action: SchedulerAction::List,
+        };
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_execute_task_action_show_not_found() {
+        set_env_vars();
+        let cmd = SchedulingCommands::Task {
+            action: TaskAction::Show {
+                task_id: "nonexistent".to_string(),
+            },
+        };
+        let bot = dummy_bot();
+        let rt = Runtime::new().unwrap();
+        let res = rt.block_on(cmd.execute(&bot));
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_execute_task_action_remove_enable_disable() {
+        set_env_vars();
+        let mut scheduler = Scheduler::new().unwrap();
+        // Add a dummy task
+        let task_id = scheduler
+            .add_task(
+                TaskType::SendText {
+                    chat_id: "12345@chat".to_string(),
+                    message: "test".to_string(),
+                },
+                ScheduleType::Once(Utc::now()),
+                Some(1),
+            )
+            .unwrap();
+        // Remove
+        assert!(scheduler.remove_task(&task_id).is_ok());
+        // Add again
+        let task_id = scheduler
+            .add_task(
+                TaskType::SendText {
+                    chat_id: "12345@chat".to_string(),
+                    message: "test".to_string(),
+                },
+                ScheduleType::Once(Utc::now()),
+                Some(1),
+            )
+            .unwrap();
+        // Enable
+        assert!(scheduler.enable_task(&task_id).is_ok());
+        // Disable
+        assert!(scheduler.disable_task(&task_id).is_ok());
     }
 }

@@ -24,3 +24,45 @@ impl From<McpError> for Error {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rmcp::Error as RmcpError;
+    use serde_json;
+
+    #[test]
+    fn test_mcp_error_bot() {
+        let bot_err = BotError::Config("test bot error".to_string());
+        let err = McpError::Bot(bot_err);
+        let rmcp_err: Error = err.into();
+        let msg = format!("{}", rmcp_err);
+        assert!(msg.contains("test bot error"));
+    }
+
+    #[test]
+    fn test_mcp_error_serde() {
+        let serde_err = serde_json::from_str::<u32>("not_a_number").unwrap_err();
+        let err = McpError::Serde(serde_err);
+        let rmcp_err: Error = err.into();
+        let msg = format!("{}", rmcp_err);
+        assert!(msg.contains("expected ident") || msg.contains("expected"));
+    }
+
+    #[test]
+    fn test_mcp_error_rmcp() {
+        let rmcp_err = RmcpError::parse_error("rmcp parse error", None);
+        let err = McpError::Rmcp(rmcp_err.clone());
+        let rmcp_err2: Error = err.into();
+        let msg = format!("{}", rmcp_err2);
+        assert!(msg.contains("rmcp parse error"));
+    }
+
+    #[test]
+    fn test_mcp_error_other() {
+        let err = McpError::Other("other error".to_string());
+        let rmcp_err: Error = err.into();
+        let msg = format!("{}", rmcp_err);
+        assert!(msg.contains("other error"));
+    }
+}

@@ -28,4 +28,17 @@ mod tests {
         // We can only smoke-test here since main is async and requires environment
         assert!(true);
     }
+
+    #[test]
+    fn test_main_env_error() {
+        // Remove env var to simulate error
+        unsafe {
+            std::env::remove_var("VKTEAMS_BOT_CHAT_ID");
+        }
+        // Try to call Server::default and expect panic
+        let result = std::panic::catch_unwind(|| {
+            let _ = crate::types::Server::default();
+        });
+        assert!(result.is_err());
+    }
 }

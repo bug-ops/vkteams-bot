@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::str::FromStr;
-use tempfile::{TempDir, tempdir};
+use tempfile::tempdir;
 use tokio::time::{Duration as TokioDuration, sleep};
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
