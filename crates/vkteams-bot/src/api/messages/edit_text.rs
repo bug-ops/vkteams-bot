@@ -79,4 +79,33 @@ mod tests {
         let req2 = res.unwrap();
         assert!(req2.inline_keyboard_markup.is_some());
     }
+
+    #[test]
+    fn test_serialize_deserialize_request_minimal() {
+        let req = RequestMessagesEditText::new((ChatId("c1".to_string()), MsgId("m1".to_string())));
+        let val = serde_json::to_value(&req).unwrap();
+        assert_eq!(val["chatId"], "c1");
+        assert_eq!(val["msgId"], "m1");
+        let req2: RequestMessagesEditText = serde_json::from_value(val).unwrap();
+        assert_eq!(req2.chat_id.0, "c1");
+        assert_eq!(req2.msg_id.0, "m1");
+        assert!(req2.text.is_none());
+    }
+
+    #[test]
+    fn test_serialize_deserialize_request_full() {
+        let mut req =
+            RequestMessagesEditText::new((ChatId("c1".to_string()), MsgId("m1".to_string())));
+        req.text = Some("hello".to_string());
+        let val = serde_json::to_value(&req).unwrap();
+        let req2: RequestMessagesEditText = serde_json::from_value(val).unwrap();
+        assert_eq!(req2.text.as_deref(), Some("hello"));
+    }
+
+    #[test]
+    fn test_request_missing_required_field() {
+        let val = serde_json::json!({"text": "hello"});
+        let req = serde_json::from_value::<RequestMessagesEditText>(val);
+        assert!(req.is_err());
+    }
 }

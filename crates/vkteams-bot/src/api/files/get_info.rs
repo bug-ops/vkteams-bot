@@ -81,4 +81,12 @@ mod tests {
         let result = info.download(client).await;
         assert!(matches!(result, Err(BotError::Network(_))));
     }
+
+    // Для успешного случая нужен mock, если есть возможность внедрить dependency injection или test server
+    // #[test]
+    // fn test_download_success() {
+    //     let url = "http://localhost:8000/testfile.txt";
+    //     let result = download_file(url);
+    //     assert!(result.is_ok());
+    // }
 }

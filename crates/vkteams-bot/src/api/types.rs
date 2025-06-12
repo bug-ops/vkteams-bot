@@ -426,7 +426,7 @@ pub struct From {
     pub user_id: UserId,
 }
 /// Languages
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum Languages {
     #[default]
@@ -1194,5 +1194,61 @@ mod tests {
         let json = r#"{ "length": 5 }"#;
         let v = serde_json::from_str::<MessageFormatStructPre>(json);
         assert!(v.is_err());
+    }
+}
+
+#[cfg(test)]
+mod prop_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn prop_roundtrip_messageparts_sticker(file_id in "[a-zA-Z0-9]{1,16}") {
+            let sticker = MessageParts {
+                part_type: MessagePartsType::Sticker(MessagePartsPayloadSticker { file_id: FileId(file_id.clone()) }),
+            };
+            let ser = serde_json::to_string(&sticker).unwrap();
+            let de: MessageParts = serde_json::from_str(&ser).unwrap();
+            match de.part_type {
+                MessagePartsType::Sticker(s) => assert_eq!(s.file_id.0, file_id),
+                _ => panic!("Expected Sticker variant"),
+            }
+        }
+
+        #[test]
+        fn prop_roundtrip_messageparts_mention(user_id in "[a-zA-Z0-9]{1,16}", first_name in "[a-zA-Z]{1,16}") {
+            let mention = MessageParts {
+                part_type: MessagePartsType::Mention(MessagePartsPayloadMention {
+                    user_id: From {
+                        first_name: first_name.clone(),
+                        last_name: None,
+                        user_id: UserId(user_id.clone()),
+                    }
+                }),
+            };
+            let ser = serde_json::to_string(&mention).unwrap();
+            let de: MessageParts = serde_json::from_str(&ser).unwrap();
+            match de.part_type {
+                MessagePartsType::Mention(m) => {
+                    assert_eq!(m.user_id.first_name, first_name);
+                    assert_eq!(m.user_id.user_id.0, user_id);
+                },
+                _ => panic!("Expected Mention variant"),
+            }
+        }
+
+        #[test]
+        fn prop_roundtrip_messageparts_voice(file_id in "[a-zA-Z0-9]{1,16}") {
+            let voice = MessageParts {
+                part_type: MessagePartsType::Voice(MessagePartsPayloadVoice { file_id: FileId(file_id.clone()) }),
+            };
+            let ser = serde_json::to_string(&voice).unwrap();
+            let de: MessageParts = serde_json::from_str(&ser).unwrap();
+            match de.part_type {
+                MessagePartsType::Voice(v) => assert_eq!(v.file_id.0, file_id),
+                _ => panic!("Expected Voice variant"),
+            }
+        }
     }
 }

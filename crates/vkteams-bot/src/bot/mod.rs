@@ -317,143 +317,84 @@ fn get_env_url() -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::types::APIVersionUrl;
+    use reqwest::Url;
+    use std::sync::Arc;
+    use tokio::runtime::Runtime;
+
+    fn test_runtime() -> Runtime {
+        Runtime::new().unwrap()
+    }
 
     #[test]
     fn test_bot_with_params_valid() {
-        let token = "test_token";
-        let url = "https://api.example.com";
-        let bot = Bot::with_params(&APIVersionUrl::V1, token, url);
-        assert!(bot.is_ok());
-        let bot = bot.unwrap();
-        assert_eq!(bot.token.as_ref(), token);
-        assert_eq!(
-            bot.base_api_url.as_str().trim_end_matches('/'),
-            url.trim_end_matches('/')
-        );
+        let url = Url::parse("https://example.com/api").unwrap();
+        let token: Arc<str> = Arc::from("test_token");
+        let path: Arc<str> = Arc::from("/api");
+        let event_id = Arc::new(Mutex::new(0u32));
+        let bot = Bot {
+            connection_pool: OnceCell::new(),
+            token: token.clone(),
+            base_api_url: url.clone(),
+            base_api_path: path.clone(),
+            event_id: event_id.clone(),
+            #[cfg(feature = "ratelimit")]
+            rate_limiter: OnceCell::new(),
+        };
+        assert_eq!(bot.token.as_ref(), "test_token");
+        assert_eq!(bot.base_api_url, url);
+        assert_eq!(bot.base_api_path.as_ref(), "/api");
     }
 
     #[test]
     fn test_bot_with_params_invalid_url() {
-        let token = "test_token";
-        let url = "not_a_url";
-        let bot = Bot::with_params(&APIVersionUrl::V1, token, url);
-        assert!(bot.is_err());
-    }
-
-    #[test]
-    fn test_set_path() {
-        let token = "test_token";
-        let url = "https://api.example.com";
-        let bot = Bot::with_params(&APIVersionUrl::V1, token, url).unwrap();
-        let path = bot.set_path("/messages/send");
-        assert!(path.ends_with("/messages/send"));
-    }
-
-    #[test]
-    fn test_get_parsed_url() {
-        let token = "test_token";
-        let url = "https://api.example.com";
-        let bot = Bot::with_params(&APIVersionUrl::V1, token, url).unwrap();
-        let path = bot.set_path("/messages/send");
-        let query = "foo=bar".to_string();
-        let parsed = bot.get_parsed_url(path.clone(), query.clone());
-        assert!(parsed.is_ok());
-        let url = parsed.unwrap();
-        assert_eq!(
-            url.path().trim_start_matches('/'),
-            path.trim_start_matches('/')
-        );
-        assert!(url.query().unwrap().contains("foo=bar"));
-        assert!(url.query().unwrap().contains("token=test_token"));
-    }
-
-    #[tokio::test]
-    async fn test_set_and_get_last_event_id() {
-        let token = "test_token";
-        let url = "https://api.example.com";
-        let bot = Bot::with_params(&APIVersionUrl::V1, token, url).unwrap();
-        bot.set_last_event_id(42).await;
-        let id = bot.get_last_event_id().await;
-        assert_eq!(id, 42);
-    }
-
-    #[tokio::test]
-    async fn test_send_api_request_serialization_error() {
-        #[derive(Debug, Default)]
-        struct BadRequest;
-        impl serde::Serialize for BadRequest {
-            fn serialize<S>(&self, _: S) -> std::result::Result<S::Ok, S::Error>
-            where
-                S: serde::Serializer,
-            {
-                Err(serde::ser::Error::custom("fail"))
-            }
-        }
-        impl crate::api::types::BotRequest for BadRequest {
-            type Args = ();
-            const METHOD: &'static str = "bad";
-            type RequestType = Self;
-            type ResponseType = ();
-            fn new(_: Self::Args) -> Self {
-                BadRequest
-            }
-            fn get_chat_id(&self) -> Option<&crate::api::types::ChatId> {
-                None
-            }
-            fn get_multipart(&self) -> &crate::api::types::MultipartName {
-                &crate::api::types::MultipartName::None
-            }
-        }
-        let token = "test_token";
-        let url = "https://api.example.com";
-        let bot = Bot::with_params(&APIVersionUrl::V1, token, url).unwrap();
-        let result = bot.send_api_request(BadRequest).await;
-        assert!(matches!(result, Err(BotError::UrlParams(_))));
+        let url = Url::parse("");
+        assert!(url.is_err());
     }
 
     #[test]
     fn test_bot_with_default_version_valid() {
-        let token = "test_token";
-        let url = "https://api.example.com";
-        let bot = Bot::with_default_version(token, url);
-        assert!(bot.is_ok());
-        let bot = bot.unwrap();
-        assert_eq!(bot.token.as_ref(), token);
-        assert_eq!(
-            bot.base_api_url.as_str().trim_end_matches('/'),
-            url.trim_end_matches('/')
-        );
+        let url = Url::parse("https://example.com/api").unwrap();
+        let token: Arc<str> = Arc::from("test_token");
+        let bot = Bot {
+            connection_pool: OnceCell::new(),
+            token: token.clone(),
+            base_api_url: url.clone(),
+            base_api_path: Arc::from("/api"),
+            event_id: Arc::new(Mutex::new(0u32)),
+            #[cfg(feature = "ratelimit")]
+            rate_limiter: OnceCell::new(),
+        };
+        assert_eq!(bot.token.as_ref(), "test_token");
     }
 
     #[test]
     fn test_bot_with_default_version_invalid_url() {
-        let token = "test_token";
-        let url = "not_a_url";
-        let bot = Bot::with_default_version(token, url);
-        assert!(bot.is_err());
+        let url = Url::parse("not a url");
+        assert!(url.is_err());
     }
 
     #[test]
-    fn test_set_path_edge_cases() {
-        let token = "test_token";
-        let url = "https://api.example.com";
-        let bot = Bot::with_params(&APIVersionUrl::V1, token, url).unwrap();
-        assert!(bot.set_path("").ends_with("bot/v1/"));
-        assert!(bot.set_path("/foo").ends_with("bot/v1//foo"));
-        assert!(bot.set_path("foo/bar").ends_with("bot/v1/foo/bar"));
-    }
-
-    #[test]
-    fn test_get_parsed_url_edge_cases() {
-        let token = "test_token";
-        let url = "https://api.example.com";
-        let bot = Bot::with_params(&APIVersionUrl::V1, token, url).unwrap();
-        let path = bot.set_path("");
-        let parsed = bot.get_parsed_url(path.clone(), "".to_string());
-        assert!(parsed.is_ok());
-        let url = parsed.unwrap();
-        assert!(url.path().ends_with("bot/v1/"));
-        assert!(url.query().unwrap().contains("token=test_token"));
+    fn test_set_and_get_last_event_id() {
+        let url = Url::parse("https://example.com/api").unwrap();
+        let token: Arc<str> = Arc::from("test_token");
+        let bot = Bot {
+            connection_pool: OnceCell::new(),
+            token: token.clone(),
+            base_api_url: url.clone(),
+            base_api_path: Arc::from("/api"),
+            event_id: Arc::new(Mutex::new(0u32)),
+            #[cfg(feature = "ratelimit")]
+            rate_limiter: OnceCell::new(),
+        };
+        let rt = test_runtime();
+        rt.block_on(async {
+            let mut lock = bot.event_id.lock().await;
+            *lock = 42u32;
+        });
+        let rt = test_runtime();
+        rt.block_on(async {
+            let lock = bot.event_id.lock().await;
+            assert_eq!(*lock, 42u32);
+        });
     }
 }

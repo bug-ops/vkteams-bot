@@ -190,3 +190,110 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod prop_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn prop_roundtrip_group(
+            title in proptest::option::of("[a-zA-Z0-9 ]{0,32}"),
+            about in proptest::option::of("[a-zA-Z0-9 ]{0,64}"),
+            rules in proptest::option::of("[a-zA-Z0-9 ]{0,64}"),
+            invite_link in proptest::option::of("[a-zA-Z0-9:/._-]{0,64}"),
+            public in proptest::option::of(any::<bool>()),
+            join_moderation in proptest::option::of(any::<bool>())
+        ) {
+            let group = ResponseChatsGroupGetInfo {
+                title: title.clone(),
+                about: about.clone(),
+                rules: rules.clone(),
+                invite_link: invite_link.clone(),
+                public,
+                join_moderation,
+            };
+            let enum_val = EnumChatsGetInfo::Group(group);
+            let ser = serde_json::to_string(&enum_val).unwrap();
+            let de: EnumChatsGetInfo = serde_json::from_str(&ser).unwrap();
+            match de {
+                EnumChatsGetInfo::Group(g) => {
+                    assert_eq!(g.title, title);
+                    assert_eq!(g.about, about);
+                    assert_eq!(g.rules, rules);
+                    assert_eq!(g.invite_link, invite_link);
+                    assert_eq!(g.public, public);
+                    assert_eq!(g.join_moderation, join_moderation);
+                }
+                _ => panic!("Expected Group variant"),
+            }
+        }
+
+        #[test]
+        fn prop_roundtrip_channel(
+            title in proptest::option::of("[a-zA-Z0-9 ]{0,32}"),
+            about in proptest::option::of("[a-zA-Z0-9 ]{0,64}"),
+            rules in proptest::option::of("[a-zA-Z0-9 ]{0,64}"),
+            invite_link in proptest::option::of("[a-zA-Z0-9:/._-]{0,64}"),
+            public in proptest::option::of(any::<bool>()),
+            join_moderation in proptest::option::of(any::<bool>())
+        ) {
+            let channel = ResponseChatsChannelGetInfo {
+                title: title.clone(),
+                about: about.clone(),
+                rules: rules.clone(),
+                invite_link: invite_link.clone(),
+                public,
+                join_moderation,
+            };
+            let enum_val = EnumChatsGetInfo::Channel(channel);
+            let ser = serde_json::to_string(&enum_val).unwrap();
+            let de: EnumChatsGetInfo = serde_json::from_str(&ser).unwrap();
+            match de {
+                EnumChatsGetInfo::Channel(c) => {
+                    assert_eq!(c.title, title);
+                    assert_eq!(c.about, about);
+                    assert_eq!(c.rules, rules);
+                    assert_eq!(c.invite_link, invite_link);
+                    assert_eq!(c.public, public);
+                    assert_eq!(c.join_moderation, join_moderation);
+                }
+                _ => panic!("Expected Channel variant"),
+            }
+        }
+
+        #[test]
+        fn prop_roundtrip_private(
+            first_name in proptest::option::of("[a-zA-Z]{0,32}"),
+            last_name in proptest::option::of("[a-zA-Z]{0,32}"),
+            nick in proptest::option::of("[a-zA-Z0-9_]{0,32}"),
+            about in proptest::option::of("[a-zA-Z0-9 ]{0,64}"),
+            is_bot in proptest::option::of(any::<bool>()),
+            language in proptest::option::of(prop_oneof![Just(Languages::Ru)]).prop_map(|opt| opt)
+        ) {
+            let private = ResponseChatsPrivateGetInfo {
+                first_name: first_name.clone(),
+                last_name: last_name.clone(),
+                nick: nick.clone(),
+                about: about.clone(),
+                is_bot,
+                language: language.clone(),
+            };
+            let enum_val = EnumChatsGetInfo::Private(private);
+            let ser = serde_json::to_string(&enum_val).unwrap();
+            let de: EnumChatsGetInfo = serde_json::from_str(&ser).unwrap();
+            match de {
+                EnumChatsGetInfo::Private(p) => {
+                    assert_eq!(p.first_name, first_name);
+                    assert_eq!(p.last_name, last_name);
+                    assert_eq!(p.nick, nick);
+                    assert_eq!(p.about, about);
+                    assert_eq!(p.is_bot, is_bot);
+                    assert_eq!(p.language, language);
+                }
+                _ => panic!("Expected Private variant"),
+            }
+        }
+    }
+}

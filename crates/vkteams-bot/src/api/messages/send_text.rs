@@ -85,4 +85,47 @@ mod tests {
         let req2 = res.unwrap();
         assert!(req2.inline_keyboard_markup.is_some());
     }
+
+    #[test]
+    fn test_serialize_deserialize_request_minimal() {
+        let req = RequestMessagesSendText::new(ChatId("c1".to_string()));
+        let val = serde_json::to_value(&req).unwrap();
+        assert_eq!(val["chatId"], "c1");
+        let req2: RequestMessagesSendText = serde_json::from_value(val).unwrap();
+        assert_eq!(req2.chat_id.0, "c1");
+        assert!(req2.text.is_none());
+    }
+
+    #[test]
+    fn test_serialize_deserialize_request_full() {
+        let mut req = RequestMessagesSendText::new(ChatId("c1".to_string()));
+        req.text = Some("hello".to_string());
+        req.reply_msg_id = Some(MsgId("m1".to_string()));
+        req.forward_chat_id = Some(ChatId("c2".to_string()));
+        req.forward_msg_id = Some(MsgId("m2".to_string()));
+        let val = serde_json::to_value(&req).unwrap();
+        let req2: RequestMessagesSendText = serde_json::from_value(val).unwrap();
+        assert_eq!(req2.text.as_deref(), Some("hello"));
+        assert_eq!(req2.reply_msg_id.as_ref().unwrap().0, "m1");
+        assert_eq!(req2.forward_chat_id.as_ref().unwrap().0, "c2");
+        assert_eq!(req2.forward_msg_id.as_ref().unwrap().0, "m2");
+    }
+
+    #[test]
+    fn test_serialize_deserialize_response() {
+        let resp = ResponseMessagesSendText {
+            msg_id: MsgId("m1".to_string()),
+        };
+        let val = serde_json::to_value(&resp).unwrap();
+        assert_eq!(val["msgId"], "m1");
+        let resp2: ResponseMessagesSendText = serde_json::from_value(val).unwrap();
+        assert_eq!(resp2.msg_id.0, "m1");
+    }
+
+    #[test]
+    fn test_request_missing_required_field() {
+        let val = serde_json::json!({"text": "hello"});
+        let req = serde_json::from_value::<RequestMessagesSendText>(val);
+        assert!(req.is_err());
+    }
 }

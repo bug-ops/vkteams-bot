@@ -117,4 +117,55 @@ mod tests {
         assert_eq!(req2.forward_chat_id.unwrap().0, "c2");
         assert_eq!(req2.forward_msg_id.unwrap().0, "m1");
     }
+
+    #[test]
+    fn test_serialize_deserialize_request_minimal() {
+        let req = RequestMessagesSendVoice::new((
+            ChatId("c1".to_string()),
+            MultipartName::File("voice_id".to_string()),
+        ));
+        let val = serde_json::to_value(&req).unwrap();
+        assert_eq!(val["chatId"], "c1");
+        assert_eq!(val["multipart"]["File"], "voice_id");
+        let req2: RequestMessagesSendVoice = serde_json::from_value(val).unwrap();
+        assert_eq!(req2.chat_id.0, "c1");
+        match req2.multipart {
+            MultipartName::File(ref s) => assert_eq!(s, "voice_id"),
+            _ => panic!("Expected File variant"),
+        }
+        assert!(req2.text.is_none());
+    }
+
+    #[test]
+    fn test_serialize_deserialize_request_full() {
+        let mut req = RequestMessagesSendVoice::new((
+            ChatId("c1".to_string()),
+            MultipartName::File("voice_id".to_string()),
+        ));
+        req.text = Some("hello".to_string());
+        let val = serde_json::to_value(&req).unwrap();
+        let req2: RequestMessagesSendVoice = serde_json::from_value(val).unwrap();
+        assert_eq!(req2.text.as_deref(), Some("hello"));
+    }
+
+    #[test]
+    fn test_serialize_deserialize_response() {
+        let resp = ResponseMessagesSendVoice {
+            msg_id: Some(MsgId("m1".to_string())),
+            file_id: Some("voice_id".to_string()),
+        };
+        let val = serde_json::to_value(&resp).unwrap();
+        assert_eq!(val["msgId"], "m1");
+        assert_eq!(val["fileId"], "voice_id");
+        let resp2: ResponseMessagesSendVoice = serde_json::from_value(val).unwrap();
+        assert_eq!(resp2.msg_id.as_ref().unwrap().0, "m1");
+        assert_eq!(resp2.file_id.as_ref().unwrap(), "voice_id");
+    }
+
+    #[test]
+    fn test_request_missing_required_field() {
+        let val = serde_json::json!({"text": "hello"});
+        let req = serde_json::from_value::<RequestMessagesSendVoice>(val);
+        assert!(req.is_err());
+    }
 }
