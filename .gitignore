@@ -6,7 +6,6 @@ examples/.env
 .idea
 .zed
 Cargo.lock
-.config
 .cargo
 .ron
 .yaml
