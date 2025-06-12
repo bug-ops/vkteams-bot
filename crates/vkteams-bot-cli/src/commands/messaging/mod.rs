@@ -291,3 +291,91 @@ async fn execute_unpin_message(bot: &Bot, chat_id: &str, message_id: &str) -> Cl
 }
 
 // Validation functions are now imported from utils/validation module
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_send_text_valid() {
+        let cmd = MessagingCommands::SendText {
+            chat_id: "user123".to_string(),
+            message: "Hello".to_string(),
+        };
+        assert!(cmd.validate().is_ok());
+    }
+
+    #[test]
+    fn test_send_text_invalid_chat_id() {
+        let cmd = MessagingCommands::SendText {
+            chat_id: "user with spaces".to_string(),
+            message: "Hello".to_string(),
+        };
+        assert!(cmd.validate().is_err());
+    }
+
+    #[test]
+    fn test_send_text_empty_message() {
+        let cmd = MessagingCommands::SendText {
+            chat_id: "user123".to_string(),
+            message: "".to_string(),
+        };
+        assert!(cmd.validate().is_err());
+    }
+
+    #[test]
+    fn test_send_file_invalid_path() {
+        let cmd = MessagingCommands::SendFile {
+            chat_id: "user123".to_string(),
+            file_path: "nonexistent.file".to_string(),
+        };
+        // Путь не существует, validate_file_path вернет ошибку
+        assert!(cmd.validate().is_err());
+    }
+
+    #[test]
+    fn test_send_voice_invalid_path() {
+        let cmd = MessagingCommands::SendVoice {
+            chat_id: "user123".to_string(),
+            file_path: "nonexistent.ogg".to_string(),
+        };
+        assert!(cmd.validate().is_err());
+    }
+
+    #[test]
+    fn test_edit_message_invalid_message_id() {
+        let cmd = MessagingCommands::EditMessage {
+            chat_id: "user123".to_string(),
+            message_id: "id with space".to_string(),
+            new_text: "new text".to_string(),
+        };
+        assert!(cmd.validate().is_err());
+    }
+
+    #[test]
+    fn test_delete_message_empty_message_id() {
+        let cmd = MessagingCommands::DeleteMessage {
+            chat_id: "user123".to_string(),
+            message_id: "".to_string(),
+        };
+        assert!(cmd.validate().is_err());
+    }
+
+    #[test]
+    fn test_pin_message_valid() {
+        let cmd = MessagingCommands::PinMessage {
+            chat_id: "user123".to_string(),
+            message_id: "msg123".to_string(),
+        };
+        assert!(cmd.validate().is_ok());
+    }
+
+    #[test]
+    fn test_unpin_message_invalid_chat_id() {
+        let cmd = MessagingCommands::UnpinMessage {
+            chat_id: "invalid id".to_string(),
+            message_id: "msg123".to_string(),
+        };
+        assert!(cmd.validate().is_err());
+    }
+}

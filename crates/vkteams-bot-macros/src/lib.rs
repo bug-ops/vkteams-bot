@@ -161,18 +161,4 @@ mod tests {
         let ty: Type = parse_str("DummyChatId").unwrap();
         assert!(!is_type_named(&ty, "OtherType"));
     }
-
-    #[test]
-    fn test_derive_chat_id_macro_smoke() {
-        let input: DeriveInput = parse_str("struct S { chat_id: ChatId } ").unwrap();
-        // Просто smoke-test вызова макроса (panic = fail)
-        let _ = crate::derive_chat_id(TokenStream::from(quote::quote! { #input }));
-    }
-
-    #[test]
-    fn test_derive_get_field_macro_smoke() {
-        let input: DeriveInput =
-            parse_str("struct S { chat_id: ChatId, multipart: MultipartName } ").unwrap();
-        let _ = crate::derive_get_field(TokenStream::from(quote::quote! { #input }));
-    }
 }

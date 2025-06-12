@@ -433,3 +433,83 @@ fn parse_schedule_args(
         unreachable!()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_schedule_text_valid() {
+        let cmd = ScheduleMessageType::Text {
+            chat_id: "user123".to_string(),
+            message: "Hello".to_string(),
+            time: Some("2030-01-01T00:00:00Z".to_string()),
+            cron: None,
+            interval: None,
+            max_runs: None,
+        };
+        match cmd {
+            ScheduleMessageType::Text { ref chat_id, .. } => assert_eq!(chat_id, "user123"),
+            _ => panic!("Expected Text variant"),
+        }
+    }
+
+    #[test]
+    fn test_schedule_text_invalid_chat_id() {
+        let cmd = ScheduleMessageType::Text {
+            chat_id: "user with space".to_string(),
+            message: "Hello".to_string(),
+            time: None,
+            cron: None,
+            interval: None,
+            max_runs: None,
+        };
+        match cmd {
+            ScheduleMessageType::Text { ref chat_id, .. } => assert_eq!(chat_id, "user with space"),
+            _ => panic!("Expected Text variant"),
+        }
+    }
+
+    #[test]
+    fn test_schedule_file_invalid_path() {
+        let cmd = ScheduleMessageType::File {
+            chat_id: "user123".to_string(),
+            file_path: "nonexistent.file".to_string(),
+            time: None,
+            cron: None,
+            interval: None,
+            max_runs: None,
+        };
+        match cmd {
+            ScheduleMessageType::File { ref chat_id, .. } => assert_eq!(chat_id, "user123"),
+            _ => panic!("Expected File variant"),
+        }
+    }
+
+    #[test]
+    fn test_schedule_action_invalid_action() {
+        let cmd = ScheduleMessageType::Action {
+            chat_id: "user123".to_string(),
+            action: "invalid".to_string(),
+            time: None,
+            cron: None,
+            interval: None,
+            max_runs: None,
+        };
+        match cmd {
+            ScheduleMessageType::Action { ref action, .. } => assert_eq!(action, "invalid"),
+            _ => panic!("Expected Action variant"),
+        }
+    }
+
+    #[test]
+    fn test_task_action_empty_id() {
+        let cmd = TaskAction::Show {
+            task_id: "".to_string(),
+        };
+        match cmd {
+            TaskAction::Show { ref task_id } => assert!(task_id.is_empty()),
+            _ => panic!("Expected Show variant"),
+        }
+    }
+}

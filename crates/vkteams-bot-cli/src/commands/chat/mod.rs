@@ -238,3 +238,43 @@ async fn execute_send_action(bot: &Bot, chat_id: &str, action: &str) -> CliResul
 }
 
 // Validation functions are now imported from utils/validation module
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_chat_id_valid() {
+        let input = "12345@chat";
+        let res = validate_chat_id(input);
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_parse_chat_id_invalid() {
+        let input = "user with spaces";
+        let res = validate_chat_id(input);
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_handle_empty_input() {
+        let input = "";
+        let res = validate_chat_id(input);
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_parse_cursor_valid() {
+        let input = "123";
+        let res = validate_cursor(input);
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_parse_cursor_empty() {
+        let input = "";
+        let res = validate_cursor(input);
+        assert!(res.is_err());
+    }
+}

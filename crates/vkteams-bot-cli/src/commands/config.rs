@@ -721,3 +721,54 @@ async fn execute_config(show: bool, init: bool, wizard: bool) -> CliResult<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::commands::Command;
+    use crate::completion::CompletionShell;
+
+    #[test]
+    fn test_config_commands_variants() {
+        let setup = ConfigCommands::Setup;
+        assert_eq!(Command::name(&setup), "setup");
+
+        let examples = ConfigCommands::Examples;
+        assert_eq!(Command::name(&examples), "examples");
+
+        let list = ConfigCommands::ListCommands;
+        assert_eq!(Command::name(&list), "list-commands");
+
+        let validate = ConfigCommands::Validate;
+        assert_eq!(Command::name(&validate), "validate");
+
+        let config = ConfigCommands::Config {
+            show: false,
+            init: false,
+            wizard: false,
+        };
+        assert_eq!(Command::name(&config), "config");
+        if let ConfigCommands::Config { show, init, wizard } = config {
+            assert!(!show && !init && !wizard);
+        }
+
+        let completion = ConfigCommands::Completion {
+            shell: CompletionShell::Bash,
+            output: None,
+            install: false,
+            all: false,
+        };
+        assert_eq!(Command::name(&completion), "completion");
+        if let ConfigCommands::Completion {
+            shell,
+            output,
+            install,
+            all,
+        } = completion
+        {
+            assert_eq!(shell, CompletionShell::Bash);
+            assert!(output.is_none());
+            assert!(!install && !all);
+        }
+    }
+}

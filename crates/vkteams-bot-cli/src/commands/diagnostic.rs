@@ -408,3 +408,87 @@ where
 // Validation functions are now imported from utils/validation module
 
 // Utility functions
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_diagnostic_commands_variants() {
+        let get_self = DiagnosticCommands::GetSelf { detailed: true };
+        assert_eq!(get_self.name(), "get-self");
+        if let DiagnosticCommands::GetSelf { detailed } = get_self {
+            assert!(detailed);
+        }
+
+        let get_events = DiagnosticCommands::GetEvents { listen: Some(true) };
+        assert_eq!(get_events.name(), "get-events");
+        if let DiagnosticCommands::GetEvents { listen } = get_events {
+            assert_eq!(listen, Some(true));
+        }
+
+        let get_file = DiagnosticCommands::GetFile {
+            file_id: "file123".to_string(),
+            file_path: "/tmp".to_string(),
+        };
+        assert_eq!(get_file.name(), "get-file");
+        if let DiagnosticCommands::GetFile { file_id, file_path } = get_file {
+            assert_eq!(file_id, "file123");
+            assert_eq!(file_path, "/tmp");
+        }
+
+        let health = DiagnosticCommands::HealthCheck;
+        assert_eq!(health.name(), "health-check");
+
+        let net = DiagnosticCommands::NetworkTest;
+        assert_eq!(net.name(), "network-test");
+
+        let sys = DiagnosticCommands::SystemInfo;
+        assert_eq!(sys.name(), "system-info");
+
+        let rate = DiagnosticCommands::RateLimitTest {
+            requests: 10,
+            delay_ms: 100,
+        };
+        assert_eq!(rate.name(), "rate-limit-test");
+        if let DiagnosticCommands::RateLimitTest { requests, delay_ms } = rate {
+            assert_eq!(requests, 10);
+            assert_eq!(delay_ms, 100);
+        }
+    }
+
+    #[test]
+    fn test_rate_limit_validation() {
+        let valid = DiagnosticCommands::RateLimitTest {
+            requests: 1,
+            delay_ms: 0,
+        };
+        assert!(valid.validate().is_ok());
+        let too_low = DiagnosticCommands::RateLimitTest {
+            requests: 0,
+            delay_ms: 0,
+        };
+        assert!(too_low.validate().is_err());
+        let too_high = DiagnosticCommands::RateLimitTest {
+            requests: 1001,
+            delay_ms: 0,
+        };
+        assert!(too_high.validate().is_err());
+    }
+
+    #[test]
+    fn test_get_file_validation() {
+        let valid = DiagnosticCommands::GetFile {
+            file_id: "file123".to_string(),
+            file_path: "".to_string(),
+        };
+        // file_id валиден, file_path пустой — ок
+        assert!(valid.validate().is_ok());
+        let invalid = DiagnosticCommands::GetFile {
+            file_id: "".to_string(),
+            file_path: "".to_string(),
+        };
+        // file_id пустой — ошибка
+        assert!(invalid.validate().is_err());
+    }
+}

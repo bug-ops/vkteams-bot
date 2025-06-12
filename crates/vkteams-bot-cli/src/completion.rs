@@ -20,7 +20,7 @@ use std::path::Path;
 
 /// Available shell types for completion generation
 #[cfg(feature = "completion")]
-#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, clap::ValueEnum)]
 pub enum CompletionShell {
     Bash,
     Zsh,
