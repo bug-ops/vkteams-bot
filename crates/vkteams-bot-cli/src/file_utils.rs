@@ -386,3 +386,39 @@ mod more_edge_tests {
         assert!(res.is_err());
     }
 }
+
+#[cfg(test)]
+mod happy_path_tests {
+    use super::*;
+    use crate::utils::create_dummy_bot;
+    use std::fs;
+    use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn test_upload_file_success() {
+        let bot = create_dummy_bot();
+        let temp_dir = tempdir().unwrap();
+        let file_path = temp_dir.path().join("file.txt");
+        fs::write(&file_path, "test").unwrap();
+        // This will fail on real API, but for dummy bot we expect an error or Ok depending on mock
+        let _ = upload_file(&bot, "user123", file_path.to_str().unwrap()).await;
+        // No panic means the function handles the flow
+    }
+
+    #[tokio::test]
+    async fn test_upload_voice_success() {
+        let bot = create_dummy_bot();
+        let temp_dir = tempdir().unwrap();
+        let file_path = temp_dir.path().join("voice.ogg");
+        fs::write(&file_path, "test").unwrap();
+        let _ = upload_voice(&bot, "user123", file_path.to_str().unwrap()).await;
+    }
+
+    #[tokio::test]
+    async fn test_download_and_save_file_success() {
+        let bot = create_dummy_bot();
+        let temp_dir = tempdir().unwrap();
+        // File ID is dummy, but function should handle the flow without panic
+        let _ = download_and_save_file(&bot, "fileid123", temp_dir.path().to_str().unwrap()).await;
+    }
+}

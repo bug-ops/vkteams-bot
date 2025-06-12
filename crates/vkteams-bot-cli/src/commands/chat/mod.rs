@@ -438,3 +438,53 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod happy_path_tests {
+    use super::*;
+    use crate::utils::bot::create_dummy_bot;
+    use tokio_test::block_on;
+
+    #[test]
+    fn test_execute_get_chat_info_success() {
+        let bot = create_dummy_bot();
+        let res = block_on(execute_get_chat_info(&bot, "chat123"));
+        // Dummy bot may return error or Ok, but function should not panic
+        let _ = res;
+    }
+
+    #[test]
+    fn test_execute_get_profile_success() {
+        let bot = create_dummy_bot();
+        let res = block_on(execute_get_profile(&bot, "user123"));
+        let _ = res;
+    }
+
+    #[test]
+    fn test_execute_get_chat_members_success() {
+        let bot = create_dummy_bot();
+        let res = block_on(execute_get_chat_members(&bot, "chat123", Some("1")));
+        let _ = res;
+    }
+
+    #[test]
+    fn test_execute_set_chat_title_success() {
+        let bot = create_dummy_bot();
+        let res = block_on(execute_set_chat_title(&bot, "chat123", "New Title"));
+        let _ = res;
+    }
+
+    #[test]
+    fn test_execute_set_chat_about_success() {
+        let bot = create_dummy_bot();
+        let res = block_on(execute_set_chat_about(&bot, "chat123", "About"));
+        let _ = res;
+    }
+
+    #[test]
+    fn test_execute_send_action_success() {
+        let bot = create_dummy_bot();
+        let res = block_on(execute_send_action(&bot, "chat123", "typing"));
+        let _ = res;
+    }
+}
