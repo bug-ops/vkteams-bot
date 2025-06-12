@@ -36,7 +36,7 @@ impl MessageTextParser {
 mod tests {
     use super::*;
     use serde::Serialize;
-    use tera::{Context, Tera};
+    use tera::Tera;
 
     #[derive(Serialize)]
     struct DummyCtx {

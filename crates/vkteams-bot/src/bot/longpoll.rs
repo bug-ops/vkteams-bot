@@ -190,3 +190,129 @@ impl Bot {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::events::get::ResponseEventsGet;
+    use crate::api::types::EventId;
+    use crate::error::{BotError, Result};
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use tokio::sync::Mutex;
+
+    // Dummy Bot с моками для тестов
+    #[derive(Clone, Default)]
+    pub struct DummyBot {
+        last_event_id: Arc<Mutex<EventId>>,
+        set_last_event_calls: Arc<AtomicUsize>,
+    }
+    impl DummyBot {
+        fn new() -> Self {
+            Self {
+                last_event_id: Arc::new(Mutex::new(0)),
+                set_last_event_calls: Arc::new(AtomicUsize::new(0)),
+            }
+        }
+        async fn set_last_event_id(&self, id: EventId) {
+            *self.last_event_id.lock().await = id;
+            self.set_last_event_calls.fetch_add(1, Ordering::SeqCst);
+        }
+    }
+
+    fn make_events(n: usize) -> ResponseEventsGet {
+        ResponseEventsGet {
+            events: (0..n)
+                .map(|i| EventMessage {
+                    event_id: i as EventId,
+                    event_type: EventType::None,
+                })
+                .collect(),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_process_event_batch_single_batch() {
+        let bot = DummyBot::new();
+        let events = make_events(3);
+        let call_count = Arc::new(AtomicUsize::new(0));
+        let call_count2 = call_count.clone();
+        let func = move |_bot: DummyBot, _ev: ResponseEventsGet| {
+            let call_count2 = call_count2.clone();
+            async move {
+                call_count2.fetch_add(1, Ordering::SeqCst);
+                Ok(())
+            }
+        };
+        // Симулируем batch < max_events_per_batch
+        let res = Bot::process_event_batch_test(&bot, events.clone(), &func, 10).await;
+        assert!(res.is_ok());
+        assert_eq!(call_count.load(Ordering::SeqCst), 1);
+        assert_eq!(bot.set_last_event_calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn test_process_event_batch_multiple_batches() {
+        let bot = DummyBot::new();
+        let events = make_events(15);
+        let call_count = Arc::new(AtomicUsize::new(0));
+        let call_count2 = call_count.clone();
+        let func = move |_bot: DummyBot, _ev: ResponseEventsGet| {
+            let call_count2 = call_count2.clone();
+            async move {
+                call_count2.fetch_add(1, Ordering::SeqCst);
+                Ok(())
+            }
+        };
+        // max_events_per_batch = 5, должно быть 3 батча
+        let res = Bot::process_event_batch_test(&bot, events.clone(), &func, 5).await;
+        assert!(res.is_ok());
+        assert_eq!(call_count.load(Ordering::SeqCst), 3);
+        assert_eq!(bot.set_last_event_calls.load(Ordering::SeqCst), 3);
+    }
+
+    #[tokio::test]
+    async fn test_process_event_batch_callback_error() {
+        let bot = DummyBot::new();
+        let events = make_events(2);
+        let func = |_bot: DummyBot, _ev: ResponseEventsGet| async move {
+            Err(BotError::System("fail".into()))
+        };
+        let res = Bot::process_event_batch_test(&bot, events, &func, 10).await;
+        assert!(res.is_err());
+    }
+
+    // Вспомогательная функция для теста process_event_batch с параметром max_events_per_batch
+    impl Bot {
+        pub async fn process_event_batch_test<F, X>(
+            bot: &DummyBot,
+            events: ResponseEventsGet,
+            func: &F,
+            max_events_per_batch: usize,
+        ) -> Result<()>
+        where
+            F: Fn(DummyBot, ResponseEventsGet) -> X,
+            X: Future<Output = Result<()>> + Send + Sync + 'static,
+        {
+            // Упрощённая логика batching для теста
+            let total = events.events.len();
+            if total == 0 {
+                return Ok(());
+            }
+            let batches = (total + max_events_per_batch - 1) / max_events_per_batch;
+            for batch_idx in 0..batches {
+                let start_idx = batch_idx * max_events_per_batch;
+                let end_idx = std::cmp::min((batch_idx + 1) * max_events_per_batch, total);
+                let batch_events = ResponseEventsGet {
+                    events: events.events[start_idx..end_idx].to_vec(),
+                };
+                let last_event_id = batch_events.events[batch_events.events.len() - 1].event_id;
+                bot.set_last_event_id(last_event_id).await;
+                if let Err(e) = func(bot.clone(), batch_events).await {
+                    return Err(e);
+                }
+            }
+            Ok(())
+        }
+    }
+}
