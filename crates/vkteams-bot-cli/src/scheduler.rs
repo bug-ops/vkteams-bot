@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::str::FromStr;
+use tempfile::{TempDir, tempdir};
 use tokio::time::{Duration as TokioDuration, sleep};
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
@@ -437,5 +438,146 @@ impl ScheduleType {
                 )
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::TimeZone;
+    use std::fs;
+    use std::path::PathBuf;
+    use tempfile::tempdir;
+
+    fn create_test_scheduler() -> (Scheduler, tempfile::TempDir) {
+        let temp_dir = tempdir().unwrap();
+        let mut data_file = PathBuf::from(temp_dir.path());
+        data_file.push("scheduler_tasks_test.json");
+        if let Some(parent) = data_file.parent() {
+            std::fs::create_dir_all(parent).unwrap();
+        }
+        let scheduler = Scheduler {
+            tasks: HashMap::new(),
+            data_file,
+            bot: None,
+        };
+        (scheduler, temp_dir)
+    }
+
+    #[test]
+    fn test_add_and_remove_task() {
+        let (mut scheduler, _tempdir) = create_test_scheduler();
+        let task_id = scheduler
+            .add_task(
+                TaskType::SendText {
+                    chat_id: "user1".to_string(),
+                    message: "hi".to_string(),
+                },
+                ScheduleType::Once(Utc::now() + Duration::minutes(1)),
+                Some(1),
+            )
+            .unwrap();
+        assert!(scheduler.get_task(&task_id).is_some());
+        scheduler.remove_task(&task_id).unwrap();
+        assert!(scheduler.get_task(&task_id).is_none());
+    }
+
+    #[test]
+    fn test_enable_disable_task() {
+        let (mut scheduler, _tempdir) = create_test_scheduler();
+        let task_id = scheduler
+            .add_task(
+                TaskType::SendText {
+                    chat_id: "user2".to_string(),
+                    message: "hi".to_string(),
+                },
+                ScheduleType::Once(Utc::now() + Duration::minutes(1)),
+                None,
+            )
+            .unwrap();
+        scheduler.disable_task(&task_id).unwrap();
+        assert!(!scheduler.get_task(&task_id).unwrap().enabled);
+        scheduler.enable_task(&task_id).unwrap();
+        assert!(scheduler.get_task(&task_id).unwrap().enabled);
+    }
+
+    #[test]
+    fn test_list_and_get_task() {
+        let (mut scheduler, _tempdir) = create_test_scheduler();
+        let task_id = scheduler
+            .add_task(
+                TaskType::SendText {
+                    chat_id: "user3".to_string(),
+                    message: "hi".to_string(),
+                },
+                ScheduleType::Once(Utc::now() + Duration::minutes(1)),
+                None,
+            )
+            .unwrap();
+        let tasks = scheduler.list_tasks();
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].id, task_id);
+        assert!(scheduler.get_task(&task_id).is_some());
+        assert!(scheduler.get_task("no_such_id").is_none());
+    }
+
+    #[test]
+    fn test_calculate_next_run_once() {
+        let (scheduler, _tempdir) = create_test_scheduler();
+        let dt = Utc.ymd(2030, 1, 1).and_hms(0, 0, 0);
+        let next = scheduler
+            .calculate_next_run(&ScheduleType::Once(dt), None)
+            .unwrap();
+        assert_eq!(next, dt);
+    }
+
+    #[test]
+    fn test_calculate_next_run_interval() {
+        let (scheduler, _tempdir) = create_test_scheduler();
+        let start = Utc.ymd(2030, 1, 1).and_hms(0, 0, 0);
+        let sched = ScheduleType::Interval {
+            duration_seconds: 60,
+            start_time: start,
+        };
+        let next = scheduler.calculate_next_run(&sched, Some(start)).unwrap();
+        assert_eq!(next, start + Duration::seconds(60));
+    }
+
+    #[test]
+    fn test_cleanup_completed_tasks() {
+        let (mut scheduler, _tempdir) = create_test_scheduler();
+        let dt = Utc::now() - Duration::days(1);
+        let id = scheduler
+            .add_task(
+                TaskType::SendText {
+                    chat_id: "user4".to_string(),
+                    message: "hi".to_string(),
+                },
+                ScheduleType::Once(dt),
+                Some(1),
+            )
+            .unwrap();
+        // Помечаем задачу как выполненную и превышающую max_runs
+        if let Some(task) = scheduler.tasks.get_mut(&id) {
+            task.run_count = 1;
+            task.max_runs = Some(1);
+        }
+        scheduler.disable_task(&id).unwrap();
+        scheduler.cleanup_completed_tasks().unwrap();
+        assert!(scheduler.get_task(&id).is_none());
+    }
+
+    #[test]
+    fn test_remove_nonexistent_task() {
+        let (mut scheduler, _tempdir) = create_test_scheduler();
+        let res = scheduler.remove_task("no_such_id");
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_enable_disable_nonexistent_task() {
+        let (mut scheduler, _tempdir) = create_test_scheduler();
+        assert!(scheduler.enable_task("no_such_id").is_err());
+        assert!(scheduler.disable_task("no_such_id").is_err());
     }
 }

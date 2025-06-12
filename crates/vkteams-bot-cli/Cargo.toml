@@ -46,6 +46,7 @@ chrono = { version = "0.4", features = ["serde"] }
 cron = "0.15"
 uuid = { version = "1.0", features = ["v4"] }
 async-trait = "0.1"
+tempfile = "3.8"
 
 [features]
 default = ["completion"]
