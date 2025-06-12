@@ -115,6 +115,7 @@ pub fn validate_cursor(cursor: &str) -> CliResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
 
     #[test]
     fn test_validate_chat_id_valid() {
@@ -152,5 +153,28 @@ mod tests {
         assert!(validate_cursor("0").is_ok());
         assert!(validate_cursor("abc").is_err());
         assert!(validate_cursor("12.5").is_err());
+    }
+
+    proptest! {
+        #[test]
+        fn prop_validate_chat_id_random(s in ".{0,128}") {
+            // Не должно быть паники
+            let _ = validate_chat_id(&s);
+        }
+
+        #[test]
+        fn prop_validate_chat_title_random(s in ".{0,128}") {
+            let _ = validate_chat_title(&s);
+        }
+
+        #[test]
+        fn prop_validate_chat_action_random(s in ".{0,32}") {
+            let _ = validate_chat_action(&s);
+        }
+
+        #[test]
+        fn prop_validate_cursor_random(s in ".{0,32}") {
+            let _ = validate_cursor(&s);
+        }
     }
 }

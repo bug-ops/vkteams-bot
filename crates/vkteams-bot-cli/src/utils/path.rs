@@ -257,6 +257,7 @@ pub fn get_unique_filename(base_path: &Path) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
     use tempfile::tempdir;
 
     #[test]
@@ -329,5 +330,54 @@ mod tests {
         let unique2 = get_unique_filename(&file_path);
         assert_ne!(unique2, file_path);
         assert!(!unique2.exists());
+    }
+
+    proptest! {
+        #[test]
+        fn prop_sanitize_filename_random(s in ".{0,512}") {
+            // Обрезаем строку так, чтобы не превышать 255 байт и не попадать на середину unicode-символа
+            let mut s_trunc = String::new();
+            let mut total_bytes = 0;
+            for c in s.chars() {
+                let c_len = c.len_utf8();
+                if total_bytes + c_len > 255 {
+                    break;
+                }
+                s_trunc.push(c);
+                total_bytes += c_len;
+            }
+            let sanitized = sanitize_filename(&s_trunc);
+            // Не должно быть пустых строк
+            prop_assert!(!sanitized.is_empty());
+            // Не должно быть запрещённых символов
+            for c in ['<', '>', ':', '"', '|', '?', '*', '/', '\\'] {
+                prop_assert!(!sanitized.contains(c));
+            }
+            // Длина не превышает 255
+            prop_assert!(sanitized.len() <= 255);
+        }
+
+        #[test]
+        fn prop_get_file_name_from_path_random(s in ".{0,512}") {
+            let name = get_file_name_from_path(&s);
+            if s.is_empty() {
+                prop_assert!(name.is_empty());
+            } else {
+                prop_assert!(!name.is_empty());
+            }
+        }
+
+        #[test]
+        fn prop_get_file_extension_random(s in ".{0,512}") {
+            // Не должно паниковать
+            let _ = get_file_extension(&s);
+        }
+
+        #[test]
+        fn prop_normalize_path_random(s in ".{0,512}") {
+            let norm = normalize_path(&s);
+            // Не должно паниковать, результат строка
+            prop_assert!(norm.len() <= s.len() + 10);
+        }
     }
 }

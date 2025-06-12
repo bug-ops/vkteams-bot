@@ -272,3 +272,62 @@ pub async fn upload_voice(
     info!("Successfully uploaded voice message: {}", source_path);
     Ok(result)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::utils::create_dummy_bot;
+    use proptest::prelude::*;
+    use std::fs;
+    use tempfile::tempdir;
+    use tokio_test::block_on;
+
+    #[tokio::test]
+    async fn test_upload_file_empty_path() {
+        let bot = create_dummy_bot();
+        let res = upload_file(&bot, "user123", "").await;
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_upload_file_nonexistent() {
+        let bot = create_dummy_bot();
+        let res = upload_file(&bot, "user123", "no_such_file.txt").await;
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_upload_voice_invalid_format() {
+        let bot = create_dummy_bot();
+        let temp_dir = tempdir().unwrap();
+        let file_path = temp_dir.path().join("voice.txt");
+        fs::write(&file_path, "test").unwrap();
+        let res = upload_voice(&bot, "user123", file_path.to_str().unwrap()).await;
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_download_and_save_file_invalid_dir() {
+        let bot = create_dummy_bot();
+        let res = download_and_save_file(&bot, "fileid123", "/no/such/dir").await;
+        assert!(res.is_err());
+    }
+
+    proptest! {
+        #[test]
+        fn prop_upload_file_random_path(user_id in ".{0,32}", file_path in ".{0,128}") {
+            let bot = create_dummy_bot();
+            let fut = upload_file(&bot, &user_id, &file_path);
+            let res = block_on(fut);
+            prop_assert!(res.is_err());
+        }
+
+        #[test]
+        fn prop_upload_voice_random_path(user_id in ".{0,32}", file_path in ".{0,128}") {
+            let bot = create_dummy_bot();
+            let fut = upload_voice(&bot, &user_id, &file_path);
+            let res = block_on(fut);
+            prop_assert!(res.is_err());
+        }
+    }
+}

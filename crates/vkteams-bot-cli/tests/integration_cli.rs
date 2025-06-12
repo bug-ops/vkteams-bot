@@ -71,3 +71,39 @@ fn test_cli_list_commands() {
         "VK Teams Bot CLI Commands Reference",
     ));
 }
+
+#[test]
+fn test_cli_config_init() {
+    let mut cmd = Command::cargo_bin("vkteams-bot-cli").unwrap();
+    cmd.args(["config", "--init"]);
+    cmd.assert()
+        .success()
+        .stdout(predicates::str::contains("initialized"));
+}
+
+#[test]
+fn test_cli_config_wizard() {
+    let mut cmd = Command::cargo_bin("vkteams-bot-cli").unwrap();
+    cmd.args(["config", "--wizard"]);
+    cmd.assert()
+        .success()
+        .stdout(predicates::str::contains("Configuration Wizard"));
+}
+
+#[test]
+fn test_cli_setup() {
+    let mut cmd = Command::cargo_bin("vkteams-bot-cli").unwrap();
+    cmd.arg("setup");
+    cmd.assert()
+        .success()
+        .stdout(predicates::str::contains("Setup Wizard"));
+}
+
+#[test]
+fn test_cli_examples() {
+    let mut cmd = Command::cargo_bin("vkteams-bot-cli").unwrap();
+    cmd.arg("examples");
+    cmd.assert()
+        .success()
+        .stdout(predicates::str::contains("Examples"));
+}
