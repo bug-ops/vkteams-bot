@@ -134,7 +134,7 @@ pub enum ButtonStyle {
     Base,
 }
 /// Message text format parse mode
-#[derive(Serialize, Deserialize, Clone, Copy, Debug, Default)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ParseMode {
     MarkdownV2,
     #[default]

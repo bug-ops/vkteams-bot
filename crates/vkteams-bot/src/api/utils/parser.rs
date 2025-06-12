@@ -123,3 +123,4 @@ impl MessageTextHTMLParser for MessageTextParser {
         }
     }
 }
+pub use crate::api::types::MessageTextParser;

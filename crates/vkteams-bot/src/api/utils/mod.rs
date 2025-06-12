@@ -36,3 +36,69 @@ pub trait MessageTextSetters {
         Err(BotError::Validation("Method not implemented".to_string()))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::types::{ChatId, Keyboard, MsgId};
+    use crate::api::utils::parser::MessageTextParser;
+
+    #[derive(Clone, Debug)]
+    struct Dummy;
+    impl MessageTextSetters for Dummy {}
+
+    #[test]
+    fn test_set_text_default_returns_error() {
+        let dummy = Dummy;
+        let parser = MessageTextParser::default();
+        let res = dummy.clone().set_text(parser);
+        assert!(res.is_err());
+        let err = res.unwrap_err();
+        match err {
+            crate::error::BotError::Validation(msg) => assert!(msg.contains("not implemented")),
+            _ => panic!("Unexpected error type: {:?}", err),
+        }
+    }
+
+    #[test]
+    fn test_set_forward_msg_id_default_returns_error() {
+        let dummy = Dummy;
+        let res = dummy
+            .clone()
+            .set_forward_msg_id(ChatId("test".into()), MsgId("mid".into()));
+        assert!(res.is_err());
+        let err = res.unwrap_err();
+        match err {
+            crate::error::BotError::Validation(msg) => assert!(msg.contains("not implemented")),
+            _ => panic!("Unexpected error type: {:?}", err),
+        }
+    }
+
+    #[test]
+    fn test_set_keyboard_default_returns_error() {
+        let dummy = Dummy;
+        let kb = Keyboard { buttons: vec![] };
+        let res = dummy.clone().set_keyboard(kb);
+        assert!(res.is_err());
+        let err = res.unwrap_err();
+        match err {
+            crate::error::BotError::Validation(msg) => assert!(msg.contains("not implemented")),
+            _ => panic!("Unexpected error type: {:?}", err),
+        }
+    }
+
+    #[test]
+    fn test_custom_impl_overrides_default() {
+        #[derive(Clone, Debug)]
+        struct Custom;
+        impl MessageTextSetters for Custom {
+            fn set_text(self, _parser: MessageTextParser) -> crate::error::Result<Self> {
+                Ok(self)
+            }
+        }
+        let custom = Custom;
+        let parser = MessageTextParser::default();
+        let res = custom.clone().set_text(parser);
+        assert!(res.is_ok());
+    }
+}

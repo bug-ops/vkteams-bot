@@ -712,3 +712,132 @@ mod tests {
         bucket.shutdown();
     }
 }
+
+#[cfg(test)]
+mod ratelimiter_tests {
+    use super::*;
+    use crate::prelude::ChatId;
+    use tokio::time::{Duration, sleep};
+
+    fn chat_id(n: u64) -> ChatId {
+        ChatId(format!("chat_{}", n))
+    }
+
+    #[tokio::test]
+    async fn test_new_and_active_bucket_count() {
+        let limiter = RateLimiter::new();
+        assert_eq!(limiter.active_bucket_count(), 0);
+        let _ = limiter.check_rate_limit(&chat_id(1)).await;
+        assert_eq!(limiter.active_bucket_count(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_check_rate_limit_and_tokens() {
+        let limiter = RateLimiter::new();
+        let cid = chat_id(2);
+        for _ in 0..5 {
+            assert!(limiter.check_rate_limit(&cid).await);
+        }
+        // После исчерпания лимита должны получать false
+        let mut limited = false;
+        for _ in 0..100 {
+            if !limiter.check_rate_limit(&cid).await {
+                limited = true;
+                break;
+            }
+        }
+        assert!(
+            limited,
+            "Rate limiter должен ограничивать после превышения лимита"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_clear_rate_limit_and_capacity() {
+        let limiter = RateLimiter::new();
+        let cid = chat_id(3);
+        let _ = limiter.check_rate_limit(&cid).await;
+        let cap = limiter.get_bucket_capacity(&cid).await;
+        assert!(cap.is_some());
+        limiter.clear_rate_limit(&cid).await;
+        // После очистки bucket должен быть пересоздан
+        let _ = limiter.check_rate_limit(&cid).await;
+        let cap2 = limiter.get_bucket_capacity(&cid).await;
+        assert_eq!(cap, cap2);
+    }
+
+    #[tokio::test]
+    async fn test_get_available_tokens() {
+        let limiter = RateLimiter::new();
+        let cid = chat_id(4);
+        let _ = limiter.check_rate_limit(&cid).await;
+        let tokens = limiter.get_available_tokens(&cid).await;
+        assert!(tokens.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_get_global_and_chat_stats() {
+        let limiter = RateLimiter::new();
+        let cid = chat_id(5);
+        for _ in 0..3 {
+            let _ = limiter.check_rate_limit(&cid).await;
+        }
+        let global = limiter.get_global_stats().await;
+        let chat = limiter.get_chat_stats(&cid).await;
+        assert!(global.total_requests > 0);
+        assert!(chat.is_some());
+        assert!(chat.unwrap().total_requests > 0);
+    }
+
+    #[tokio::test]
+    async fn test_shutdown_and_post_shutdown_behavior() {
+        let limiter = RateLimiter::new();
+        let cid = chat_id(6);
+        let _ = limiter.check_rate_limit(&cid).await;
+        limiter.shutdown().await;
+        // После shutdown bucket не должен refilиться, но старые токены доступны
+        let tokens = limiter.get_available_tokens(&cid).await;
+        sleep(Duration::from_millis(1200)).await;
+        let tokens_after = limiter.get_available_tokens(&cid).await;
+        assert_eq!(tokens, tokens_after);
+    }
+
+    #[tokio::test]
+    async fn test_check_with_priority() {
+        let limiter = RateLimiter::new();
+        let cid = chat_id(7);
+        // Высокий приоритет должен позволять больше запросов
+        let mut allowed_high = 0;
+        let mut allowed_low = 0;
+        for _ in 0..20 {
+            if limiter.check_with_priority(&cid, 10).await {
+                allowed_high += 1;
+            }
+        }
+        for _ in 0..20 {
+            if limiter.check_with_priority(&cid, 1).await {
+                allowed_low += 1;
+            }
+        }
+        assert!(allowed_high >= allowed_low);
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_access() {
+        let limiter = Arc::new(RateLimiter::new());
+        let mut handles = vec![];
+        for i in 0..10 {
+            let limiter = Arc::clone(&limiter);
+            let cid = chat_id(100 + i);
+            handles.push(tokio::spawn(async move {
+                for _ in 0..10 {
+                    let _ = limiter.check_rate_limit(&cid).await;
+                }
+            }));
+        }
+        for h in handles {
+            h.await.unwrap();
+        }
+        assert!(limiter.active_bucket_count() >= 10);
+    }
+}

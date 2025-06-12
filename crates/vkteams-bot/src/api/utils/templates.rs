@@ -31,3 +31,68 @@ impl MessageTextParser {
         self.to_owned()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde::Serialize;
+    use tera::{Context, Tera};
+
+    #[derive(Serialize)]
+    struct DummyCtx {
+        name: String,
+    }
+
+    fn make_tera() -> Tera {
+        let mut tera = Tera::default();
+        tera.add_raw_template("hello", "Hello, {{ name }}!")
+            .unwrap();
+        tera
+    }
+
+    #[test]
+    fn test_from_tmpl_sets_template_mode() {
+        let tera = make_tera();
+        let parser = MessageTextParser::from_tmpl(tera);
+        assert_eq!(parser.parse_mode, ParseMode::Template);
+    }
+
+    #[test]
+    fn test_set_ctx_sets_context_and_name() {
+        let tera = make_tera();
+        let mut parser = MessageTextParser::from_tmpl(tera);
+        let ctx = DummyCtx {
+            name: "VK".to_string(),
+        };
+        let parser2 = parser.set_ctx(ctx, "hello");
+        assert_eq!(parser2.name, "hello");
+        assert!(parser2.ctx.contains_key("name"));
+    }
+
+    #[test]
+    fn test_parse_tmpl_success() {
+        let tera = make_tera();
+        let mut parser = MessageTextParser::from_tmpl(tera);
+        let ctx = DummyCtx {
+            name: "VK".to_string(),
+        };
+        let parser2 = parser.set_ctx(ctx, "hello");
+        let rendered = parser2.parse_tmpl().unwrap();
+        assert_eq!(rendered, "Hello, VK!");
+    }
+
+    #[test]
+    fn test_parse_tmpl_invalid_template_name() {
+        let tera = make_tera();
+        let mut parser = MessageTextParser::from_tmpl(tera);
+        let ctx = DummyCtx {
+            name: "VK".to_string(),
+        };
+        let parser2 = parser.set_ctx(ctx, "not_found");
+        let err = parser2.parse_tmpl().unwrap_err();
+        match err {
+            BotError::Template(_) => (),
+            _ => panic!("Expected BotError::Template, got {:?}", err),
+        }
+    }
+}
