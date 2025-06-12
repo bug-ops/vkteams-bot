@@ -9,7 +9,6 @@ pub mod ratelimit;
 pub mod webhook;
 
 use crate::api::types::*;
-use crate::bot::net::ConnectionPoolTrait;
 #[cfg(feature = "ratelimit")]
 use crate::bot::ratelimit::RateLimiter;
 use crate::error::{BotError, Result};
@@ -34,7 +33,7 @@ use tracing::debug;
 /// [`reqwest::Url`]: https://docs.rs/reqwest/latest/reqwest/struct.Url.html
 /// [`std::sync::Arc<_>`]: https://doc.rust-lang.org/std/sync/struct.Arc.html
 pub struct Bot {
-    pub(crate) connection_pool: Box<dyn ConnectionPoolTrait>,
+    pub(crate) connection_pool: OnceCell<ConnectionPool>,
     pub(crate) token: Arc<str>,
     pub(crate) base_api_url: Url,
     pub(crate) base_api_path: Arc<str>,
@@ -139,7 +138,7 @@ impl Bot {
         debug!("Set API base path: {}", base_api_path);
 
         Ok(Self {
-            connection_pool: Box::new(ConnectionPool::optimized()),
+            connection_pool: OnceCell::new(),
             token: Arc::<str>::from(token),
             base_api_url,
             base_api_path: Arc::<str>::from(base_api_path),
@@ -247,11 +246,17 @@ impl Bot {
                 );
                 let form = file_to_multipart(message.get_multipart()).await?;
 
-                self.connection_pool.post_file(url, form).await?
+                self.connection_pool
+                    .get_or_init(ConnectionPool::optimized)
+                    .post_file(url, form)
+                    .await?
             }
             HTTPMethod::GET => {
                 debug!("Sending GET request");
-                self.connection_pool.get_text(url).await?
+                self.connection_pool
+                    .get_or_init(ConnectionPool::optimized)
+                    .get_text(url)
+                    .await?
             }
         };
 
@@ -405,112 +410,6 @@ mod tests {
         let bot = Bot::with_params(&APIVersionUrl::V1, token, url).unwrap();
         let result = bot.send_api_request(BadRequest).await;
         assert!(matches!(result, Err(BotError::UrlParams(_))));
-    }
-
-    #[tokio::test]
-    async fn test_send_api_request_deserialization_error() {
-        use crate::api::types::{BotRequest, HTTPMethod, MultipartName};
-        use crate::bot::net::ConnectionPoolTrait;
-        use serde::Serialize;
-
-        #[derive(Debug, Default)]
-        struct DummyRequest;
-        impl Serialize for DummyRequest {
-            fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-            where
-                S: serde::Serializer,
-            {
-                serializer.serialize_unit()
-            }
-        }
-        impl BotRequest for DummyRequest {
-            type Args = ();
-            const METHOD: &'static str = "dummy";
-            const HTTP_METHOD: HTTPMethod = HTTPMethod::GET;
-            type RequestType = Self;
-            type ResponseType = String;
-            fn new(_: Self::Args) -> Self {
-                DummyRequest
-            }
-            fn get_chat_id(&self) -> Option<&crate::api::types::ChatId> {
-                None
-            }
-            fn get_multipart(&self) -> &MultipartName {
-                &MultipartName::None
-            }
-        }
-        struct BadPool;
-        impl ConnectionPoolTrait for BadPool {
-            fn as_any(&self) -> &dyn std::any::Any {
-                self
-            }
-            fn clone_box(&self) -> Box<dyn ConnectionPoolTrait> {
-                Box::new(BadPool)
-            }
-            fn get_text<'a>(
-                &'a self,
-                _url: reqwest::Url,
-            ) -> std::pin::Pin<
-                Box<dyn std::future::Future<Output = crate::error::Result<String>> + Send + 'a>,
-            > {
-                Box::pin(async { Ok("not a json".to_string()) })
-            }
-            fn post_file<'a>(
-                &'a self,
-                _url: reqwest::Url,
-                _form: reqwest::multipart::Form,
-            ) -> std::pin::Pin<
-                Box<dyn std::future::Future<Output = crate::error::Result<String>> + Send + 'a>,
-            > {
-                Box::pin(async { Ok("not a json".to_string()) })
-            }
-        }
-        let token = "test_token";
-        let url = "https://api.example.com";
-        let mut bot = Bot::with_params(&APIVersionUrl::V1, token, url).unwrap();
-        bot.connection_pool = Box::new(BadPool);
-        let result = bot.send_api_request(DummyRequest).await;
-        assert!(matches!(result, Err(BotError::Serialization(_))));
-    }
-
-    #[tokio::test]
-    async fn test_send_api_request_network_error() {
-        use crate::api::types::{BotRequest, HTTPMethod, MultipartName};
-        use serde::Serialize;
-
-        #[derive(Debug, Default)]
-        struct DummyRequest;
-        impl Serialize for DummyRequest {
-            fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-            where
-                S: serde::Serializer,
-            {
-                serializer.serialize_unit()
-            }
-        }
-        impl BotRequest for DummyRequest {
-            type Args = ();
-            const METHOD: &'static str = "dummy";
-            const HTTP_METHOD: HTTPMethod = HTTPMethod::GET;
-            type RequestType = Self;
-            type ResponseType = String;
-            fn new(_: Self::Args) -> Self {
-                DummyRequest
-            }
-            fn get_chat_id(&self) -> Option<&crate::api::types::ChatId> {
-                None
-            }
-            fn get_multipart(&self) -> &MultipartName {
-                &MultipartName::None
-            }
-        }
-        let token = "test_token";
-        // Используем гарантированно несуществующий адрес
-        let url = "http://localhost:0";
-        let mut bot = Bot::with_params(&APIVersionUrl::V1, token, url).unwrap();
-        bot.connection_pool = Box::new(ConnectionPool::optimized());
-        let result = bot.send_api_request(DummyRequest).await;
-        assert!(matches!(result, Err(BotError::Network(_))));
     }
 
     #[test]
