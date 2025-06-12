@@ -476,7 +476,6 @@ mod tests {
     #[tokio::test]
     async fn test_send_api_request_network_error() {
         use crate::api::types::{BotRequest, HTTPMethod, MultipartName};
-        use crate::bot::net::ConnectionPoolTrait;
         use serde::Serialize;
 
         #[derive(Debug, Default)]

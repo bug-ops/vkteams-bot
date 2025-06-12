@@ -37,7 +37,6 @@ impl MessageTextSetters for RequestMessagesEditText {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::types::*;
 
     #[test]
     fn test_set_text_valid() {

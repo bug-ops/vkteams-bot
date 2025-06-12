@@ -17,7 +17,7 @@ bot_api_method! {
 mod tests {
     use super::*;
     use crate::api::types::ChatId;
-    use serde_json::{from_value, json, to_value};
+    use serde_json::json;
 
     #[test]
     fn test_request_chats_set_about_serialize() {
