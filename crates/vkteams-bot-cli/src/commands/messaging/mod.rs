@@ -15,7 +15,6 @@ use crate::utils::{
 use async_trait::async_trait;
 use clap::{Subcommand, ValueHint};
 use colored::Colorize;
-use tokio::runtime::Runtime;
 use tracing::{debug, info};
 use vkteams_bot::prelude::*;
 
@@ -296,6 +295,7 @@ async fn execute_unpin_message(bot: &Bot, chat_id: &str, message_id: &str) -> Cl
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tokio::runtime::Runtime;
 
     #[test]
     fn test_send_text_valid() {

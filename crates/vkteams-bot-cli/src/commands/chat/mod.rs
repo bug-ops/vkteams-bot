@@ -12,7 +12,6 @@ use crate::utils::{
 };
 use async_trait::async_trait;
 use clap::{Subcommand, ValueHint};
-use tokio::runtime::Runtime;
 use tracing::{debug, info};
 use vkteams_bot::prelude::*;
 
@@ -243,6 +242,7 @@ async fn execute_send_action(bot: &Bot, chat_id: &str, action: &str) -> CliResul
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tokio::runtime::Runtime;
 
     #[test]
     fn test_parse_chat_id_valid() {

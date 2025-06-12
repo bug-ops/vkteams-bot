@@ -12,7 +12,6 @@ use crate::utils::{validate_directory_path, validate_file_id};
 use async_trait::async_trait;
 use clap::{Subcommand, ValueHint};
 use colored::Colorize;
-use tokio::runtime::Runtime;
 use tracing::{debug, info};
 use vkteams_bot::prelude::*;
 
@@ -413,6 +412,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tokio::runtime::Runtime;
 
     fn dummy_bot() -> Bot {
         Bot::with_params(&APIVersionUrl::V1, "dummy_token", "https://dummy.api.com").unwrap()
