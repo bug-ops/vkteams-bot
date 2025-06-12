@@ -11,7 +11,7 @@ fn benchmark_bot_creation(c: &mut Criterion) {
     // let _profiler = dhat::Profiler::new_heap();
     c.bench_function("bot_creation", |b| {
         b.iter(|| {
-            let _bot = Bot::new(black_box(APIVersionUrl::V1));
+            let _bot = Bot::with_default_version("TEST_TOKEN", "https://api.test").unwrap();
         });
     });
 }
@@ -22,7 +22,7 @@ fn benchmark_message_serialization(c: &mut Criterion) {
 
     c.bench_function("message_serialization", |b| {
         b.to_async(&rt).iter(|| async {
-            let _bot = Bot::new(black_box(APIVersionUrl::V1));
+            let _bot = Bot::with_default_version("TEST_TOKEN", "https://api.test").unwrap();
 
             // Benchmark message preparation (without actual HTTP call)
             let message = black_box("Hello, World! This is a test message with some emoji 🚀🦀✨");
@@ -57,7 +57,7 @@ fn benchmark_memory_usage(c: &mut Criterion) {
         b.iter(|| {
             // Create 1000 bot instances to test memory efficiency
             let bots: Vec<Bot> = (0..1000)
-                .map(|_i| Bot::new(black_box(APIVersionUrl::V1)))
+                .map(|_i| Bot::with_default_version("TEST_TOKEN", "https://api.test").unwrap())
                 .collect();
             black_box(bots)
         })
