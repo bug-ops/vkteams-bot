@@ -18,3 +18,18 @@ fn get_config() -> Result<Config> {
         .map(|str| toml::from_str::<Config>(&str))?
         .map_err(|e| e.into())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_config_new_default() {
+        let config = Config::new();
+        #[cfg(feature = "otlp")]
+        {
+            assert_eq!(config.otlp.instance_id, "bot");
+        }
+        assert_eq!(config.network.retries, 3);
+    }
+}
