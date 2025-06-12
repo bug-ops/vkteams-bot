@@ -24,8 +24,8 @@ mod tests {
 
     #[test]
     fn test_main_runs() {
-        // Проверяем, что main можно вызвать (если main async, просто smoke test)
-        // Здесь можно только smoke-test, так как main async и требует окружения
+        // Check that main can be called (if main is async, just smoke test)
+        // We can only smoke-test here since main is async and requires environment
         assert!(true);
     }
 }
