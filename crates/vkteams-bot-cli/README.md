@@ -1,6 +1,7 @@
 # VK Teams Bot API Cli
 
 [![crates.io](https://img.shields.io/crates/v/vkteams-bot-cli)](https://crates.io/crates/vkteams-bot-cli)
+[![codecov](https://codecov.io/github/bug-ops/vkteams-bot/graph/badge.svg?token=XV23ZKSZRA&flag=vkteams-bot-cli)](https://codecov.io/github/bug-ops/vkteams-bot)
 [![Unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
 
 🤖 **Powerful command-line interface for VK Teams Bot API** with interactive setup, progress bars, and comprehensive chat management features.

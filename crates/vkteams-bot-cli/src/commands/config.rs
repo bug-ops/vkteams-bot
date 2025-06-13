@@ -907,7 +907,7 @@ mod tests {
         let res = execute_config(false, false, false).await;
         assert!(res.is_ok());
     }
-
+  
     // #[tokio::test]
     // async fn test_execute_setup_stdin_error() {
     //     // Simulate stdin read_line error by replacing stdin

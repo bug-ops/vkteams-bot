@@ -694,4 +694,3 @@ mod tests {
     fn test_eventtype_default() {
         assert_eq!(EventType::default(), EventType::None);
     }
-}

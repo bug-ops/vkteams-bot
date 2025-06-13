@@ -1,6 +1,7 @@
 # VKTeams Bot MCP Server
 
 [![crates.io](https://img.shields.io/crates/v/vkteams-bot-mcp)](https://crates.io/crates/vkteams-bot-mcp)
+[![codecov](https://codecov.io/github/bug-ops/vkteams-bot/graph/badge.svg?token=XV23ZKSZRA&flag=vkteams-bot-mcp)](https://codecov.io/github/bug-ops/vkteams-bot)
 [![Unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
 
 **A Model Context Protocol (MCP) server for VK Teams Bot API.**  
