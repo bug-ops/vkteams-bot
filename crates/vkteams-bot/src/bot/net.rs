@@ -304,3 +304,52 @@ pub async fn shutdown_signal() {
         _ = terminate => {},
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use reqwest::StatusCode;
+    use std::time::Duration;
+
+    #[tokio::test]
+    async fn test_connection_pool_new_and_default() {
+        let client = reqwest::Client::new();
+        let pool = ConnectionPool::new(client.clone(), 2, Duration::from_millis(100));
+        assert_eq!(pool.retries, 2);
+        assert_eq!(pool.max_backoff, Duration::from_millis(100));
+        let _default = ConnectionPool::default();
+    }
+
+    #[tokio::test]
+    async fn test_validate_response_success() {
+        assert!(validate_response(&StatusCode::OK).is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_validate_response_client_error() {
+        let err = validate_response(&StatusCode::BAD_REQUEST).unwrap_err();
+        match err {
+            BotError::Validation(msg) => assert!(msg.contains("HTTP error")),
+            _ => panic!("Expected Validation error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_validate_response_server_error() {
+        let err = validate_response(&StatusCode::INTERNAL_SERVER_ERROR).unwrap_err();
+        match err {
+            BotError::System(msg) => assert!(msg.contains("Server error")),
+            _ => panic!("Expected System error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_validate_response_unexpected_status() {
+        let status = StatusCode::SWITCHING_PROTOCOLS;
+        let err = validate_response(&status).unwrap_err();
+        match err {
+            BotError::System(msg) => assert!(msg.contains("Unexpected HTTP status code")),
+            _ => panic!("Expected System error"),
+        }
+    }
+}

@@ -32,3 +32,4 @@ schemars = "0.9"
 vkteams-bot = { version = "0.9", path = "../vkteams-bot", default-features = false, features = [
     "otlp",
 ] }
+async-trait = "0.1.88"
