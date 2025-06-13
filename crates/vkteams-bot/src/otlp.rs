@@ -238,3 +238,35 @@ impl Drop for OtelGuard {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::OtlpConfig;
+
+    #[test]
+    fn test_init_traces_no_endpoint() {
+        let mut cfg = OtlpConfig::default();
+        cfg.exporter_endpoint = None;
+        let res = init_traces();
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_init_metrics_no_endpoint() {
+        let mut cfg = OtlpConfig::default();
+        cfg.exporter_endpoint = None;
+        let res = init_metrics();
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_otl_guard_drop_noop() {
+        // Should not panic if providers are None
+        let guard = OtelGuard {
+            tracer_provider: None,
+            meter_provider: None,
+        };
+        drop(guard);
+    }
+}

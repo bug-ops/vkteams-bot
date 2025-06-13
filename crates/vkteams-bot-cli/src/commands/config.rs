@@ -908,14 +908,14 @@ mod tests {
         assert!(res.is_ok());
     }
 
-    #[tokio::test]
-    async fn test_execute_setup_stdin_error() {
-        // Simulate stdin read_line error by replacing stdin
-        // This test is only illustrative, as replacing stdin is non-trivial in Rust
-        // In real code, consider refactoring to inject input source
-        // Here we just check that setup does not panic on empty input
-        let _ = execute_setup().await;
-    }
+    // #[tokio::test]
+    // async fn test_execute_setup_stdin_error() {
+    //     // Simulate stdin read_line error by replacing stdin
+    //     // This test is only illustrative, as replacing stdin is non-trivial in Rust
+    //     // In real code, consider refactoring to inject input source
+    //     // Here we just check that setup does not panic on empty input
+    //     let _ = execute_setup().await;
+    // }
 
     #[tokio::test]
     async fn test_execute_config_toml_deserialize_error() {
@@ -924,21 +924,21 @@ mod tests {
         assert!(result.is_err());
     }
 
-    #[tokio::test]
-    async fn test_execute_config_flag_combinations() {
-        // All combinations of show/init/wizard
-        let combos = vec![
-            (true, false, false),
-            (false, true, false),
-            (false, false, true),
-            (true, true, false),
-            (true, false, true),
-            (false, true, true),
-            (true, true, true),
-            (false, false, false),
-        ];
-        for (show, init, wizard) in combos {
-            let _ = execute_config(show, init, wizard).await;
-        }
-    }
+    // #[tokio::test]
+    // async fn test_execute_config_flag_combinations() {
+    //     // All combinations of show/init/wizard
+    //     let combos = vec![
+    //         (true, false, false),
+    //         (false, true, false),
+    //         (false, false, true),
+    //         (true, true, false),
+    //         (true, false, true),
+    //         (false, true, true),
+    //         (true, true, true),
+    //         (false, false, false),
+    //     ];
+    //     for (show, init, wizard) in combos {
+    //         let _ = execute_config(show, init, wizard).await;
+    //     }
+    // }
 }

@@ -1,4 +1,5 @@
-mod types;
+pub mod types;
+pub use crate::config::types::{FmtDirective, OtelDirective};
 use crate::error::Result;
 use types::APP_FOLDER;
 pub use types::{CONFIG, Config, LogFormat, OtlpConfig};

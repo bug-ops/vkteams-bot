@@ -176,3 +176,75 @@ impl From<ApiError> for BotError {
 }
 
 pub type Result<T> = std::result::Result<T, BotError>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json;
+    use std::io;
+    use url::ParseError;
+
+    #[test]
+    fn test_api_error_display() {
+        let err = ApiError {
+            description: "fail".to_string(),
+        };
+        assert_eq!(format!("{}", err), "API Error: fail");
+    }
+
+    #[test]
+    fn test_otlp_error_display_and_from() {
+        let err = OtlpError {
+            message: "otlp fail".to_string(),
+        };
+        assert_eq!(format!("{}", err), "otlp fail");
+        let from_str: OtlpError = "msg".to_string().into();
+        assert_eq!(from_str.message, "msg");
+        let boxed: OtlpError =
+            Box::<dyn std::error::Error>::from(io::Error::new(io::ErrorKind::Other, "err")).into();
+        assert!(boxed.message.contains("err"));
+    }
+
+    #[test]
+    fn test_bot_error_display_and_from() {
+        let api = ApiError {
+            description: "api".to_string(),
+        };
+        let err = BotError::Api(api.clone());
+        assert!(format!("{}", err).contains("API Error"));
+        let ser = BotError::Serialization(serde_json::Error::io(io::Error::new(
+            io::ErrorKind::Other,
+            "ser",
+        )));
+        assert!(format!("{}", ser).contains("Serialization Error"));
+        let url = BotError::Url(ParseError::EmptyHost);
+        assert!(format!("{}", url).contains("URL Error"));
+        let ioerr = BotError::Io(io::Error::new(io::ErrorKind::Other, "io"));
+        assert!(format!("{}", ioerr).contains("IO Error"));
+        let conf = BotError::Config("conf".to_string());
+        assert!(format!("{}", conf).contains("Config Error"));
+        let val = BotError::Validation("val".to_string());
+        assert!(format!("{}", val).contains("Validation Error"));
+        let sys = BotError::System("sys".to_string());
+        assert!(format!("{}", sys).contains("System Error"));
+        let otlp = BotError::Otlp(OtlpError {
+            message: "otlp".to_string(),
+        });
+        assert!(format!("{}", otlp).contains("Otlp Error"));
+    }
+
+    #[test]
+    fn test_bot_error_from_impls() {
+        let _b: BotError =
+            serde_json::Error::io(io::Error::new(io::ErrorKind::Other, "ser")).into();
+        let _b: BotError = url::ParseError::EmptyHost.into();
+        let _b: BotError = io::Error::new(io::ErrorKind::Other, "io").into();
+        let _b: BotError = serde_url_params::Error::unsupported("params").into();
+        let _b: BotError = toml::from_str::<i32>("not toml").unwrap_err().into();
+        let _b: BotError = std::env::VarError::NotPresent.into();
+        let _b: BotError = ApiError {
+            description: "api".to_string(),
+        }
+        .into();
+    }
+}
