@@ -8,7 +8,7 @@ use rmcp::{
 };
 use serde::Serialize;
 use std::result::Result;
-use vkteams_bot::prelude::ParseMode;
+use vkteams_bot::prelude::BotRequest;
 use vkteams_bot::prelude::*;
 
 use crate::file_utils::{
