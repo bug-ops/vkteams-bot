@@ -282,6 +282,69 @@ mod tests {
         assert!(res.is_err());
     }
 
+    #[tokio::test]
+    async fn test_process_event_batch_empty_events() {
+        // Should return Ok and not call callback
+        let bot = DummyBot::new();
+        let events = make_events(0);
+        let call_count = Arc::new(AtomicUsize::new(0));
+        let call_count2 = call_count.clone();
+        let func = move |_bot: DummyBot, _ev: ResponseEventsGet| {
+            let call_count2 = call_count2.clone();
+            async move {
+                call_count2.fetch_add(1, Ordering::SeqCst);
+                Ok(())
+            }
+        };
+        let res = Bot::process_event_batch_test(&bot, events, &func, 10).await;
+        assert!(res.is_ok());
+        assert_eq!(call_count.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn test_process_event_batch_error_in_second_batch() {
+        // Should return error only after first batch is ok
+        let bot = DummyBot::new();
+        let events = make_events(6);
+        let call_count = Arc::new(AtomicUsize::new(0));
+        let call_count2 = call_count.clone();
+        let func = move |_bot: DummyBot, _ev: ResponseEventsGet| {
+            let call_count2 = call_count2.clone();
+            async move {
+                let n = call_count2.fetch_add(1, Ordering::SeqCst);
+                if n == 1 {
+                    Err(BotError::System("fail".into()))
+                } else {
+                    Ok(())
+                }
+            }
+        };
+        // batch size 3: first batch ok, second batch returns error
+        let res = Bot::process_event_batch_test(&bot, events, &func, 3).await;
+        assert!(res.is_err());
+        assert_eq!(call_count.load(Ordering::SeqCst), 2);
+    }
+
+    #[tokio::test]
+    async fn test_process_event_batch_empty_events_with_memory_limit() {
+        // Should return Ok and not call callback, even if max_memory_usage > 0
+        let bot = DummyBot::new();
+        let events = make_events(0);
+        let call_count = Arc::new(AtomicUsize::new(0));
+        let call_count2 = call_count.clone();
+        let func = move |_bot: DummyBot, _ev: ResponseEventsGet| {
+            let call_count2 = call_count2.clone();
+            async move {
+                call_count2.fetch_add(1, Ordering::SeqCst);
+                Ok(())
+            }
+        };
+        // batch size 1, but no events
+        let res = Bot::process_event_batch_test(&bot, events, &func, 1).await;
+        assert!(res.is_ok());
+        assert_eq!(call_count.load(Ordering::SeqCst), 0);
+    }
+
     // Вспомогательная функция для теста process_event_batch с параметром max_events_per_batch
     impl Bot {
         pub async fn process_event_batch_test<F, X>(

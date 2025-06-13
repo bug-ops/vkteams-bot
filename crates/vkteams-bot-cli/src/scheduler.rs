@@ -409,6 +409,7 @@ impl Scheduler {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub(crate) fn create_test_scheduler() -> (Scheduler, tempfile::TempDir) {
         let temp_dir = tempdir().unwrap();
         let mut data_file = PathBuf::from(temp_dir.path());

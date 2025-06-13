@@ -108,7 +108,7 @@ pub struct MessageTextParser {
 /// One of variants must be set:
 /// - {`text`: String,`url`: String,`style`: [`ButtonStyle`]} - simple buttons
 /// - {`text`: String,`callback_data`: String,`style`: [`ButtonStyle`]} - buttons with callback
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ButtonKeyboard {
     pub text: String, // formatting is not supported
@@ -594,5 +594,112 @@ impl Default for Keyboard {
 impl std::fmt::Display for UserId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_chat_id_display() {
+        let id = ChatId("test_id".to_string());
+        assert_eq!(format!("{}", id), "test_id");
+    }
+
+    #[test]
+    fn test_apiversionurl_display() {
+        assert_eq!(format!("{}", APIVersionUrl::V1), "bot/v1/");
+    }
+
+    #[test]
+    fn test_multipartname_display() {
+        let f = MultipartName::File("file.txt".to_string());
+        let i = MultipartName::Image("img.png".to_string());
+        let n = MultipartName::None;
+        assert_eq!(format!("{}", f), "file");
+        assert_eq!(format!("{}", i), "image");
+        assert_eq!(format!("{}", n), "");
+    }
+
+    #[test]
+    fn test_keyboard_default() {
+        let kb = Keyboard::default();
+        assert_eq!(kb.buttons, vec![vec![]]);
+    }
+
+    #[test]
+    fn test_userid_display() {
+        let id = UserId("u123".to_string());
+        assert_eq!(format!("{}", id), "u123");
+    }
+
+    #[test]
+    fn test_parsemode_default_and_eq() {
+        assert_eq!(ParseMode::default(), ParseMode::HTML);
+        assert_eq!(ParseMode::HTML, ParseMode::HTML);
+        assert_ne!(ParseMode::HTML, ParseMode::MarkdownV2);
+    }
+
+    #[test]
+    fn test_buttonstyle_default_and_eq() {
+        assert_eq!(ButtonStyle::default(), ButtonStyle::Base);
+        assert_eq!(ButtonStyle::Primary, ButtonStyle::Primary);
+        assert_ne!(ButtonStyle::Primary, ButtonStyle::Attention);
+    }
+
+    #[test]
+    fn test_apiresponsewrapper_from_payloadonly() {
+        let wrap = ApiResponseWrapper::PayloadOnly(42);
+        let res: Result<i32> = wrap.into();
+        assert_eq!(res.unwrap(), 42);
+    }
+
+    #[test]
+    fn test_apiresponsewrapper_from_payloadwithok() {
+        let wrap = ApiResponseWrapper::PayloadWithOk {
+            ok: true,
+            payload: 7,
+        };
+        let res: Result<i32> = wrap.into();
+        assert_eq!(res.unwrap(), 7);
+        let wrap = ApiResponseWrapper::PayloadWithOk {
+            ok: false,
+            payload: 0,
+        };
+        let res: Result<i32> = wrap.into();
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_apiresponsewrapper_from_error() {
+        let wrap = ApiResponseWrapper::<i32>::Error {
+            ok: false,
+            description: "fail".to_string(),
+        };
+        let res: Result<i32> = wrap.into();
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_message_text_format_variants() {
+        let _ = MessageTextFormat::Plain("text".to_string());
+        let _ = MessageTextFormat::Bold("b".to_string());
+        let _ = MessageTextFormat::Italic("i".to_string());
+        let _ = MessageTextFormat::Underline("u".to_string());
+        let _ = MessageTextFormat::Strikethrough("s".to_string());
+        let _ = MessageTextFormat::Link("t".to_string(), "url".to_string());
+        let _ = MessageTextFormat::Mention(ChatId("cid".to_string()));
+        let _ = MessageTextFormat::Code("c".to_string());
+        let _ = MessageTextFormat::Pre("p".to_string(), Some("lang".to_string()));
+        let _ = MessageTextFormat::OrderedList(vec!["1".to_string()]);
+        let _ = MessageTextFormat::UnOrderedList(vec!["2".to_string()]);
+        let _ = MessageTextFormat::Quote("q".to_string());
+        let _ = MessageTextFormat::None;
+    }
+
+    #[test]
+    fn test_eventtype_default() {
+        assert_eq!(EventType::default(), EventType::None);
     }
 }
