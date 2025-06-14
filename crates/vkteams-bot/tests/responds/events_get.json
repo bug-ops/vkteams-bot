@@ -1,0 +1,23 @@
+{
+    "events": [
+        {
+            "eventId": 1,
+            "type": "newMessage",
+            "payload": {
+                "msgId": "m1",
+                "text": "Hello!",
+                "chat": {
+                    "chatId": "c1",
+                    "title": "Test chat",
+                    "type": "group"
+                },
+                "from": {
+                    "firstName": "Bot",
+                    "userId": "u1"
+                },
+                "timestamp": 1710000000,
+                "parts": []
+            }
+        }
+    ]
+}
