@@ -614,8 +614,8 @@ mod tests {
 
     #[test]
     fn test_multipartname_display() {
-        let f = MultipartName::File("file.txt".to_string());
-        let i = MultipartName::Image("img.png".to_string());
+        let f = MultipartName::FilePath("file.txt".to_string());
+        let i = MultipartName::ImagePath("img.png".to_string());
         let n = MultipartName::None;
         assert_eq!(format!("{}", f), "file");
         assert_eq!(format!("{}", i), "image");
