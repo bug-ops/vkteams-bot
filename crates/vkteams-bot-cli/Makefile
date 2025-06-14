@@ -41,6 +41,19 @@ help:
 	@echo ""
 	@echo "$(COLOR_GREEN)Utility Targets:$(COLOR_RESET)"
 	@echo "  demo                  Show CLI capabilities"
+	@echo ""
+	@echo "$(COLOR_GREEN)Benchmark Targets:$(COLOR_RESET)"
+	@echo "  bench-all             Run all benchmarks"
+	@echo "  bench-cli             Run CLI performance benchmarks"
+	@echo "  bench-config          Run configuration benchmarks"
+	@echo "  bench-specialized     Run specialized CLI benchmarks"
+	@echo "  bench-test            Test benchmark compilation"
+	@echo "  bench-report          Generate HTML benchmark reports"
+	@echo "  bench-compare         Compare with baseline"
+	@echo "  clean-bench           Clean benchmark artifacts"
+	@echo "  bench-report          Generate HTML benchmark reports"
+	@echo "  bench-compare         Compare with baseline measurements"
+	@echo "  clean-bench           Clean benchmark artifacts"
 
 # Build targets
 .PHONY: build
@@ -145,3 +158,70 @@ ci: check test clippy fmt-check test-completions
 fmt-check:
 	@echo "$(COLOR_BLUE)Checking code formatting...$(COLOR_RESET)"
 	cargo fmt --all -- --check
+
+# Benchmark targets
+.PHONY: bench bench-all bench-cli bench-config bench-specialized bench-report bench-test bench-compare clean-bench
+
+bench-all:
+	@echo "$(COLOR_BLUE)Running all VK Teams Bot CLI benchmarks...$(COLOR_RESET)"
+	cargo bench
+	@echo "$(COLOR_GREEN)✓ All benchmarks completed$(COLOR_RESET)"
+
+bench-cli:
+	@echo "$(COLOR_BLUE)Running CLI performance benchmarks...$(COLOR_RESET)"
+	cargo bench --bench cli_performance
+	@echo "$(COLOR_GREEN)✓ CLI performance benchmarks completed$(COLOR_RESET)"
+
+bench-config:
+	@echo "$(COLOR_BLUE)Running configuration benchmarks...$(COLOR_RESET)"
+	cargo bench --bench config_performance
+	@echo "$(COLOR_GREEN)✓ Configuration benchmarks completed$(COLOR_RESET)"
+
+bench-specialized:
+	@echo "$(COLOR_BLUE)Running specialized CLI benchmarks...$(COLOR_RESET)"
+	cargo bench --bench specialized_cli_performance
+	@echo "$(COLOR_GREEN)✓ Specialized CLI benchmarks completed$(COLOR_RESET)"
+
+bench-test:
+	@echo "$(COLOR_BLUE)Testing benchmarks for compilation and basic functionality...$(COLOR_RESET)"
+	cargo bench --bench cli_performance -- --test
+	cargo bench --bench config_performance -- --test
+	cargo bench --bench specialized_cli_performance -- --test
+	@echo "$(COLOR_GREEN)✓ Benchmark tests completed$(COLOR_RESET)"
+
+bench-report:
+	@echo "$(COLOR_BLUE)Generating HTML benchmark reports...$(COLOR_RESET)"
+	cargo bench -- --output-format html
+	@echo "$(COLOR_GREEN)✓ Reports generated in target/criterion/report/index.html$(COLOR_RESET)"
+
+bench-compare:
+	@echo "$(COLOR_BLUE)Comparing with baseline measurements...$(COLOR_RESET)"
+	cargo bench -- --save-baseline main
+	@echo "$(COLOR_GREEN)✓ Baseline saved. Run 'cargo bench -- --baseline main' to compare later$(COLOR_RESET)"
+
+clean-bench:
+	@echo "$(COLOR_BLUE)Cleaning benchmark artifacts...$(COLOR_RESET)"
+	rm -rf target/criterion/
+	@echo "$(COLOR_GREEN)✓ Benchmark artifacts cleaned$(COLOR_RESET)"
+
+# Development benchmark shortcuts
+.PHONY: dev-bench bench-parsing bench-validation bench-serialization bench-formatting
+
+dev-bench: bench-test
+	@echo "$(COLOR_GREEN)✓ Quick development benchmark check completed$(COLOR_RESET)"
+
+bench-parsing:
+	@echo "$(COLOR_BLUE)Running parsing benchmarks...$(COLOR_RESET)"
+	cargo bench parsing
+
+bench-validation:
+	@echo "$(COLOR_BLUE)Running validation benchmarks...$(COLOR_RESET)"
+	cargo bench validation
+
+bench-serialization:
+	@echo "$(COLOR_BLUE)Running serialization benchmarks...$(COLOR_RESET)"
+	cargo bench serialization
+
+bench-formatting:
+	@echo "$(COLOR_BLUE)Running formatting benchmarks...$(COLOR_RESET)"
+	cargo bench formatting
