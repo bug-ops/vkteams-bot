@@ -242,7 +242,8 @@ impl Drop for OtelGuard {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::OtlpConfig;
+    use crate::config::{FmtDirective, OtelDirective, OtlpConfig};
+    use std::borrow::Cow;
 
     #[test]
     fn test_init_traces_no_endpoint() {
@@ -268,5 +269,48 @@ mod tests {
             meter_provider: None,
         };
         drop(guard);
+    }
+
+    #[test]
+    fn test_filter_layer_invalid_directive() {
+        let mut cfg = OtlpConfig::default();
+        cfg.otel.push(OtelDirective {
+            otel_filter_directive: Cow::Borrowed("not_a_valid_directive"),
+        });
+        assert_eq!(
+            cfg.otel.last().unwrap().otel_filter_directive,
+            "not_a_valid_directive"
+        );
+    }
+
+    #[test]
+    fn test_fmt_filter_invalid_directive() {
+        let mut cfg = OtlpConfig::default();
+        cfg.fmt.push(FmtDirective {
+            fmt_filter_directive: Cow::Borrowed("not_a_valid_directive"),
+        });
+        assert_eq!(
+            cfg.fmt.last().unwrap().fmt_filter_directive,
+            "not_a_valid_directive"
+        );
+    }
+
+    #[test]
+    fn test_get_resource_fields() {
+        let mut cfg = OtlpConfig::default();
+        cfg.instance_id = Cow::Borrowed("test-instance");
+        cfg.deployment_environment_name = Cow::Borrowed("test-env");
+        assert_eq!(cfg.instance_id, "test-instance");
+        assert_eq!(cfg.deployment_environment_name, "test-env");
+    }
+
+    #[test]
+    fn test_log_format_variants() {
+        let pretty = LogFormat::Pretty;
+        let json = LogFormat::Json;
+        let full = LogFormat::Full;
+        assert_ne!(pretty, json);
+        assert_ne!(json, full);
+        assert_ne!(pretty, full);
     }
 }
