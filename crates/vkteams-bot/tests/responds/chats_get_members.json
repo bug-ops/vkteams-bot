@@ -1,0 +1,15 @@
+{
+    "members": [
+        {
+            "userId": "u1",
+            "creator": true,
+            "admin": false
+        },
+        {
+            "userId": "u2",
+            "creator": false,
+            "admin": true
+        }
+    ],
+    "cursor": 123
+}
