@@ -36,7 +36,7 @@ fn benchmark_message_serialization(c: &mut Criterion) {
 }
 
 fn bench_deserialize_response_events_get(c: &mut Criterion) {
-    let j = std::fs::read_to_string("tests/chats_events_get.json").unwrap();
+    let j = std::fs::read_to_string("tests/responds/chats_events_get.json").unwrap();
 
     c.bench_function("ResponseEventsGet", |b| {
         b.iter(|| {

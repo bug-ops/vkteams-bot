@@ -21,7 +21,7 @@ bot_api_method! {
 use crate::prelude::*;
 #[test]
 fn test_chats_events_get_deserialization() {
-    let j = std::fs::read_to_string("tests/chats_events_get.json").unwrap();
+    let j = std::fs::read_to_string("tests/responds/chats_events_get.json").unwrap();
     // Test deserialization of ResponseEventsGet
     let _ = serde_json::from_str::<ResponseEventsGet>(j.as_str()).map_err(|e| {
         eprintln!("Error deserializing response: {}", e);

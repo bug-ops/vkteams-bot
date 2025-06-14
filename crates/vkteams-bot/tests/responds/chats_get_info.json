@@ -1,0 +1,9 @@
+{
+    "type": "private",
+    "firstName": "Ivan",
+    "lastName": "Ivanov",
+    "nick": "ivan123",
+    "about": "about",
+    "isBot": true,
+    "language": "ru"
+}

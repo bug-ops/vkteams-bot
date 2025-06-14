@@ -1,0 +1,12 @@
+{
+    "admins": [
+        {
+            "userId": "u1",
+            "creator": true
+        },
+        {
+            "userId": "u2",
+            "creator": false
+        }
+    ]
+}
