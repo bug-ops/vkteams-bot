@@ -544,23 +544,25 @@ mod tests {
     #[test]
     fn test_calculate_next_run_once() {
         let (scheduler, _tempdir) = create_test_scheduler();
-        let dt = Utc.ymd(2030, 1, 1).and_hms(0, 0, 0);
+        let dt = Utc.with_ymd_and_hms(2030, 1, 1, 0, 0, 0); // ymd(2030, 1, 1).and_hms(0, 0, 0);
         let next = scheduler
-            .calculate_next_run(&ScheduleType::Once(dt), None)
+            .calculate_next_run(&ScheduleType::Once(dt.single().unwrap()), None)
             .unwrap();
-        assert_eq!(next, dt);
+        assert_eq!(next, dt.single().unwrap());
     }
 
     #[test]
     fn test_calculate_next_run_interval() {
         let (scheduler, _tempdir) = create_test_scheduler();
-        let start = Utc.ymd(2030, 1, 1).and_hms(0, 0, 0);
+        let start = Utc.with_ymd_and_hms(2030, 1, 1, 0, 0, 0); //ymd(2030, 1, 1).and_hms(0, 0, 0);
         let sched = ScheduleType::Interval {
             duration_seconds: 60,
-            start_time: start,
+            start_time: start.single().unwrap(),
         };
-        let next = scheduler.calculate_next_run(&sched, Some(start)).unwrap();
-        assert_eq!(next, start + Duration::seconds(60));
+        let next = scheduler
+            .calculate_next_run(&sched, Some(start.single().unwrap()))
+            .unwrap();
+        assert_eq!(next, start.single().unwrap() + Duration::seconds(60));
     }
 
     #[test]
@@ -693,13 +695,13 @@ mod async_tests {
     #[tokio::test]
     async fn test_calculate_next_run_invalid_interval() {
         let (scheduler, _tempdir) = super::tests::create_test_scheduler();
-        let start = Utc.ymd(2030, 1, 1).and_hms(0, 0, 0);
+        let start = Utc.with_ymd_and_hms(2030, 1, 1, 0, 0, 0); //ymd(2030, 1, 1).and_hms(0, 0, 0);
         let sched = ScheduleType::Interval {
             duration_seconds: 0,
-            start_time: start,
+            start_time: start.single().unwrap(),
         };
         // Интервал 0 секунд — теперь функция возвращает ошибку
-        let res = scheduler.calculate_next_run(&sched, Some(start));
+        let res = scheduler.calculate_next_run(&sched, Some(start.single().unwrap()));
         assert!(res.is_err());
     }
 
