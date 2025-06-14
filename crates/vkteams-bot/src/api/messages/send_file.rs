@@ -127,12 +127,12 @@ mod tests {
         ));
         let val = serde_json::to_value(&req).unwrap();
         assert_eq!(val["chatId"], "c1");
-        assert_eq!(val["multipart"]["File"], "file_id");
+        assert_eq!(val["multipart"]["FilePath"], "file_id");
         let req2: RequestMessagesSendFile = serde_json::from_value(val).unwrap();
         assert_eq!(req2.chat_id.0, "c1");
         match req2.multipart {
             MultipartName::FilePath(ref s) => assert_eq!(s, "file_id"),
-            _ => panic!("Expected File variant"),
+            _ => panic!("Expected FilePath variant"),
         }
         assert!(req2.text.is_none());
     }

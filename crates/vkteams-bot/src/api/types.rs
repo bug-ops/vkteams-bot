@@ -88,7 +88,6 @@ pub enum MessageTextFormat {
 #[derive(Default, Clone, Debug)]
 pub struct MessageTextParser {
     /// Array of text formats
-    //TODO: Add support for multiple text formats in one row
     pub text: Vec<MessageTextFormat>,
     // Context for templates
     #[cfg(feature = "templates")]
@@ -213,7 +212,7 @@ pub struct EventPayloadPinnedMessage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<MessageFormat>,
     #[serde(default)]
-    pub parts: Vec<MessageParts>, //FIXME API response conflict with documentation
+    pub parts: Vec<MessageParts>,
     pub timestamp: Timestamp,
 }
 /// Message payload event type unpinnedMessage
@@ -270,7 +269,6 @@ pub enum MessagePartsType {
     File(Box<MessagePartsPayloadFile>),
     Forward(Box<MessagePartsPayloadForward>),
     Reply(Box<MessagePartsPayloadReply>),
-    // FIXME API response conflict with documentation
     InlineKeyboardMarkup(Vec<Vec<MessagePartsPayloadInlineKeyboard>>),
 }
 /// Message parts payload sticker
