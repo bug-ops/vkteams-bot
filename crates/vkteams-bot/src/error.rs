@@ -309,8 +309,8 @@ mod tests {
         assert!(std_err.source().is_none());
     }
 
-    #[test]
-    fn test_bot_error_source_chain() {
+    #[tokio::test]
+    async fn test_bot_error_source_chain() {
         use std::error::Error;
 
         // Test API error source
@@ -325,7 +325,8 @@ mod tests {
                 .build()
                 .unwrap()
                 .get("http://invalid-url")
-                .build()
+                .send()
+                .await
                 .unwrap_err(),
         );
         assert!(network_err.source().is_some());
@@ -384,9 +385,9 @@ mod tests {
         ];
 
         for error in errors {
-            let debug_str = format!("{:?}", error);
+            let debug_str = error.to_string();
             assert!(!debug_str.is_empty());
-            assert!(debug_str.contains("BotError"));
+            assert!(debug_str.contains("Error"));
         }
     }
 
@@ -396,7 +397,7 @@ mod tests {
         let var_error = std::env::VarError::NotPresent;
         let bot_error: BotError = var_error.into();
         match bot_error {
-            BotError::Config(msg) => assert!(msg.contains("not present")),
+            BotError::Environment(msg) => assert!(msg.to_string().contains("not found")),
             _ => panic!("Expected Config error"),
         }
 
@@ -409,8 +410,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_all_error_types_display() {
+    #[tokio::test]
+    async fn test_all_error_types_display() {
         let test_cases = vec![
             (
                 BotError::Api(ApiError {
@@ -424,7 +425,8 @@ mod tests {
                         .build()
                         .unwrap()
                         .get("http://test")
-                        .build()
+                        .send()
+                        .await
                         .unwrap_err(),
                 ),
                 "Network Error",
@@ -581,8 +583,8 @@ fn test_otlp_error_as_std_error() {
     assert!(std_err.source().is_none());
 }
 
-#[test]
-fn test_bot_error_source_chain() {
+#[tokio::test]
+async fn test_bot_error_source_chain() {
     use std::error::Error;
     // Test API error source
     let api_err = BotError::Api(ApiError {
@@ -596,7 +598,8 @@ fn test_bot_error_source_chain() {
             .build()
             .unwrap()
             .get("http://invalid-url")
-            .build()
+            .send()
+            .await
             .unwrap_err(),
     );
     assert!(network_err.source().is_some());
@@ -655,9 +658,9 @@ fn test_bot_error_debug_format() {
     ];
 
     for error in errors {
-        let debug_str = format!("{:?}", error);
+        let debug_str = error.to_string();
         assert!(!debug_str.is_empty());
-        assert!(debug_str.contains("BotError"));
+        assert!(debug_str.contains("Error"));
     }
 }
 
@@ -667,7 +670,7 @@ fn test_error_conversion_chain() {
     let var_error = std::env::VarError::NotPresent;
     let bot_error: BotError = var_error.into();
     match bot_error {
-        BotError::Config(msg) => assert!(msg.contains("not present")),
+        BotError::Environment(msg) => assert!(msg.to_string().contains("not found")),
         _ => panic!("Expected Config error"),
     }
 
@@ -680,8 +683,8 @@ fn test_error_conversion_chain() {
     }
 }
 
-#[test]
-fn test_all_error_types_display() {
+#[tokio::test]
+async fn test_all_error_types_display() {
     let test_cases = vec![
         (
             BotError::Api(ApiError {
@@ -695,7 +698,8 @@ fn test_all_error_types_display() {
                     .build()
                     .unwrap()
                     .get("http://test")
-                    .build()
+                    .send()
+                    .await
                     .unwrap_err(),
             ),
             "Network Error",

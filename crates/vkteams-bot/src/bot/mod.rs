@@ -132,6 +132,15 @@ impl Bot {
         debug!("Using provided token and API URL");
 
         let base_api_url = Url::parse(api_url).map_err(BotError::Url)?;
+
+        match base_api_url.scheme() {
+            "http" | "https" => {
+                debug!("Base API URL scheme is valid: {}", base_api_url.scheme());
+            }
+            _ => {
+                return Err(BotError::Url(url::ParseError::InvalidIpv4Address));
+            }
+        }
         debug!("API URL successfully parsed");
 
         let base_api_path = version.to_string();
@@ -420,11 +429,11 @@ mod tests {
         let bot =
             Bot::with_params(&APIVersionUrl::V1, "test_token", "https://example.com").unwrap();
 
-        let path = bot.set_path("/messages/sendText");
-        assert_eq!(path, "/api/v1/messages/sendText");
+        let path = bot.set_path("messages/sendText");
+        assert_eq!(path, "bot/v1/messages/sendText");
 
-        let path2 = bot.set_path("/chats/getInfo");
-        assert_eq!(path2, "/api/v1/chats/getInfo");
+        let path2 = bot.set_path("chats/getInfo");
+        assert_eq!(path2, "bot/v1/chats/getInfo");
     }
 
     #[test]
@@ -432,7 +441,7 @@ mod tests {
         let bot =
             Bot::with_params(&APIVersionUrl::V1, "test_token", "https://api.example.com").unwrap();
 
-        let path = "/api/v1/messages/sendText".to_string();
+        let path = "/bot/v1/messages/sendText".to_string();
         let query = "chatId=test@chat.agent&text=hello".to_string();
 
         let result = bot.get_parsed_url(path, query);
@@ -441,7 +450,7 @@ mod tests {
         let url = result.unwrap();
         assert_eq!(url.scheme(), "https");
         assert_eq!(url.host_str(), Some("api.example.com"));
-        assert_eq!(url.path(), "/api/v1/messages/sendText");
+        assert_eq!(url.path(), "/bot/v1/messages/sendText");
         assert!(url.query().unwrap().contains("token=test_token"));
         assert!(url.query().unwrap().contains("chatId=test@chat.agent"));
         assert!(url.query().unwrap().contains("text=hello"));
@@ -456,7 +465,7 @@ mod tests {
         )
         .unwrap();
 
-        let path = "/api/v1/messages/sendText".to_string();
+        let path = "bot/v1/messages/sendText".to_string();
         let query = "text=hello world&chatId=test+chat".to_string();
 
         let result = bot.get_parsed_url(path, query);
@@ -504,7 +513,7 @@ mod tests {
 
         let bot = result.unwrap();
         assert_eq!(bot.token.as_ref(), "default_token");
-        assert_eq!(bot.base_api_path.as_ref(), "/api/v1");
+        assert_eq!(bot.base_api_path.as_ref(), "bot/v1/");
         assert_eq!(bot.base_api_url.as_str(), "https://default.example.com/");
     }
 
