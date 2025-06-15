@@ -244,19 +244,32 @@ pub async fn get_bytes_response(client: Client, url: Url) -> Result<Vec<u8>> {
 /// - `file` - file name
 ///
 /// ## Errors
-/// - `BotError::Validation` - file not specified
+/// - `BotError::Validation` - file not specified, invalid path, or filename validation failed
 /// - `BotError::Io` - error working with file
 #[tracing::instrument(skip(file))]
 pub async fn file_to_multipart(file: &MultipartName) -> Result<Form> {
     //Get name of the form part
     match file {
         MultipartName::FilePath(name) | MultipartName::ImagePath(name) => {
+            // Validate file path
+            validate_file_path(name)?;
+
             let file_stream = make_stream(name).await?;
             let part = Part::stream(file_stream).file_name(name.to_string());
             Ok(Form::new().part(name.to_string(), part))
         }
         MultipartName::FileContent { filename, content }
         | MultipartName::ImageContent { filename, content } => {
+            // Validate filename
+            validate_filename(filename)?;
+
+            // Validate content
+            if content.is_empty() {
+                return Err(BotError::Validation(
+                    "File content cannot be empty".to_string(),
+                ));
+            }
+
             let part = Part::bytes(content.clone()).file_name(filename.clone());
             Ok(Form::new().part(filename.to_string(), part))
         }
@@ -515,13 +528,91 @@ mod tests {
 
     #[tokio::test]
     async fn test_file_to_multipart_invalid() {
-        let multipart = MultipartName::FilePath("invalid".to_string());
+        let multipart = MultipartName::FilePath("/non/existent/file.txt".to_string());
         let result = file_to_multipart(&multipart).await;
 
         assert!(result.is_err());
         match result.unwrap_err() {
-            BotError::Validation(msg) => assert_eq!(msg, "File not specified"),
+            BotError::Validation(msg) => assert!(msg.contains("File does not exist")),
             _ => panic!("Expected Validation error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_file_to_multipart_path_traversal() {
+        let multipart = MultipartName::FilePath("../../../etc/passwd".to_string());
+        let result = file_to_multipart(&multipart).await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            BotError::Validation(msg) => assert!(msg.contains("parent directory references")),
+            _ => panic!("Expected Validation error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_file_to_multipart_empty_path() {
+        let multipart = MultipartName::FilePath("".to_string());
+        let result = file_to_multipart(&multipart).await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            BotError::Validation(msg) => assert_eq!(msg, "File path cannot be empty"),
+            _ => panic!("Expected Validation error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_file_to_multipart_invalid_filename() {
+        let multipart = MultipartName::FileContent {
+            filename: "file<name>.txt".to_string(), // Contains forbidden character
+            content: b"test content".to_vec(),
+        };
+
+        let result = file_to_multipart(&multipart).await;
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            BotError::Validation(msg) => assert!(msg.contains("forbidden character")),
+            _ => panic!("Expected Validation error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_file_to_multipart_empty_content() {
+        let multipart = MultipartName::FileContent {
+            filename: "empty.txt".to_string(),
+            content: Vec::new(), // Empty content
+        };
+
+        let result = file_to_multipart(&multipart).await;
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            BotError::Validation(msg) => assert_eq!(msg, "File content cannot be empty"),
+            _ => panic!("Expected Validation error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_validate_filename_reserved_names() {
+        let reserved_names = ["CON", "PRN", "AUX", "NUL", "COM1", "LPT1"];
+
+        for name in reserved_names.iter() {
+            let result = validate_filename(name);
+            assert!(result.is_err());
+            match result.unwrap_err() {
+                BotError::Validation(msg) => assert!(msg.contains("reserved name")),
+                _ => panic!("Expected Validation error for {}", name),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_validate_filename_valid() {
+        let valid_names = ["document.txt", "image.jpg", "data.json", "archive.zip"];
+
+        for name in valid_names.iter() {
+            let result = validate_filename(name);
+            assert!(result.is_ok(), "Filename {} should be valid", name);
         }
     }
 
@@ -656,4 +747,147 @@ mod tests {
         let result = signal_task.await.unwrap();
         assert!(result.is_err()); // Should timeout
     }
+}
+/// Validate file path for security and correctness
+///
+/// ## Errors
+/// - `BotError::Validation` - invalid file path
+fn validate_file_path(path: &str) -> Result<()> {
+    use std::path::Path;
+
+    // Check if path is empty
+    if path.is_empty() {
+        return Err(BotError::Validation(
+            "File path cannot be empty".to_string(),
+        ));
+    }
+
+    // Check for null bytes (security vulnerability)
+    if path.contains('\0') {
+        return Err(BotError::Validation(
+            "File path contains null bytes".to_string(),
+        ));
+    }
+
+    // Normalize path and check for directory traversal attempts
+    let path_obj = Path::new(path);
+
+    // Check for dangerous path components
+    for component in path_obj.components() {
+        match component {
+            std::path::Component::ParentDir => {
+                return Err(BotError::Validation(
+                    "File path contains parent directory references (..)".to_string(),
+                ));
+            }
+            std::path::Component::CurDir => {
+                return Err(BotError::Validation(
+                    "File path contains current directory references (.)".to_string(),
+                ));
+            }
+            _ => {}
+        }
+    }
+
+    // Check if path is absolute or relative
+    if path_obj.is_absolute() {
+        // For absolute paths, ensure they exist and are readable
+        if !path_obj.exists() {
+            return Err(BotError::Validation(format!(
+                "File does not exist: {}",
+                path
+            )));
+        }
+
+        if !path_obj.is_file() {
+            return Err(BotError::Validation(format!(
+                "Path is not a file: {}",
+                path
+            )));
+        }
+    }
+
+    // Additional checks for maximum path length (varies by OS)
+    #[cfg(target_os = "windows")]
+    const MAX_PATH_LEN: usize = 260;
+    #[cfg(not(target_os = "windows"))]
+    const MAX_PATH_LEN: usize = 4096;
+
+    if path.len() > MAX_PATH_LEN {
+        return Err(BotError::Validation(format!(
+            "File path too long: {} characters (max: {})",
+            path.len(),
+            MAX_PATH_LEN
+        )));
+    }
+
+    Ok(())
+}
+
+/// Validate filename for security and correctness
+///
+/// ## Errors
+/// - `BotError::Validation` - invalid filename
+fn validate_filename(filename: &str) -> Result<()> {
+    // Check if filename is empty
+    if filename.is_empty() {
+        return Err(BotError::Validation("Filename cannot be empty".to_string()));
+    }
+
+    // Check for null bytes
+    if filename.contains('\0') {
+        return Err(BotError::Validation(
+            "Filename contains null bytes".to_string(),
+        ));
+    }
+
+    // Check for dangerous characters
+    const FORBIDDEN_CHARS: &[char] = &['/', '\\', ':', '*', '?', '"', '<', '>', '|'];
+    for &forbidden_char in FORBIDDEN_CHARS {
+        if filename.contains(forbidden_char) {
+            return Err(BotError::Validation(format!(
+                "Filename contains forbidden character: '{}'",
+                forbidden_char
+            )));
+        }
+    }
+
+    // Check for reserved names on Windows
+    const RESERVED_NAMES: &[&str] = &[
+        "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
+        "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+    ];
+
+    let filename_upper = filename.to_uppercase();
+    let name_without_ext = filename_upper.split('.').next().unwrap_or("");
+
+    if RESERVED_NAMES.contains(&name_without_ext) {
+        return Err(BotError::Validation(format!(
+            "Filename uses reserved name: {}",
+            filename
+        )));
+    }
+
+    // Check filename length
+    const MAX_FILENAME_LEN: usize = 255;
+    if filename.len() > MAX_FILENAME_LEN {
+        return Err(BotError::Validation(format!(
+            "Filename too long: {} characters (max: {})",
+            filename.len(),
+            MAX_FILENAME_LEN
+        )));
+    }
+
+    // Check for filenames starting or ending with dots or spaces
+    if filename.starts_with('.') && filename != "." && filename != ".." {
+        // Hidden files are generally OK, but we might want to warn
+    }
+
+    if filename.ends_with(' ') || filename.ends_with('.') {
+        return Err(BotError::Validation(
+            "Filename cannot end with space or dot".to_string(),
+        ));
+    }
+
+    Ok(())
 }
