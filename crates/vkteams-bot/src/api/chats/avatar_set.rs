@@ -24,7 +24,7 @@ mod tests {
     fn test_request_chats_avatar_set_serialize() {
         let req = RequestChatsAvatarSet {
             chat_id: ChatId("c1".to_string()),
-            multipart: MultipartName::File("file.png".to_string()),
+            multipart: MultipartName::FilePath("file.png".to_string()),
         };
         let val = serde_json::to_value(&req).unwrap();
         assert_eq!(val["chatId"], "c1");
@@ -33,12 +33,12 @@ mod tests {
 
     #[test]
     fn test_request_chats_avatar_set_deserialize() {
-        let val = json!({"chatId": "c2", "multipart": {"File": "file.png"}});
+        let val = json!({"chatId": "c2", "multipart": {"FilePath": "file.png"}});
         let req: RequestChatsAvatarSet = serde_json::from_value(val).unwrap();
         assert_eq!(req.chat_id.0, "c2");
         match req.multipart {
-            MultipartName::File(ref s) => assert_eq!(s, "file.png"),
-            _ => panic!("Ожидался MultipartName::File"),
+            MultipartName::FilePath(ref s) => assert_eq!(s, "file.png"),
+            _ => panic!("Expected MultipartName::FilePath"),
         }
     }
 

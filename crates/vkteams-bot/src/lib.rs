@@ -126,4 +126,5 @@ pub use self::bot::Bot;
 pub use crate::api::types::{
     ApiResponseWrapper, ButtonKeyboard, ButtonStyle, Chat, ChatId, EventMessage,
     EventPayloadNewMessage, EventType, From, Keyboard, MsgId, Timestamp, UserId,
+    VKTEAMS_BOT_API_TOKEN, VKTEAMS_BOT_API_URL,
 };

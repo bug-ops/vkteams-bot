@@ -88,7 +88,6 @@ pub enum MessageTextFormat {
 #[derive(Default, Clone, Debug)]
 pub struct MessageTextParser {
     /// Array of text formats
-    //TODO: Add support for multiple text formats in one row
     pub text: Vec<MessageTextFormat>,
     // Context for templates
     #[cfg(feature = "templates")]
@@ -213,7 +212,7 @@ pub struct EventPayloadPinnedMessage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<MessageFormat>,
     #[serde(default)]
-    pub parts: Vec<MessageParts>, //FIXME API response conflict with documentation
+    pub parts: Vec<MessageParts>,
     pub timestamp: Timestamp,
 }
 /// Message payload event type unpinnedMessage
@@ -270,7 +269,6 @@ pub enum MessagePartsType {
     File(Box<MessagePartsPayloadFile>),
     Forward(Box<MessagePartsPayloadForward>),
     Reply(Box<MessagePartsPayloadReply>),
-    // FIXME API response conflict with documentation
     InlineKeyboardMarkup(Vec<Vec<MessagePartsPayloadInlineKeyboard>>),
 }
 /// Message parts payload sticker
@@ -453,8 +451,16 @@ pub enum ChatActions {
 /// Multipart name
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub enum MultipartName {
-    File(String),
-    Image(String),
+    FilePath(String),
+    ImagePath(String),
+    FileContent {
+        filename: String,
+        content: Vec<u8>,
+    },
+    ImageContent {
+        filename: String,
+        content: Vec<u8>,
+    },
     #[default]
     None,
 }
@@ -565,8 +571,8 @@ impl Display for MultipartName {
     /// Format [`MultipartName`] to string
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
-            MultipartName::File(..) => write!(f, "file"),
-            MultipartName::Image(..) => write!(f, "image"),
+            MultipartName::FilePath(..) | MultipartName::FileContent { .. } => write!(f, "file"),
+            MultipartName::ImagePath(..) | MultipartName::ImageContent { .. } => write!(f, "image"),
             _ => write!(f, ""),
         }
     }
@@ -606,8 +612,8 @@ mod tests {
 
     #[test]
     fn test_multipartname_display() {
-        let f = MultipartName::File("file.txt".to_string());
-        let i = MultipartName::Image("img.png".to_string());
+        let f = MultipartName::FilePath("file.txt".to_string());
+        let i = MultipartName::ImagePath("img.png".to_string());
         let n = MultipartName::None;
         assert_eq!(format!("{}", f), "file");
         assert_eq!(format!("{}", i), "image");

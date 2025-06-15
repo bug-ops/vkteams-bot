@@ -1,4 +1,5 @@
 pub mod errors;
+pub mod file_utils;
 pub mod server;
 pub mod types;
 
@@ -20,7 +21,6 @@ async fn main() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn test_main_runs() {

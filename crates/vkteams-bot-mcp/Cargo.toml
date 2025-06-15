@@ -1,6 +1,6 @@
 [package]
 name = "vkteams-bot-mcp"
-version = "0.1.4"
+version = "0.2.0"
 authors = ["Andrei G. <k05h31@gmail.com>"]
 keywords = ["vkteams", "bot", "api", "automation", "mcp"]
 description = "High-performance VK Teams Bot API toolkit with CLI and MCP server support"
@@ -33,3 +33,4 @@ vkteams-bot = { version = "0.9", path = "../vkteams-bot", default-features = fal
     "otlp",
 ] }
 async-trait = "0.1.88"
+base64 = "0.22"

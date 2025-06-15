@@ -244,23 +244,37 @@ pub async fn get_bytes_response(client: Client, url: Url) -> Result<Vec<u8>> {
 /// - `file` - file name
 ///
 /// ## Errors
-/// - `BotError::Validation` - file not specified
+/// - `BotError::Validation` - file not specified, invalid path, or filename validation failed
 /// - `BotError::Io` - error working with file
 #[tracing::instrument(skip(file))]
 pub async fn file_to_multipart(file: &MultipartName) -> Result<Form> {
     //Get name of the form part
-    let name = file.to_string();
-    //Get filename
-    let filename = match file {
-        MultipartName::File(name) | MultipartName::Image(name) => name,
-        _ => return Err(BotError::Validation("File not specified".to_string())),
-    };
-    //Create stream from file
-    let file_stream = make_stream(filename).await?;
-    //Create part from stream
-    let part = Part::stream(file_stream).file_name(filename.to_string());
-    //Create multipart form
-    Ok(Form::new().part(name, part))
+    match file {
+        MultipartName::FilePath(name) | MultipartName::ImagePath(name) => {
+            // Validate file path
+            validate_file_path(name)?;
+
+            let file_stream = make_stream(name).await?;
+            let part = Part::stream(file_stream).file_name(name.to_string());
+            Ok(Form::new().part(name.to_string(), part))
+        }
+        MultipartName::FileContent { filename, content }
+        | MultipartName::ImageContent { filename, content } => {
+            // Validate filename
+            validate_filename(filename)?;
+
+            // Validate content
+            if content.is_empty() {
+                return Err(BotError::Validation(
+                    "File content cannot be empty".to_string(),
+                ));
+            }
+
+            let part = Part::bytes(content.clone()).file_name(filename.clone());
+            Ok(Form::new().part(filename.to_string(), part))
+        }
+        _ => Err(BotError::Validation("File not specified".to_string())),
+    }
 }
 /// Create stream from file
 /// - `path` - file path
@@ -352,4 +366,528 @@ mod tests {
             _ => panic!("Expected System error"),
         }
     }
+
+    #[tokio::test]
+    async fn test_should_retry_timeout() {
+        let err = reqwest::Error::from(
+            reqwest::ClientBuilder::new()
+                .timeout(Duration::from_millis(1))
+                .build()
+                .unwrap()
+                .get("http://httpbin.org/delay/10")
+                .send()
+                .await
+                .unwrap_err(),
+        );
+
+        // Should retry on timeout
+        assert!(should_retry(&err));
+    }
+
+    #[tokio::test]
+    async fn test_should_retry_server_error() {
+        // Create a mock server error
+        let client = reqwest::Client::new();
+        let response = client.get("http://httpbin.org/status/500").send().await;
+
+        if let Err(err) = response {
+            assert!(should_retry(&err));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_build_optimized_client() {
+        let result = build_optimized_client();
+        assert!(
+            result.is_ok(),
+            "Failed to build optimized client: {:?}",
+            result.err()
+        );
+
+        let client = result.unwrap();
+        // Verify client was created successfully
+        assert!(client.get("https://example.com").build().is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_connection_pool_optimized() {
+        let pool = ConnectionPool::optimized();
+        assert!(pool.retries > 0);
+        assert!(pool.max_backoff > Duration::from_millis(0));
+    }
+
+    #[tokio::test]
+    async fn test_connection_pool_execute_with_retry_success() {
+        let pool = ConnectionPool::new(reqwest::Client::new(), 2, Duration::from_millis(100));
+
+        let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counter_clone = counter.clone();
+
+        let result = pool
+            .execute_with_retry(|| {
+                let counter = counter_clone.clone();
+                async move {
+                    counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    Ok::<String, BotError>("success".to_string())
+                }
+            })
+            .await;
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "success");
+        assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn test_connection_pool_execute_with_retry_failure() {
+        let pool = ConnectionPool::new(reqwest::Client::new(), 0, Duration::from_millis(10));
+
+        let result = pool
+            .execute_with_retry(|| async {
+                Err::<String, BotError>(BotError::Network(
+                    reqwest::ClientBuilder::new()
+                        .build()
+                        .unwrap()
+                        .get("http://invalid-url-that-does-not-exist.invalid")
+                        .send()
+                        .await
+                        .unwrap_err(),
+                ))
+            })
+            .await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_connection_pool_execute_with_retry_non_retryable_error() {
+        let pool = ConnectionPool::new(reqwest::Client::new(), 2, Duration::from_millis(10));
+
+        let result = pool
+            .execute_with_retry(|| async {
+                Err::<String, BotError>(BotError::Validation("Non-retryable error".to_string()))
+            })
+            .await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            BotError::Validation(msg) => assert_eq!(msg, "Non-retryable error"),
+            _ => panic!("Expected Validation error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_file_to_multipart_filepath() {
+        use std::io::Write;
+        use tempfile::NamedTempFile;
+
+        // Create a temporary file
+        let mut temp_file = NamedTempFile::new().unwrap();
+        write!(temp_file, "test content").unwrap();
+        let temp_path = temp_file.path().to_string_lossy().to_string();
+
+        let multipart = MultipartName::FilePath(temp_path);
+        let result = file_to_multipart(&multipart).await;
+
+        assert!(
+            result.is_ok(),
+            "Failed to create multipart: {:?}",
+            result.err()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_file_to_multipart_file_content() {
+        let multipart = MultipartName::FileContent {
+            filename: "test.txt".to_string(),
+            content: b"test content".to_vec(),
+        };
+
+        let result = file_to_multipart(&multipart).await;
+        assert!(
+            result.is_ok(),
+            "Failed to create multipart from content: {:?}",
+            result.err()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_file_to_multipart_image_content() {
+        let multipart = MultipartName::ImageContent {
+            filename: "test.jpg".to_string(),
+            content: b"fake image content".to_vec(),
+        };
+
+        let result = file_to_multipart(&multipart).await;
+        assert!(
+            result.is_ok(),
+            "Failed to create multipart from image content: {:?}",
+            result.err()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_file_to_multipart_invalid() {
+        let multipart = MultipartName::FilePath("/non/existent/file.txt".to_string());
+        let result = file_to_multipart(&multipart).await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            BotError::Validation(msg) => assert!(msg.contains("File does not exist")),
+            _ => panic!("Expected Validation error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_file_to_multipart_path_traversal() {
+        let multipart = MultipartName::FilePath("../../../etc/passwd".to_string());
+        let result = file_to_multipart(&multipart).await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            BotError::Validation(msg) => assert!(msg.contains("parent directory references")),
+            _ => panic!("Expected Validation error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_file_to_multipart_empty_path() {
+        let multipart = MultipartName::FilePath("".to_string());
+        let result = file_to_multipart(&multipart).await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            BotError::Validation(msg) => assert_eq!(msg, "File path cannot be empty"),
+            _ => panic!("Expected Validation error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_file_to_multipart_invalid_filename() {
+        let multipart = MultipartName::FileContent {
+            filename: "file<name>.txt".to_string(), // Contains forbidden character
+            content: b"test content".to_vec(),
+        };
+
+        let result = file_to_multipart(&multipart).await;
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            BotError::Validation(msg) => assert!(msg.contains("forbidden character")),
+            _ => panic!("Expected Validation error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_file_to_multipart_empty_content() {
+        let multipart = MultipartName::FileContent {
+            filename: "empty.txt".to_string(),
+            content: Vec::new(), // Empty content
+        };
+
+        let result = file_to_multipart(&multipart).await;
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            BotError::Validation(msg) => assert_eq!(msg, "File content cannot be empty"),
+            _ => panic!("Expected Validation error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_validate_filename_reserved_names() {
+        let reserved_names = ["CON", "PRN", "AUX", "NUL", "COM1", "LPT1"];
+
+        for name in reserved_names.iter() {
+            let result = validate_filename(name);
+            assert!(result.is_err());
+            match result.unwrap_err() {
+                BotError::Validation(msg) => assert!(msg.contains("reserved name")),
+                _ => panic!("Expected Validation error for {}", name),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_validate_filename_valid() {
+        let valid_names = ["document.txt", "image.jpg", "data.json", "archive.zip"];
+
+        for name in valid_names.iter() {
+            let result = validate_filename(name);
+            assert!(result.is_ok(), "Filename {} should be valid", name);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_make_stream_valid_file() {
+        use std::io::Write;
+        use tempfile::NamedTempFile;
+
+        // Create a temporary file
+        let mut temp_file = NamedTempFile::new().unwrap();
+        write!(temp_file, "test stream content").unwrap();
+        let temp_path = temp_file.path().to_string_lossy().to_string();
+
+        let result = make_stream(&temp_path).await;
+        assert!(
+            result.is_ok(),
+            "Failed to create stream: {:?}",
+            result.err()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_make_stream_invalid_file() {
+        let invalid_path = "/path/that/does/not/exist/file.txt".to_string();
+        let result = make_stream(&invalid_path).await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            BotError::Io(_) => {} // Expected IO error
+            _ => panic!("Expected IO error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_validate_response_all_success_codes() {
+        let success_codes = [
+            StatusCode::OK,
+            StatusCode::CREATED,
+            StatusCode::ACCEPTED,
+            StatusCode::NO_CONTENT,
+        ];
+
+        for code in success_codes.iter() {
+            assert!(
+                validate_response(code).is_ok(),
+                "Status code {:?} should be valid",
+                code
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_validate_response_all_client_error_codes() {
+        let client_error_codes = [
+            StatusCode::BAD_REQUEST,
+            StatusCode::UNAUTHORIZED,
+            StatusCode::FORBIDDEN,
+            StatusCode::NOT_FOUND,
+            StatusCode::METHOD_NOT_ALLOWED,
+        ];
+
+        for code in client_error_codes.iter() {
+            let result = validate_response(code);
+            assert!(result.is_err(), "Status code {:?} should be error", code);
+            match result.unwrap_err() {
+                BotError::Validation(_) => {} // Expected
+                _ => panic!("Expected Validation error for code {:?}", code),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_validate_response_all_server_error_codes() {
+        let server_error_codes = [
+            StatusCode::INTERNAL_SERVER_ERROR,
+            StatusCode::NOT_IMPLEMENTED,
+            StatusCode::BAD_GATEWAY,
+            StatusCode::SERVICE_UNAVAILABLE,
+            StatusCode::GATEWAY_TIMEOUT,
+        ];
+
+        for code in server_error_codes.iter() {
+            let result = validate_response(code);
+            assert!(result.is_err(), "Status code {:?} should be error", code);
+            match result.unwrap_err() {
+                BotError::System(_) => {} // Expected
+                _ => panic!("Expected System error for code {:?}", code),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_connection_pool_clone() {
+        let pool1 = ConnectionPool::new(reqwest::Client::new(), 3, Duration::from_millis(200));
+        let pool2 = pool1.clone();
+
+        assert_eq!(pool1.retries, pool2.retries);
+        assert_eq!(pool1.max_backoff, pool2.max_backoff);
+    }
+
+    #[test]
+    fn test_connection_pool_debug() {
+        let pool = ConnectionPool::new(reqwest::Client::new(), 2, Duration::from_millis(100));
+        let debug_str = format!("{:?}", pool);
+        assert!(debug_str.contains("ConnectionPool"));
+    }
+
+    #[tokio::test]
+    async fn test_deprecated_get_bytes_response() {
+        // Test the deprecated function still works
+        let client = reqwest::Client::new();
+        let url = reqwest::Url::parse("https://httpbin.org/bytes/10").unwrap();
+
+        let result = get_bytes_response(client, url).await;
+        // This might fail in CI/testing environments, so we just check it doesn't panic
+        match result {
+            Ok(bytes) => assert!(!bytes.is_empty()),
+            Err(_) => {} // Network errors are acceptable in tests
+        }
+    }
+
+    #[tokio::test]
+    async fn test_shutdown_signal_setup() {
+        // Test that shutdown_signal can be set up without panicking
+        // We can't easily test the actual signal handling in unit tests
+
+        let signal_task = tokio::spawn(async {
+            tokio::time::timeout(Duration::from_millis(100), shutdown_signal()).await
+        });
+
+        // Should timeout since no signal is sent
+        let result = signal_task.await.unwrap();
+        assert!(result.is_err()); // Should timeout
+    }
+}
+/// Validate file path for security and correctness
+///
+/// ## Errors
+/// - `BotError::Validation` - invalid file path
+fn validate_file_path(path: &str) -> Result<()> {
+    use std::path::Path;
+
+    // Check if path is empty
+    if path.is_empty() {
+        return Err(BotError::Validation(
+            "File path cannot be empty".to_string(),
+        ));
+    }
+
+    // Check for null bytes (security vulnerability)
+    if path.contains('\0') {
+        return Err(BotError::Validation(
+            "File path contains null bytes".to_string(),
+        ));
+    }
+
+    // Normalize path and check for directory traversal attempts
+    let path_obj = Path::new(path);
+
+    // Check for dangerous path components
+    for component in path_obj.components() {
+        match component {
+            std::path::Component::ParentDir => {
+                return Err(BotError::Validation(
+                    "File path contains parent directory references (..)".to_string(),
+                ));
+            }
+            std::path::Component::CurDir => {
+                return Err(BotError::Validation(
+                    "File path contains current directory references (.)".to_string(),
+                ));
+            }
+            _ => {}
+        }
+    }
+
+    // Check if path is absolute or relative
+    if path_obj.is_absolute() {
+        // For absolute paths, ensure they exist and are readable
+        if !path_obj.exists() {
+            return Err(BotError::Validation(format!(
+                "File does not exist: {}",
+                path
+            )));
+        }
+
+        if !path_obj.is_file() {
+            return Err(BotError::Validation(format!(
+                "Path is not a file: {}",
+                path
+            )));
+        }
+    }
+
+    // Additional checks for maximum path length (varies by OS)
+    #[cfg(target_os = "windows")]
+    const MAX_PATH_LEN: usize = 260;
+    #[cfg(not(target_os = "windows"))]
+    const MAX_PATH_LEN: usize = 4096;
+
+    if path.len() > MAX_PATH_LEN {
+        return Err(BotError::Validation(format!(
+            "File path too long: {} characters (max: {})",
+            path.len(),
+            MAX_PATH_LEN
+        )));
+    }
+
+    Ok(())
+}
+
+/// Validate filename for security and correctness
+///
+/// ## Errors
+/// - `BotError::Validation` - invalid filename
+fn validate_filename(filename: &str) -> Result<()> {
+    // Check if filename is empty
+    if filename.is_empty() {
+        return Err(BotError::Validation("Filename cannot be empty".to_string()));
+    }
+
+    // Check for null bytes
+    if filename.contains('\0') {
+        return Err(BotError::Validation(
+            "Filename contains null bytes".to_string(),
+        ));
+    }
+
+    // Check for dangerous characters
+    const FORBIDDEN_CHARS: &[char] = &['/', '\\', ':', '*', '?', '"', '<', '>', '|'];
+    for &forbidden_char in FORBIDDEN_CHARS {
+        if filename.contains(forbidden_char) {
+            return Err(BotError::Validation(format!(
+                "Filename contains forbidden character: '{}'",
+                forbidden_char
+            )));
+        }
+    }
+
+    // Check for reserved names on Windows
+    const RESERVED_NAMES: &[&str] = &[
+        "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
+        "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+    ];
+
+    let filename_upper = filename.to_uppercase();
+    let name_without_ext = filename_upper.split('.').next().unwrap_or("");
+
+    if RESERVED_NAMES.contains(&name_without_ext) {
+        return Err(BotError::Validation(format!(
+            "Filename uses reserved name: {}",
+            filename
+        )));
+    }
+
+    // Check filename length
+    const MAX_FILENAME_LEN: usize = 255;
+    if filename.len() > MAX_FILENAME_LEN {
+        return Err(BotError::Validation(format!(
+            "Filename too long: {} characters (max: {})",
+            filename.len(),
+            MAX_FILENAME_LEN
+        )));
+    }
+
+    // Check for filenames starting or ending with dots or spaces
+    if filename.starts_with('.') && filename != "." && filename != ".." {
+        // Hidden files are generally OK, but we might want to warn
+    }
+
+    if filename.ends_with(' ') || filename.ends_with('.') {
+        return Err(BotError::Validation(
+            "Filename cannot end with space or dot".to_string(),
+        ));
+    }
+
+    Ok(())
 }

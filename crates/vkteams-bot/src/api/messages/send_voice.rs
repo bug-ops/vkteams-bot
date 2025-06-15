@@ -58,7 +58,7 @@ mod tests {
     fn test_set_text_valid() {
         let req = RequestMessagesSendVoice::new((
             ChatId("c1".to_string()),
-            MultipartName::File("f1".to_string()),
+            MultipartName::FilePath("f1".to_string()),
         ));
         let mut parser = MessageTextParser::default();
         parser
@@ -74,7 +74,7 @@ mod tests {
     fn test_set_text_parser_error() {
         let req = RequestMessagesSendVoice::new((
             ChatId("c1".to_string()),
-            MultipartName::File("f1".to_string()),
+            MultipartName::FilePath("f1".to_string()),
         ));
         let mut parser = MessageTextParser::default();
         parser.text.push(MessageTextFormat::Link(
@@ -89,7 +89,7 @@ mod tests {
     fn test_set_keyboard_valid() {
         let req = RequestMessagesSendVoice::new((
             ChatId("c1".to_string()),
-            MultipartName::File("f1".to_string()),
+            MultipartName::FilePath("f1".to_string()),
         ));
         let keyboard = Keyboard {
             buttons: vec![vec![ButtonKeyboard {
@@ -109,7 +109,7 @@ mod tests {
     fn test_set_forward_msg_id_valid() {
         let req = RequestMessagesSendVoice::new((
             ChatId("c1".to_string()),
-            MultipartName::File("f1".to_string()),
+            MultipartName::FilePath("f1".to_string()),
         ));
         let res = req.set_forward_msg_id(ChatId("c2".to_string()), MsgId("m1".to_string()));
         assert!(res.is_ok());
@@ -122,16 +122,16 @@ mod tests {
     fn test_serialize_deserialize_request_minimal() {
         let req = RequestMessagesSendVoice::new((
             ChatId("c1".to_string()),
-            MultipartName::File("voice_id".to_string()),
+            MultipartName::FilePath("voice_id".to_string()),
         ));
         let val = serde_json::to_value(&req).unwrap();
         assert_eq!(val["chatId"], "c1");
-        assert_eq!(val["multipart"]["File"], "voice_id");
+        assert_eq!(val["multipart"]["FilePath"], "voice_id");
         let req2: RequestMessagesSendVoice = serde_json::from_value(val).unwrap();
         assert_eq!(req2.chat_id.0, "c1");
         match req2.multipart {
-            MultipartName::File(ref s) => assert_eq!(s, "voice_id"),
-            _ => panic!("Expected File variant"),
+            MultipartName::FilePath(ref s) => assert_eq!(s, "voice_id"),
+            _ => panic!("Expected FilePath variant"),
         }
         assert!(req2.text.is_none());
     }
@@ -140,7 +140,7 @@ mod tests {
     fn test_serialize_deserialize_request_full() {
         let mut req = RequestMessagesSendVoice::new((
             ChatId("c1".to_string()),
-            MultipartName::File("voice_id".to_string()),
+            MultipartName::FilePath("voice_id".to_string()),
         ));
         req.text = Some("hello".to_string());
         let val = serde_json::to_value(&req).unwrap();
