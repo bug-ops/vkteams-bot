@@ -397,4 +397,174 @@ mod tests {
             assert_eq!(*lock, 42u32);
         });
     }
+
+    #[tokio::test]
+    async fn test_get_and_set_last_event_id_async() {
+        let bot =
+            Bot::with_params(&APIVersionUrl::V1, "test_token", "https://example.com").unwrap();
+
+        // Test initial value
+        assert_eq!(bot.get_last_event_id().await, 0);
+
+        // Test setting and getting
+        bot.set_last_event_id(123).await;
+        assert_eq!(bot.get_last_event_id().await, 123);
+
+        // Test setting another value
+        bot.set_last_event_id(456).await;
+        assert_eq!(bot.get_last_event_id().await, 456);
+    }
+
+    #[test]
+    fn test_set_path() {
+        let bot =
+            Bot::with_params(&APIVersionUrl::V1, "test_token", "https://example.com").unwrap();
+
+        let path = bot.set_path("/messages/sendText");
+        assert_eq!(path, "/api/v1/messages/sendText");
+
+        let path2 = bot.set_path("/chats/getInfo");
+        assert_eq!(path2, "/api/v1/chats/getInfo");
+    }
+
+    #[test]
+    fn test_get_parsed_url_basic() {
+        let bot =
+            Bot::with_params(&APIVersionUrl::V1, "test_token", "https://api.example.com").unwrap();
+
+        let path = "/api/v1/messages/sendText".to_string();
+        let query = "chatId=test@chat.agent&text=hello".to_string();
+
+        let result = bot.get_parsed_url(path, query);
+        assert!(result.is_ok());
+
+        let url = result.unwrap();
+        assert_eq!(url.scheme(), "https");
+        assert_eq!(url.host_str(), Some("api.example.com"));
+        assert_eq!(url.path(), "/api/v1/messages/sendText");
+        assert!(url.query().unwrap().contains("token=test_token"));
+        assert!(url.query().unwrap().contains("chatId=test@chat.agent"));
+        assert!(url.query().unwrap().contains("text=hello"));
+    }
+
+    #[test]
+    fn test_get_parsed_url_with_special_chars() {
+        let bot = Bot::with_params(
+            &APIVersionUrl::V1,
+            "special_token",
+            "https://api.example.com",
+        )
+        .unwrap();
+
+        let path = "/api/v1/messages/sendText".to_string();
+        let query = "text=hello world&chatId=test+chat".to_string();
+
+        let result = bot.get_parsed_url(path, query);
+        assert!(result.is_ok());
+
+        let url = result.unwrap();
+        assert!(url.query().unwrap().contains("token=special_token"));
+    }
+
+    #[test]
+    fn test_bot_debug_format() {
+        let bot = Bot::with_params(
+            &APIVersionUrl::V1,
+            "debug_token",
+            "https://debug.example.com",
+        )
+        .unwrap();
+        let debug_str = format!("{:?}", bot);
+
+        assert!(debug_str.contains("Bot"));
+        assert!(debug_str.contains("debug_token"));
+        assert!(debug_str.contains("debug.example.com"));
+        assert!(debug_str.contains("<pool>"));
+    }
+
+    #[test]
+    fn test_bot_clone() {
+        let bot1 = Bot::with_params(
+            &APIVersionUrl::V1,
+            "clone_token",
+            "https://clone.example.com",
+        )
+        .unwrap();
+        let bot2 = bot1.clone();
+
+        assert_eq!(bot1.token, bot2.token);
+        assert_eq!(bot1.base_api_url, bot2.base_api_url);
+        assert_eq!(bot1.base_api_path, bot2.base_api_path);
+    }
+
+    #[test]
+    fn test_bot_with_default_version() {
+        let result = Bot::with_default_version("default_token", "https://default.example.com");
+        assert!(result.is_ok());
+
+        let bot = result.unwrap();
+        assert_eq!(bot.token.as_ref(), "default_token");
+        assert_eq!(bot.base_api_path.as_ref(), "/api/v1");
+        assert_eq!(bot.base_api_url.as_str(), "https://default.example.com/");
+    }
+
+    #[test]
+    fn test_bot_with_params_invalid_urls() {
+        let invalid_urls = [
+            "",
+            "not-a-url",
+            "ftp://invalid-scheme.com",
+            "://missing-scheme.com",
+        ];
+
+        for invalid_url in invalid_urls.iter() {
+            let result = Bot::with_params(&APIVersionUrl::V1, "token", invalid_url);
+            assert!(result.is_err(), "Should fail for URL: {}", invalid_url);
+
+            match result.unwrap_err() {
+                BotError::Url(_) => {} // Expected
+                _ => panic!("Expected URL error for: {}", invalid_url),
+            }
+        }
+    }
+
+    #[test]
+    fn test_bot_with_empty_token() {
+        let result = Bot::with_params(&APIVersionUrl::V1, "", "https://example.com");
+        assert!(result.is_ok()); // Empty token is allowed, validation happens at API level
+
+        let bot = result.unwrap();
+        assert_eq!(bot.token.as_ref(), "");
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_event_id_access() {
+        let bot = Bot::with_params(
+            &APIVersionUrl::V1,
+            "concurrent_token",
+            "https://example.com",
+        )
+        .unwrap();
+
+        let bot_clone = bot.clone();
+        let handle1 = tokio::spawn(async move {
+            for i in 0..100 {
+                bot_clone.set_last_event_id(i).await;
+                tokio::task::yield_now().await;
+            }
+        });
+
+        let bot_clone2 = bot.clone();
+        let handle2 = tokio::spawn(async move {
+            for _ in 0..100 {
+                let _ = bot_clone2.get_last_event_id().await;
+                tokio::task::yield_now().await;
+            }
+        });
+
+        let _ = tokio::join!(handle1, handle2);
+
+        // Test completed without deadlock
+        assert!(true);
+    }
 }

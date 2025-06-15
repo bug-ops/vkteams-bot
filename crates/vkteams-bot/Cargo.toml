@@ -7,7 +7,7 @@ repository = "https://github.com/bug-ops/vkteams-bot/tree/master"
 homepage = "https://github.com/bug-ops/vkteams-bot"
 documentation = "https://docs.rs/vkteams-bot"
 name = "vkteams-bot"
-version = "0.9.12"
+version = "0.9.13"
 authors = ["Andrei G. <k05h31@gmail.com>"]
 license.workspace = true
 edition.workspace = true
@@ -89,6 +89,7 @@ criterion = { version = "0.6", features = [
 dhat = { version = "0.3" }
 tempfile = "3"
 proptest = "1.4"
+serial_test = "3"
 
 [[bench]]
 name = "performance"

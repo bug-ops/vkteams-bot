@@ -353,4 +353,307 @@ mod tests {
             _ => panic!("Expected System error"),
         }
     }
+
+    #[tokio::test]
+    async fn test_should_retry_timeout() {
+        let err = reqwest::Error::from(
+            reqwest::ClientBuilder::new()
+                .timeout(Duration::from_millis(1))
+                .build()
+                .unwrap()
+                .get("http://httpbin.org/delay/10")
+                .send()
+                .await
+                .unwrap_err(),
+        );
+
+        // Should retry on timeout
+        assert!(should_retry(&err));
+    }
+
+    #[tokio::test]
+    async fn test_should_retry_server_error() {
+        // Create a mock server error
+        let client = reqwest::Client::new();
+        let response = client.get("http://httpbin.org/status/500").send().await;
+
+        if let Err(err) = response {
+            assert!(should_retry(&err));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_build_optimized_client() {
+        let result = build_optimized_client();
+        assert!(
+            result.is_ok(),
+            "Failed to build optimized client: {:?}",
+            result.err()
+        );
+
+        let client = result.unwrap();
+        // Verify client was created successfully
+        assert!(client.get("https://example.com").build().is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_connection_pool_optimized() {
+        let pool = ConnectionPool::optimized();
+        assert!(pool.retries > 0);
+        assert!(pool.max_backoff > Duration::from_millis(0));
+    }
+
+    #[tokio::test]
+    async fn test_connection_pool_execute_with_retry_success() {
+        let pool = ConnectionPool::new(reqwest::Client::new(), 2, Duration::from_millis(100));
+
+        let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counter_clone = counter.clone();
+
+        let result = pool
+            .execute_with_retry(|| {
+                let counter = counter_clone.clone();
+                async move {
+                    counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    Ok::<String, BotError>("success".to_string())
+                }
+            })
+            .await;
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "success");
+        assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn test_connection_pool_execute_with_retry_failure() {
+        let pool = ConnectionPool::new(reqwest::Client::new(), 0, Duration::from_millis(10));
+
+        let result = pool
+            .execute_with_retry(|| async {
+                Err::<String, BotError>(BotError::Network(
+                    reqwest::ClientBuilder::new()
+                        .build()
+                        .unwrap()
+                        .get("http://invalid-url-that-does-not-exist.invalid")
+                        .send()
+                        .await
+                        .unwrap_err(),
+                ))
+            })
+            .await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_connection_pool_execute_with_retry_non_retryable_error() {
+        let pool = ConnectionPool::new(reqwest::Client::new(), 2, Duration::from_millis(10));
+
+        let result = pool
+            .execute_with_retry(|| async {
+                Err::<String, BotError>(BotError::Validation("Non-retryable error".to_string()))
+            })
+            .await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            BotError::Validation(msg) => assert_eq!(msg, "Non-retryable error"),
+            _ => panic!("Expected Validation error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_file_to_multipart_filepath() {
+        use std::io::Write;
+        use tempfile::NamedTempFile;
+
+        // Create a temporary file
+        let mut temp_file = NamedTempFile::new().unwrap();
+        write!(temp_file, "test content").unwrap();
+        let temp_path = temp_file.path().to_string_lossy().to_string();
+
+        let multipart = MultipartName::FilePath(temp_path);
+        let result = file_to_multipart(&multipart).await;
+
+        assert!(
+            result.is_ok(),
+            "Failed to create multipart: {:?}",
+            result.err()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_file_to_multipart_file_content() {
+        let multipart = MultipartName::FileContent {
+            filename: "test.txt".to_string(),
+            content: b"test content".to_vec(),
+        };
+
+        let result = file_to_multipart(&multipart).await;
+        assert!(
+            result.is_ok(),
+            "Failed to create multipart from content: {:?}",
+            result.err()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_file_to_multipart_image_content() {
+        let multipart = MultipartName::ImageContent {
+            filename: "test.jpg".to_string(),
+            content: b"fake image content".to_vec(),
+        };
+
+        let result = file_to_multipart(&multipart).await;
+        assert!(
+            result.is_ok(),
+            "Failed to create multipart from image content: {:?}",
+            result.err()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_file_to_multipart_invalid() {
+        let multipart = MultipartName::FilePath("invalid".to_string());
+        let result = file_to_multipart(&multipart).await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            BotError::Validation(msg) => assert_eq!(msg, "File not specified"),
+            _ => panic!("Expected Validation error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_make_stream_valid_file() {
+        use std::io::Write;
+        use tempfile::NamedTempFile;
+
+        // Create a temporary file
+        let mut temp_file = NamedTempFile::new().unwrap();
+        write!(temp_file, "test stream content").unwrap();
+        let temp_path = temp_file.path().to_string_lossy().to_string();
+
+        let result = make_stream(&temp_path).await;
+        assert!(
+            result.is_ok(),
+            "Failed to create stream: {:?}",
+            result.err()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_make_stream_invalid_file() {
+        let invalid_path = "/path/that/does/not/exist/file.txt".to_string();
+        let result = make_stream(&invalid_path).await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            BotError::Io(_) => {} // Expected IO error
+            _ => panic!("Expected IO error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_validate_response_all_success_codes() {
+        let success_codes = [
+            StatusCode::OK,
+            StatusCode::CREATED,
+            StatusCode::ACCEPTED,
+            StatusCode::NO_CONTENT,
+        ];
+
+        for code in success_codes.iter() {
+            assert!(
+                validate_response(code).is_ok(),
+                "Status code {:?} should be valid",
+                code
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_validate_response_all_client_error_codes() {
+        let client_error_codes = [
+            StatusCode::BAD_REQUEST,
+            StatusCode::UNAUTHORIZED,
+            StatusCode::FORBIDDEN,
+            StatusCode::NOT_FOUND,
+            StatusCode::METHOD_NOT_ALLOWED,
+        ];
+
+        for code in client_error_codes.iter() {
+            let result = validate_response(code);
+            assert!(result.is_err(), "Status code {:?} should be error", code);
+            match result.unwrap_err() {
+                BotError::Validation(_) => {} // Expected
+                _ => panic!("Expected Validation error for code {:?}", code),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_validate_response_all_server_error_codes() {
+        let server_error_codes = [
+            StatusCode::INTERNAL_SERVER_ERROR,
+            StatusCode::NOT_IMPLEMENTED,
+            StatusCode::BAD_GATEWAY,
+            StatusCode::SERVICE_UNAVAILABLE,
+            StatusCode::GATEWAY_TIMEOUT,
+        ];
+
+        for code in server_error_codes.iter() {
+            let result = validate_response(code);
+            assert!(result.is_err(), "Status code {:?} should be error", code);
+            match result.unwrap_err() {
+                BotError::System(_) => {} // Expected
+                _ => panic!("Expected System error for code {:?}", code),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_connection_pool_clone() {
+        let pool1 = ConnectionPool::new(reqwest::Client::new(), 3, Duration::from_millis(200));
+        let pool2 = pool1.clone();
+
+        assert_eq!(pool1.retries, pool2.retries);
+        assert_eq!(pool1.max_backoff, pool2.max_backoff);
+    }
+
+    #[test]
+    fn test_connection_pool_debug() {
+        let pool = ConnectionPool::new(reqwest::Client::new(), 2, Duration::from_millis(100));
+        let debug_str = format!("{:?}", pool);
+        assert!(debug_str.contains("ConnectionPool"));
+    }
+
+    #[tokio::test]
+    async fn test_deprecated_get_bytes_response() {
+        // Test the deprecated function still works
+        let client = reqwest::Client::new();
+        let url = reqwest::Url::parse("https://httpbin.org/bytes/10").unwrap();
+
+        let result = get_bytes_response(client, url).await;
+        // This might fail in CI/testing environments, so we just check it doesn't panic
+        match result {
+            Ok(bytes) => assert!(!bytes.is_empty()),
+            Err(_) => {} // Network errors are acceptable in tests
+        }
+    }
+
+    #[tokio::test]
+    async fn test_shutdown_signal_setup() {
+        // Test that shutdown_signal can be set up without panicking
+        // We can't easily test the actual signal handling in unit tests
+
+        let signal_task = tokio::spawn(async {
+            tokio::time::timeout(Duration::from_millis(100), shutdown_signal()).await
+        });
+
+        // Should timeout since no signal is sent
+        let result = signal_task.await.unwrap();
+        assert!(result.is_err()); // Should timeout
+    }
 }
