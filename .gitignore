@@ -5,7 +5,6 @@ examples/.env
 .vscode
 .idea
 .zed
-Cargo.lock
 .cargo
 .ron
 .yaml
