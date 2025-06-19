@@ -15,6 +15,5 @@ compose.yaml
 .*ignore
 .venv
 .cursor
-isolation_rules
-tasks.md
+tasks
 -
