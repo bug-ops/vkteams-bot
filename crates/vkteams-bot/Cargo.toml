@@ -59,6 +59,7 @@ vkteams-bot-macros = { version = "0.2", path = "../vkteams-bot-macros" }
 dashmap = "6"
 rand = "0.9"
 tower = { version = "0.5", features = ["util"] }
+futures = "0.3"
 
 [features]
 default = ["longpoll"]
