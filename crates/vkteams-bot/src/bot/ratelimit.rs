@@ -204,6 +204,12 @@ pub struct LockFreeGlobalStats {
     active_buckets: Arc<AtomicU32>,
 }
 
+impl Default for LockFreeGlobalStats {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LockFreeGlobalStats {
     pub fn new() -> Self {
         Self {
@@ -438,7 +444,7 @@ impl RateLimiter {
             attempts += 1;
 
             // Calculate adaptive delay with jitter (lock-free)
-            let jitter_ms = (LockFreeTokenBucket::current_time_micros() % 50) as u64;
+            let jitter_ms = LockFreeTokenBucket::current_time_micros() % 50;
             let factor = 1.0 + (attempts as f64 * 0.5);
             let retry_delay = Duration::from_millis(
                 (base_retry_delay.as_millis() as f64 * factor) as u64 + jitter_ms,

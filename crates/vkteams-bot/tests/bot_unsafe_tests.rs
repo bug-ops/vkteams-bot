@@ -27,7 +27,7 @@ fn test_bot_default() {
     set_env_var(VKTEAMS_BOT_API_TOKEN, "default_test_token");
     set_env_var(VKTEAMS_BOT_API_URL, "https://default.example.com");
 
-    let result = std::panic::catch_unwind(|| Bot::default());
+    let result = std::panic::catch_unwind(Bot::default);
 
     // Clean up
     remove_env_var(VKTEAMS_BOT_API_TOKEN);

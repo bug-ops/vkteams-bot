@@ -153,15 +153,18 @@ fn benchmark_scheduler_async_operations(c: &mut Criterion) {
 
             // Perform concurrent operations
             for task_id in &task_ids[0..50] {
-                black_box(scheduler.disable_task(task_id).await.unwrap());
+                scheduler.disable_task(task_id).await.unwrap();
+                black_box(());
             }
 
             for task_id in &task_ids[25..75] {
-                black_box(scheduler.enable_task(task_id).await.unwrap());
+                scheduler.enable_task(task_id).await.unwrap();
+                black_box(());
             }
 
             for task_id in &task_ids[75..100] {
-                black_box(scheduler.remove_task(task_id).await.unwrap());
+                scheduler.remove_task(task_id).await.unwrap();
+                black_box(());
             }
         });
     });
@@ -198,7 +201,8 @@ fn benchmark_scheduler_queue_operations(c: &mut Criterion) {
         });
 
         b.to_async(&rt).iter(|| async {
-            black_box(scheduler.rebuild_queue().await);
+            scheduler.rebuild_queue().await;
+            black_box(());
         });
     });
 
@@ -271,8 +275,10 @@ fn benchmark_scheduler_event_driven_features(c: &mut Criterion) {
         b.to_async(&rt).iter(|| async {
             let (mut scheduler, _temp_dir) = Scheduler::create_test_scheduler().await;
 
-            black_box(scheduler.set_max_concurrent_tasks(20));
-            black_box(scheduler.set_task_timeout(Duration::from_secs(600)));
+            scheduler.set_max_concurrent_tasks(20);
+            black_box(());
+            scheduler.set_task_timeout(Duration::from_secs(600));
+            black_box(());
         });
     });
 

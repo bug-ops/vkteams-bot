@@ -702,7 +702,7 @@ mod tests {
             if total == 0 {
                 return Ok(());
             }
-            let batches = (total + max_events_per_batch - 1) / max_events_per_batch;
+            let batches = total.div_ceil(max_events_per_batch);
             for batch_idx in 0..batches {
                 let start_idx = batch_idx * max_events_per_batch;
                 let end_idx = std::cmp::min((batch_idx + 1) * max_events_per_batch, total);
@@ -711,9 +711,7 @@ mod tests {
                 };
                 let last_event_id = batch_events.events[batch_events.events.len() - 1].event_id;
                 bot.set_last_event_id(last_event_id).await;
-                if let Err(e) = func(bot.clone(), batch_events).await {
-                    return Err(e);
-                }
+                func(bot.clone(), batch_events).await?;
             }
             Ok(())
         }

@@ -4,9 +4,8 @@ use std::time::{Duration, Instant};
 use tokio::time::sleep;
 use vkteams_bot::prelude::*;
 
-/// Integration test for longpoll parallel processing
-/// Demonstrates the performance benefits of parallel event processing
-
+// Integration test for longpoll parallel processing
+// Demonstrates the performance benefits of parallel event processing
 // Create a mock bot for testing (without requiring environment variables)
 fn create_test_bot() -> Bot {
     Bot::with_params(&APIVersionUrl::V1, "test_token", "https://test.api.com").unwrap()

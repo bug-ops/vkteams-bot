@@ -26,7 +26,7 @@ mod tests {
     fn test_main_runs() {
         // Check that main can be called (if main is async, just smoke test)
         // We can only smoke-test here since main is async and requires environment
-        assert!(true);
+        // This test just ensures main function exists and compiles
     }
 
     #[test]

@@ -15,6 +15,6 @@ proptest! {
     #[test]
     fn prop_cli_parse_output_format_random(fmt in ".{0,16}") {
         let args = ["vkteams-bot-cli", "--output", &fmt, "config"];
-        let _ = Cli::try_parse_from(&args);
+        let _ = Cli::try_parse_from(args);
     }
 }

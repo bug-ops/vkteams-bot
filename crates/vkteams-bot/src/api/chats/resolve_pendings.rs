@@ -42,7 +42,7 @@ mod tests {
         let val = json!({"chatId": "c2", "approve": false, "userId": "u2", "everyone": true});
         let req: RequestChatsResolvePending = serde_json::from_value(val).unwrap();
         assert_eq!(req.chat_id.0, "c2");
-        assert_eq!(req.approve, false);
+        assert!(!req.approve);
         assert_eq!(req.user_id.as_ref().unwrap().0, "u2");
         assert_eq!(req.everyone, Some(true));
     }
@@ -52,7 +52,7 @@ mod tests {
         let val = json!({"chatId": "c3", "approve": true});
         let req: RequestChatsResolvePending = serde_json::from_value(val).unwrap();
         assert_eq!(req.chat_id.0, "c3");
-        assert_eq!(req.approve, true);
+        assert!(req.approve);
         assert!(req.user_id.is_none());
         assert!(req.everyone.is_none());
     }

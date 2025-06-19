@@ -72,7 +72,7 @@ fn test_get_config_invalid_toml() {
     let mut temp_file = NamedTempFile::new().unwrap();
     writeln!(temp_file, "invalid toml content [[[").unwrap();
 
-    set_env_var(APP_FOLDER, &temp_file.path().to_string_lossy().to_string());
+    set_env_var(APP_FOLDER, temp_file.path().to_string_lossy().as_ref());
 
     let result = vkteams_bot::config::get_config();
     assert!(result.is_err());
@@ -113,7 +113,7 @@ fmt_ansi = false
     )
     .unwrap();
 
-    set_env_var(APP_FOLDER, &temp_file.path().to_string_lossy().to_string());
+    set_env_var(APP_FOLDER, temp_file.path().to_string_lossy().as_ref());
 
     let result = vkteams_bot::config::get_config();
     assert!(result.is_ok());
@@ -190,7 +190,7 @@ fmt_ansi = true
     )
     .unwrap();
 
-    set_env_var(APP_FOLDER, &temp_file.path().to_string_lossy().to_string());
+    set_env_var(APP_FOLDER, temp_file.path().to_string_lossy().as_ref());
 
     let result = vkteams_bot::config::get_config();
     assert!(result.is_ok());

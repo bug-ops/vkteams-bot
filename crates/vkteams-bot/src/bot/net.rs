@@ -2,6 +2,7 @@
 use crate::api::types::*;
 use crate::config::CONFIG;
 use crate::error::{BotError, Result};
+use rand::Rng;
 use reqwest::{
     Body, Client, ClientBuilder, StatusCode, Url,
     multipart::{Form, Part},
@@ -12,7 +13,6 @@ use tokio::signal;
 use tokio::time::sleep;
 use tokio_util::codec::{BytesCodec, FramedRead};
 use tracing::{debug, error, trace, warn};
-use rand::Rng;
 /// Connection pool for managing HTTP connections
 #[derive(Debug, Clone)]
 pub struct ConnectionPool {
@@ -493,16 +493,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_should_retry_timeout() {
-        let err = reqwest::Error::from(
-            reqwest::ClientBuilder::new()
-                .timeout(Duration::from_millis(1))
-                .build()
-                .unwrap()
-                .get("http://httpbin.org/delay/10")
-                .send()
-                .await
-                .unwrap_err(),
-        );
+        let err = reqwest::ClientBuilder::new()
+            .timeout(Duration::from_millis(1))
+            .build()
+            .unwrap()
+            .get("http://httpbin.org/delay/10")
+            .send()
+            .await
+            .unwrap_err();
 
         // Should retry on timeout
         assert!(should_retry(&err));
@@ -852,10 +850,9 @@ mod tests {
 
         let result = get_bytes_response(client, url).await;
         // This might fail in CI/testing environments, so we just check it doesn't panic
-        match result {
-            Ok(bytes) => assert!(!bytes.is_empty()),
-            Err(_) => {} // Network errors are acceptable in tests
-        }
+        if let Ok(bytes) = result {
+            assert!(!bytes.is_empty());
+        } // Network errors are acceptable in tests
     }
 
     #[tokio::test]

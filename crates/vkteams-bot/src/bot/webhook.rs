@@ -212,7 +212,7 @@ mod tests {
         fn deserialize(&self, json: String) -> Result<Self::WebhookType> {
             if self.fail_deserialize {
                 Err(BotError::Serialization(serde_json::Error::io(
-                    std::io::Error::new(std::io::ErrorKind::Other, "fail deserialize"),
+                    std::io::Error::other("fail deserialize"),
                 )))
             } else {
                 serde_json::from_str(&json).map_err(BotError::Serialization)

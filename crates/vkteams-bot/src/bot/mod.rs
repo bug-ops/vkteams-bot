@@ -574,6 +574,6 @@ mod tests {
         let _ = tokio::join!(handle1, handle2);
 
         // Test completed without deadlock
-        assert!(true);
+        // This test just ensures no deadlock occurs
     }
 }

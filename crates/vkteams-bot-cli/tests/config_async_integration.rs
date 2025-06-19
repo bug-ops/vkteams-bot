@@ -241,7 +241,7 @@ max_file_size = 209715200
     assert_eq!(merged.api.timeout, 60); // Overridden
     assert_eq!(merged.api.max_retries, 3); // From base
     assert_eq!(merged.logging.level, "info"); // From base
-    assert_eq!(merged.logging.colors, true); // From base
+    assert!(merged.logging.colors); // From base
     assert_eq!(merged.files.max_file_size, 209715200); // From override
 
     println!("Config merging took: {:?}", merge_duration);

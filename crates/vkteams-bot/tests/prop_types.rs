@@ -1,6 +1,5 @@
 // Property-based tests for vkteams-bot/src/api/types.rs
 use proptest::prelude::*;
-use serde_json;
 use std::convert::From as StdFrom;
 use vkteams_bot::{
     ApiResponseWrapper, ButtonKeyboard, ButtonStyle, Chat, ChatId, EventMessage,
