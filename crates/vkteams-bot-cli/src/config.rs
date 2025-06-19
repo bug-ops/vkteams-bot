@@ -1,9 +1,14 @@
 use crate::errors::prelude::{CliError, Result as CliResult};
+use dashmap::DashMap;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::time::{Duration, SystemTime};
+use tokio::sync::RwLock;
+use tokio::time::Instant;
 use toml;
 
 // Use constants from the constants module
@@ -298,7 +303,79 @@ impl Config {
         Ok(config)
     }
 
-    /// Load configuration from default locations
+    /// Load configuration from all available sources asynchronously (preferred method)
+    ///
+    /// # Errors
+    /// - Returns `CliError::FileError` if there is an error reading the config file
+    /// - Returns `CliError::UnexpectedError` if there is an error parsing the config
+    pub async fn load_async() -> CliResult<Self> {
+        let manager = AsyncConfigManager::default();
+        manager.load_config().await
+    }
+
+    /// Save configuration to file
+    ///
+    /// # Errors
+    /// - Returns `CliError::FileError` if there is an error creating directories or writing the file
+    /// - Returns `CliError::UnexpectedError` if there is an error serializing the config
+    pub fn save(&self, path: Option<&Path>) -> CliResult<()> {
+        let path = if let Some(p) = path {
+            p.to_owned()
+        } else {
+            let mut p = dirs::home_dir().ok_or_else(|| {
+                CliError::FileError("Could not determine home directory".to_string())
+            })?;
+            p.push(DEFAULT_CONFIG_DIR);
+            fs::create_dir_all(&p).map_err(|e| {
+                CliError::FileError(format!("Could not create config directory: {e}"))
+            })?;
+            p.push(CONFIG_FILE_NAME);
+            p
+        };
+
+        let content = toml::to_string_pretty(self)
+            .map_err(|e| CliError::UnexpectedError(format!("Could not serialize config: {e}")))?;
+
+        fs::write(&path, content)
+            .map_err(|e| CliError::FileError(format!("Could not write config file: {e}")))?;
+
+        Ok(())
+    }
+
+    /// Save configuration to file asynchronously (preferred method)
+    ///
+    /// # Errors
+    /// - Returns `CliError::FileError` if there is an error creating directories or writing the file
+    /// - Returns `CliError::UnexpectedError` if there is an error serializing the config
+    pub async fn save_async(&self, path: Option<&Path>) -> CliResult<()> {
+        let path = if let Some(p) = path {
+            p.to_owned()
+        } else {
+            let mut p = dirs::home_dir().ok_or_else(|| {
+                CliError::FileError("Could not determine home directory".to_string())
+            })?;
+            p.push(DEFAULT_CONFIG_DIR);
+            tokio::fs::create_dir_all(&p).await.map_err(|e| {
+                CliError::FileError(format!("Could not create config directory: {e}"))
+            })?;
+            p.push(CONFIG_FILE_NAME);
+            p
+        };
+
+        let config_clone = self.clone();
+        let content = tokio::task::spawn_blocking(move || toml::to_string_pretty(&config_clone))
+            .await
+            .map_err(|e| CliError::UnexpectedError(format!("Task join error: {e}")))?
+            .map_err(|e| CliError::UnexpectedError(format!("Could not serialize config: {e}")))?;
+
+        tokio::fs::write(&path, content)
+            .await
+            .map_err(|e| CliError::FileError(format!("Could not write config file: {e}")))?;
+
+        Ok(())
+    }
+
+    /// Load configuration from all available sources
     ///
     /// # Errors
     /// - Returns `CliError::FileError` if there is an error reading the config file
@@ -331,33 +408,22 @@ impl Config {
         Ok(config)
     }
 
-    /// Save configuration to file
+    /// Load configuration from a specific path asynchronously
     ///
     /// # Errors
-    /// - Returns `CliError::FileError` if there is an error creating directories or writing the file
-    /// - Returns `CliError::UnexpectedError` if there is an error serializing the config
-    pub fn save(&self, path: Option<&Path>) -> CliResult<()> {
-        let path = if let Some(p) = path {
-            p.to_owned()
-        } else {
-            let mut p = dirs::home_dir().ok_or_else(|| {
-                CliError::FileError("Could not determine home directory".to_string())
-            })?;
-            p.push(DEFAULT_CONFIG_DIR);
-            fs::create_dir_all(&p).map_err(|e| {
-                CliError::FileError(format!("Could not create config directory: {e}"))
-            })?;
-            p.push(CONFIG_FILE_NAME);
-            p
-        };
+    /// - Returns `CliError::FileError` if there is an error reading the config file
+    /// - Returns `CliError::UnexpectedError` if there is an error parsing the config
+    pub async fn from_path_async(path: &Path) -> CliResult<Self> {
+        let content = tokio::fs::read_to_string(path)
+            .await
+            .map_err(|e| CliError::FileError(format!("Could not read config file: {e}")))?;
 
-        let content = toml::to_string_pretty(self)
-            .map_err(|e| CliError::UnexpectedError(format!("Could not serialize config: {e}")))?;
+        let config = tokio::task::spawn_blocking(move || toml::from_str::<Config>(&content))
+            .await
+            .map_err(|e| CliError::UnexpectedError(format!("Task join error: {e}")))?
+            .map_err(|e| CliError::UnexpectedError(format!("Could not parse config file: {e}")))?;
 
-        fs::write(&path, content)
-            .map_err(|e| CliError::FileError(format!("Could not write config file: {e}")))?;
-
-        Ok(())
+        Ok(config)
     }
 
     /// Load configuration from environment variables
@@ -534,5 +600,247 @@ impl Config {
                 overlay.rate_limit,
             ),
         }
+    }
+}
+
+/// Async configuration manager with caching and file watching
+#[derive(Debug)]
+pub struct AsyncConfigManager {
+    cache: Arc<RwLock<Option<(Config, SystemTime)>>>,
+    cache_ttl: Duration,
+    pub config_paths: Vec<PathBuf>,
+}
+
+/// Configuration change event
+#[derive(Clone, Debug)]
+pub enum ConfigChange {
+    FileModified(PathBuf),
+    EnvironmentChanged(String),
+    ManualUpdate(Config),
+}
+
+/// Lock-free configuration cache for high-performance access
+#[derive(Debug, Clone)]
+pub struct LockFreeConfigCache {
+    cache: Arc<DashMap<String, Arc<Config>>>,
+    timestamps: Arc<DashMap<String, Instant>>,
+    ttl: Duration,
+}
+
+impl Default for AsyncConfigManager {
+    fn default() -> Self {
+        Self::new(Duration::from_secs(300)) // 5 minutes TTL
+    }
+}
+
+impl AsyncConfigManager {
+    /// Create a new async config manager with specified TTL
+    pub fn new(cache_ttl: Duration) -> Self {
+        Self {
+            cache: Arc::new(RwLock::new(None)),
+            cache_ttl,
+            config_paths: crate::utils::config_helpers::get_config_paths(),
+        }
+    }
+
+    /// Load configuration asynchronously with caching
+    pub async fn load_config(&self) -> CliResult<Config> {
+        // Fast path: check cache first
+        {
+            let cache = self.cache.read().await;
+            if let Some((config, timestamp)) = cache.as_ref() {
+                if timestamp.elapsed().unwrap_or(Duration::MAX) < self.cache_ttl {
+                    return Ok(config.clone());
+                }
+            }
+        }
+
+        // Slow path: reload from disk asynchronously
+        let config = self.load_from_sources().await?;
+
+        // Update cache
+        {
+            let mut cache = self.cache.write().await;
+            *cache = Some((config.clone(), SystemTime::now()));
+        }
+
+        Ok(config)
+    }
+
+    /// Load configuration from all sources in parallel
+    pub async fn load_from_sources(&self) -> CliResult<Config> {
+        // Load file configs in parallel
+        let file_futures: Vec<_> = self
+            .config_paths
+            .iter()
+            .filter(|path| path.exists())
+            .map(|path| self.load_config_file_async(path.clone()))
+            .collect();
+
+        let file_configs = futures::future::join_all(file_futures)
+            .await
+            .into_iter()
+            .filter_map(|result| result.ok())
+            .collect::<Vec<_>>();
+
+        // Load environment config
+        let env_config = Self::from_env_async().await?;
+
+        // Merge all configs efficiently
+        let mut final_config = Config::default();
+        for config in file_configs {
+            final_config = Self::merge_configs_efficient(final_config, config);
+        }
+        final_config = Self::merge_configs_efficient(final_config, env_config);
+
+        Ok(final_config)
+    }
+
+    /// Load a single config file asynchronously
+    async fn load_config_file_async(&self, path: PathBuf) -> CliResult<Config> {
+        let content = tokio::fs::read_to_string(&path)
+            .await
+            .map_err(|e| CliError::FileError(format!("Could not read config file: {e}")))?;
+
+        // Parse TOML in a blocking task to avoid blocking the async runtime
+        let config = tokio::task::spawn_blocking(move || toml::from_str::<Config>(&content))
+            .await
+            .map_err(|e| CliError::UnexpectedError(format!("Task join error: {e}")))?
+            .map_err(|e| CliError::UnexpectedError(format!("Could not parse config file: {e}")))?;
+
+        Ok(config)
+    }
+
+    /// Load environment variables asynchronously
+    async fn from_env_async() -> CliResult<Config> {
+        // Spawn environment parsing in blocking task
+        tokio::task::spawn_blocking(|| Config::from_env())
+            .await
+            .map_err(|e| CliError::UnexpectedError(format!("Task join error: {e}")))?
+    }
+
+    /// Efficient config merging without intermediate allocations
+    pub fn merge_configs_efficient(base: Config, overlay: Config) -> Config {
+        Config {
+            api: ApiConfig {
+                token: overlay.api.token.or(base.api.token),
+                url: overlay.api.url.or(base.api.url),
+                timeout: if overlay.api.timeout != default_timeout() {
+                    overlay.api.timeout
+                } else {
+                    base.api.timeout
+                },
+                max_retries: if overlay.api.max_retries != default_retries() {
+                    overlay.api.max_retries
+                } else {
+                    base.api.max_retries
+                },
+            },
+            files: FileConfig {
+                download_dir: overlay.files.download_dir.or(base.files.download_dir),
+                upload_dir: overlay.files.upload_dir.or(base.files.upload_dir),
+                max_file_size: if overlay.files.max_file_size != default_max_file_size() {
+                    overlay.files.max_file_size
+                } else {
+                    base.files.max_file_size
+                },
+                buffer_size: if overlay.files.buffer_size != default_buffer_size() {
+                    overlay.files.buffer_size
+                } else {
+                    base.files.buffer_size
+                },
+            },
+            logging: LoggingConfig {
+                level: if overlay.logging.level != default_log_level() {
+                    overlay.logging.level
+                } else {
+                    base.logging.level
+                },
+                format: if overlay.logging.format != default_log_format() {
+                    overlay.logging.format
+                } else {
+                    base.logging.format
+                },
+                colors: if overlay.logging.colors != default_log_colors() {
+                    overlay.logging.colors
+                } else {
+                    base.logging.colors
+                },
+            },
+            ui: UiConfig {
+                show_progress: if overlay.ui.show_progress != default_show_progress() {
+                    overlay.ui.show_progress
+                } else {
+                    base.ui.show_progress
+                },
+                progress_style: if overlay.ui.progress_style != default_progress_style() {
+                    overlay.ui.progress_style
+                } else {
+                    base.ui.progress_style
+                },
+                progress_refresh_rate: if overlay.ui.progress_refresh_rate
+                    != default_progress_refresh_rate()
+                {
+                    overlay.ui.progress_refresh_rate
+                } else {
+                    base.ui.progress_refresh_rate
+                },
+            },
+            proxy: overlay.proxy.or(base.proxy),
+            rate_limit: overlay.rate_limit, // Use overlay rate_limit directly for simplicity
+        }
+    }
+}
+
+impl LockFreeConfigCache {
+    /// Create a new lock-free config cache
+    pub fn new(ttl: Duration) -> Self {
+        Self {
+            cache: Arc::new(DashMap::new()),
+            timestamps: Arc::new(DashMap::new()),
+            ttl,
+        }
+    }
+
+    /// Get configuration from cache if valid, otherwise load and cache it
+    pub async fn get_or_load<F, Fut>(&self, key: &str, loader: F) -> CliResult<Arc<Config>>
+    where
+        F: FnOnce() -> Fut,
+        Fut: std::future::Future<Output = CliResult<Config>>,
+    {
+        // Check if we have a valid cached entry
+        if let Some(config) = self.cache.get(key) {
+            if let Some(timestamp) = self.timestamps.get(key) {
+                if timestamp.elapsed() < self.ttl {
+                    return Ok(config.clone());
+                }
+            }
+        }
+
+        // Load fresh config
+        let new_config = Arc::new(loader().await?);
+
+        // Cache the result
+        self.cache.insert(key.to_string(), new_config.clone());
+        self.timestamps.insert(key.to_string(), Instant::now());
+
+        Ok(new_config)
+    }
+
+    /// Invalidate cache entry
+    pub fn invalidate(&self, key: &str) {
+        self.cache.remove(key);
+        self.timestamps.remove(key);
+    }
+
+    /// Clear all cache entries
+    pub fn clear(&self) {
+        self.cache.clear();
+        self.timestamps.clear();
+    }
+
+    /// Get cache statistics
+    pub fn stats(&self) -> (usize, usize) {
+        (self.cache.len(), self.timestamps.len())
     }
 }
