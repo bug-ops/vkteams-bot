@@ -407,6 +407,7 @@ pub struct AdaptiveBackoff {
     max_delay: Duration,
     consecutive_empty_polls: u32,
     last_activity: Option<Instant>,
+    empty_poll_threshold: u32,
 }
 
 impl AdaptiveBackoff {
@@ -418,6 +419,7 @@ impl AdaptiveBackoff {
             max_delay,
             consecutive_empty_polls: 0,
             last_activity: None,
+            empty_poll_threshold: 3, // Start backing off after 3 consecutive empty polls
         }
     }
 

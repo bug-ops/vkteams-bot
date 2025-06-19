@@ -12,6 +12,7 @@ use tokio::signal;
 use tokio::time::sleep;
 use tokio_util::codec::{BytesCodec, FramedRead};
 use tracing::{debug, error, trace, warn};
+use rand::Rng;
 /// Connection pool for managing HTTP connections
 #[derive(Debug, Clone)]
 pub struct ConnectionPool {
@@ -294,7 +295,8 @@ pub fn calculate_backoff_duration(attempt: usize, max_backoff: Duration) -> Dura
 
     // Add jitter (random ±25%)
     let jitter_range = capped_backoff.as_millis() / 4; // 25% of the duration
-    let jitter = rng.gen_range(0..=(jitter_range as u64 * 2));
+    let mut rng = rand::rng();
+    let jitter = rng.random_range(0..=(jitter_range as u64 * 2));
     let jitter_offset = jitter as i64 - jitter_range as i64;
 
     let final_duration = (capped_backoff.as_millis() as i64 + jitter_offset).max(0) as u64;

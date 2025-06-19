@@ -6,7 +6,8 @@ use tokio::runtime::Runtime;
 
 use vkteams_bot_cli::config::{AsyncConfigManager, Config};
 
-fn simple_config_benchmark(c: &mut Criterion, rt: &Runtime) {
+fn simple_config_benchmark(c: &mut Criterion) {
+    let rt = Runtime::new().unwrap();
     let test_config = r#"
 [api]
 token = "test_token"

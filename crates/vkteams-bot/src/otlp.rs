@@ -242,9 +242,6 @@ impl Drop for OtelGuard {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Once;
-
-    static INIT: Once = Once::new();
 
     #[test]
     fn test_get_resource() {
@@ -391,59 +388,41 @@ mod tests {
         drop(guard);
     }
 
-    #[tokio::test]
-    async fn test_init_function_basic() {
-        // Test basic init function call
-        // This will likely fail due to missing endpoint, but should not panic
-        let result = init();
-
-        // The function should return a Result, either Ok or Err
-        match result {
-            Ok(guard) => {
-                // Successfully initialized
-                assert!(guard.tracer_provider.is_none() || guard.tracer_provider.is_some());
-                assert!(guard.meter_provider.is_none() || guard.meter_provider.is_some());
-            }
-            Err(e) => {
-                // Failed to initialize - this is expected without proper OTLP configuration
-                let error_msg = format!("{}", e);
-                assert!(!error_msg.is_empty());
-            }
-        }
-    }
-
     #[test]
     fn test_init_function_error_handling() {
-        INIT.call_once(|| {
-            // Ensure we only run this once to avoid tracing subscriber conflicts
-        });
+        // Test individual components instead of full init to avoid global state conflicts
+        let traces_result = init_traces();
+        let metrics_result = init_metrics();
 
-        // Test that init function handles errors gracefully
-        let result = init();
+        // Both should fail without proper endpoint configuration
+        assert!(traces_result.is_err());
+        assert!(metrics_result.is_err());
 
-        // Should return a Result type
-        match result {
-            Ok(_) => {
-                // Success case - OTLP was properly initialized
-            }
-            Err(e) => {
-                // Error case - expected when OTLP endpoint is not configured
-                let error_str = e.to_string();
-                assert!(!error_str.is_empty(), "Error message should not be empty");
-            }
+        if let Err(e) = traces_result {
+            let error_str = e.to_string();
+            assert!(!error_str.is_empty(), "Error message should not be empty");
+            assert!(error_str.contains("OTLP exporter endpoint not configured"));
         }
     }
 
     #[test]
     fn test_log_format_handling() {
-        // Test that different log formats are handled correctly
-        // This mainly tests that the function branches don't panic
+        // Test filter creation which is used by different log formats
+        let filter_result = filter_layer();
+        let fmt_filter_result = fmt_filter();
 
-        // We can't easily mock CONFIG in this context, but we can ensure
-        // the init function handles different scenarios without panicking
-        let _result = init();
+        assert!(
+            filter_result.is_ok(),
+            "Filter layer creation should succeed"
+        );
+        assert!(
+            fmt_filter_result.is_ok(),
+            "Fmt filter creation should succeed"
+        );
 
-        // If we get here without panicking, the test passes
-        assert!(true);
+        // Test resource creation which is used by all log formats
+        let resource = get_resource();
+        let attributes: Vec<_> = resource.iter().collect();
+        assert!(!attributes.is_empty(), "Resource should have attributes");
     }
 }
