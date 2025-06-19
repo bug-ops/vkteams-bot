@@ -616,7 +616,7 @@ pub struct AsyncConfigManager {
 pub enum ConfigChange {
     FileModified(PathBuf),
     EnvironmentChanged(String),
-    ManualUpdate(Config),
+    ManualUpdate(Box<Config>),
 }
 
 /// Lock-free configuration cache for high-performance access
@@ -714,7 +714,7 @@ impl AsyncConfigManager {
     /// Load environment variables asynchronously
     async fn from_env_async() -> CliResult<Config> {
         // Spawn environment parsing in blocking task
-        tokio::task::spawn_blocking(|| Config::from_env())
+        tokio::task::spawn_blocking(Config::from_env)
             .await
             .map_err(|e| CliError::UnexpectedError(format!("Task join error: {e}")))?
     }

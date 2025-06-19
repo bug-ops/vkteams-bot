@@ -562,7 +562,7 @@ impl Scheduler {
         next_wakeup
     }
 
-    async fn wait_for_shutdown(&self) -> () {
+    async fn wait_for_shutdown(&self) {
         while !self.shutdown_signal.load(Ordering::Relaxed) {
             tokio::time::sleep(TokioDuration::from_millis(100)).await;
         }
@@ -728,7 +728,7 @@ impl Scheduler {
                 let mut next_run = *start_time;
 
                 while next_run <= now {
-                    next_run = next_run + interval;
+                    next_run += interval;
                 }
 
                 Ok(next_run)
@@ -814,7 +814,7 @@ impl ScheduleType {
                 let mut next_run = *start_time;
 
                 while next_run <= from_time {
-                    next_run = next_run + interval;
+                    next_run += interval;
                 }
 
                 Ok(next_run)
