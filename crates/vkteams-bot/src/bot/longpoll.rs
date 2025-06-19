@@ -437,7 +437,7 @@ impl AdaptiveBackoff {
             self.consecutive_empty_polls += 1;
 
             // Only increase backoff after several consecutive empty polls
-            if self.consecutive_empty_polls > 3 {
+            if self.consecutive_empty_polls > self.empty_poll_threshold {
                 self.current_delay = std::cmp::min(
                     Duration::from_millis(
                         (self.current_delay.as_millis() as u64 * 3 / 2)
