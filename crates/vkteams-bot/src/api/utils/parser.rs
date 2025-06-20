@@ -58,7 +58,7 @@ impl MessageTextParser {
                 self.replace_chars(text)
             )),
             MessageTextFormat::OrderedList(list) => {
-                let estimated_size = list.iter().map(|s| s.len() + 10).sum();
+                let estimated_size = list.iter().map(|s| s.len() + HTML_LIST_ITEM_OVERHEAD).sum();
                 let mut result = String::with_capacity(estimated_size);
                 for item in list {
                     result.push_str(&format!("<li>{}</li>", self.replace_chars(item)));
