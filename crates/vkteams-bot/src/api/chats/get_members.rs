@@ -29,7 +29,7 @@ mod tests {
     #[test]
     fn test_request_chats_get_members_serialize() {
         let req = RequestChatsGetMembers {
-            chat_id: ChatId("c1".to_string()),
+            chat_id: ChatId::from("c1"),
             cursor: Some(42),
         };
         let val = serde_json::to_value(&req).unwrap();

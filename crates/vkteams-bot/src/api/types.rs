@@ -1,6 +1,7 @@
 //! API types
 use crate::error::{ApiError, BotError, Result};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use std::borrow::Cow;
 use std::fmt::*;
 use std::time::Duration;
 #[cfg(feature = "templates")]
@@ -388,7 +389,7 @@ pub struct MessagePayload {
 }
 /// Chat id struct
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Hash, Eq)]
-pub struct ChatId(pub String);
+pub struct ChatId(pub Cow<'static, str>);
 /// Message id struct
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Hash, Eq)]
 pub struct MsgId(pub String);
@@ -557,6 +558,54 @@ impl Display for ChatId {
         write!(f, "{}", self.0)
     }
 }
+
+/// From trait implementations for [`ChatId`]
+impl std::convert::From<String> for ChatId {
+    fn from(s: String) -> Self {
+        ChatId(Cow::Owned(s))
+    }
+}
+
+impl std::convert::From<&str> for ChatId {
+    fn from(s: &str) -> Self {
+        ChatId(Cow::Owned(s.to_string()))
+    }
+}
+
+impl std::convert::From<Cow<'static, str>> for ChatId {
+    fn from(cow: Cow<'static, str>) -> Self {
+        ChatId(cow)
+    }
+}
+
+impl AsRef<str> for ChatId {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl ChatId {
+    /// Create a new ChatId from a static string (zero-allocation)
+    pub fn from_static(s: &'static str) -> Self {
+        ChatId(Cow::Borrowed(s))
+    }
+
+    /// Create a new ChatId from an owned string
+    pub fn from_owned(s: String) -> Self {
+        ChatId(Cow::Owned(s))
+    }
+
+    /// Get the string representation as a reference
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Convert to owned String
+    pub fn into_string(self) -> String {
+        self.0.into_owned()
+    }
+}
+
 /// Link basse path for API version
 impl Display for APIVersionUrl {
     /// Format [`APIVersionUrl`] to string
@@ -601,7 +650,7 @@ mod tests {
 
     #[test]
     fn test_chat_id_display() {
-        let id = ChatId("test_id".to_string());
+        let id = ChatId::from("test_id");
         assert_eq!(format!("{}", id), "test_id");
     }
 
@@ -687,7 +736,7 @@ mod tests {
         let _ = MessageTextFormat::Underline("u".to_string());
         let _ = MessageTextFormat::Strikethrough("s".to_string());
         let _ = MessageTextFormat::Link("t".to_string(), "url".to_string());
-        let _ = MessageTextFormat::Mention(ChatId("cid".to_string()));
+        let _ = MessageTextFormat::Mention(ChatId::from("cid"));
         let _ = MessageTextFormat::Code("c".to_string());
         let _ = MessageTextFormat::Pre("p".to_string(), Some("lang".to_string()));
         let _ = MessageTextFormat::OrderedList(vec!["1".to_string()]);

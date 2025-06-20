@@ -13,10 +13,8 @@ async fn main() -> Result<()> {
     // Send message like text generation
     let bot = Bot::default();
     // Get chat_id from .env
-    let chat_id = ChatId(
-        std::env::var("VKTEAMS_BOT_CHAT_ID")
-            .expect("Unable to find VKTEAMS_CHAT_ID in .env file")
-            .to_string(),
+    let chat_id = ChatId::from(
+        std::env::var("VKTEAMS_BOT_CHAT_ID").expect("Unable to find VKTEAMS_CHAT_ID in .env file"),
     );
     // Bot action typing
     bot.send_api_request(RequestChatsSendAction::new((

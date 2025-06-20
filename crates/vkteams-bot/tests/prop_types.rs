@@ -90,7 +90,7 @@ proptest! {
                 msg_id: MsgId("mid".to_string()),
                 text: text.clone(),
                 chat: Chat {
-                    chat_id: ChatId("cid".to_string()),
+                    chat_id: ChatId::from("cid"),
                     title: None,
                     chat_type: "private".to_string(),
                 },
@@ -150,13 +150,13 @@ proptest! {
     #[test]
     fn prop_roundtrip_chat(chat_id in ".{1,16}", title in proptest::option::of(".{0,16}"), chat_type in "private|group|channel") {
         let chat = Chat {
-            chat_id: ChatId(chat_id.clone()),
+            chat_id: ChatId::from(chat_id.clone()),
             title: title.clone(),
             chat_type: chat_type.to_string(),
         };
         let ser = serde_json::to_string(&chat).unwrap();
         let de: Chat = serde_json::from_str(&ser).unwrap();
-        assert_eq!(de.chat_id.0, chat_id);
+        assert_eq!(de.chat_id.0.as_ref(), chat_id);
         assert_eq!(de.title, title);
         assert_eq!(de.chat_type, chat_type);
     }

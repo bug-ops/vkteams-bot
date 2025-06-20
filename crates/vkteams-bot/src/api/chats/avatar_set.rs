@@ -23,7 +23,7 @@ mod tests {
     #[test]
     fn test_request_chats_avatar_set_serialize() {
         let req = RequestChatsAvatarSet {
-            chat_id: ChatId("c1".to_string()),
+            chat_id: ChatId::from("c1"),
             multipart: MultipartName::FilePath("file.png".to_string()),
         };
         let val = serde_json::to_value(&req).unwrap();

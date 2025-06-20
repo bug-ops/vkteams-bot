@@ -40,7 +40,7 @@ mod tests {
 
     #[test]
     fn test_set_text_valid() {
-        let req = RequestMessagesEditText::new((ChatId("c1".to_string()), MsgId("m1".to_string())));
+        let req = RequestMessagesEditText::new((ChatId::from("c1"), MsgId("m1".to_string())));
         let mut parser = MessageTextParser::default();
         parser
             .text
@@ -53,7 +53,7 @@ mod tests {
 
     #[test]
     fn test_set_text_parser_error() {
-        let req = RequestMessagesEditText::new((ChatId("c1".to_string()), MsgId("m1".to_string())));
+        let req = RequestMessagesEditText::new((ChatId::from("c1"), MsgId("m1".to_string())));
         let mut parser = MessageTextParser::default();
         parser.text.push(MessageTextFormat::Link(
             "not a url".to_string(),
@@ -65,7 +65,7 @@ mod tests {
 
     #[test]
     fn test_set_keyboard_valid() {
-        let req = RequestMessagesEditText::new((ChatId("c1".to_string()), MsgId("m1".to_string())));
+        let req = RequestMessagesEditText::new((ChatId::from("c1"), MsgId("m1".to_string())));
         let keyboard = Keyboard {
             buttons: vec![vec![ButtonKeyboard {
                 text: "ok".to_string(),
@@ -82,7 +82,7 @@ mod tests {
 
     #[test]
     fn test_serialize_deserialize_request_minimal() {
-        let req = RequestMessagesEditText::new((ChatId("c1".to_string()), MsgId("m1".to_string())));
+        let req = RequestMessagesEditText::new((ChatId::from("c1"), MsgId("m1".to_string())));
         let val = serde_json::to_value(&req).unwrap();
         assert_eq!(val["chatId"], "c1");
         assert_eq!(val["msgId"], "m1");
@@ -95,7 +95,7 @@ mod tests {
     #[test]
     fn test_serialize_deserialize_request_full() {
         let mut req =
-            RequestMessagesEditText::new((ChatId("c1".to_string()), MsgId("m1".to_string())));
+            RequestMessagesEditText::new((ChatId::from("c1"), MsgId("m1".to_string())));
         req.text = Some("hello".to_string());
         let val = serde_json::to_value(&req).unwrap();
         let req2: RequestMessagesEditText = serde_json::from_value(val).unwrap();

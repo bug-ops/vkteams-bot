@@ -22,7 +22,7 @@ mod tests {
     #[test]
     fn test_request_chats_set_rules_serialize() {
         let req = RequestChatsSetRules {
-            chat_id: ChatId("c1".to_string()),
+            chat_id: ChatId::from("c1"),
             rules: "rules text".to_string(),
         };
         let val = serde_json::to_value(&req).unwrap();

@@ -181,7 +181,7 @@ mod tests {
             "http://a.com".to_string(),
             "A".to_string(),
         ));
-        parser = parser.add(MessageTextFormat::Mention(ChatId("cid".to_string())));
+        parser = parser.add(MessageTextFormat::Mention(ChatId::from("cid")));
         let (html, _) = parser.parse().unwrap();
         // println!("HTML output: {}", html);
         assert!(html.contains("<a href=\"http://a.com/\">A</a>"));

@@ -404,7 +404,7 @@ impl Scheduler {
             TaskType::SendText { chat_id, message } => {
                 let parser =
                     MessageTextParser::new().add(MessageTextFormat::Plain(message.clone()));
-                let request = RequestMessagesSendText::new(ChatId(chat_id.clone()))
+                let request = RequestMessagesSendText::new(ChatId::from(chat_id.as_str()))
                     .set_text(parser)
                     .map_err(|e| CliError::InputError(format!("Failed to create message: {e}")))?;
                 bot.send_api_request(request)
@@ -414,7 +414,7 @@ impl Scheduler {
             }
             TaskType::SendFile { chat_id, file_path } => {
                 let request = RequestMessagesSendFile::new((
-                    ChatId(chat_id.clone()),
+                    ChatId::from(chat_id.as_str()),
                     MultipartName::FilePath(file_path.clone()),
                 ));
                 bot.send_api_request(request)
@@ -424,7 +424,7 @@ impl Scheduler {
             }
             TaskType::SendVoice { chat_id, file_path } => {
                 let request = RequestMessagesSendVoice::new((
-                    ChatId(chat_id.clone()),
+                    ChatId::from(chat_id.as_str()),
                     MultipartName::FilePath(file_path.clone()),
                 ));
                 bot.send_api_request(request)
@@ -438,7 +438,7 @@ impl Scheduler {
                     "looking" => ChatActions::Looking,
                     _ => return Err(CliError::InputError(format!("Unknown action: {}", action))),
                 };
-                let request = RequestChatsSendAction::new((ChatId(chat_id.clone()), chat_action));
+                let request = RequestChatsSendAction::new((ChatId::from(chat_id.as_str()), chat_action));
                 bot.send_api_request(request)
                     .await
                     .map_err(CliError::ApiError)

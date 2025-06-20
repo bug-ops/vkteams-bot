@@ -7,7 +7,7 @@ repository = "https://github.com/bug-ops/vkteams-bot/tree/master"
 homepage = "https://github.com/bug-ops/vkteams-bot"
 documentation = "https://docs.rs/vkteams-bot"
 name = "vkteams-bot"
-version = "0.9.14"
+version = "0.10.0"
 authors = ["Andrei G. <k05h31@gmail.com>"]
 license.workspace = true
 edition.workspace = true
@@ -95,4 +95,24 @@ serial_test = "3"
 
 [[bench]]
 name = "performance"
+harness = false
+
+[[bench]]
+name = "chat_id_optimization"
+harness = false
+
+[[bench]]
+name = "longpoll_parallel_perf"
+harness = false
+
+[[bench]]
+name = "net_perf_simple"
+harness = false
+
+[[bench]]
+name = "net_performance"
+harness = false
+
+[[bench]]
+name = "ratelimit_lockfree_perf"
 harness = false

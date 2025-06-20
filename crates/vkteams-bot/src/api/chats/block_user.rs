@@ -24,7 +24,7 @@ mod tests {
     #[test]
     fn test_request_chats_block_user_serialize() {
         let req = RequestChatsBlockUser {
-            chat_id: ChatId("c1".to_string()),
+            chat_id: ChatId::from("c1"),
             user_id: UserId("u1".to_string()),
             del_last_messages: Some(true),
         };

@@ -22,7 +22,7 @@ mod tests {
     #[test]
     fn test_request_chats_send_action_serialize() {
         let req = RequestChatsSendAction {
-            chat_id: ChatId("c1".to_string()),
+            chat_id: ChatId::from("c1"),
             actions: ChatActions::Typing,
         };
         let val = serde_json::to_value(&req).unwrap();

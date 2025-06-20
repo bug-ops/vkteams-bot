@@ -58,7 +58,7 @@ mod tests {
     #[test]
     fn test_set_text_valid() {
         let req = RequestMessagesSendFile::new((
-            ChatId("c1".to_string()),
+            ChatId::from("c1"),
             MultipartName::FilePath("f1".to_string()),
         ));
         let mut parser = MessageTextParser::default();
@@ -74,7 +74,7 @@ mod tests {
     #[test]
     fn test_set_text_parser_error() {
         let req = RequestMessagesSendFile::new((
-            ChatId("c1".to_string()),
+            ChatId::from("c1"),
             MultipartName::FilePath("f1".to_string()),
         ));
         let mut parser = MessageTextParser::default();
@@ -89,7 +89,7 @@ mod tests {
     #[test]
     fn test_set_keyboard_valid() {
         let req = RequestMessagesSendFile::new((
-            ChatId("c1".to_string()),
+            ChatId::from("c1"),
             MultipartName::FilePath("f1".to_string()),
         ));
         let keyboard = Keyboard {
@@ -109,10 +109,10 @@ mod tests {
     #[test]
     fn test_set_forward_msg_id_valid() {
         let req = RequestMessagesSendFile::new((
-            ChatId("c1".to_string()),
+            ChatId::from("c1"),
             MultipartName::FilePath("f1".to_string()),
         ));
-        let res = req.set_forward_msg_id(ChatId("c2".to_string()), MsgId("m1".to_string()));
+        let res = req.set_forward_msg_id(ChatId::from("c2"), MsgId("m1".to_string()));
         assert!(res.is_ok());
         let req2 = res.unwrap();
         assert_eq!(req2.forward_chat_id.unwrap().0, "c2");
@@ -122,7 +122,7 @@ mod tests {
     #[test]
     fn test_serialize_deserialize_request_minimal() {
         let req = RequestMessagesSendFile::new((
-            ChatId("c1".to_string()),
+            ChatId::from("c1"),
             MultipartName::FilePath("file_id".to_string()),
         ));
         let val = serde_json::to_value(&req).unwrap();
@@ -140,7 +140,7 @@ mod tests {
     #[test]
     fn test_serialize_deserialize_request_full() {
         let mut req = RequestMessagesSendFile::new((
-            ChatId("c1".to_string()),
+            ChatId::from("c1"),
             MultipartName::FilePath("file_id".to_string()),
         ));
         req.text = Some("hello".to_string());

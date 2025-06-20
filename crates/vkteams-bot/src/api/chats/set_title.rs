@@ -22,7 +22,7 @@ mod tests {
     #[test]
     fn test_request_chats_set_title_serialize() {
         let req = RequestChatsSetTitle {
-            chat_id: ChatId("c1".to_string()),
+            chat_id: ChatId::from("c1"),
             title: "title text".to_string(),
         };
         let val = serde_json::to_value(&req).unwrap();

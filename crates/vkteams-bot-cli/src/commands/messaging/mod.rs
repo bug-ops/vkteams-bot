@@ -168,7 +168,7 @@ async fn execute_send_text(bot: &Bot, chat_id: &str, message: &str) -> CliResult
     debug!("Sending text message to {}", chat_id);
 
     let parser = MessageTextParser::new().add(MessageTextFormat::Plain(message.to_string()));
-    let request = RequestMessagesSendText::new(ChatId(chat_id.to_string()))
+    let request = RequestMessagesSendText::new(ChatId::from(chat_id))
         .set_text(parser)
         .map_err(|e| CliError::InputError(format!("Failed to create message: {e}")))?;
 
@@ -220,7 +220,7 @@ async fn execute_edit_message(
 
     let parser = MessageTextParser::new().add(MessageTextFormat::Plain(new_text.to_string()));
     let request =
-        RequestMessagesEditText::new((ChatId(chat_id.to_string()), MsgId(message_id.to_string())))
+        RequestMessagesEditText::new((ChatId::from(chat_id), MsgId(message_id.to_string())))
             .set_text(parser)
             .map_err(|e| CliError::InputError(format!("Failed to set message text: {e}")))?;
 
@@ -237,10 +237,8 @@ async fn execute_edit_message(
 async fn execute_delete_message(bot: &Bot, chat_id: &str, message_id: &str) -> CliResult<()> {
     debug!("Deleting message {} from {}", message_id, chat_id);
 
-    let request = RequestMessagesDeleteMessages::new((
-        ChatId(chat_id.to_string()),
-        MsgId(message_id.to_string()),
-    ));
+    let request =
+        RequestMessagesDeleteMessages::new((ChatId::from(chat_id), MsgId(message_id.to_string())));
 
     let result = bot
         .send_api_request(request)
@@ -259,7 +257,7 @@ async fn execute_pin_message(bot: &Bot, chat_id: &str, message_id: &str) -> CliR
     debug!("Pinning message {} in {}", message_id, chat_id);
 
     let request =
-        RequestChatsPinMessage::new((ChatId(chat_id.to_string()), MsgId(message_id.to_string())));
+        RequestChatsPinMessage::new((ChatId::from(chat_id), MsgId(message_id.to_string())));
 
     let result = bot
         .send_api_request(request)
@@ -275,7 +273,7 @@ async fn execute_unpin_message(bot: &Bot, chat_id: &str, message_id: &str) -> Cl
     debug!("Unpinning message {} from {}", message_id, chat_id);
 
     let request =
-        RequestChatsUnpinMessage::new((ChatId(chat_id.to_string()), MsgId(message_id.to_string())));
+        RequestChatsUnpinMessage::new((ChatId::from(chat_id), MsgId(message_id.to_string())));
 
     let result = bot
         .send_api_request(request)

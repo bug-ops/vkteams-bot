@@ -717,7 +717,7 @@ mod ratelimiter_tests {
     use tokio::time::{Duration, sleep};
 
     fn chat_id(n: u64) -> ChatId {
-        ChatId(format!("chat_{}", n))
+        ChatId::from(format!("chat_{}", n))
     }
 
     #[tokio::test]
