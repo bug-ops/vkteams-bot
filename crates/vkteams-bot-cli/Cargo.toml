@@ -84,7 +84,3 @@ harness = false
 [[bench]]
 name = "simple_config_bench"
 harness = false
-
-[[bench]]
-name = "specialized_cli_performance"
-harness = false
