@@ -12,7 +12,5 @@ Dockerfile
 compose.yaml
 .svg
 .*ignore
-.venv
-.cursor
 tasks
--
+.rules

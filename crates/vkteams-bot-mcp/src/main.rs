@@ -2,6 +2,9 @@ pub mod errors;
 pub mod file_utils;
 pub mod server;
 pub mod types;
+pub mod storage;
+pub mod event_processor;
+pub mod config;
 
 use rmcp::ServiceExt;
 use std::io::Error;
@@ -13,7 +16,7 @@ use vkteams_bot::otlp::init;
 #[tokio::main]
 async fn main() -> Result<()> {
     let _guard = init().map_err(|e| Error::other(e.to_string()))?;
-    let server = Server::default();
+    let server = Server::new().await.map_err(|e| Error::other(e.to_string()))?;
     let transport = (stdin(), stdout());
     server.serve(transport).await?.waiting().await?;
     Ok(())
