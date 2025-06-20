@@ -156,7 +156,7 @@ proptest! {
         };
         let ser = serde_json::to_string(&chat).unwrap();
         let de: Chat = serde_json::from_str(&ser).unwrap();
-        assert_eq!(de.chat_id.0.as_ref(), chat_id);
+        assert_eq!(de.chat_id.as_ref(), chat_id);
         assert_eq!(de.title, title);
         assert_eq!(de.chat_type, chat_type);
     }
