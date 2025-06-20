@@ -3392,6 +3392,7 @@ version = "0.9.14"
 dependencies = [
  "async-trait",
  "axum",
+ "bytes",
  "criterion",
  "dashmap",
  "dhat",

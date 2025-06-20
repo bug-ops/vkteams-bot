@@ -2,6 +2,7 @@
 use crate::api::types::*;
 use crate::config::CONFIG;
 use crate::error::{BotError, Result};
+use bytes::Bytes;
 use rand::Rng;
 use reqwest::{
     Body, Client, ClientBuilder, StatusCode, Url,
@@ -106,12 +107,13 @@ impl ConnectionPool {
     pub async fn get_text(&self, url: Url) -> Result<String> {
         debug!("Getting response from API at path {}...", url);
 
-        self.execute_with_retry(|| {
+        let url_str = url.as_str().to_string();
+        self.execute_with_retry(move || {
             let client = self.client.clone();
-            let url = url.clone();
+            let url_str = url_str.clone();
 
             async move {
-                let response = client.get(url.as_str()).send().await?;
+                let response = client.get(&url_str).send().await?;
                 trace!("Response status: {}", response.status());
 
                 validate_response(&response.status())?;
@@ -129,12 +131,13 @@ impl ConnectionPool {
     pub async fn get_bytes(&self, url: Url) -> Result<Vec<u8>> {
         debug!("Getting binary response from API at path {}...", url);
 
-        self.execute_with_retry(|| {
+        let url_str = url.as_str().to_string();
+        self.execute_with_retry(move || {
             let client = self.client.clone();
-            let url = url.clone();
+            let url_str = url_str.clone();
 
             async move {
-                let response = client.get(url.as_str()).send().await?;
+                let response = client.get(&url_str).send().await?;
                 trace!("Response status: {}", response.status());
 
                 validate_response(&response.status())?;
@@ -1015,7 +1018,7 @@ fn validate_filename(filename: &str) -> Result<()> {
 /// Retryable multipart form that can be recreated for retry attempts
 #[derive(Debug, Clone)]
 pub struct RetryableMultipartForm {
-    file_data: Vec<u8>,
+    file_data: Bytes,
     pub filename: String,
     field_name: String,
 }
@@ -1024,7 +1027,7 @@ impl RetryableMultipartForm {
     /// Create new retryable form from file content
     pub fn from_content(filename: String, field_name: String, content: Vec<u8>) -> Self {
         Self {
-            file_data: content,
+            file_data: Bytes::from(content),
             filename,
             field_name,
         }
@@ -1049,7 +1052,7 @@ impl RetryableMultipartForm {
 
     /// Convert to reqwest Form for sending
     pub fn to_form(&self) -> Form {
-        let part = Part::bytes(self.file_data.clone()).file_name(self.filename.clone());
+        let part = Part::bytes(self.file_data.clone().to_vec()).file_name(self.filename.clone());
         Form::new().part(self.field_name.clone(), part)
     }
 

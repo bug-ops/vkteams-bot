@@ -16,11 +16,16 @@ use tracing::{debug, info, warn};
 /// - Statistics are collected lock-free
 /// - No blocking operations during rate limit checks
 #[derive(Debug)]
+#[repr(C)]
 pub struct LockFreeTokenBucket {
     /// Packed state: High 32 bits = total_requests, Low 32 bits = available_tokens
     state: Arc<AtomicU64>,
+    /// Cache line padding to prevent false sharing
+    _pad1: [u8; 64 - 16],
     /// Last refill timestamp in microseconds since UNIX epoch
     last_refill: Arc<AtomicU64>,
+    /// Cache line padding to prevent false sharing
+    _pad2: [u8; 64 - 16],
     /// Bucket capacity
     capacity: u32,
     /// Tokens refilled per second
@@ -39,7 +44,9 @@ impl LockFreeTokenBucket {
 
         Self {
             state: Arc::new(AtomicU64::new(Self::pack_state(0, capacity))),
+            _pad1: [0; 64 - 16],
             last_refill: Arc::new(AtomicU64::new(now_micros)),
+            _pad2: [0; 64 - 16],
             capacity,
             refill_rate,
             stats: Arc::new(AtomicU64::new(0)),
