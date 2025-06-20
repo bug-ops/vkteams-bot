@@ -79,14 +79,14 @@ impl DatabaseManager {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
-        .bind(&event.id)
+        .bind(event.id.clone())
         .bind(event.event_id as i64)
-        .bind(&event.chat_id)
-        .bind(&event.event_type)
-        .bind(&event.timestamp)
-        .bind(&event.raw_data)
+        .bind(event.chat_id.clone())
+        .bind(event.event_type.clone())
+        .bind(event.timestamp)
+        .bind(event.raw_data.clone())
         .bind(event.processed)
-        .bind(&event.created_at)
+        .bind(event.created_at)
         .execute(&self.pool)
         .await?;
         Ok(())
@@ -108,7 +108,7 @@ impl DatabaseManager {
             "#
         )
         .bind(chat_id)
-        .bind(&since)
+        .bind(since)
         .bind(limit)
         .fetch_all(&self.pool)
         .await?;
@@ -165,12 +165,12 @@ impl DatabaseManager {
         .bind(&message.user_id)
         .bind(&message.content)
         .bind(&message.message_type)
-        .bind(&message.timestamp)
+        .bind(message.timestamp)
         .bind(&message.reply_to)
         .bind(&message.forwarded_from)
         .bind(message.edited)
         .bind(message.deleted)
-        .bind(&message.created_at)
+        .bind(message.created_at)
         .execute(&self.pool)
         .await?;
         Ok(())
@@ -193,7 +193,7 @@ impl DatabaseManager {
             "#
         )
         .bind(chat_id)
-        .bind(&since)
+        .bind(since)
         .bind(limit)
         .fetch_all(&self.pool)
         .await?;
@@ -296,7 +296,7 @@ impl DatabaseManager {
         .bind(&file.file_type)
         .bind(file.size)
         .bind(&file.url)
-        .bind(&file.created_at)
+        .bind(file.created_at)
         .execute(&self.pool)
         .await?;
         Ok(())
@@ -313,21 +313,21 @@ impl DatabaseManager {
         // Общая статистика
         let total_events_row = sqlx::query("SELECT COUNT(*) as count FROM events WHERE chat_id = ? AND timestamp >= ?")
             .bind(chat_id)
-            .bind(&since)
+            .bind(since)
             .fetch_one(&self.pool)
             .await?;
         let total_events = total_events_row.get::<i64, _>("count");
 
         let total_messages_row = sqlx::query("SELECT COUNT(*) as count FROM messages WHERE chat_id = ? AND timestamp >= ?")
             .bind(chat_id)
-            .bind(&since)
+            .bind(since)
             .fetch_one(&self.pool)
             .await?;
         let total_messages = total_messages_row.get::<i64, _>("count");
 
         let unique_users_row = sqlx::query("SELECT COUNT(DISTINCT user_id) as count FROM messages WHERE chat_id = ? AND timestamp >= ?")
             .bind(chat_id)
-            .bind(&since)
+            .bind(since)
             .fetch_one(&self.pool)
             .await?;
         let unique_users = unique_users_row.get::<i64, _>("count");
@@ -343,7 +343,7 @@ impl DatabaseManager {
             "#
         )
         .bind(chat_id)
-        .bind(&since)
+        .bind(since)
         .fetch_all(&self.pool)
         .await?;
 
@@ -366,7 +366,7 @@ impl DatabaseManager {
             "#
         )
         .bind(chat_id)
-        .bind(&since)
+        .bind(since)
         .fetch_all(&self.pool)
         .await?;
 
@@ -406,7 +406,7 @@ impl DatabaseManager {
             "#
         )
         .bind(chat_id)
-        .bind(&since)
+        .bind(since)
         .bind(limit)
         .fetch_all(&self.pool)
         .await?;

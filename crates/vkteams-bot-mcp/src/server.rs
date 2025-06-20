@@ -8,13 +8,7 @@ use rmcp::{
 };
 use serde::Serialize;
 use std::result::Result;
-use vkteams_bot::prelude::BotRequest;
 use vkteams_bot::prelude::*;
-
-use crate::file_utils::{
-    format_file_size, get_mime_type, sanitize_filename, validate_file_size, validate_filename,
-};
-use base64::Engine;
 
 pub trait IntoCallToolResult<T>
 where

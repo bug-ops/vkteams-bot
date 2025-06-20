@@ -45,5 +45,3 @@ mod tests {
         assert!(result.is_err());
     }
 }
-
-fn main() {}
