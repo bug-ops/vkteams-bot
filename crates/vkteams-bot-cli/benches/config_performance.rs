@@ -255,7 +255,7 @@ fn bench_env_parsing(c: &mut Criterion) {
 
     // Test batch environment variable parsing
     group.bench_function("parse_multiple_env_vars", |b| {
-        let env_vars = vec![
+        let env_vars = [
             "VKTEAMS_BOT_TOKEN",
             "VKTEAMS_BOT_URL",
             "VKTEAMS_BOT_TIMEOUT",

@@ -1,14 +1,14 @@
-use crate::Bot;
-use crate::api::events::get::*;
-use crate::api::types::*;
-use crate::bot::net::shutdown_signal;
+use crate::api::events::get::{RequestEventsGet, ResponseEventsGet};
+use crate::api::types::{BotRequest, EventMessage, POLL_TIME};
+use crate::bot::Bot;
 use crate::config::CONFIG;
-use crate::error::Result;
+use crate::error::{BotError, Result};
 use std::future::Future;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::sync::broadcast;
+use tokio::sync::Semaphore;
 use tokio::time::sleep;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, trace, warn};
 
 /// Listen for events and execute callback function
 /// ## Parameters
@@ -30,12 +30,12 @@ impl Bot {
     {
         let cfg = &CONFIG.listener;
         // Create a channel to signal shutdown
-        let (shutdown_tx, mut shutdown_rx) = broadcast::channel::<()>(1);
+        let (shutdown_tx, mut shutdown_rx) = tokio::sync::broadcast::channel::<()>(1);
 
         // Setup shutdown signal handler
         let shutdown_tx_clone = shutdown_tx.clone();
         tokio::spawn(async move {
-            shutdown_signal().await;
+            crate::bot::net::shutdown_signal().await;
             info!("Received stop signal, gracefully stopping event listener...");
             let _ = shutdown_tx_clone.send(());
         });
@@ -189,13 +189,353 @@ impl Bot {
 
         Ok(())
     }
+
+    /// Listen for events with parallel processing
+    /// Enhanced version that processes events in parallel batches
+    pub async fn event_listener_parallel<F, X>(&self, func: F) -> Result<()>
+    where
+        F: Fn(Bot, ResponseEventsGet) -> X + Send + Sync + Clone + 'static,
+        X: Future<Output = Result<()>> + Send + 'static,
+    {
+        let cfg = &CONFIG.listener;
+        info!("Starting parallel event listener...");
+
+        // Initialize parallel processor and adaptive backoff
+        let processor = ParallelEventProcessor::new(
+            cfg.max_events_per_batch.max(1), // Use as max concurrent batches
+            cfg.max_events_per_batch,
+        );
+
+        let mut backoff = AdaptiveBackoff::new(
+            Duration::from_millis(cfg.empty_backoff_ms),
+            Duration::from_millis(cfg.max_backoff_ms),
+        );
+
+        // Initialize event stream buffer for zero-copy processing (future use)
+        // let mut event_stream = ZeroCopyEventStream::new(cfg.max_events_per_batch * 10);
+
+        // Create a channel to signal shutdown
+        let (shutdown_tx, mut shutdown_rx) = tokio::sync::broadcast::channel::<()>(1);
+
+        // Setup shutdown signal handler
+        let shutdown_tx_clone = shutdown_tx.clone();
+        tokio::spawn(async move {
+            crate::bot::net::shutdown_signal().await;
+            info!("Received stop signal, gracefully stopping parallel event listener...");
+            let _ = shutdown_tx_clone.send(());
+        });
+
+        'event_loop: loop {
+            // Check if we received a shutdown signal
+            if shutdown_rx.try_recv().is_ok() {
+                info!("Processing shutdown request");
+                break 'event_loop;
+            }
+
+            let start_time = Instant::now();
+
+            // Create request for events
+            let req =
+                RequestEventsGet::new(self.get_last_event_id().await).with_poll_time(POLL_TIME);
+
+            // Send request and handle response
+            let res = match self.send_api_request::<RequestEventsGet>(req).await {
+                Ok(res) => res,
+                Err(e) => {
+                    error!("Error getting events: {}", e);
+
+                    // Apply adaptive backoff on error
+                    let delay = backoff.calculate_delay(0);
+                    warn!("Error occurred, backing off for {:?}", delay);
+                    sleep(delay).await;
+                    continue;
+                }
+            };
+
+            // Process events if we have any
+            if !res.events.is_empty() {
+                debug!("Received {} events", res.events.len());
+
+                // Update last event ID from the most recent event
+                let last_event_id = res.events[res.events.len() - 1].event_id;
+                self.set_last_event_id(last_event_id).await;
+                debug!("Updated last event ID: {}", last_event_id);
+
+                // Process events in parallel
+                let processing_start = Instant::now();
+                match processor
+                    .process_events_parallel(self.clone(), res, func.clone())
+                    .await
+                {
+                    Ok(_) => {
+                        let processing_duration = processing_start.elapsed();
+                        trace!("Parallel processing completed in {:?}", processing_duration);
+
+                        // Reset backoff on successful processing
+                        backoff.calculate_delay(1);
+                    }
+                    Err(e) => {
+                        error!("Error in parallel processing: {}", e);
+                        return Err(e);
+                    }
+                }
+            } else {
+                debug!("No events received, applying adaptive backoff");
+
+                // Apply adaptive backoff for empty polls
+                let delay = backoff.calculate_delay(0);
+
+                // Only sleep if we haven't already spent enough time waiting
+                let elapsed = start_time.elapsed();
+                if elapsed < delay {
+                    let sleep_time = delay - elapsed;
+                    trace!("Adaptive backoff: sleeping for {:?}", sleep_time);
+                    sleep(sleep_time).await;
+                }
+            }
+        } // End of event_loop
+
+        info!("Parallel event listener stopped gracefully");
+        Ok(())
+    }
+}
+
+/// Parallel event processor for concurrent batch processing
+pub struct ParallelEventProcessor {
+    max_concurrent_batches: usize,
+    batch_size: usize,
+}
+
+impl ParallelEventProcessor {
+    /// Create new parallel event processor
+    pub fn new(max_concurrent_batches: usize, batch_size: usize) -> Self {
+        Self {
+            max_concurrent_batches,
+            batch_size,
+        }
+    }
+
+    /// Process events in parallel batches
+    pub async fn process_events_parallel<F, X>(
+        &self,
+        bot: Bot,
+        events: ResponseEventsGet,
+        processor: F,
+    ) -> Result<()>
+    where
+        F: Fn(Bot, ResponseEventsGet) -> X + Send + Sync + Clone + 'static,
+        X: Future<Output = Result<()>> + Send + 'static,
+    {
+        if events.events.is_empty() {
+            return Ok(());
+        }
+
+        let batches = self.create_batches(events);
+        let batch_count = batches.len();
+        let semaphore = Arc::new(Semaphore::new(self.max_concurrent_batches));
+
+        trace!("Processing {} batches in parallel", batch_count);
+
+        let futures: Vec<_> = batches
+            .into_iter()
+            .enumerate()
+            .map(|(batch_idx, batch)| {
+                let processor = processor.clone();
+                let bot = bot.clone();
+                let semaphore = semaphore.clone();
+
+                async move {
+                    let _permit = semaphore.acquire().await.map_err(|e| {
+                        BotError::System(format!("Failed to acquire semaphore: {}", e))
+                    })?;
+
+                    trace!(
+                        "Processing batch {} with {} events",
+                        batch_idx,
+                        batch.events.len()
+                    );
+
+                    let start_time = Instant::now();
+                    let result = processor(bot, batch).await;
+                    let duration = start_time.elapsed();
+
+                    if let Err(ref e) = result {
+                        error!("Batch {} failed after {:?}: {}", batch_idx, duration, e);
+                    } else {
+                        trace!("Batch {} completed in {:?}", batch_idx, duration);
+                    }
+
+                    result
+                }
+            })
+            .collect();
+
+        // Wait for all batches to complete using a simpler approach
+        use futures::future::join_all;
+        let results: Vec<Result<()>> = join_all(futures).await.into_iter().collect();
+
+        // Check if any batches failed
+        for (idx, result) in results.into_iter().enumerate() {
+            if let Err(e) = result {
+                return Err(BotError::System(format!(
+                    "Batch {} processing failed: {}",
+                    idx, e
+                )));
+            }
+        }
+
+        debug!("All {} batches processed successfully", batch_count);
+        Ok(())
+    }
+
+    /// Create batches from events, ensuring no events are lost
+    fn create_batches(&self, events: ResponseEventsGet) -> Vec<ResponseEventsGet> {
+        events
+            .events
+            .chunks(self.batch_size)
+            .map(|chunk| ResponseEventsGet {
+                events: chunk.to_vec(),
+            })
+            .collect()
+    }
+}
+
+/// Adaptive backoff strategy that adjusts delay based on activity
+pub struct AdaptiveBackoff {
+    current_delay: Duration,
+    min_delay: Duration,
+    max_delay: Duration,
+    consecutive_empty_polls: u32,
+    last_activity: Option<Instant>,
+    empty_poll_threshold: u32,
+}
+
+impl AdaptiveBackoff {
+    /// Create new adaptive backoff strategy
+    pub fn new(min_delay: Duration, max_delay: Duration) -> Self {
+        Self {
+            current_delay: min_delay,
+            min_delay,
+            max_delay,
+            consecutive_empty_polls: 0,
+            last_activity: None,
+            empty_poll_threshold: 3, // Start backing off after 3 consecutive empty polls
+        }
+    }
+
+    /// Calculate delay based on events received and system load
+    pub fn calculate_delay(&mut self, events_received: usize) -> Duration {
+        let now = Instant::now();
+
+        if events_received > 0 {
+            // Reset to minimum delay when events are received
+            self.current_delay = self.min_delay;
+            self.consecutive_empty_polls = 0;
+            self.last_activity = Some(now);
+
+            trace!("Events received, reset delay to {:?}", self.current_delay);
+        } else {
+            // Exponential backoff for empty polls
+            self.consecutive_empty_polls += 1;
+
+            // Only increase backoff after several consecutive empty polls
+            if self.consecutive_empty_polls > self.empty_poll_threshold {
+                self.current_delay = std::cmp::min(
+                    Duration::from_millis(
+                        (self.current_delay.as_millis() as u64 * 3 / 2)
+                            .max(self.min_delay.as_millis() as u64),
+                    ),
+                    self.max_delay,
+                );
+
+                trace!(
+                    "Empty poll #{}, increased delay to {:?}",
+                    self.consecutive_empty_polls, self.current_delay
+                );
+            }
+
+            // If we've been idle for a long time, increase delay more aggressively
+            if let Some(last_activity) = self.last_activity {
+                let idle_time = now.duration_since(last_activity);
+                if idle_time > Duration::from_secs(60) {
+                    self.current_delay = std::cmp::min(
+                        self.current_delay + Duration::from_millis(100),
+                        self.max_delay,
+                    );
+                }
+            }
+        }
+
+        self.current_delay
+    }
+
+    /// Get current delay without modifying state
+    pub fn current_delay(&self) -> Duration {
+        self.current_delay
+    }
+
+    /// Reset backoff to minimum (useful for external triggers)
+    pub fn reset(&mut self) {
+        self.current_delay = self.min_delay;
+        self.consecutive_empty_polls = 0;
+        self.last_activity = Some(Instant::now());
+    }
+}
+
+/// Zero-copy event streaming buffer
+pub struct ZeroCopyEventStream {
+    events: std::collections::VecDeque<EventMessage>,
+    capacity: usize,
+}
+
+impl ZeroCopyEventStream {
+    /// Create new event stream with given capacity
+    pub fn new(capacity: usize) -> Self {
+        Self {
+            events: std::collections::VecDeque::with_capacity(capacity),
+            capacity,
+        }
+    }
+
+    /// Push events efficiently by moving data
+    pub fn push_events(&mut self, mut new_events: Vec<EventMessage>) {
+        // Ensure we don't exceed capacity
+        while self.events.len() + new_events.len() > self.capacity {
+            self.events.pop_front();
+        }
+
+        // Move events instead of copying
+        self.events.extend(new_events.drain(..));
+    }
+
+    /// Drain a batch of events efficiently
+    pub fn drain_batch(&mut self, size: usize) -> Vec<EventMessage> {
+        self.events
+            .drain(..std::cmp::min(size, self.events.len()))
+            .collect()
+    }
+
+    /// Get current number of events
+    pub fn len(&self) -> usize {
+        self.events.len()
+    }
+
+    /// Check if empty
+    pub fn is_empty(&self) -> bool {
+        self.events.is_empty()
+    }
+
+    /// Get events without removing them
+    pub fn peek_events(&self, count: usize) -> Vec<&EventMessage> {
+        self.events.iter().take(count).collect()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::api::events::get::ResponseEventsGet;
-    use crate::api::types::EventId;
+    use crate::api::types::{EventId, EventMessage, EventType};
     use crate::error::{BotError, Result};
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
@@ -362,7 +702,7 @@ mod tests {
             if total == 0 {
                 return Ok(());
             }
-            let batches = (total + max_events_per_batch - 1) / max_events_per_batch;
+            let batches = total.div_ceil(max_events_per_batch);
             for batch_idx in 0..batches {
                 let start_idx = batch_idx * max_events_per_batch;
                 let end_idx = std::cmp::min((batch_idx + 1) * max_events_per_batch, total);
@@ -371,9 +711,7 @@ mod tests {
                 };
                 let last_event_id = batch_events.events[batch_events.events.len() - 1].event_id;
                 bot.set_last_event_id(last_event_id).await;
-                if let Err(e) = func(bot.clone(), batch_events).await {
-                    return Err(e);
-                }
+                func(bot.clone(), batch_events).await?;
             }
             Ok(())
         }

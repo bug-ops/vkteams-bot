@@ -166,7 +166,7 @@ impl Command for SchedulingCommands {
 
 // Command execution functions
 async fn execute_schedule(_bot: &Bot, message_type: &ScheduleMessageType) -> CliResult<()> {
-    let mut scheduler = Scheduler::new()?;
+    let mut scheduler = Scheduler::new(None).await?;
     // Note: We need to create a new bot instance for the scheduler
     // since Bot doesn't implement Clone
     let token = std::env::var("VKTEAMS_BOT_API_TOKEN")
@@ -240,7 +240,7 @@ async fn execute_schedule(_bot: &Bot, message_type: &ScheduleMessageType) -> Cli
         }
     };
 
-    let task_id = scheduler.add_task(task_type, schedule, max_runs)?;
+    let task_id = scheduler.add_task(task_type, schedule, max_runs).await?;
     println!(
         "✅ Task scheduled successfully with ID: {}",
         task_id.green()
@@ -249,7 +249,7 @@ async fn execute_schedule(_bot: &Bot, message_type: &ScheduleMessageType) -> Cli
 }
 
 async fn execute_scheduler_action(_bot: &Bot, action: &SchedulerAction) -> CliResult<()> {
-    let mut scheduler = Scheduler::new()?;
+    let mut scheduler = Scheduler::new(None).await?;
     // Note: We need to create a new bot instance for the scheduler
     // since Bot doesn't implement Clone
     let token = std::env::var("VKTEAMS_BOT_API_TOKEN")
@@ -270,7 +270,7 @@ async fn execute_scheduler_action(_bot: &Bot, action: &SchedulerAction) -> CliRe
             // TODO: Implement proper daemon stop mechanism
         }
         SchedulerAction::Status => {
-            let tasks = scheduler.list_tasks();
+            let tasks = scheduler.list_tasks().await;
             let enabled_count = tasks.iter().filter(|t| t.enabled).count();
             let total_count = tasks.len();
 
@@ -283,7 +283,7 @@ async fn execute_scheduler_action(_bot: &Bot, action: &SchedulerAction) -> CliRe
             );
         }
         SchedulerAction::List => {
-            let tasks = scheduler.list_tasks();
+            let tasks = scheduler.list_tasks().await;
 
             if tasks.is_empty() {
                 println!("📭 No scheduled tasks found");
@@ -321,7 +321,7 @@ async fn execute_scheduler_action(_bot: &Bot, action: &SchedulerAction) -> CliRe
 }
 
 async fn execute_task_action(_bot: &Bot, action: &TaskAction) -> CliResult<()> {
-    let mut scheduler = Scheduler::new()?;
+    let mut scheduler = Scheduler::new(None).await?;
     // Note: We need to create a new bot instance for the scheduler
     // since Bot doesn't implement Clone
     let token = std::env::var("VKTEAMS_BOT_API_TOKEN")
@@ -334,7 +334,7 @@ async fn execute_task_action(_bot: &Bot, action: &TaskAction) -> CliResult<()> {
 
     match action {
         TaskAction::Show { task_id } => {
-            if let Some(task) = scheduler.get_task(task_id) {
+            if let Some(task) = scheduler.get_task(task_id).await {
                 println!("📋 Task Details:");
                 println!("  ID: {}", task.id);
                 println!("  Type: {}", task.task_type.description());
@@ -368,15 +368,15 @@ async fn execute_task_action(_bot: &Bot, action: &TaskAction) -> CliResult<()> {
             }
         }
         TaskAction::Remove { task_id } => {
-            scheduler.remove_task(task_id)?;
+            scheduler.remove_task(task_id).await?;
             println!("🗑️ Task {} removed successfully", task_id.green());
         }
         TaskAction::Enable { task_id } => {
-            scheduler.enable_task(task_id)?;
+            scheduler.enable_task(task_id).await?;
             println!("✅ Task {} enabled successfully", task_id.green());
         }
         TaskAction::Disable { task_id } => {
-            scheduler.disable_task(task_id)?;
+            scheduler.disable_task(task_id).await?;
             println!("⏸️ Task {} disabled successfully", task_id.yellow());
         }
         TaskAction::Run { task_id } => {
@@ -449,6 +449,11 @@ mod tests {
         unsafe {
             env::set_var("VKTEAMS_BOT_API_TOKEN", "dummy_token");
             env::set_var("VKTEAMS_BOT_API_URL", "https://dummy.api.com");
+
+            // Create a temporary directory for tests
+            let temp_dir = std::env::temp_dir().join("vkteams_bot_test");
+            std::fs::create_dir_all(&temp_dir).ok();
+            env::set_var("HOME", temp_dir.to_string_lossy().to_string());
         }
     }
 
@@ -526,7 +531,10 @@ mod tests {
         let rt = Runtime::new().unwrap();
         let res = rt.block_on(cmd.execute(&bot));
         // Should succeed if environment is set and time is valid
-        assert!(res.is_ok());
+        if let Err(e) = &res {
+            eprintln!("Schedule command failed: {:?}", e);
+        }
+        assert!(res.is_ok(), "Schedule command failed: {:?}", res.err());
     }
 
     #[test]
@@ -586,10 +594,10 @@ mod tests {
         assert!(res.is_err());
     }
 
-    #[test]
-    fn test_execute_task_action_remove_enable_disable() {
+    #[tokio::test]
+    async fn test_execute_task_action_remove_enable_disable() {
         set_env_vars();
-        let mut scheduler = Scheduler::new().unwrap();
+        let mut scheduler = Scheduler::new(None).await.unwrap();
         // Add a dummy task
         let task_id = scheduler
             .add_task(
@@ -600,9 +608,10 @@ mod tests {
                 ScheduleType::Once(Utc::now()),
                 Some(1),
             )
+            .await
             .unwrap();
         // Remove
-        assert!(scheduler.remove_task(&task_id).is_ok());
+        assert!(scheduler.remove_task(&task_id).await.is_ok());
         // Add again
         let task_id = scheduler
             .add_task(
@@ -613,10 +622,11 @@ mod tests {
                 ScheduleType::Once(Utc::now()),
                 Some(1),
             )
+            .await
             .unwrap();
         // Enable
-        assert!(scheduler.enable_task(&task_id).is_ok());
+        assert!(scheduler.enable_task(&task_id).await.is_ok());
         // Disable
-        assert!(scheduler.disable_task(&task_id).is_ok());
+        assert!(scheduler.disable_task(&task_id).await.is_ok());
     }
 }

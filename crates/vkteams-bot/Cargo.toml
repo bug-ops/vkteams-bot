@@ -7,7 +7,7 @@ repository = "https://github.com/bug-ops/vkteams-bot/tree/master"
 homepage = "https://github.com/bug-ops/vkteams-bot"
 documentation = "https://docs.rs/vkteams-bot"
 name = "vkteams-bot"
-version = "0.9.13"
+version = "0.9.14"
 authors = ["Andrei G. <k05h31@gmail.com>"]
 license.workspace = true
 edition.workspace = true
@@ -59,6 +59,7 @@ vkteams-bot-macros = { version = "0.2", path = "../vkteams-bot-macros" }
 dashmap = "6"
 rand = "0.9"
 tower = { version = "0.5", features = ["util"] }
+futures = "0.3"
 
 [features]
 default = ["longpoll"]

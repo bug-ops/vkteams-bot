@@ -57,7 +57,7 @@ mod tests {
             "--verbose",
             "config",
         ];
-        let cli = Cli::parse_from(&args);
+        let cli = Cli::parse_from(args);
         assert_eq!(cli.config.as_deref(), Some("myconfig.toml"));
         assert_eq!(cli.save_config.as_deref(), Some("out.toml"));
         assert!(cli.verbose);
@@ -66,7 +66,7 @@ mod tests {
     #[test]
     fn test_cli_output_format_json() {
         let args = ["vkteams-bot-cli", "--output", "json", "config"];
-        let cli = Cli::parse_from(&args);
+        let cli = Cli::parse_from(args);
         match cli.output {
             OutputFormat::Json => (),
             _ => panic!("Expected OutputFormat::Json"),
@@ -91,7 +91,7 @@ mod tests {
     #[test]
     fn test_cli_invalid_output_format() {
         let args = ["vkteams-bot-cli", "--output", "not_a_format", "config"];
-        let res = Cli::try_parse_from(&args);
+        let res = Cli::try_parse_from(args);
         assert!(res.is_err());
     }
 }

@@ -139,7 +139,7 @@ mod tests {
 
     #[test]
     fn test_from_io_error() {
-        let io_err = io::Error::new(io::ErrorKind::Other, "io fail");
+        let io_err = io::Error::other("io fail");
         let cli_err: CliError = io_err.into();
         match cli_err {
             CliError::FileError(msg) => assert!(msg.contains("io fail")),

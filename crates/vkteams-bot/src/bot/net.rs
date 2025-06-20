@@ -2,6 +2,7 @@
 use crate::api::types::*;
 use crate::config::CONFIG;
 use crate::error::{BotError, Result};
+use rand::Rng;
 use reqwest::{
     Body, Client, ClientBuilder, StatusCode, Url,
     multipart::{Form, Part},
@@ -146,38 +147,97 @@ impl ConnectionPool {
         .await
     }
 
-    /// Post file to API with retry capability
+    /// Post file to API with retry capability using retryable form
+    #[tracing::instrument(skip(self, retryable_form))]
+    pub async fn post_file_retryable(
+        &self,
+        url: Url,
+        retryable_form: &RetryableMultipartForm,
+    ) -> Result<String> {
+        debug!(
+            "Sending file to API at path {} (size: {} bytes)...",
+            url,
+            retryable_form.size()
+        );
+
+        let mut attempts = 0;
+        let max_attempts = self.retries + 1;
+
+        loop {
+            attempts += 1;
+
+            // Create fresh form for each attempt
+            let form = retryable_form.to_form();
+
+            trace!("Attempt {} of {}", attempts, max_attempts);
+
+            let response = self.client.post(url.as_str()).multipart(form).send().await;
+
+            match response {
+                Ok(response) => {
+                    trace!("Response status: {}", response.status());
+
+                    // Validate the response
+                    if let Err(e) = validate_response(&response.status()) {
+                        if attempts >= max_attempts || !should_retry_status(&response.status()) {
+                            return Err(e);
+                        }
+
+                        let backoff = calculate_backoff_duration(attempts, self.max_backoff);
+                        warn!(
+                            "HTTP error {}, retrying in {:?} (attempt {} of {})",
+                            response.status(),
+                            backoff,
+                            attempts,
+                            max_attempts
+                        );
+                        sleep(backoff).await;
+                        continue;
+                    }
+
+                    // Get the response text
+                    let text = response.text().await?;
+                    trace!("Response body length: {} bytes", text.len());
+                    debug!("File uploaded successfully after {} attempt(s)", attempts);
+                    return Ok(text);
+                }
+                Err(err) => {
+                    if attempts >= max_attempts || !should_retry(&err) {
+                        error!("File upload failed after {} attempt(s): {}", attempts, err);
+                        return Err(BotError::Network(err));
+                    }
+
+                    let backoff = calculate_backoff_duration(attempts, self.max_backoff);
+                    warn!(
+                        "File upload failed, retrying in {:?} (attempt {} of {}): {}",
+                        backoff, attempts, max_attempts, err
+                    );
+                    sleep(backoff).await;
+                }
+            }
+        }
+    }
+
+    /// Post file to API with retry capability (legacy method for backward compatibility)
     #[tracing::instrument(skip(self, form))]
     pub async fn post_file(&self, url: Url, form: Form) -> Result<String> {
-        debug!("Sending file to API at path {}...", url);
+        debug!(
+            "Sending file to API at path {} (legacy method, no retry)...",
+            url
+        );
 
-        // Since Form doesn't implement Clone, we need to handle it specially
-        // We'll pass the form directly to the first attempt,
-        // and if retries are needed, we'll notify the caller
         let response = self.client.post(url.as_str()).multipart(form).send().await;
 
         match response {
             Ok(response) => {
                 trace!("Response status: {}", response.status());
-
-                // Validate the response
                 validate_response(&response.status())?;
-
-                // Get the response text
                 let text = response.text().await?;
                 trace!("Response body length: {} bytes", text.len());
                 Ok(text)
             }
             Err(err) => {
-                // Handle error with retry logic
-                if !should_retry(&err) || self.retries == 0 {
-                    return Err(BotError::Network(err));
-                }
-
-                warn!(
-                    "File upload failed, but cannot retry because Form doesn't implement Clone. Error: {}",
-                    err
-                );
+                warn!("File upload failed (no retry available): {}", err);
                 Err(BotError::Network(err))
             }
         }
@@ -209,6 +269,38 @@ fn should_retry(err: &reqwest::Error) -> bool {
         || err.is_connect()
         || err.is_request()
         || (err.status().is_some_and(|s| s.is_server_error()))
+}
+
+/// Check if HTTP status code should trigger a retry
+pub fn should_retry_status(status: &StatusCode) -> bool {
+    match status.as_u16() {
+        // Retry on server errors (5xx)
+        500..=599 => true,
+        // Retry on rate limiting
+        429 => true,
+        // Retry on specific client errors that might be transient
+        408 | 409 | 423 | 424 => true,
+        // Don't retry on other client errors (4xx) or success (2xx/3xx)
+        _ => false,
+    }
+}
+
+/// Calculate exponential backoff duration with jitter
+pub fn calculate_backoff_duration(attempt: usize, max_backoff: Duration) -> Duration {
+    let base_duration = Duration::from_millis(100); // 100ms base
+    let exponential_backoff = base_duration * 2_u32.pow((attempt - 1) as u32);
+
+    // Cap at max_backoff
+    let capped_backoff = std::cmp::min(exponential_backoff, max_backoff);
+
+    // Add jitter (random ±25%)
+    let jitter_range = capped_backoff.as_millis() / 4; // 25% of the duration
+    let mut rng = rand::rng();
+    let jitter = rng.random_range(0..=(jitter_range as u64 * 2));
+    let jitter_offset = jitter as i64 - jitter_range as i64;
+
+    let final_duration = (capped_backoff.as_millis() as i64 + jitter_offset).max(0) as u64;
+    Duration::from_millis(final_duration)
 }
 
 /// Build a client with optimized settings for the API
@@ -247,6 +339,37 @@ pub async fn get_bytes_response(client: Client, url: Url) -> Result<Vec<u8>> {
 /// - `BotError::Validation` - file not specified, invalid path, or filename validation failed
 /// - `BotError::Io` - error working with file
 #[tracing::instrument(skip(file))]
+/// Create retryable multipart form from MultipartName
+/// Recommended for file operations that need retry capability
+pub async fn file_to_retryable_multipart(file: &MultipartName) -> Result<RetryableMultipartForm> {
+    match file {
+        MultipartName::FilePath(path) | MultipartName::ImagePath(path) => {
+            RetryableMultipartForm::from_file_path(path.clone()).await
+        }
+        MultipartName::FileContent { filename, content }
+        | MultipartName::ImageContent { filename, content } => {
+            // Validate filename
+            validate_filename(filename)?;
+
+            // Validate content
+            if content.is_empty() {
+                return Err(BotError::Validation(
+                    "File content cannot be empty".to_string(),
+                ));
+            }
+
+            Ok(RetryableMultipartForm::from_content(
+                filename.clone(),
+                filename.clone(),
+                content.clone(),
+            ))
+        }
+        _ => Err(BotError::Validation("File not specified".to_string())),
+    }
+}
+
+/// Create multipart form from MultipartName (legacy method)
+/// Note: This method doesn't support retries due to Form's lack of Clone trait
 pub async fn file_to_multipart(file: &MultipartName) -> Result<Form> {
     //Get name of the form part
     match file {
@@ -319,6 +442,7 @@ pub async fn shutdown_signal() {
     }
 }
 
+// Include tests
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -369,16 +493,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_should_retry_timeout() {
-        let err = reqwest::Error::from(
-            reqwest::ClientBuilder::new()
-                .timeout(Duration::from_millis(1))
-                .build()
-                .unwrap()
-                .get("http://httpbin.org/delay/10")
-                .send()
-                .await
-                .unwrap_err(),
-        );
+        let err = reqwest::ClientBuilder::new()
+            .timeout(Duration::from_millis(1))
+            .build()
+            .unwrap()
+            .get("http://httpbin.org/delay/10")
+            .send()
+            .await
+            .unwrap_err();
 
         // Should retry on timeout
         assert!(should_retry(&err));
@@ -728,10 +850,9 @@ mod tests {
 
         let result = get_bytes_response(client, url).await;
         // This might fail in CI/testing environments, so we just check it doesn't panic
-        match result {
-            Ok(bytes) => assert!(!bytes.is_empty()),
-            Err(_) => {} // Network errors are acceptable in tests
-        }
+        if let Ok(bytes) = result {
+            assert!(!bytes.is_empty());
+        } // Network errors are acceptable in tests
     }
 
     #[tokio::test]
@@ -887,6 +1008,128 @@ fn validate_filename(filename: &str) -> Result<()> {
         return Err(BotError::Validation(
             "Filename cannot end with space or dot".to_string(),
         ));
+    }
+
+    Ok(())
+}
+/// Retryable multipart form that can be recreated for retry attempts
+#[derive(Debug, Clone)]
+pub struct RetryableMultipartForm {
+    file_data: Vec<u8>,
+    pub filename: String,
+    field_name: String,
+}
+
+impl RetryableMultipartForm {
+    /// Create new retryable form from file content
+    pub fn from_content(filename: String, field_name: String, content: Vec<u8>) -> Self {
+        Self {
+            file_data: content,
+            filename,
+            field_name,
+        }
+    }
+
+    /// Create new retryable form from file path (loads content into memory)
+    pub async fn from_file_path(path: String) -> Result<Self> {
+        // Validate file path first
+        validate_file_path_async(&path).await?;
+
+        // Read file content into memory for retry capability
+        let content = tokio::fs::read(&path).await.map_err(BotError::Io)?;
+
+        let filename = std::path::Path::new(&path)
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or(&path)
+            .to_string();
+
+        Ok(Self::from_content(filename.clone(), filename, content))
+    }
+
+    /// Convert to reqwest Form for sending
+    pub fn to_form(&self) -> Form {
+        let part = Part::bytes(self.file_data.clone()).file_name(self.filename.clone());
+        Form::new().part(self.field_name.clone(), part)
+    }
+
+    /// Get file size for logging/validation
+    pub fn size(&self) -> usize {
+        self.file_data.len()
+    }
+}
+
+/// Validate file path asynchronously for security and correctness
+///
+/// ## Errors
+/// - `BotError::Validation` - invalid file path
+pub async fn validate_file_path_async(path: &str) -> Result<()> {
+    // Check if path is empty
+    if path.is_empty() {
+        return Err(BotError::Validation(
+            "File path cannot be empty".to_string(),
+        ));
+    }
+
+    // Check for null bytes (security vulnerability)
+    if path.contains('\0') {
+        return Err(BotError::Validation(
+            "File path contains null bytes".to_string(),
+        ));
+    }
+
+    // Normalize path and check for directory traversal attempts
+    let path_obj = std::path::Path::new(path);
+
+    // Check for dangerous path components
+    for component in path_obj.components() {
+        match component {
+            std::path::Component::ParentDir => {
+                return Err(BotError::Validation(
+                    "File path contains parent directory references (..)".to_string(),
+                ));
+            }
+            std::path::Component::CurDir => {
+                return Err(BotError::Validation(
+                    "File path contains current directory references (.)".to_string(),
+                ));
+            }
+            _ => {}
+        }
+    }
+
+    // Check if path is absolute or relative - use async operations
+    if path_obj.is_absolute() {
+        // For absolute paths, ensure they exist and are readable using async operations
+        let metadata = tokio::fs::metadata(path)
+            .await
+            .map_err(|e| BotError::Validation(format!("File does not exist: {} ({})", path, e)))?;
+
+        if !metadata.is_file() {
+            return Err(BotError::Validation(format!(
+                "Path is not a file: {}",
+                path
+            )));
+        }
+
+        // Check if file is readable by attempting to get canonicalized path
+        let _canonical = tokio::fs::canonicalize(path)
+            .await
+            .map_err(|e| BotError::Validation(format!("Cannot access file: {} ({})", path, e)))?;
+    }
+
+    // Additional checks for maximum path length (varies by OS)
+    #[cfg(target_os = "windows")]
+    const MAX_PATH_LEN: usize = 260;
+    #[cfg(not(target_os = "windows"))]
+    const MAX_PATH_LEN: usize = 4096;
+
+    if path.len() > MAX_PATH_LEN {
+        return Err(BotError::Validation(format!(
+            "File path too long: {} characters (max: {})",
+            path.len(),
+            MAX_PATH_LEN
+        )));
     }
 
     Ok(())

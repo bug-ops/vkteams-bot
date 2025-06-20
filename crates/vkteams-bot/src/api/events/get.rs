@@ -25,13 +25,13 @@ fn test_chats_events_get_deserialization() {
     // Test deserialization of ResponseEventsGet
     let _ = serde_json::from_str::<ResponseEventsGet>(j.as_str()).map_err(|e| {
         eprintln!("Error deserializing response: {}", e);
-        assert!(false);
+        panic!("Failed to deserialize ResponseEventsGet");
     });
     // Test deserialization of ApiResponseWrapper<ResponseEventsGet>
     let _ =
         serde_json::from_str::<ApiResponseWrapper<ResponseEventsGet>>(j.as_str()).map_err(|e| {
             eprintln!("Error deserializing response: {}", e);
-            assert!(false);
+            panic!("Failed to deserialize ApiResponseWrapper<ResponseEventsGet>");
         });
 }
 

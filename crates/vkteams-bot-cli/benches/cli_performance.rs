@@ -8,7 +8,7 @@ use vkteams_bot_cli::config::{ApiConfig, Config};
 fn bench_cli_parsing(c: &mut Criterion) {
     let mut group = c.benchmark_group("cli_parsing");
 
-    let test_args = vec![
+    let test_args = [
         vec![
             "vkteams-bot-cli",
             "send-text",
@@ -119,7 +119,7 @@ fn bench_string_operations(c: &mut Criterion) {
     // Test message formatting
     let long_message =
         "Very long message that needs to be processed and formatted properly. ".repeat(50);
-    let sample_messages = vec![
+    let sample_messages = [
         "Simple message",
         "Message with emoji 🚀",
         long_message.as_str(),

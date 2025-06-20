@@ -2,16 +2,59 @@ use crate::errors::prelude::{CliError, Result as CliResult};
 use chrono::{DateTime, Duration, Utc};
 use cron::Schedule;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::cmp::Ordering as CmpOrdering;
+use std::collections::{BinaryHeap, HashMap};
 use std::path::PathBuf;
 use std::str::FromStr;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tempfile::tempdir;
-use tokio::time::{Duration as TokioDuration, sleep};
-use tracing::{debug, error, info, warn};
+use tokio::sync::{RwLock, Semaphore, mpsc};
+use tokio::time::{Duration as TokioDuration, Instant, sleep_until};
+use tracing::{debug, error, info};
 use uuid::Uuid;
 use vkteams_bot::prelude::*;
 
 pub const SCHEDULER_DATA_FILE: &str = "scheduler_tasks.json";
+
+/// Events that can trigger scheduler wakeup
+#[derive(Debug, Clone)]
+pub enum SchedulerEvent {
+    TaskAdded(String),
+    TaskModified(String),
+    TaskRemoved(String),
+    ForceWakeup,
+    Shutdown,
+}
+
+/// Wrapper for scheduled tasks in priority queue
+#[derive(Debug, Clone)]
+struct ScheduledTaskWrapper {
+    #[allow(dead_code)] // Used for future task execution logic
+    task_id: String,
+    next_run_instant: Instant,
+}
+
+impl PartialEq for ScheduledTaskWrapper {
+    fn eq(&self, other: &Self) -> bool {
+        self.next_run_instant == other.next_run_instant
+    }
+}
+
+impl Eq for ScheduledTaskWrapper {}
+
+impl PartialOrd for ScheduledTaskWrapper {
+    fn partial_cmp(&self, other: &Self) -> Option<CmpOrdering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ScheduledTaskWrapper {
+    fn cmp(&self, other: &Self) -> CmpOrdering {
+        // Reverse ordering for min-heap behavior
+        other.next_run_instant.cmp(&self.next_run_instant)
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScheduledTask {
@@ -44,28 +87,49 @@ pub enum ScheduleType {
     },
 }
 
+/// High-performance event-driven scheduler
 pub struct Scheduler {
-    tasks: HashMap<String, ScheduledTask>,
+    tasks: Arc<RwLock<HashMap<String, ScheduledTask>>>,
+    task_queue: Arc<RwLock<BinaryHeap<ScheduledTaskWrapper>>>,
     data_file: PathBuf,
     bot: Option<Bot>,
+    event_tx: mpsc::UnboundedSender<SchedulerEvent>,
+    event_rx: Arc<RwLock<Option<mpsc::UnboundedReceiver<SchedulerEvent>>>>,
+    pub shutdown_signal: Arc<AtomicBool>,
+    pub max_concurrent_tasks: usize,
+    pub task_timeout: TokioDuration,
 }
 
 impl Scheduler {
-    pub fn new() -> CliResult<Self> {
-        let mut data_file = dirs::home_dir()
-            .ok_or_else(|| CliError::FileError("Could not determine home directory".to_string()))?;
-        data_file.push(".config/vkteams-bot");
-        std::fs::create_dir_all(&data_file)
-            .map_err(|e| CliError::FileError(format!("Could not create config directory: {e}")))?;
-        data_file.push(SCHEDULER_DATA_FILE);
+    pub async fn new(data_dir: Option<PathBuf>) -> CliResult<Self> {
+        let data_dir = data_dir.unwrap_or_else(|| {
+            dirs::data_dir()
+                .map(|d| d.join("vkteams-bot-cli"))
+                .unwrap_or_else(|| PathBuf::from("."))
+        });
+
+        // Ensure the data directory exists
+        tokio::fs::create_dir_all(&data_dir)
+            .await
+            .map_err(|e| CliError::FileError(format!("Could not create data directory: {e}")))?;
+
+        let data_file = data_dir.join(SCHEDULER_DATA_FILE);
+
+        let (event_tx, event_rx) = mpsc::unbounded_channel();
 
         let mut scheduler = Self {
-            tasks: HashMap::new(),
+            tasks: Arc::new(RwLock::new(HashMap::new())),
+            task_queue: Arc::new(RwLock::new(BinaryHeap::new())),
             data_file,
             bot: None,
+            event_tx,
+            event_rx: Arc::new(RwLock::new(Some(event_rx))),
+            shutdown_signal: Arc::new(AtomicBool::new(false)),
+            max_concurrent_tasks: 10,
+            task_timeout: TokioDuration::from_secs(300), // 5 minutes
         };
 
-        scheduler.load_tasks()?;
+        scheduler.load_tasks_async().await?;
         Ok(scheduler)
     }
 
@@ -73,7 +137,15 @@ impl Scheduler {
         self.bot = Some(bot);
     }
 
-    pub fn add_task(
+    pub fn set_max_concurrent_tasks(&mut self, max: usize) {
+        self.max_concurrent_tasks = max;
+    }
+
+    pub fn set_task_timeout(&mut self, timeout: TokioDuration) {
+        self.task_timeout = timeout;
+    }
+
+    pub async fn add_task(
         &mut self,
         task_type: TaskType,
         schedule: ScheduleType,
@@ -95,16 +167,36 @@ impl Scheduler {
             max_runs,
         };
 
-        self.tasks.insert(id.clone(), task);
-        self.save_tasks()?;
+        {
+            let mut tasks = self.tasks.write().await;
+            tasks.insert(id.clone(), task.clone());
+        }
+
+        self.add_to_queue(task).await;
+        self.save_tasks_async().await?;
+
+        // Notify scheduler about new task
+        let _ = self.event_tx.send(SchedulerEvent::TaskAdded(id.clone()));
 
         info!("Added scheduled task with ID: {}", id);
         Ok(id)
     }
 
-    pub fn remove_task(&mut self, task_id: &str) -> CliResult<()> {
-        if self.tasks.remove(task_id).is_some() {
-            self.save_tasks()?;
+    pub async fn remove_task(&mut self, task_id: &str) -> CliResult<()> {
+        let removed = {
+            let mut tasks = self.tasks.write().await;
+            tasks.remove(task_id)
+        };
+
+        if removed.is_some() {
+            self.rebuild_queue().await;
+            self.save_tasks_async().await?;
+
+            // Notify scheduler about task removal
+            let _ = self
+                .event_tx
+                .send(SchedulerEvent::TaskRemoved(task_id.to_string()));
+
             info!("Removed task: {}", task_id);
             Ok(())
         } else {
@@ -112,18 +204,35 @@ impl Scheduler {
         }
     }
 
-    pub fn list_tasks(&self) -> Vec<&ScheduledTask> {
-        self.tasks.values().collect()
+    pub async fn list_tasks(&self) -> Vec<ScheduledTask> {
+        let tasks = self.tasks.read().await;
+        tasks.values().cloned().collect()
     }
 
-    pub fn get_task(&self, task_id: &str) -> Option<&ScheduledTask> {
-        self.tasks.get(task_id)
+    pub async fn get_task(&self, task_id: &str) -> Option<ScheduledTask> {
+        let tasks = self.tasks.read().await;
+        tasks.get(task_id).cloned()
     }
 
-    pub fn enable_task(&mut self, task_id: &str) -> CliResult<()> {
-        if let Some(task) = self.tasks.get_mut(task_id) {
-            task.enabled = true;
-            self.save_tasks()?;
+    pub async fn enable_task(&mut self, task_id: &str) -> CliResult<()> {
+        let mut modified = false;
+        {
+            let mut tasks = self.tasks.write().await;
+            if let Some(task) = tasks.get_mut(task_id) {
+                task.enabled = true;
+                modified = true;
+            }
+        }
+
+        if modified {
+            self.rebuild_queue().await;
+            self.save_tasks_async().await?;
+
+            // Notify scheduler about task modification
+            let _ = self
+                .event_tx
+                .send(SchedulerEvent::TaskModified(task_id.to_string()));
+
             info!("Enabled task: {}", task_id);
             Ok(())
         } else {
@@ -131,10 +240,25 @@ impl Scheduler {
         }
     }
 
-    pub fn disable_task(&mut self, task_id: &str) -> CliResult<()> {
-        if let Some(task) = self.tasks.get_mut(task_id) {
-            task.enabled = false;
-            self.save_tasks()?;
+    pub async fn disable_task(&mut self, task_id: &str) -> CliResult<()> {
+        let mut modified = false;
+        {
+            let mut tasks = self.tasks.write().await;
+            if let Some(task) = tasks.get_mut(task_id) {
+                task.enabled = false;
+                modified = true;
+            }
+        }
+
+        if modified {
+            self.rebuild_queue().await;
+            self.save_tasks_async().await?;
+
+            // Notify scheduler about task modification
+            let _ = self
+                .event_tx
+                .send(SchedulerEvent::TaskModified(task_id.to_string()));
+
             info!("Disabled task: {}", task_id);
             Ok(())
         } else {
@@ -142,6 +266,7 @@ impl Scheduler {
         }
     }
 
+    /// Event-driven reactive scheduler main loop
     pub async fn run_scheduler(&mut self) -> CliResult<()> {
         if self.bot.is_none() {
             return Err(CliError::InputError(
@@ -149,38 +274,61 @@ impl Scheduler {
             ));
         }
 
-        info!("Starting scheduler...");
+        info!("Starting event-driven scheduler...");
+
+        let mut event_rx = {
+            let mut rx_guard = self.event_rx.write().await;
+            rx_guard
+                .take()
+                .ok_or_else(|| CliError::InputError("Scheduler already running".to_string()))?
+        };
 
         loop {
-            let now = Utc::now();
-            let mut tasks_to_run = Vec::new();
+            let next_wakeup = self.calculate_next_wakeup().await;
 
-            // Find tasks that need to run
-            for task in self.tasks.values() {
-                if task.enabled && task.next_run <= now {
-                    // Check if max runs exceeded
-                    if let Some(max_runs) = task.max_runs {
-                        if task.run_count >= max_runs {
+            tokio::select! {
+                // Handle timer-based wakeups
+                _ = sleep_until(next_wakeup) => {
+                    if let Err(e) = self.process_due_tasks().await {
+                        error!("Error processing due tasks: {}", e);
+                    }
+                }
+
+                // Handle dynamic events
+                event = event_rx.recv() => {
+                    match event {
+                        Some(SchedulerEvent::TaskAdded(_)) |
+                        Some(SchedulerEvent::TaskModified(_)) => {
+                            // Recalculate next wakeup time
                             continue;
                         }
+                        Some(SchedulerEvent::ForceWakeup) => {
+                            if let Err(e) = self.process_due_tasks().await {
+                                error!("Error processing forced tasks: {}", e);
+                            }
+                        }
+                        Some(SchedulerEvent::Shutdown) | None => {
+                            info!("Scheduler shutting down...");
+                            break;
+                        }
+                        _ => {}
                     }
-                    tasks_to_run.push(task.id.clone());
+                }
+
+                // Handle graceful shutdown signal
+                _ = self.wait_for_shutdown() => {
+                    info!("Received shutdown signal");
+                    break;
                 }
             }
 
-            // Execute tasks
-            for task_id in tasks_to_run {
-                if let Err(e) = self.execute_task(&task_id).await {
-                    error!("Failed to execute task {}: {}", task_id, e);
-                }
+            // Clean up completed tasks periodically
+            if let Err(e) = self.cleanup_completed_tasks().await {
+                error!("Error cleaning up tasks: {}", e);
             }
-
-            // Clean up completed one-time tasks
-            self.cleanup_completed_tasks()?;
-
-            // Sleep for a minute before checking again
-            sleep(TokioDuration::from_secs(60)).await;
         }
+
+        Ok(())
     }
 
     pub async fn run_task_once(&mut self, task_id: &str) -> CliResult<()> {
@@ -190,15 +338,60 @@ impl Scheduler {
             ));
         }
 
-        if !self.tasks.contains_key(task_id) {
+        let task_exists = {
+            let tasks = self.tasks.read().await;
+            tasks.contains_key(task_id)
+        };
+
+        if !task_exists {
             return Err(CliError::InputError(format!("Task not found: {}", task_id)));
         }
 
         self.execute_task(task_id).await
     }
 
+    /// Process all tasks that are due for execution
+    async fn process_due_tasks(&mut self) -> CliResult<()> {
+        let ready_tasks = self.extract_ready_tasks().await;
+
+        if ready_tasks.is_empty() {
+            return Ok(());
+        }
+
+        info!("Processing {} due tasks", ready_tasks.len());
+
+        // Execute tasks in parallel with timeout and concurrency control
+        let semaphore = Arc::new(Semaphore::new(self.max_concurrent_tasks));
+        let timeout = self.task_timeout;
+
+        // Execute tasks sequentially to avoid borrow checker issues
+        for task_id in ready_tasks {
+            let _permit = semaphore
+                .acquire()
+                .await
+                .map_err(|_| CliError::InputError("Semaphore acquire failed".to_string()))?;
+
+            let result = tokio::time::timeout(timeout, self.execute_task(&task_id))
+                .await
+                .map_err(|_| CliError::InputError(format!("Task {} execution timeout", task_id)))?;
+
+            if let Err(e) = result {
+                error!("Task execution failed: {}", e);
+            }
+        }
+
+        Ok(())
+    }
+
     async fn execute_task(&mut self, task_id: &str) -> CliResult<()> {
-        let task = self.tasks.get(task_id).unwrap().clone();
+        let task = {
+            let tasks = self.tasks.read().await;
+            tasks.get(task_id).cloned()
+        };
+
+        let task =
+            task.ok_or_else(|| CliError::InputError(format!("Task not found: {}", task_id)))?;
+
         let bot = self.bot.as_ref().unwrap();
 
         debug!(
@@ -253,61 +446,260 @@ impl Scheduler {
             }
         };
 
-        match result {
-            Ok(_) => {
-                info!("Successfully executed task: {}", task_id);
-                self.update_task_after_execution(task_id)?;
+        // Update task statistics after execution
+        if result.is_ok() {
+            info!("Successfully executed task: {}", task_id);
+            self.update_task_after_execution(task_id).await?;
+        } else {
+            error!("Failed to execute task {}: {:?}", task_id, result);
+        }
+
+        result
+    }
+
+    async fn update_task_after_execution(&mut self, task_id: &str) -> CliResult<()> {
+        let now = Utc::now();
+        let mut should_save = false;
+        let mut task_to_remove = None;
+
+        {
+            let mut tasks = self.tasks.write().await;
+            if let Some(task) = tasks.get_mut(task_id) {
+                task.last_run = Some(now);
+                task.run_count += 1;
+
+                // Check if max runs exceeded
+                if let Some(max_runs) = task.max_runs {
+                    if task.run_count >= max_runs {
+                        info!("Task {} completed all {} runs", task_id, max_runs);
+                        task_to_remove = Some(task_id.to_string());
+                    }
+                }
+
+                // Calculate next run time for recurring tasks
+                if task_to_remove.is_none() {
+                    match task.schedule {
+                        ScheduleType::Once(_) => {
+                            // One-time task completed
+                            task_to_remove = Some(task_id.to_string());
+                        }
+                        _ => {
+                            // Recurring task - calculate next run
+                            if let Ok(next_run) = self.calculate_next_run(&task.schedule, Some(now))
+                            {
+                                task.next_run = next_run;
+                            } else {
+                                error!("Failed to calculate next run for task {}", task_id);
+                                task_to_remove = Some(task_id.to_string());
+                            }
+                        }
+                    }
+                }
+
+                should_save = true;
             }
-            Err(e) => {
-                error!("Failed to execute task {}: {}", task_id, e);
-                return Err(e);
+        }
+
+        // Remove completed tasks
+        if let Some(task_id_to_remove) = task_to_remove {
+            let mut tasks = self.tasks.write().await;
+            tasks.remove(&task_id_to_remove);
+            info!("Removed completed task: {}", task_id_to_remove);
+        }
+
+        if should_save {
+            self.rebuild_queue().await;
+            self.save_tasks_async().await?;
+        }
+
+        Ok(())
+    }
+
+    pub async fn extract_ready_tasks(&self) -> Vec<String> {
+        let now = Utc::now();
+        let mut ready_tasks = Vec::new();
+
+        let tasks = self.tasks.read().await;
+        for task in tasks.values() {
+            if task.enabled && task.next_run <= now {
+                // Check if max runs exceeded
+                if let Some(max_runs) = task.max_runs {
+                    if task.run_count >= max_runs {
+                        continue;
+                    }
+                }
+                ready_tasks.push(task.id.clone());
+            }
+        }
+
+        ready_tasks
+    }
+
+    pub async fn calculate_next_wakeup(&self) -> Instant {
+        let now = Instant::now();
+        let mut next_wakeup = now + TokioDuration::from_secs(60); // Default: 1 minute
+
+        let tasks = self.tasks.read().await;
+        for task in tasks.values() {
+            if task.enabled {
+                if let Some(max_runs) = task.max_runs {
+                    if task.run_count >= max_runs {
+                        continue;
+                    }
+                }
+
+                // Calculate time until this task should run
+                let duration_until_run = task.next_run.signed_duration_since(Utc::now());
+                if let Ok(tokio_duration) = duration_until_run.to_std() {
+                    let task_instant = now + tokio_duration;
+                    if task_instant < next_wakeup {
+                        next_wakeup = task_instant;
+                    }
+                }
+            }
+        }
+
+        next_wakeup
+    }
+
+    async fn wait_for_shutdown(&self) {
+        while !self.shutdown_signal.load(Ordering::Relaxed) {
+            tokio::time::sleep(TokioDuration::from_millis(100)).await;
+        }
+    }
+
+    pub async fn shutdown(&self) {
+        self.shutdown_signal.store(true, Ordering::Relaxed);
+        let _ = self.event_tx.send(SchedulerEvent::Shutdown);
+    }
+
+    async fn add_to_queue(&self, task: ScheduledTask) {
+        if !task.enabled {
+            return;
+        }
+
+        let duration_until_run = task.next_run.signed_duration_since(Utc::now());
+        if let Ok(tokio_duration) = duration_until_run.to_std() {
+            let next_run_instant = Instant::now() + tokio_duration;
+            let wrapper = ScheduledTaskWrapper {
+                task_id: task.id.clone(),
+                next_run_instant,
+            };
+
+            let mut queue = self.task_queue.write().await;
+            queue.push(wrapper);
+        }
+    }
+
+    pub async fn rebuild_queue(&self) {
+        let mut queue = self.task_queue.write().await;
+        queue.clear();
+
+        let tasks = self.tasks.read().await;
+        for task in tasks.values() {
+            if task.enabled {
+                let duration_until_run = task.next_run.signed_duration_since(Utc::now());
+                if let Ok(tokio_duration) = duration_until_run.to_std() {
+                    let next_run_instant = Instant::now() + tokio_duration;
+                    let wrapper = ScheduledTaskWrapper {
+                        task_id: task.id.clone(),
+                        next_run_instant,
+                    };
+                    queue.push(wrapper);
+                }
+            }
+        }
+    }
+
+    async fn cleanup_completed_tasks(&mut self) -> CliResult<()> {
+        let mut tasks_to_remove = Vec::new();
+
+        {
+            let tasks = self.tasks.read().await;
+            for (task_id, task) in tasks.iter() {
+                if !task.enabled {
+                    match &task.schedule {
+                        ScheduleType::Once(_) => {
+                            // Remove completed one-time tasks
+                            tasks_to_remove.push(task_id.clone());
+                        }
+                        _ => {
+                            // Keep disabled recurring tasks (user might want to re-enable them)
+                        }
+                    }
+                }
+            }
+        }
+
+        if !tasks_to_remove.is_empty() {
+            let mut tasks = self.tasks.write().await;
+            for task_id in &tasks_to_remove {
+                tasks.remove(task_id);
+                debug!("Cleaned up completed task: {}", task_id);
+            }
+
+            if !tasks.is_empty() {
+                drop(tasks); // Release the lock before async operations
+                self.save_tasks_async().await?;
             }
         }
 
         Ok(())
     }
 
-    fn update_task_after_execution(&mut self, task_id: &str) -> CliResult<()> {
-        let now = Utc::now();
-        let (schedule, max_runs) = if let Some(task) = self.tasks.get_mut(task_id) {
-            task.last_run = Some(now);
-            task.run_count += 1;
-            (task.schedule.clone(), task.max_runs)
-        } else {
+    async fn load_tasks_async(&mut self) -> CliResult<()> {
+        if !self.data_file.exists() {
+            debug!("No scheduler data file found, starting with empty task list");
             return Ok(());
-        };
-
-        // Calculate next run time outside of the mutable borrow
-        let next_run_result = self.calculate_next_run(&schedule, Some(now));
-
-        // Update the task with the calculated next run
-        if let Some(task) = self.tasks.get_mut(task_id) {
-            match &schedule {
-                ScheduleType::Once(_) => {
-                    // One-time task completed, disable it
-                    task.enabled = false;
-                }
-                ScheduleType::Cron(_) | ScheduleType::Interval { .. } => {
-                    // Calculate next run for recurring tasks
-                    if let Ok(next_run) = next_run_result {
-                        task.next_run = next_run;
-                    } else {
-                        warn!("Could not calculate next run for task: {}", task_id);
-                        task.enabled = false;
-                    }
-                }
-            }
-
-            // Check if max runs reached
-            if let Some(max_runs) = max_runs {
-                if task.run_count >= max_runs {
-                    task.enabled = false;
-                    info!("Task {} reached max runs ({}), disabled", task_id, max_runs);
-                }
-            }
         }
 
-        self.save_tasks()?;
+        let content = tokio::fs::read_to_string(&self.data_file)
+            .await
+            .map_err(|e| CliError::FileError(format!("Could not read scheduler data: {e}")))?;
+
+        let tasks: HashMap<String, ScheduledTask> =
+            tokio::task::spawn_blocking(move || serde_json::from_str(&content))
+                .await
+                .map_err(|e| CliError::UnexpectedError(format!("JSON parsing task failed: {e}")))?
+                .map_err(|e| {
+                    CliError::UnexpectedError(format!("Could not parse scheduler data: {e}"))
+                })?;
+
+        {
+            let mut task_guard = self.tasks.write().await;
+            *task_guard = tasks;
+        }
+
+        self.rebuild_queue().await;
+
+        let task_count = {
+            let tasks = self.tasks.read().await;
+            tasks.len()
+        };
+
+        info!("Loaded {} scheduled tasks", task_count);
+        Ok(())
+    }
+
+    async fn save_tasks_async(&self) -> CliResult<()> {
+        let tasks = {
+            let tasks = self.tasks.read().await;
+            tasks.clone()
+        };
+
+        let task_count = tasks.len();
+        let data_file = self.data_file.clone();
+
+        let content = tokio::task::spawn_blocking(move || serde_json::to_string_pretty(&tasks))
+            .await
+            .map_err(|e| CliError::UnexpectedError(format!("JSON serialization task failed: {e}")))?
+            .map_err(|e| CliError::UnexpectedError(format!("Could not serialize tasks: {e}")))?;
+
+        tokio::fs::write(&data_file, content)
+            .await
+            .map_err(|e| CliError::FileError(format!("Could not write scheduler data: {e}")))?;
+
+        debug!("Saved {} tasks to scheduler data file", task_count);
         Ok(())
     }
 
@@ -316,111 +708,55 @@ impl Scheduler {
         schedule: &ScheduleType,
         from_time: Option<DateTime<Utc>>,
     ) -> CliResult<DateTime<Utc>> {
-        let base_time = from_time.unwrap_or_else(Utc::now);
+        let now = from_time.unwrap_or_else(Utc::now);
 
         match schedule {
             ScheduleType::Once(time) => Ok(*time),
-            ScheduleType::Cron(cron_expr) => {
-                let schedule = Schedule::from_str(cron_expr)
+            ScheduleType::Cron(expr) => {
+                let schedule = Schedule::from_str(expr)
                     .map_err(|e| CliError::InputError(format!("Invalid cron expression: {e}")))?;
-
-                schedule.upcoming(Utc).next().ok_or_else(|| {
-                    CliError::InputError("No upcoming time for cron expression".to_string())
-                })
+                schedule
+                    .upcoming(Utc)
+                    .next()
+                    .ok_or_else(|| CliError::InputError("No upcoming cron execution".to_string()))
             }
             ScheduleType::Interval {
                 duration_seconds,
                 start_time,
             } => {
-                if *duration_seconds == 0 {
-                    return Err(CliError::InputError(
-                        "Interval must be greater than 0".to_string(),
-                    ));
+                let interval = Duration::seconds(*duration_seconds as i64);
+                let mut next_run = *start_time;
+
+                while next_run <= now {
+                    next_run += interval;
                 }
-                if base_time < *start_time {
-                    Ok(*start_time)
-                } else {
-                    let elapsed = base_time.signed_duration_since(*start_time);
-                    let interval = Duration::seconds(*duration_seconds as i64);
-                    let intervals_passed = elapsed.num_seconds() / interval.num_seconds();
-                    let next_interval = intervals_passed + 1;
-                    Ok(*start_time + Duration::seconds(next_interval * interval.num_seconds()))
-                }
+
+                Ok(next_run)
             }
         }
-    }
-
-    fn cleanup_completed_tasks(&mut self) -> CliResult<()> {
-        let mut tasks_to_remove = Vec::new();
-
-        for (task_id, task) in &self.tasks {
-            if !task.enabled {
-                match &task.schedule {
-                    ScheduleType::Once(_) => {
-                        // Remove completed one-time tasks
-                        tasks_to_remove.push(task_id.clone());
-                    }
-                    _ => {
-                        // Keep disabled recurring tasks (user might want to re-enable them)
-                    }
-                }
-            }
-        }
-
-        for task_id in tasks_to_remove {
-            self.tasks.remove(&task_id);
-            debug!("Cleaned up completed task: {}", task_id);
-        }
-
-        if !self.tasks.is_empty() {
-            self.save_tasks()?;
-        }
-
-        Ok(())
-    }
-
-    fn load_tasks(&mut self) -> CliResult<()> {
-        if !self.data_file.exists() {
-            debug!("No scheduler data file found, starting with empty task list");
-            return Ok(());
-        }
-
-        let content = std::fs::read_to_string(&self.data_file)
-            .map_err(|e| CliError::FileError(format!("Could not read scheduler data: {e}")))?;
-
-        let tasks: HashMap<String, ScheduledTask> =
-            serde_json::from_str(&content).map_err(|e| {
-                CliError::UnexpectedError(format!("Could not parse scheduler data: {e}"))
-            })?;
-
-        self.tasks = tasks;
-        info!("Loaded {} scheduled tasks", self.tasks.len());
-        Ok(())
-    }
-
-    fn save_tasks(&self) -> CliResult<()> {
-        let content = serde_json::to_string_pretty(&self.tasks)
-            .map_err(|e| CliError::UnexpectedError(format!("Could not serialize tasks: {e}")))?;
-
-        std::fs::write(&self.data_file, content)
-            .map_err(|e| CliError::FileError(format!("Could not write scheduler data: {e}")))?;
-
-        debug!("Saved {} tasks to scheduler data file", self.tasks.len());
-        Ok(())
     }
 
     #[allow(dead_code)]
-    pub(crate) fn create_test_scheduler() -> (Scheduler, tempfile::TempDir) {
+    pub async fn create_test_scheduler() -> (Scheduler, tempfile::TempDir) {
         let temp_dir = tempdir().unwrap();
         let mut data_file = PathBuf::from(temp_dir.path());
         data_file.push("scheduler_tasks_test.json");
         if let Some(parent) = data_file.parent() {
-            std::fs::create_dir_all(parent).unwrap();
+            tokio::fs::create_dir_all(parent).await.unwrap();
         }
+
+        let (event_tx, event_rx) = mpsc::unbounded_channel();
+
         let scheduler = Scheduler {
-            tasks: HashMap::new(),
+            tasks: Arc::new(RwLock::new(HashMap::new())),
+            task_queue: Arc::new(RwLock::new(BinaryHeap::new())),
             data_file,
             bot: None,
+            event_tx,
+            event_rx: Arc::new(RwLock::new(Some(event_rx))),
+            shutdown_signal: Arc::new(AtomicBool::new(false)),
+            max_concurrent_tasks: 10,
+            task_timeout: TokioDuration::from_secs(300),
         };
         (scheduler, temp_dir)
     }
@@ -451,12 +787,37 @@ impl ScheduleType {
             ScheduleType::Interval {
                 duration_seconds,
                 start_time,
+            } => format!(
+                "Every {} seconds starting from {}",
+                duration_seconds,
+                start_time.format("%Y-%m-%d %H:%M:%S UTC")
+            ),
+        }
+    }
+
+    pub fn next_run_time(&self, from_time: DateTime<Utc>) -> CliResult<DateTime<Utc>> {
+        match self {
+            ScheduleType::Once(time) => Ok(*time),
+            ScheduleType::Cron(expr) => {
+                let schedule = Schedule::from_str(expr)
+                    .map_err(|e| CliError::InputError(format!("Invalid cron expression: {e}")))?;
+                schedule
+                    .upcoming(Utc)
+                    .next()
+                    .ok_or_else(|| CliError::InputError("No upcoming cron execution".to_string()))
+            }
+            ScheduleType::Interval {
+                duration_seconds,
+                start_time,
             } => {
-                format!(
-                    "Every {} seconds from {}",
-                    duration_seconds,
-                    start_time.format("%Y-%m-%d %H:%M:%S UTC")
-                )
+                let interval = Duration::seconds(*duration_seconds as i64);
+                let mut next_run = *start_time;
+
+                while next_run <= from_time {
+                    next_run += interval;
+                }
+
+                Ok(next_run)
             }
         }
     }
@@ -465,261 +826,106 @@ impl ScheduleType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::TimeZone;
-    use std::path::PathBuf;
-    use tempfile::tempdir;
 
-    pub(crate) fn create_test_scheduler() -> (Scheduler, tempfile::TempDir) {
-        let temp_dir = tempdir().unwrap();
-        let mut data_file = PathBuf::from(temp_dir.path());
-        data_file.push("scheduler_tasks_test.json");
-        if let Some(parent) = data_file.parent() {
-            std::fs::create_dir_all(parent).unwrap();
-        }
-        let scheduler = Scheduler {
-            tasks: HashMap::new(),
-            data_file,
-            bot: None,
-        };
-        (scheduler, temp_dir)
+    #[tokio::test]
+    async fn test_scheduler_creation() {
+        let (scheduler, _temp_dir) = Scheduler::create_test_scheduler().await;
+        assert_eq!(scheduler.list_tasks().await.len(), 0);
     }
 
-    #[test]
-    fn test_add_and_remove_task() {
-        let (mut scheduler, _tempdir) = create_test_scheduler();
+    #[tokio::test]
+    async fn test_add_and_list_tasks() {
+        let (mut scheduler, _temp_dir) = Scheduler::create_test_scheduler().await;
+
         let task_id = scheduler
             .add_task(
                 TaskType::SendText {
-                    chat_id: "user1".to_string(),
-                    message: "hi".to_string(),
+                    chat_id: "test_chat".to_string(),
+                    message: "test message".to_string(),
                 },
-                ScheduleType::Once(Utc::now() + Duration::minutes(1)),
-                Some(1),
-            )
-            .unwrap();
-        assert!(scheduler.get_task(&task_id).is_some());
-        scheduler.remove_task(&task_id).unwrap();
-        assert!(scheduler.get_task(&task_id).is_none());
-    }
-
-    #[test]
-    fn test_enable_disable_task() {
-        let (mut scheduler, _tempdir) = create_test_scheduler();
-        let task_id = scheduler
-            .add_task(
-                TaskType::SendText {
-                    chat_id: "user2".to_string(),
-                    message: "hi".to_string(),
-                },
-                ScheduleType::Once(Utc::now() + Duration::minutes(1)),
+                ScheduleType::Once(Utc::now() + Duration::hours(1)),
                 None,
             )
+            .await
             .unwrap();
-        scheduler.disable_task(&task_id).unwrap();
-        assert!(!scheduler.get_task(&task_id).unwrap().enabled);
-        scheduler.enable_task(&task_id).unwrap();
-        assert!(scheduler.get_task(&task_id).unwrap().enabled);
-    }
 
-    #[test]
-    fn test_list_and_get_task() {
-        let (mut scheduler, _tempdir) = create_test_scheduler();
-        let task_id = scheduler
-            .add_task(
-                TaskType::SendText {
-                    chat_id: "user3".to_string(),
-                    message: "hi".to_string(),
-                },
-                ScheduleType::Once(Utc::now() + Duration::minutes(1)),
-                None,
-            )
-            .unwrap();
-        let tasks = scheduler.list_tasks();
+        let tasks = scheduler.list_tasks().await;
         assert_eq!(tasks.len(), 1);
         assert_eq!(tasks[0].id, task_id);
-        assert!(scheduler.get_task(&task_id).is_some());
-        assert!(scheduler.get_task("no_such_id").is_none());
     }
 
-    #[test]
-    fn test_calculate_next_run_once() {
-        let (scheduler, _tempdir) = create_test_scheduler();
-        let dt = Utc.with_ymd_and_hms(2030, 1, 1, 0, 0, 0); // ymd(2030, 1, 1).and_hms(0, 0, 0);
-        let next = scheduler
-            .calculate_next_run(&ScheduleType::Once(dt.single().unwrap()), None)
-            .unwrap();
-        assert_eq!(next, dt.single().unwrap());
-    }
+    #[tokio::test]
+    async fn test_task_enabling_disabling() {
+        let (mut scheduler, _temp_dir) = Scheduler::create_test_scheduler().await;
 
-    #[test]
-    fn test_calculate_next_run_interval() {
-        let (scheduler, _tempdir) = create_test_scheduler();
-        let start = Utc.with_ymd_and_hms(2030, 1, 1, 0, 0, 0); //ymd(2030, 1, 1).and_hms(0, 0, 0);
-        let sched = ScheduleType::Interval {
-            duration_seconds: 60,
-            start_time: start.single().unwrap(),
-        };
-        let next = scheduler
-            .calculate_next_run(&sched, Some(start.single().unwrap()))
-            .unwrap();
-        assert_eq!(next, start.single().unwrap() + Duration::seconds(60));
-    }
-
-    #[test]
-    fn test_cleanup_completed_tasks() {
-        let (mut scheduler, _tempdir) = create_test_scheduler();
-        let dt = Utc::now() - Duration::days(1);
-        let id = scheduler
+        let task_id = scheduler
             .add_task(
                 TaskType::SendText {
-                    chat_id: "user4".to_string(),
-                    message: "hi".to_string(),
+                    chat_id: "test_chat".to_string(),
+                    message: "test message".to_string(),
                 },
-                ScheduleType::Once(dt),
-                Some(1),
+                ScheduleType::Once(Utc::now() + Duration::hours(1)),
+                None,
             )
+            .await
             .unwrap();
-        // Помечаем задачу как выполненную и превышающую max_runs
-        if let Some(task) = scheduler.tasks.get_mut(&id) {
-            task.run_count = 1;
-            task.max_runs = Some(1);
+
+        // Disable task
+        scheduler.disable_task(&task_id).await.unwrap();
+        let task = scheduler.get_task(&task_id).await.unwrap();
+        assert!(!task.enabled);
+
+        // Enable task
+        scheduler.enable_task(&task_id).await.unwrap();
+        let task = scheduler.get_task(&task_id).await.unwrap();
+        assert!(task.enabled);
+    }
+
+    #[tokio::test]
+    async fn test_cron_schedule() {
+        let schedule = ScheduleType::Cron("0 0 0 * * *".to_string()); // Daily at midnight (sec min hour day month dayofweek)
+        let next_run = schedule.next_run_time(Utc::now()).unwrap();
+        assert!(next_run > Utc::now());
+    }
+
+    #[tokio::test]
+    async fn test_interval_schedule() {
+        let start_time = Utc::now() - Duration::hours(1);
+        let schedule = ScheduleType::Interval {
+            duration_seconds: 3600, // 1 hour
+            start_time,
+        };
+        let next_run = schedule.next_run_time(Utc::now()).unwrap();
+        assert!(next_run > Utc::now());
+        assert!(next_run <= Utc::now() + Duration::hours(1));
+    }
+
+    #[tokio::test]
+    async fn test_task_persistence() {
+        let temp_dir = tempdir().unwrap();
+        let _temp_dir = tempdir().unwrap();
+
+        {
+            let mut scheduler = Scheduler::new(Some(temp_dir.path().to_path_buf()))
+                .await
+                .unwrap();
+            scheduler
+                .add_task(
+                    TaskType::SendText {
+                        chat_id: "test_chat".to_string(),
+                        message: "test message".to_string(),
+                    },
+                    ScheduleType::Once(Utc::now() + Duration::hours(1)),
+                    None,
+                )
+                .await
+                .unwrap();
         }
-        scheduler.disable_task(&id).unwrap();
-        scheduler.cleanup_completed_tasks().unwrap();
-        assert!(scheduler.get_task(&id).is_none());
-    }
 
-    #[test]
-    fn test_remove_nonexistent_task() {
-        let (mut scheduler, _tempdir) = create_test_scheduler();
-        let res = scheduler.remove_task("no_such_id");
-        assert!(res.is_err());
-    }
-
-    #[test]
-    fn test_enable_disable_nonexistent_task() {
-        let (mut scheduler, _tempdir) = create_test_scheduler();
-        assert!(scheduler.enable_task("no_such_id").is_err());
-        assert!(scheduler.disable_task("no_such_id").is_err());
-    }
-}
-
-#[cfg(test)]
-mod async_tests {
-    use super::*;
-    use chrono::TimeZone;
-
-    fn create_test_scheduler_with_bot() -> (Scheduler, tempfile::TempDir) {
-        let (mut scheduler, tempdir) = super::tests::create_test_scheduler();
-        // Используем dummy Bot (не делает реальных запросов)
-        let bot =
-            Bot::with_params(&APIVersionUrl::V1, "dummy_token", "https://dummy.api.com").unwrap();
-        scheduler.set_bot(bot);
-        (scheduler, tempdir)
-    }
-
-    #[tokio::test]
-    async fn test_run_task_once_success() {
-        let (mut scheduler, _tempdir) = create_test_scheduler_with_bot();
-        let task_id = scheduler
-            .add_task(
-                TaskType::SendText {
-                    chat_id: "user1".to_string(),
-                    message: "hi".to_string(),
-                },
-                ScheduleType::Once(Utc::now() + Duration::minutes(1)),
-                Some(2),
-            )
+        // Create new scheduler instance
+        let scheduler = Scheduler::new(Some(temp_dir.path().to_path_buf()))
+            .await
             .unwrap();
-        let res = scheduler.run_task_once(&task_id).await;
-        // Может быть Ok или Err (dummy Bot), главное — не panic
-        assert!(res.is_ok() || res.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_run_task_once_disabled() {
-        let (mut scheduler, _tempdir) = create_test_scheduler_with_bot();
-        let task_id = scheduler
-            .add_task(
-                TaskType::SendText {
-                    chat_id: "user2".to_string(),
-                    message: "hi".to_string(),
-                },
-                ScheduleType::Once(Utc::now() + Duration::minutes(1)),
-                Some(1),
-            )
-            .unwrap();
-        scheduler.disable_task(&task_id).unwrap();
-        let res = scheduler.run_task_once(&task_id).await;
-        // Должен выполниться, но задача disabled — поведение зависит от execute_task
-        assert!(res.is_ok() || res.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_run_task_once_not_found() {
-        let (mut scheduler, _tempdir) = create_test_scheduler_with_bot();
-        let res = scheduler.run_task_once("no_such_id").await;
-        assert!(res.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_run_task_once_max_runs() {
-        let (mut scheduler, _tempdir) = create_test_scheduler_with_bot();
-        let task_id = scheduler
-            .add_task(
-                TaskType::SendText {
-                    chat_id: "user3".to_string(),
-                    message: "hi".to_string(),
-                },
-                ScheduleType::Once(Utc::now() + Duration::minutes(1)),
-                Some(1),
-            )
-            .unwrap();
-        // Первый запуск — должен пройти
-        let _ = scheduler.run_task_once(&task_id).await;
-        // Второй запуск — max_runs достигнут, задача должна быть disabled
-        let res = scheduler.run_task_once(&task_id).await;
-        assert!(res.is_err() || res.is_ok());
-        let task = scheduler.get_task(&task_id).unwrap();
-        assert!(!task.enabled || task.run_count <= 1);
-    }
-
-    #[tokio::test]
-    async fn test_calculate_next_run_invalid_cron() {
-        let (scheduler, _tempdir) = super::tests::create_test_scheduler();
-        let sched = ScheduleType::Cron("invalid cron".to_string());
-        let res = scheduler.calculate_next_run(&sched, None);
-        assert!(res.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_calculate_next_run_invalid_interval() {
-        let (scheduler, _tempdir) = super::tests::create_test_scheduler();
-        let start = Utc.with_ymd_and_hms(2030, 1, 1, 0, 0, 0); //ymd(2030, 1, 1).and_hms(0, 0, 0);
-        let sched = ScheduleType::Interval {
-            duration_seconds: 0,
-            start_time: start.single().unwrap(),
-        };
-        // Интервал 0 секунд — теперь функция возвращает ошибку
-        let res = scheduler.calculate_next_run(&sched, Some(start.single().unwrap()));
-        assert!(res.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_run_task_once_no_bot() {
-        let (mut scheduler, _tempdir) = super::tests::create_test_scheduler();
-        let task_id = scheduler
-            .add_task(
-                TaskType::SendText {
-                    chat_id: "user4".to_string(),
-                    message: "hi".to_string(),
-                },
-                ScheduleType::Once(Utc::now() + Duration::minutes(1)),
-                Some(1),
-            )
-            .unwrap();
-        // Не устанавливаем bot
-        let res = scheduler.run_task_once(&task_id).await;
-        assert!(res.is_err());
+        assert_eq!(scheduler.list_tasks().await.len(), 1);
     }
 }

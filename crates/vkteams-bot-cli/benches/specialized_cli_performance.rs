@@ -57,7 +57,7 @@ fn bench_validation_functions(c: &mut Criterion) {
     let mut group = c.benchmark_group("validation_functions");
 
     // Test chat ID validation with different inputs
-    let chat_ids = vec![
+    let chat_ids = [
         "123456789",
         "user@domain.com",
         "very_long_chat_id_with_many_characters_and_symbols_123456789",
@@ -81,7 +81,7 @@ fn bench_validation_functions(c: &mut Criterion) {
 
     // Test message validation
     let long_message = "A".repeat(1000);
-    let messages = vec![
+    let messages = [
         "Simple message",
         "Message with emoji 🚀 and symbols !@#$%",
         long_message.as_str(), // Long message

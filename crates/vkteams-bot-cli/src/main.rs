@@ -187,6 +187,6 @@ mod tests {
     #[test]
     fn test_main_runs() {
         // Smoke test для main (async main не вызывается напрямую)
-        assert!(true);
+        // This test just ensures main function exists and compiles
     }
 }

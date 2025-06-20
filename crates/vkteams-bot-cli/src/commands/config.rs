@@ -826,7 +826,7 @@ mod tests {
         let config_path = get_existing_config_path();
         let backup = if let Some(ref config_path) = config_path {
             let backup = config_path.with_extension("bak");
-            fs::rename(&config_path, &backup).ok();
+            fs::rename(config_path, &backup).ok();
             Some((config_path.clone(), backup))
         } else {
             None
@@ -886,7 +886,7 @@ mod tests {
         let config_path = get_existing_config_path();
         let backup = if let Some(ref config_path) = config_path {
             let backup = config_path.with_extension("bak");
-            fs::rename(&config_path, &backup).ok();
+            fs::rename(config_path, &backup).ok();
             Some((config_path.clone(), backup))
         } else {
             None
@@ -907,7 +907,7 @@ mod tests {
         let res = execute_config(false, false, false).await;
         assert!(res.is_ok());
     }
-  
+
     // #[tokio::test]
     // async fn test_execute_setup_stdin_error() {
     //     // Simulate stdin read_line error by replacing stdin

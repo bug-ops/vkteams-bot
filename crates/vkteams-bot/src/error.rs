@@ -203,8 +203,7 @@ mod tests {
         assert_eq!(format!("{}", err), "otlp fail");
         let from_str: OtlpError = "msg".to_string().into();
         assert_eq!(from_str.message, "msg");
-        let boxed: OtlpError = Box::<dyn std::error::Error>::from(std::io::Error::new(
-            std::io::ErrorKind::Other,
+        let boxed: OtlpError = Box::<dyn std::error::Error>::from(std::io::Error::other(
             "err",
         ))
         .into();
@@ -218,14 +217,13 @@ mod tests {
         };
         let err = BotError::Api(api.clone());
         assert!(format!("{}", err).contains("API Error"));
-        let ser = BotError::Serialization(serde_json::Error::io(std::io::Error::new(
-            std::io::ErrorKind::Other,
+        let ser = BotError::Serialization(serde_json::Error::io(std::io::Error::other(
             "ser",
         )));
         assert!(format!("{}", ser).contains("Serialization Error"));
         let url = BotError::Url(ParseError::EmptyHost);
         assert!(format!("{}", url).contains("URL Error"));
-        let ioerr = BotError::Io(std::io::Error::new(std::io::ErrorKind::Other, "io"));
+        let ioerr = BotError::Io(std::io::Error::other("io"));
         assert!(format!("{}", ioerr).contains("IO Error"));
         let conf = BotError::Config("conf".to_string());
         assert!(format!("{}", conf).contains("Config Error"));
@@ -242,9 +240,9 @@ mod tests {
     #[test]
     fn test_bot_error_from_impls() {
         let _b: BotError =
-            serde_json::Error::io(std::io::Error::new(std::io::ErrorKind::Other, "ser")).into();
+            serde_json::Error::io(std::io::Error::other("ser")).into();
         let _b: BotError = url::ParseError::EmptyHost.into();
-        let _b: BotError = std::io::Error::new(std::io::ErrorKind::Other, "io").into();
+        let _b: BotError = std::io::Error::other("io").into();
         let _b: BotError = serde_url_params::Error::unsupported("params").into();
         let _b: BotError = toml::from_str::<i32>("not toml").unwrap_err().into();
         let _b: BotError = std::env::VarError::NotPresent.into();
@@ -332,8 +330,7 @@ mod tests {
         assert!(network_err.source().is_some());
 
         // Test Serialization error source
-        let ser_err = BotError::Serialization(serde_json::Error::io(std::io::Error::new(
-            std::io::ErrorKind::Other,
+        let ser_err = BotError::Serialization(serde_json::Error::io(std::io::Error::other(
             "serialization",
         )));
         assert!(ser_err.source().is_some());
@@ -432,15 +429,14 @@ mod tests {
                 "Network Error",
             ),
             (
-                BotError::Serialization(serde_json::Error::io(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                BotError::Serialization(serde_json::Error::io(std::io::Error::other(
                     "test",
                 ))),
                 "Serialization Error",
             ),
             (BotError::Url(url::ParseError::EmptyHost), "URL Error"),
             (
-                BotError::Io(std::io::Error::new(std::io::ErrorKind::Other, "test")),
+                BotError::Io(std::io::Error::other("test")),
                 "IO Error",
             ),
             (BotError::Config("test".to_string()), "Config Error"),
@@ -605,8 +601,7 @@ async fn test_bot_error_source_chain() {
     assert!(network_err.source().is_some());
 
     // Test Serialization error source
-    let ser_err = BotError::Serialization(serde_json::Error::io(std::io::Error::new(
-        std::io::ErrorKind::Other,
+    let ser_err = BotError::Serialization(serde_json::Error::io(std::io::Error::other(
         "serialization",
     )));
     assert!(ser_err.source().is_some());
@@ -705,15 +700,14 @@ async fn test_all_error_types_display() {
             "Network Error",
         ),
         (
-            BotError::Serialization(serde_json::Error::io(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            BotError::Serialization(serde_json::Error::io(std::io::Error::other(
                 "test",
             ))),
             "Serialization Error",
         ),
         (BotError::Url(url::ParseError::EmptyHost), "URL Error"),
         (
-            BotError::Io(std::io::Error::new(std::io::ErrorKind::Other, "test")),
+            BotError::Io(std::io::Error::other("test")),
             "IO Error",
         ),
         (BotError::Config("test".to_string()), "Config Error"),
