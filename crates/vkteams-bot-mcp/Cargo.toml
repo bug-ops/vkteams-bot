@@ -36,3 +36,15 @@ async-trait = "0.1"
 vkteams-bot = { version = "0.9", path = "../vkteams-bot", default-features = false, features = [
     "otlp",
 ] }
+async-trait = "0.1.88"
+base64 = "0.22"
+
+# Database dependencies
+sqlx = { version = "0.8", features = [
+    "runtime-tokio-rustls",
+    "sqlite",
+    "chrono",
+    "uuid",
+] }
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
