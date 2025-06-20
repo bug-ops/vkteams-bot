@@ -2,7 +2,7 @@ use crate::api::types::*;
 use crate::error::{BotError, Result};
 use reqwest::Url;
 use std::convert::From;
-// use tracing::error;
+const HTML_LIST_ITEM_OVERHEAD: usize = 10; // <li></li> is 7 characters long
 pub trait MessageTextHTMLParser {
     /// Create new parser
     fn new() -> Self
