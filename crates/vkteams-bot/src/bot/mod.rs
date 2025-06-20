@@ -19,6 +19,8 @@ use reqwest::Url;
 use serde::Serialize;
 use std::fmt;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
+#[cfg(feature = "ratelimit")]
 use tokio::sync::Mutex;
 use tracing::debug;
 
@@ -37,7 +39,7 @@ pub struct Bot {
     pub(crate) token: Arc<str>,
     pub(crate) base_api_url: Url,
     pub(crate) base_api_path: Arc<str>,
-    pub(crate) event_id: Arc<Mutex<EventId>>,
+    pub(crate) event_id: Arc<AtomicU32>,
     #[cfg(feature = "ratelimit")]
     pub(crate) rate_limiter: OnceCell<Arc<Mutex<RateLimiter>>>,
 }
@@ -151,28 +153,22 @@ impl Bot {
             token: Arc::<str>::from(token),
             base_api_url,
             base_api_path: Arc::<str>::from(base_api_path),
-            event_id: Arc::new(Mutex::new(0)),
+            event_id: Arc::new(AtomicU32::new(0)),
             #[cfg(feature = "ratelimit")]
             rate_limiter: OnceCell::new(),
         })
     }
 
-    /// Get last event id
-    ///
-    /// ## Errors
-    /// - `BotError::System` - mutex lock error
-    pub async fn get_last_event_id(&self) -> EventId {
-        *self.event_id.lock().await
+    /// Get last event id (lock-free)
+    pub fn get_last_event_id(&self) -> EventId {
+        self.event_id.load(Ordering::Acquire)
     }
 
-    /// Set last event id
+    /// Set last event id (lock-free)
     /// ## Parameters
     /// - `id`: [`EventId`] - last event id
-    ///
-    /// ## Errors
-    /// - `BotError::System` - mutex lock error
-    pub async fn set_last_event_id(&self, id: EventId) {
-        *self.event_id.lock().await = id;
+    pub fn set_last_event_id(&self, id: EventId) {
+        self.event_id.store(id, Ordering::Release);
     }
 
     /// Append method path to `base_api_path`
@@ -328,18 +324,13 @@ mod tests {
     use super::*;
     use reqwest::Url;
     use std::sync::Arc;
-    use tokio::runtime::Runtime;
-
-    fn test_runtime() -> Runtime {
-        Runtime::new().unwrap()
-    }
 
     #[test]
     fn test_bot_with_params_valid() {
         let url = Url::parse("https://example.com/api").unwrap();
         let token: Arc<str> = Arc::from("test_token");
         let path: Arc<str> = Arc::from("/api");
-        let event_id = Arc::new(Mutex::new(0u32));
+        let event_id = Arc::new(AtomicU32::new(0u32));
         let bot = Bot {
             connection_pool: OnceCell::new(),
             token: token.clone(),
@@ -369,7 +360,7 @@ mod tests {
             token: token.clone(),
             base_api_url: url.clone(),
             base_api_path: Arc::from("/api"),
-            event_id: Arc::new(Mutex::new(0u32)),
+            event_id: Arc::new(AtomicU32::new(0u32)),
             #[cfg(feature = "ratelimit")]
             rate_limiter: OnceCell::new(),
         };
@@ -391,37 +382,31 @@ mod tests {
             token: token.clone(),
             base_api_url: url.clone(),
             base_api_path: Arc::from("/api"),
-            event_id: Arc::new(Mutex::new(0u32)),
+            event_id: Arc::new(AtomicU32::new(0u32)),
             #[cfg(feature = "ratelimit")]
             rate_limiter: OnceCell::new(),
         };
-        let rt = test_runtime();
-        rt.block_on(async {
-            let mut lock = bot.event_id.lock().await;
-            *lock = 42u32;
-        });
-        let rt = test_runtime();
-        rt.block_on(async {
-            let lock = bot.event_id.lock().await;
-            assert_eq!(*lock, 42u32);
-        });
+
+        // Test atomic operations
+        bot.set_last_event_id(42u32);
+        assert_eq!(bot.get_last_event_id(), 42u32);
     }
 
     #[tokio::test]
-    async fn test_get_and_set_last_event_id_async() {
+    async fn test_get_and_set_last_event_id_sync() {
         let bot =
             Bot::with_params(&APIVersionUrl::V1, "test_token", "https://example.com").unwrap();
 
         // Test initial value
-        assert_eq!(bot.get_last_event_id().await, 0);
+        assert_eq!(bot.get_last_event_id(), 0);
 
-        // Test setting and getting
-        bot.set_last_event_id(123).await;
-        assert_eq!(bot.get_last_event_id().await, 123);
+        // Test setting and getting (now lock-free)
+        bot.set_last_event_id(123);
+        assert_eq!(bot.get_last_event_id(), 123);
 
         // Test setting another value
-        bot.set_last_event_id(456).await;
-        assert_eq!(bot.get_last_event_id().await, 456);
+        bot.set_last_event_id(456);
+        assert_eq!(bot.get_last_event_id(), 456);
     }
 
     #[test]
@@ -558,7 +543,7 @@ mod tests {
         let bot_clone = bot.clone();
         let handle1 = tokio::spawn(async move {
             for i in 0..100 {
-                bot_clone.set_last_event_id(i).await;
+                bot_clone.set_last_event_id(i);
                 tokio::task::yield_now().await;
             }
         });
@@ -566,7 +551,7 @@ mod tests {
         let bot_clone2 = bot.clone();
         let handle2 = tokio::spawn(async move {
             for _ in 0..100 {
-                let _ = bot_clone2.get_last_event_id().await;
+                let _ = bot_clone2.get_last_event_id();
                 tokio::task::yield_now().await;
             }
         });

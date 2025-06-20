@@ -60,7 +60,7 @@ fn bench_event_processing(c: &mut Criterion) {
 
     c.bench_function("process_small_batch", |b| {
         b.to_async(&rt).iter(|| async {
-            let bot = Bot::default();
+            let bot = Bot::with_params(&APIVersionUrl::V1, "dummy", "https://dummy.com").unwrap();
             let events = create_test_events(10);
             mock_processor(black_box(bot), black_box(events))
                 .await
@@ -70,7 +70,7 @@ fn bench_event_processing(c: &mut Criterion) {
 
     c.bench_function("process_medium_batch", |b| {
         b.to_async(&rt).iter(|| async {
-            let bot = Bot::default();
+            let bot = Bot::with_params(&APIVersionUrl::V1, "dummy", "https://dummy.com").unwrap();
             let events = create_test_events(100);
             mock_processor(black_box(bot), black_box(events))
                 .await
@@ -80,7 +80,7 @@ fn bench_event_processing(c: &mut Criterion) {
 
     c.bench_function("process_large_batch", |b| {
         b.to_async(&rt).iter(|| async {
-            let bot = Bot::default();
+            let bot = Bot::with_params(&APIVersionUrl::V1, "dummy", "https://dummy.com").unwrap();
             let events = create_test_events(1000);
             mock_processor(black_box(bot), black_box(events))
                 .await
@@ -94,7 +94,7 @@ fn bench_concurrent_processing(c: &mut Criterion) {
 
     c.bench_function("concurrent_small_batches", |b| {
         b.to_async(&rt).iter(|| async {
-            let bot = Bot::default();
+            let bot = Bot::with_params(&APIVersionUrl::V1, "dummy", "https://dummy.com").unwrap();
             let futures: Vec<_> = (0..4)
                 .map(|_| {
                     let bot = bot.clone();
@@ -117,7 +117,7 @@ fn bench_concurrent_processing(c: &mut Criterion) {
 
     c.bench_function("sequential_equivalent", |b| {
         b.to_async(&rt).iter(|| async {
-            let bot = Bot::default();
+            let bot = Bot::with_params(&APIVersionUrl::V1, "dummy", "https://dummy.com").unwrap();
             for _ in 0..4 {
                 let events = create_test_events(25);
                 counting_processor(bot.clone(), events).await.unwrap();

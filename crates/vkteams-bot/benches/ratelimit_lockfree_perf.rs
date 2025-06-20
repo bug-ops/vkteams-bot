@@ -85,7 +85,9 @@ fn bench_rate_limiter_operations(c: &mut Criterion) {
     let mut group = c.benchmark_group("rate_limiter_operations");
 
     let limiter = RateLimiter::new();
-    let chat_ids: Vec<ChatId> = (0..100).map(|i| ChatId(format!("chat_{}", i))).collect();
+    let chat_ids: Vec<ChatId> = (0..100)
+        .map(|i| ChatId::from(format!("chat_{}", i)))
+        .collect();
 
     group.bench_function("check_rate_limit_single_chat", |b| {
         let chat_id = &chat_ids[0];
@@ -129,12 +131,12 @@ fn bench_cleanup_operations(c: &mut Criterion) {
 
             // Create many buckets
             for i in 0..1000 {
-                let chat_id = ChatId(format!("chat_{}", i));
+                let chat_id = ChatId::from(format!("chat_{}", i));
                 limiter.check_rate_limit(&chat_id).await;
             }
 
             // Trigger cleanup
-            let dummy_chat = ChatId("cleanup_trigger".to_string());
+            let dummy_chat = ChatId::from("cleanup_trigger");
             black_box(limiter.check_rate_limit(&dummy_chat).await);
         });
     });
@@ -176,7 +178,7 @@ fn bench_comparison_with_mutex(c: &mut Criterion) {
 
     let lockfree_limiter = RateLimiter::new();
     let mutex_limiter = MutexBasedLimiter::new();
-    let chat_id = ChatId("bench_chat".to_string());
+    let chat_id = ChatId::from("bench_chat");
 
     group.bench_function("lockfree_implementation", |b| {
         b.to_async(&rt).iter(|| async {

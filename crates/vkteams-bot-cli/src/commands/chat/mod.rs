@@ -124,7 +124,7 @@ impl Command for ChatCommands {
 async fn execute_get_chat_info(bot: &Bot, chat_id: &str) -> CliResult<()> {
     debug!("Getting chat info for {}", chat_id);
 
-    let request = RequestChatsGetInfo::new(ChatId(chat_id.to_string()));
+    let request = RequestChatsGetInfo::new(ChatId::from_borrowed_str(chat_id));
     let result = bot
         .send_api_request(request)
         .await
@@ -138,7 +138,7 @@ async fn execute_get_chat_info(bot: &Bot, chat_id: &str) -> CliResult<()> {
 async fn execute_get_profile(bot: &Bot, user_id: &str) -> CliResult<()> {
     debug!("Getting profile for user {}", user_id);
 
-    let request = RequestChatsGetInfo::new(ChatId(user_id.to_string()));
+    let request = RequestChatsGetInfo::new(ChatId::from_borrowed_str(user_id));
     let result = bot
         .send_api_request(request)
         .await
@@ -152,7 +152,7 @@ async fn execute_get_profile(bot: &Bot, user_id: &str) -> CliResult<()> {
 async fn execute_get_chat_members(bot: &Bot, chat_id: &str, cursor: Option<&str>) -> CliResult<()> {
     debug!("Getting chat members for {}", chat_id);
 
-    let mut request = RequestChatsGetMembers::new(ChatId(chat_id.to_string()));
+    let mut request = RequestChatsGetMembers::new(ChatId::from_borrowed_str(chat_id));
     if let Some(cursor_val) = cursor {
         match cursor_val.parse::<u32>() {
             Ok(cursor_num) => {
@@ -179,7 +179,8 @@ async fn execute_get_chat_members(bot: &Bot, chat_id: &str, cursor: Option<&str>
 async fn execute_set_chat_title(bot: &Bot, chat_id: &str, title: &str) -> CliResult<()> {
     debug!("Setting chat title for {} to {}", chat_id, title);
 
-    let request = RequestChatsSetTitle::new((ChatId(chat_id.to_string()), title.to_string()));
+    let request =
+        RequestChatsSetTitle::new((ChatId::from_borrowed_str(chat_id), title.to_string()));
 
     let result = bot
         .send_api_request(request)
@@ -194,7 +195,8 @@ async fn execute_set_chat_title(bot: &Bot, chat_id: &str, title: &str) -> CliRes
 async fn execute_set_chat_about(bot: &Bot, chat_id: &str, about: &str) -> CliResult<()> {
     debug!("Setting chat description for {} to {}", chat_id, about);
 
-    let request = RequestChatsSetAbout::new((ChatId(chat_id.to_string()), about.to_string()));
+    let request =
+        RequestChatsSetAbout::new((ChatId::from_borrowed_str(chat_id), about.to_string()));
 
     let result = bot
         .send_api_request(request)
@@ -225,7 +227,7 @@ async fn execute_send_action(bot: &Bot, chat_id: &str, action: &str) -> CliResul
         }
     };
 
-    let request = RequestChatsSendAction::new((ChatId(chat_id.to_string()), chat_action));
+    let request = RequestChatsSendAction::new((ChatId::from_borrowed_str(chat_id), chat_action));
 
     let result = bot
         .send_api_request(request)

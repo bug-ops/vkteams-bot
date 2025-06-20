@@ -25,7 +25,7 @@ mod tests {
     #[test]
     fn test_request_chats_resolve_pending_serialize() {
         let req = RequestChatsResolvePending {
-            chat_id: ChatId("c1".to_string()),
+            chat_id: ChatId::from("c1"),
             approve: true,
             user_id: Some(UserId("u1".to_string())),
             everyone: Some(false),

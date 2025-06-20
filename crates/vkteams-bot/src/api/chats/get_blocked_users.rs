@@ -24,7 +24,7 @@ mod tests {
     #[test]
     fn test_request_chats_get_blocked_users_serialize() {
         let req = RequestChatsGetBlockedUsers {
-            chat_id: ChatId("c1".to_string()),
+            chat_id: ChatId::from("c1"),
         };
         let val = serde_json::to_value(&req).unwrap();
         assert_eq!(val["chatId"], "c1");

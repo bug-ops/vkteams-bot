@@ -15,7 +15,7 @@ use vkteams_bot::prelude::ChatId;
 #[tokio::test]
 async fn test_basic_rate_limiting_behavior() {
     let limiter = RateLimiter::new();
-    let chat_id = ChatId("test_chat".to_string());
+    let chat_id = ChatId::from("test_chat");
 
     // Should allow initial requests up to limit
     let mut allowed_count = 0;
@@ -54,7 +54,7 @@ async fn test_concurrent_access_different_chats() {
     for i in 0..10 {
         let limiter = limiter.clone();
         let success_count = success_count.clone();
-        let chat_id = ChatId(format!("chat_{}", i));
+        let chat_id = ChatId::from(format!("chat_{}", i));
 
         let handle = tokio::spawn(async move {
             let mut local_success = 0;
@@ -104,7 +104,7 @@ async fn test_concurrent_access_different_chats() {
 #[tokio::test]
 async fn test_concurrent_access_same_chat() {
     let limiter = Arc::new(RateLimiter::new());
-    let chat_id = ChatId("shared_chat".to_string());
+    let chat_id = ChatId::from("shared_chat");
     let success_count = Arc::new(AtomicUsize::new(0));
     let failure_count = Arc::new(AtomicUsize::new(0));
 
@@ -159,7 +159,7 @@ async fn test_concurrent_access_same_chat() {
 #[tokio::test]
 async fn test_statistics_collection() {
     let limiter = RateLimiter::new();
-    let chat_id = ChatId("stats_chat".to_string());
+    let chat_id = ChatId::from("stats_chat");
 
     // Make some requests
     let mut allowed = 0;
@@ -204,7 +204,7 @@ async fn test_statistics_collection() {
 #[tokio::test]
 async fn test_token_refill_behavior() {
     let limiter = RateLimiter::new();
-    let chat_id = ChatId("refill_chat".to_string());
+    let chat_id = ChatId::from("refill_chat");
 
     // Consume initial tokens
     let mut initial_allowed = 0;
@@ -245,7 +245,7 @@ async fn test_memory_management() {
 
     // Create many buckets
     for i in 0..1000 {
-        let chat_id = ChatId(format!("temp_chat_{}", i));
+        let chat_id = ChatId::from(format!("temp_chat_{}", i));
         limiter.check_rate_limit(&chat_id).await;
     }
 
@@ -257,7 +257,7 @@ async fn test_memory_management() {
 
     // Trigger cleanup by creating more buckets
     for i in 1000..1100 {
-        let chat_id = ChatId(format!("trigger_chat_{}", i));
+        let chat_id = ChatId::from(format!("trigger_chat_{}", i));
         limiter.check_rate_limit(&chat_id).await;
     }
 
@@ -277,7 +277,7 @@ async fn test_priority_based_rate_limiting() {
     use vkteams_bot::bot::ratelimit::RateLimiterExt;
 
     let limiter = RateLimiter::new();
-    let chat_id = ChatId("priority_chat".to_string());
+    let chat_id = ChatId::from("priority_chat");
 
     // First consume tokens with low priority
     let mut low_priority_allowed = 0;
@@ -314,7 +314,7 @@ async fn test_priority_based_rate_limiting() {
 async fn test_performance_under_load() {
     let limiter = Arc::new(RateLimiter::new());
     let chat_ids: Vec<ChatId> = (0..100)
-        .map(|i| ChatId(format!("perf_chat_{}", i)))
+        .map(|i| ChatId::from(format!("perf_chat_{}", i)))
         .collect();
 
     let start_time = Instant::now();
@@ -367,11 +367,11 @@ async fn test_performance_under_load() {
 #[tokio::test]
 async fn test_graceful_shutdown() {
     let limiter = RateLimiter::new();
-    let chat_id = ChatId("shutdown_chat".to_string());
+    let chat_id = ChatId::from("shutdown_chat");
 
     // Create some buckets
     for i in 0..10 {
-        let chat_id = ChatId(format!("shutdown_chat_{}", i));
+        let chat_id = ChatId::from(format!("shutdown_chat_{}", i));
         limiter.check_rate_limit(&chat_id).await;
     }
 

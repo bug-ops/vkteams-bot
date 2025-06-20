@@ -45,7 +45,7 @@ mod tests {
 
     #[test]
     fn test_set_text_valid() {
-        let req = RequestMessagesSendText::new(ChatId("c1".to_string()));
+        let req = RequestMessagesSendText::new(ChatId::from("c1"));
         let mut parser = MessageTextParser::default();
         parser
             .text
@@ -58,7 +58,7 @@ mod tests {
 
     #[test]
     fn test_set_text_parser_error() {
-        let req = RequestMessagesSendText::new(ChatId("c1".to_string()));
+        let req = RequestMessagesSendText::new(ChatId::from("c1"));
         // Парсер с невалидным URL (ошибка парсинга)
         let mut parser = MessageTextParser::default();
         parser.text.push(MessageTextFormat::Link(
@@ -71,7 +71,7 @@ mod tests {
 
     #[test]
     fn test_set_keyboard_valid() {
-        let req = RequestMessagesSendText::new(ChatId("c1".to_string()));
+        let req = RequestMessagesSendText::new(ChatId::from("c1"));
         let keyboard = Keyboard {
             buttons: vec![vec![ButtonKeyboard {
                 text: "ok".to_string(),
@@ -88,7 +88,7 @@ mod tests {
 
     #[test]
     fn test_serialize_deserialize_request_minimal() {
-        let req = RequestMessagesSendText::new(ChatId("c1".to_string()));
+        let req = RequestMessagesSendText::new(ChatId::from("c1"));
         let val = serde_json::to_value(&req).unwrap();
         assert_eq!(val["chatId"], "c1");
         let req2: RequestMessagesSendText = serde_json::from_value(val).unwrap();
@@ -98,10 +98,10 @@ mod tests {
 
     #[test]
     fn test_serialize_deserialize_request_full() {
-        let mut req = RequestMessagesSendText::new(ChatId("c1".to_string()));
+        let mut req = RequestMessagesSendText::new(ChatId::from("c1"));
         req.text = Some("hello".to_string());
         req.reply_msg_id = Some(MsgId("m1".to_string()));
-        req.forward_chat_id = Some(ChatId("c2".to_string()));
+        req.forward_chat_id = Some(ChatId::from("c2"));
         req.forward_msg_id = Some(MsgId("m2".to_string()));
         let val = serde_json::to_value(&req).unwrap();
         let req2: RequestMessagesSendText = serde_json::from_value(val).unwrap();

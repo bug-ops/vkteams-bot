@@ -57,7 +57,7 @@ async fn main() -> Result<()> {
 // Get events from the API
 pub async fn iter_get_events(bot: &Bot) -> Result<IntoIter<EventMessage>> {
     Ok(bot
-        .send_api_request(RequestEventsGet::new(bot.get_last_event_id().await).with_poll_time(30))
+        .send_api_request(RequestEventsGet::new(bot.get_last_event_id()).with_poll_time(30))
         .await?
         .events
         .into_iter())

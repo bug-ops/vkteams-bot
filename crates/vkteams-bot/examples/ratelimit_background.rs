@@ -46,7 +46,7 @@ async fn demo_immediate_availability(rate_limiter: Arc<RateLimiter>) -> Result<(
     println!("📦 Demo 1: Immediate Token Availability");
     println!("   Bucket starts with full capacity - no delays on startup");
 
-    let chat_id = ChatId("demo_immediate".to_string());
+    let chat_id = ChatId::from("demo_immediate");
     let start = Instant::now();
 
     // First requests should succeed immediately
@@ -75,7 +75,7 @@ async fn demo_background_refill(rate_limiter: Arc<RateLimiter>) -> Result<()> {
     println!("🔄 Demo 2: Background Token Refill");
     println!("   Tokens are refilled by background task, not during requests");
 
-    let chat_id = ChatId("demo_refill".to_string());
+    let chat_id = ChatId::from("demo_refill");
 
     // Consume all available tokens quickly
     println!("   Consuming all tokens...");
@@ -122,7 +122,7 @@ async fn demo_concurrent_performance(rate_limiter: Arc<RateLimiter>) -> Result<(
 
     for thread_id in 0..10 {
         let rate_limiter_clone = Arc::clone(&rate_limiter);
-        let chat_id_clone = ChatId(format!("perf_test_{}", thread_id));
+        let chat_id_clone = ChatId::from(format!("perf_test_{}", thread_id));
 
         let handle = tokio::spawn(async move {
             let mut successes = 0;
@@ -172,7 +172,7 @@ async fn demo_rate_limiting(rate_limiter: Arc<RateLimiter>) -> Result<()> {
     println!("🛡️  Demo 4: Rate Limiting Protection");
     println!("   Protects against burst requests while allowing normal traffic");
 
-    let chat_id = ChatId("demo_protection".to_string());
+    let chat_id = ChatId::from("demo_protection");
 
     // Simulate burst traffic
     println!("   Simulating burst traffic (20 rapid requests):");

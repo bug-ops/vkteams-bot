@@ -33,10 +33,8 @@ impl axum::extract::FromRef<AppState<ExtendState>> for ExtendState {
 impl Default for ExtendState {
     fn default() -> Self {
         let bot = Bot::default();
-        let chat_id = ChatId(
-            std::env::var(CHAT_ID)
-                .expect("Unable to find VKTEAMS_CHAT_ID in .env file")
-                .to_string(),
+        let chat_id = ChatId::from(
+            std::env::var(CHAT_ID).expect("Unable to find VKTEAMS_CHAT_ID in .env file"),
         );
         let path = format!("/alert/{chat_id}");
         Self { bot, chat_id, path }

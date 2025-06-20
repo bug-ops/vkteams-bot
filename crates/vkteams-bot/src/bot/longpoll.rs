@@ -5,6 +5,8 @@ use crate::config::CONFIG;
 use crate::error::{BotError, Result};
 use std::future::Future;
 use std::sync::Arc;
+#[cfg(test)]
+use std::sync::atomic::AtomicU32;
 use std::time::{Duration, Instant};
 use tokio::sync::Semaphore;
 use tokio::time::sleep;
@@ -50,11 +52,10 @@ impl Bot {
                 break 'event_loop;
             }
             let start_time = Instant::now();
-            debug!("Getting events with ID: {}", self.get_last_event_id().await);
+            debug!("Getting events with ID: {}", self.get_last_event_id());
 
             // Make a request to the API
-            let req =
-                RequestEventsGet::new(self.get_last_event_id().await).with_poll_time(POLL_TIME);
+            let req = RequestEventsGet::new(self.get_last_event_id()).with_poll_time(POLL_TIME);
 
             // Get response, with error handling for network issues
             let res = match self.send_api_request::<RequestEventsGet>(req).await {
@@ -152,16 +153,16 @@ impl Bot {
                     end_idx - 1
                 );
 
-                // Create a batch of events
+                // Create a batch of events (zero-copy slice)
                 let batch_events = ResponseEventsGet {
-                    events: events.events[start_idx..end_idx].to_vec(),
+                    events: events.events[start_idx..end_idx].into(),
                 };
 
                 // Get the last event ID in this batch
                 let last_event_id = batch_events.events[batch_events.events.len() - 1].event_id;
 
                 // Update last event ID
-                self.set_last_event_id(last_event_id).await;
+                self.set_last_event_id(last_event_id);
                 debug!("Updated last event ID: {}", last_event_id);
 
                 // Process this batch of events
@@ -177,7 +178,7 @@ impl Bot {
             // Process all events at once (original behavior)
             // Update last event id
             let last_event_id = events.events[events.events.len() - 1].event_id;
-            self.set_last_event_id(last_event_id).await;
+            self.set_last_event_id(last_event_id);
             debug!("Updated last event ID: {}", last_event_id);
 
             // Execute callback function
@@ -235,8 +236,7 @@ impl Bot {
             let start_time = Instant::now();
 
             // Create request for events
-            let req =
-                RequestEventsGet::new(self.get_last_event_id().await).with_poll_time(POLL_TIME);
+            let req = RequestEventsGet::new(self.get_last_event_id()).with_poll_time(POLL_TIME);
 
             // Send request and handle response
             let res = match self.send_api_request::<RequestEventsGet>(req).await {
@@ -258,7 +258,7 @@ impl Bot {
 
                 // Update last event ID from the most recent event
                 let last_event_id = res.events[res.events.len() - 1].event_id;
-                self.set_last_event_id(last_event_id).await;
+                self.set_last_event_id(last_event_id);
                 debug!("Updated last event ID: {}", last_event_id);
 
                 // Process events in parallel
@@ -539,23 +539,22 @@ mod tests {
     use crate::error::{BotError, Result};
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
-    use tokio::sync::Mutex;
 
     // Dummy Bot с моками для тестов
     #[derive(Clone, Default)]
     pub struct DummyBot {
-        last_event_id: Arc<Mutex<EventId>>,
+        last_event_id: Arc<AtomicU32>,
         set_last_event_calls: Arc<AtomicUsize>,
     }
     impl DummyBot {
         fn new() -> Self {
             Self {
-                last_event_id: Arc::new(Mutex::new(0)),
+                last_event_id: Arc::new(AtomicU32::new(0)),
                 set_last_event_calls: Arc::new(AtomicUsize::new(0)),
             }
         }
-        async fn set_last_event_id(&self, id: EventId) {
-            *self.last_event_id.lock().await = id;
+        fn set_last_event_id(&self, id: EventId) {
+            self.last_event_id.store(id, Ordering::SeqCst);
             self.set_last_event_calls.fetch_add(1, Ordering::SeqCst);
         }
     }
@@ -710,7 +709,7 @@ mod tests {
                     events: events.events[start_idx..end_idx].to_vec(),
                 };
                 let last_event_id = batch_events.events[batch_events.events.len() - 1].event_id;
-                bot.set_last_event_id(last_event_id).await;
+                bot.set_last_event_id(last_event_id);
                 func(bot.clone(), batch_events).await?;
             }
             Ok(())

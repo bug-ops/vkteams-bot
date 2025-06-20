@@ -26,7 +26,7 @@ clap = { version = "4.5", features = [
     'cargo',
 ] }
 clap_complete = { version = "4.5", optional = true }
-vkteams-bot = { version = "0.9", path = "../vkteams-bot", features = [
+vkteams-bot = { version = "0.10", path = "../vkteams-bot", features = [
     "longpoll",
     "otlp",
 ] }
@@ -48,7 +48,7 @@ uuid = { version = "1.0", features = ["v4"] }
 async-trait = "0.1"
 tempfile = "3.8"
 dashmap = "6.0"
-notify = "6.1"
+notify = "8.0"
 
 [features]
 default = ["completion"]
@@ -75,4 +75,12 @@ harness = false
 
 [[bench]]
 name = "specialized_cli_performance"
+harness = false
+
+[[bench]]
+name = "scheduler_async_perf"
+harness = false
+
+[[bench]]
+name = "simple_config_bench"
 harness = false

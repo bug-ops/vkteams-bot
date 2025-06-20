@@ -22,7 +22,7 @@ mod tests {
     #[test]
     fn test_request_chats_unpin_message_serialize() {
         let req = RequestChatsUnpinMessage {
-            chat_id: ChatId("c1".to_string()),
+            chat_id: ChatId::from("c1"),
             msg_id: MsgId("m1".to_string()),
         };
         let val = serde_json::to_value(&req).unwrap();

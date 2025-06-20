@@ -1,6 +1,7 @@
 //! API types
 use crate::error::{ApiError, BotError, Result};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use std::borrow::Cow;
 use std::fmt::*;
 use std::time::Duration;
 #[cfg(feature = "templates")]
@@ -388,7 +389,7 @@ pub struct MessagePayload {
 }
 /// Chat id struct
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Hash, Eq)]
-pub struct ChatId(pub String);
+pub struct ChatId(pub Cow<'static, str>);
 /// Message id struct
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Hash, Eq)]
 pub struct MsgId(pub String);
@@ -557,6 +558,64 @@ impl Display for ChatId {
         write!(f, "{}", self.0)
     }
 }
+
+/// From trait implementations for [`ChatId`]
+impl std::convert::From<String> for ChatId {
+    fn from(s: String) -> Self {
+        ChatId(Cow::Owned(s))
+    }
+}
+
+impl std::convert::From<&'static str> for ChatId {
+    /// Create ChatId from static string literal (zero-allocation)
+    fn from(s: &'static str) -> Self {
+        ChatId(Cow::Borrowed(s))
+    }
+}
+
+impl std::convert::From<Cow<'static, str>> for ChatId {
+    fn from(cow: Cow<'static, str>) -> Self {
+        ChatId(cow)
+    }
+}
+
+impl AsRef<str> for ChatId {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl ChatId {
+    /// Create a new ChatId from a static string (zero-allocation)
+    ///
+    /// This is equivalent to `ChatId::from(static_str)` but more explicit.
+    pub fn from_static(s: &'static str) -> Self {
+        ChatId::from(s)
+    }
+
+    /// Create a new ChatId from a borrowed string (requires allocation)
+    ///
+    /// Use this when you have a non-static &str that needs to be owned.
+    pub fn from_borrowed_str(s: &str) -> Self {
+        ChatId(Cow::Owned(s.to_string()))
+    }
+
+    /// Create a new ChatId from an owned string
+    pub fn from_owned(s: String) -> Self {
+        ChatId(Cow::Owned(s))
+    }
+
+    /// Get the string representation as a reference
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Convert to owned String
+    pub fn into_string(self) -> String {
+        self.0.into_owned()
+    }
+}
+
 /// Link basse path for API version
 impl Display for APIVersionUrl {
     /// Format [`APIVersionUrl`] to string
@@ -601,8 +660,42 @@ mod tests {
 
     #[test]
     fn test_chat_id_display() {
-        let id = ChatId("test_id".to_string());
+        let id = ChatId::from("test_id");
         assert_eq!(format!("{}", id), "test_id");
+    }
+
+    #[test]
+    fn test_chat_id_from_implementations() {
+        // Test From<&'static str> - should use Cow::Borrowed (zero allocation)
+        let static_id = ChatId::from("static_chat_id");
+        assert_eq!(static_id.as_str(), "static_chat_id");
+
+        // Test from_borrowed_str for non-static strings - should use Cow::Owned
+        let dynamic_string = format!("dynamic_{}", 123);
+        let dynamic_id = ChatId::from_borrowed_str(&dynamic_string);
+        assert_eq!(dynamic_id.as_str(), "dynamic_123");
+
+        // Test From<String> - should use Cow::Owned
+        let owned_id = ChatId::from("owned_string".to_string());
+        assert_eq!(owned_id.as_str(), "owned_string");
+
+        // Test from_static method
+        let static_method_id = ChatId::from_static("static_method");
+        assert_eq!(static_method_id.as_str(), "static_method");
+
+        // Test that static strings create borrowed Cow
+        let static_literal = ChatId::from("literal");
+        match static_literal.0 {
+            Cow::Borrowed(_) => (), // Expected for static strings
+            Cow::Owned(_) => panic!("Expected Cow::Borrowed for static string literal"),
+        }
+
+        // Test that dynamic strings create owned Cow
+        let dynamic = ChatId::from_borrowed_str("not_static");
+        match dynamic.0 {
+            Cow::Owned(_) => (), // Expected for dynamic strings
+            Cow::Borrowed(_) => panic!("Expected Cow::Owned for dynamic string"),
+        }
     }
 
     #[test]
@@ -687,7 +780,7 @@ mod tests {
         let _ = MessageTextFormat::Underline("u".to_string());
         let _ = MessageTextFormat::Strikethrough("s".to_string());
         let _ = MessageTextFormat::Link("t".to_string(), "url".to_string());
-        let _ = MessageTextFormat::Mention(ChatId("cid".to_string()));
+        let _ = MessageTextFormat::Mention(ChatId::from("cid"));
         let _ = MessageTextFormat::Code("c".to_string());
         let _ = MessageTextFormat::Pre("p".to_string(), Some("lang".to_string()));
         let _ = MessageTextFormat::OrderedList(vec!["1".to_string()]);

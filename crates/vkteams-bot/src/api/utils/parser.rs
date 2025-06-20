@@ -2,7 +2,7 @@ use crate::api::types::*;
 use crate::error::{BotError, Result};
 use reqwest::Url;
 use std::convert::From;
-// use tracing::error;
+const HTML_LIST_ITEM_OVERHEAD: usize = 10; // <li></li> is 7 characters long
 pub trait MessageTextHTMLParser {
     /// Create new parser
     fn new() -> Self
@@ -58,14 +58,16 @@ impl MessageTextParser {
                 self.replace_chars(text)
             )),
             MessageTextFormat::OrderedList(list) => {
-                let mut result = String::new();
+                let estimated_size = list.iter().map(|s| s.len() + HTML_LIST_ITEM_OVERHEAD).sum();
+                let mut result = String::with_capacity(estimated_size);
                 for item in list {
                     result.push_str(&format!("<li>{}</li>", self.replace_chars(item)));
                 }
                 Ok(format!("<ol>{}</ol>", result))
             }
             MessageTextFormat::UnOrderedList(list) => {
-                let mut result = String::new();
+                let estimated_size = list.iter().map(|s| s.len() + 10).sum();
+                let mut result = String::with_capacity(estimated_size);
                 for item in list {
                     result.push_str(&format!("<li>{}</li>", self.replace_chars(item)));
                 }
@@ -179,7 +181,7 @@ mod tests {
             "http://a.com".to_string(),
             "A".to_string(),
         ));
-        parser = parser.add(MessageTextFormat::Mention(ChatId("cid".to_string())));
+        parser = parser.add(MessageTextFormat::Mention(ChatId::from("cid")));
         let (html, _) = parser.parse().unwrap();
         // println!("HTML output: {}", html);
         assert!(html.contains("<a href=\"http://a.com/\">A</a>"));

@@ -23,7 +23,7 @@ mod tests {
     #[test]
     fn test_request_chats_members_delete_serialize() {
         let req = RequestChatsMembersDelete {
-            chat_id: ChatId("c1".to_string()),
+            chat_id: ChatId::from("c1"),
             user_id: UserId("u1".to_string()),
             members: vec![Sn {
                 sn: "s1".to_string(),
