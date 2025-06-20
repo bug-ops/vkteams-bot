@@ -126,7 +126,7 @@ impl Server {
         #[schemars(description = "Forward from chat ID (optional)")]
         forward_from_chat_id: Option<String>,
     ) -> MCPResult {
-        let mut req = RequestMessagesSendText::new(ChatId::from(self.chat_id.as_str()))
+        let mut req = RequestMessagesSendText::new(ChatId::from_borrowed_str(self.chat_id.as_str()))
             .with_text(text)
             .with_parse_mode(ParseMode::HTML);
         if let Some(reply_to_msg_id) = reply_msg_id {
@@ -136,7 +136,7 @@ impl Server {
             req = req.with_forward_msg_id(MsgId(forward_msg_id));
         }
         if let Some(forward_from_chat_id) = forward_from_chat_id {
-            req = req.with_forward_chat_id(ChatId::from(forward_from_chat_id));
+            req = req.with_forward_chat_id(ChatId::from_borrowed_str(&forward_from_chat_id));
         }
         self.client()
             .send_api_request(req)
@@ -146,7 +146,7 @@ impl Server {
     }
     #[tool(description = "Get information about the chat")]
     async fn chat_info(&self) -> MCPResult {
-        let req = RequestChatsGetInfo::new(ChatId::from(self.chat_id.as_str()));
+        let req = RequestChatsGetInfo::new(ChatId::from_borrowed_str(self.chat_id.as_str()));
         self.client()
             .send_api_request(req)
             .await
@@ -208,7 +208,7 @@ impl Server {
         inline_keyboard_markup: Option<String>,
     ) -> MCPResult {
         let mut req = RequestMessagesSendFile::new((
-            ChatId::from(self.chat_id.as_str()),
+            ChatId::from_borrowed_str(self.chat_id.as_str()),
             MultipartName::FileContent {
                 filename: file_name.clone(),
                 content: file_content.clone(),
@@ -221,7 +221,7 @@ impl Server {
             req = req.with_reply_msg_id(MsgId(reply_msg_id));
         }
         if let Some(forward_chat_id) = forward_chat_id {
-            req = req.with_forward_chat_id(ChatId::from(forward_chat_id));
+            req = req.with_forward_chat_id(ChatId::from_borrowed_str(&forward_chat_id));
         }
         if let Some(forward_msg_id) = forward_msg_id {
             req = req.with_forward_msg_id(MsgId(forward_msg_id));
@@ -247,7 +247,7 @@ impl Server {
         file_content: Vec<u8>,
     ) -> MCPResult {
         let req = RequestMessagesSendVoice::new((
-            ChatId::from(self.chat_id.as_str()),
+            ChatId::from_borrowed_str(self.chat_id.as_str()),
             MultipartName::FileContent {
                 filename: file_name.clone(),
                 content: file_content.clone(),
@@ -296,7 +296,7 @@ impl Server {
         "#)]
         text: String,
     ) -> MCPResult {
-        let req = RequestMessagesEditText::new((ChatId::from(self.chat_id.as_str()), MsgId(msg_id)))
+        let req = RequestMessagesEditText::new((ChatId::from_borrowed_str(self.chat_id.as_str()), MsgId(msg_id)))
             .with_text(text)
             .with_parse_mode(ParseMode::HTML);
         self.client()
@@ -313,7 +313,7 @@ impl Server {
         #[schemars(description = "Message ID")]
         msg_id: String,
     ) -> MCPResult {
-        let req = RequestMessagesDeleteMessages::new((ChatId::from(self.chat_id.as_str()), MsgId(msg_id)));
+        let req = RequestMessagesDeleteMessages::new((ChatId::from_borrowed_str(self.chat_id.as_str()), MsgId(msg_id)));
         self.client()
             .send_api_request(req)
             .await
@@ -328,7 +328,7 @@ impl Server {
         #[schemars(description = "Message ID")]
         msg_id: String,
     ) -> MCPResult {
-        let req = RequestChatsPinMessage::new((ChatId::from(self.chat_id.as_str()), MsgId(msg_id)));
+        let req = RequestChatsPinMessage::new((ChatId::from_borrowed_str(self.chat_id.as_str()), MsgId(msg_id)));
         self.client()
             .send_api_request(req)
             .await
@@ -343,7 +343,7 @@ impl Server {
         #[schemars(description = "Message ID")]
         msg_id: String,
     ) -> MCPResult {
-        let req = RequestChatsUnpinMessage::new((ChatId::from(self.chat_id.as_str()), MsgId(msg_id)));
+        let req = RequestChatsUnpinMessage::new((ChatId::from_borrowed_str(self.chat_id.as_str()), MsgId(msg_id)));
         self.client()
             .send_api_request(req)
             .await
@@ -358,7 +358,7 @@ impl Server {
         #[schemars(description = "Cursor for pagination")]
         cursor: Option<u32>,
     ) -> MCPResult {
-        let mut req = RequestChatsGetMembers::new(ChatId::from(self.chat_id.as_str()));
+        let mut req = RequestChatsGetMembers::new(ChatId::from_borrowed_str(self.chat_id.as_str()));
         if let Some(cursor) = cursor {
             req = req.with_cursor(cursor);
         }
@@ -371,7 +371,7 @@ impl Server {
 
     #[tool(description = "Get chat admins")]
     async fn get_chat_admins(&self) -> MCPResult {
-        let req = RequestChatsGetAdmins::new(ChatId::from(self.chat_id.as_str()));
+        let req = RequestChatsGetAdmins::new(ChatId::from_borrowed_str(self.chat_id.as_str()));
         self.client()
             .send_api_request(req)
             .await
@@ -381,7 +381,7 @@ impl Server {
 
     #[tool(description = "Get pending users in chat")]
     async fn get_chat_pending_users(&self) -> MCPResult {
-        let req = RequestChatsGetPendingUsers::new(ChatId::from(self.chat_id.as_str()));
+        let req = RequestChatsGetPendingUsers::new(ChatId::from_borrowed_str(self.chat_id.as_str()));
         self.client()
             .send_api_request(req)
             .await
@@ -391,7 +391,7 @@ impl Server {
 
     #[tool(description = "Get blocked users in chat")]
     async fn get_chat_blocked_users(&self) -> MCPResult {
-        let req = RequestChatsGetBlockedUsers::new(ChatId::from(self.chat_id.as_str()));
+        let req = RequestChatsGetBlockedUsers::new(ChatId::from_borrowed_str(self.chat_id.as_str()));
         self.client()
             .send_api_request(req)
             .await
@@ -406,7 +406,7 @@ impl Server {
         #[schemars(description = "New chat title")]
         title: String,
     ) -> MCPResult {
-        let req = RequestChatsSetTitle::new((ChatId::from(self.chat_id.as_str()), title));
+        let req = RequestChatsSetTitle::new((ChatId::from_borrowed_str(self.chat_id.as_str()), title));
         self.client()
             .send_api_request(req)
             .await
@@ -421,7 +421,7 @@ impl Server {
         #[schemars(description = "New chat about/description")]
         about: String,
     ) -> MCPResult {
-        let req = RequestChatsSetAbout::new((ChatId::from(self.chat_id.as_str()), about));
+        let req = RequestChatsSetAbout::new((ChatId::from_borrowed_str(self.chat_id.as_str()), about));
         self.client()
             .send_api_request(req)
             .await
@@ -436,7 +436,7 @@ impl Server {
         #[schemars(description = "New chat rules")]
         rules: String,
     ) -> MCPResult {
-        let req = RequestChatsSetRules::new((ChatId::from(self.chat_id.as_str()), rules));
+        let req = RequestChatsSetRules::new((ChatId::from_borrowed_str(self.chat_id.as_str()), rules));
         self.client()
             .send_api_request(req)
             .await
@@ -456,7 +456,7 @@ impl Server {
             "looking" => ChatActions::Looking,
             _ => return Err(McpError::Other("Unknown action".to_string()).into()),
         };
-        let req = RequestChatsSendAction::new((ChatId::from(self.chat_id.as_str()), chat_action));
+        let req = RequestChatsSendAction::new((ChatId::from_borrowed_str(self.chat_id.as_str()), chat_action));
         self.client()
             .send_api_request(req)
             .await
@@ -474,7 +474,7 @@ impl Server {
         #[schemars(description = "Delete last messages")]
         del_last_messages: Option<bool>,
     ) -> MCPResult {
-        let mut req = RequestChatsBlockUser::new((ChatId::from(self.chat_id.as_str()), UserId(user_id)));
+        let mut req = RequestChatsBlockUser::new((ChatId::from_borrowed_str(self.chat_id.as_str()), UserId(user_id)));
         if let Some(del) = del_last_messages {
             req = req.with_del_last_messages(del);
         }
@@ -492,7 +492,7 @@ impl Server {
         #[schemars(description = "User ID")]
         user_id: String,
     ) -> MCPResult {
-        let req = RequestChatsUnblockUser::new((ChatId::from(self.chat_id.as_str()), UserId(user_id)));
+        let req = RequestChatsUnblockUser::new((ChatId::from_borrowed_str(self.chat_id.as_str()), UserId(user_id)));
         self.client()
             .send_api_request(req)
             .await
@@ -513,7 +513,7 @@ impl Server {
         #[schemars(description = "Everyone (optional)")]
         everyone: Option<bool>,
     ) -> MCPResult {
-        let mut req = RequestChatsResolvePending::new((ChatId::from(self.chat_id.as_str()), approve));
+        let mut req = RequestChatsResolvePending::new((ChatId::from_borrowed_str(self.chat_id.as_str()), approve));
         if let Some(uid) = user_id {
             req = req.with_user_id(UserId(uid));
         }
@@ -538,7 +538,7 @@ impl Server {
         file_content: Vec<u8>,
     ) -> MCPResult {
         let req = RequestChatsAvatarSet::new((
-            ChatId::from(self.chat_id.as_str()),
+            ChatId::from_borrowed_str(self.chat_id.as_str()),
             MultipartName::ImageContent {
                 filename: file_name.clone(),
                 content: file_content.clone(),
@@ -572,7 +572,7 @@ impl Server {
             })
             .collect();
         let req = RequestChatsMembersDelete::new((
-            ChatId::from(self.chat_id.as_str()),
+            ChatId::from_borrowed_str(self.chat_id.as_str()),
             UserId(user_id),
             members_vec,
         ));
@@ -614,7 +614,7 @@ impl Server {
         validate_file_size(&file_content)?;
 
         let mut req = RequestMessagesSendFile::new((
-            ChatId::from(self.chat_id.as_str()),
+            ChatId::from_borrowed_str(self.chat_id.as_str()),
             MultipartName::FileContent {
                 filename: file_name.clone(),
                 content: file_content,
@@ -663,7 +663,7 @@ impl Server {
         validate_file_size(&file_content)?;
 
         let mut req = RequestMessagesSendFile::new((
-            ChatId::from(self.chat_id.as_str()),
+            ChatId::from_borrowed_str(self.chat_id.as_str()),
             MultipartName::FileContent {
                 filename: file_name.clone(),
                 content: file_content,
@@ -722,7 +722,7 @@ impl Server {
         };
 
         let mut req = RequestMessagesSendFile::new((
-            ChatId::from(self.chat_id.as_str()),
+            ChatId::from_borrowed_str(self.chat_id.as_str()),
             MultipartName::FileContent {
                 filename: final_filename,
                 content: formatted_json.into_bytes(),
@@ -800,7 +800,7 @@ impl Server {
             }
 
             let req = RequestMessagesSendFile::new((
-                ChatId::from(self.chat_id.as_str()),
+                ChatId::from_borrowed_str(self.chat_id.as_str()),
                 MultipartName::FileContent {
                     filename: file.name.clone(),
                     content: file_content.clone(),
@@ -826,7 +826,7 @@ impl Server {
         // Send summary message if caption provided
         if let Some(caption) = caption {
             let summary_text = format!("{}\n\n{}", caption, summary);
-            let summary_req = RequestMessagesSendText::new(ChatId::from(self.chat_id.as_str()))
+            let summary_req = RequestMessagesSendText::new(ChatId::from_borrowed_str(self.chat_id.as_str()))
                 .with_text(summary_text)
                 .with_parse_mode(ParseMode::HTML);
 
@@ -900,7 +900,7 @@ impl Server {
         validate_file_size(&file_content)?;
 
         let mut req = RequestMessagesSendFile::new((
-            ChatId::from(self.chat_id.as_str()),
+            ChatId::from_borrowed_str(self.chat_id.as_str()),
             MultipartName::FileContent {
                 filename: final_filename,
                 content: file_content,
@@ -983,7 +983,7 @@ impl Server {
         };
 
         let mut req = RequestMessagesSendFile::new((
-            ChatId::from(self.chat_id.as_str()),
+            ChatId::from_borrowed_str(self.chat_id.as_str()),
             MultipartName::FileContent {
                 filename: file_name,
                 content: file_content,
@@ -1161,7 +1161,7 @@ impl Server {
         validate_file_size(&converted_content)?;
 
         let mut req = RequestMessagesSendFile::new((
-            ChatId::from(self.chat_id.as_str()),
+            ChatId::from_borrowed_str(self.chat_id.as_str()),
             MultipartName::FileContent {
                 filename: new_filename.clone(),
                 content: converted_content,

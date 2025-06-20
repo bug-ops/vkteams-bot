@@ -21,10 +21,19 @@ fn benchmark_chat_id_creation(c: &mut Criterion) {
         })
     });
 
+    // Benchmark creating ChatId from static literal via From trait (zero allocation)
+    group.bench_function("from_static_literal", |b| {
+        b.iter(|| {
+            let chat_id = ChatId::from(black_box("static_literal"));
+            black_box(chat_id)
+        })
+    });
+
     // Benchmark creating ChatId from &str (requires allocation)
     group.bench_function("from_str_ref", |b| {
         b.iter(|| {
-            let chat_id = ChatId::from(black_box("str_ref_chat_id"));
+            let dynamic_str = black_box("str_ref_chat_id");
+            let chat_id = ChatId::from_borrowed_str(dynamic_str);
             black_box(chat_id)
         })
     });

@@ -1,6 +1,7 @@
 use crate::config::CONFIG;
 use crate::prelude::ChatId;
 use async_trait::async_trait;
+use crossbeam_utils::CachePadded;
 use dashmap::DashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
@@ -15,23 +16,22 @@ use tracing::{debug, info, warn};
 /// - Time-based refill calculation is atomic
 /// - Statistics are collected lock-free
 /// - No blocking operations during rate limit checks
+/// - Uses CachePadded to prevent false sharing between hot atomic fields
 #[derive(Debug)]
-#[repr(C)]
 pub struct LockFreeTokenBucket {
     /// Packed state: High 32 bits = total_requests, Low 32 bits = available_tokens
-    state: Arc<AtomicU64>,
-    /// Cache line padding to prevent false sharing
-    _pad1: [u8; 64 - 16],
+    /// CachePadded prevents false sharing with other fields
+    state: CachePadded<Arc<AtomicU64>>,
     /// Last refill timestamp in microseconds since UNIX epoch
-    last_refill: Arc<AtomicU64>,
-    /// Cache line padding to prevent false sharing
-    _pad2: [u8; 64 - 16],
-    /// Bucket capacity
+    /// CachePadded prevents false sharing with state and stats
+    last_refill: CachePadded<Arc<AtomicU64>>,
+    /// Bucket capacity (read-only after creation)
     capacity: u32,
-    /// Tokens refilled per second
+    /// Tokens refilled per second (read-only after creation)
     refill_rate: u32,
     /// Statistics packed: High 32 bits = rate_limited_count, Low 32 bits = allowed_count
-    stats: Arc<AtomicU64>,
+    /// CachePadded prevents false sharing with other atomic fields
+    stats: CachePadded<Arc<AtomicU64>>,
 }
 
 impl LockFreeTokenBucket {
@@ -43,13 +43,11 @@ impl LockFreeTokenBucket {
             .as_micros() as u64;
 
         Self {
-            state: Arc::new(AtomicU64::new(Self::pack_state(0, capacity))),
-            _pad1: [0; 64 - 16],
-            last_refill: Arc::new(AtomicU64::new(now_micros)),
-            _pad2: [0; 64 - 16],
+            state: CachePadded::new(Arc::new(AtomicU64::new(Self::pack_state(0, capacity)))),
+            last_refill: CachePadded::new(Arc::new(AtomicU64::new(now_micros))),
             capacity,
             refill_rate,
-            stats: Arc::new(AtomicU64::new(0)),
+            stats: CachePadded::new(Arc::new(AtomicU64::new(0))),
         }
     }
 
@@ -707,6 +705,22 @@ mod tests {
             "Atomic operations should be very fast: {:?}",
             duration
         );
+    }
+
+    #[tokio::test]
+    async fn test_cache_padded_alignment() {
+        let bucket = create_test_bucket(10, 60);
+
+        // Verify that CachePadded doesn't break functionality
+        assert_eq!(bucket.available_tokens(), 10);
+        assert!(bucket.try_consume());
+        assert_eq!(bucket.available_tokens(), 9);
+
+        // Test statistics work with CachePadded
+        let (total, allowed, rate_limited) = bucket.get_stats();
+        assert_eq!(total, 1);
+        assert_eq!(allowed, 1);
+        assert_eq!(rate_limited, 0);
     }
 }
 

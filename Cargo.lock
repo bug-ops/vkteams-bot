@@ -3380,6 +3380,7 @@ dependencies = [
  "axum",
  "bytes",
  "criterion",
+ "crossbeam-utils",
  "dashmap",
  "dhat",
  "dotenvy",
