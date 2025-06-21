@@ -1,0 +1,88 @@
+# VK Teams Bot Configuration Example
+# This configuration file shows all available options for the vkteams-bot library
+
+[network]
+retries = 3
+max_backoff_ms = 5000
+request_timeout_secs = 30
+connect_timeout_secs = 10
+pool_idle_timeout_secs = 90
+max_idle_connections = 10
+
+[listener]
+max_events_per_batch = 50
+empty_backoff_ms = 500
+max_backoff_ms = 5000
+use_exponential_backoff = true
+max_memory_usage = 0
+
+[rate_limit]
+limit = 100
+duration = 60
+retry_delay = 1000
+retry_attempts = 3
+init_bucket = 1
+cleanup_interval = 600
+bucket_lifetime = 3600
+
+[storage]
+[storage.database]
+url = "postgresql://vkteams:password@localhost:5432/vkteams_bot"
+max_connections = 20
+connection_timeout = 30
+auto_migrate = true
+
+[storage.settings]
+event_retention_days = 365
+cleanup_interval_hours = 24
+batch_size = 100
+max_memory_events = 10000
+
+# Vector search configuration (requires vector-search feature)
+[storage.vector]
+provider = "pgvector"
+connection_url = "postgresql://vkteams:password@localhost:5432/vkteams_bot"
+collection_name = "event_embeddings"
+dimensions = 1536
+similarity_threshold = 0.8
+ivfflat_lists = 100
+
+# AI embeddings configuration (requires ai-embeddings feature)
+[storage.embedding]
+provider = "openai"  # or "ollama"
+model = "text-embedding-ada-002"
+api_key_env = "OPENAI_API_KEY"
+batch_size = 100
+
+# Alternative Ollama configuration
+# [storage.embedding]
+# provider = "ollama"
+# model = "llama2"
+# ollama_host = "localhost"
+# ollama_port = 11434
+# batch_size = 50
+
+[otlp]
+instance_id = "vkteams-bot-prod"
+deployment_environment_name = "production"
+exporter_endpoint = "http://localhost:4317"
+exporter_timeout = 30
+exporter_metric_interval = 60
+ratio = 1.0
+otel_filter_default = "info"
+fmt_filter_default = "debug"
+fmt_ansi = true
+fmt_filter_self_directive = "debug"
+log_format = "json"
+
+[[otlp.otel]]
+otel_filter_directive = "h2=off"
+
+[[otlp.fmt]]
+fmt_filter_directive = "axum=trace"
+
+[[otlp.fmt]]
+fmt_filter_directive = "tower_http=debug"
+
+[[otlp.fmt]]
+fmt_filter_directive = "opentelemetry=info"

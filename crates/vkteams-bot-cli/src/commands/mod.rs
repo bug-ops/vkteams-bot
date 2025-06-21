@@ -10,8 +10,10 @@ use vkteams_bot::prelude::Bot;
 pub mod chat;
 pub mod config;
 pub mod diagnostic;
+pub mod files;
 pub mod messaging;
 pub mod scheduling;
+pub mod storage;
 
 /// Trait that all CLI commands must implement
 #[async_trait]
@@ -172,6 +174,14 @@ pub enum Commands {
     // Diagnostic commands
     #[command(flatten)]
     Diagnostic(diagnostic::DiagnosticCommands),
+
+    // File management commands
+    #[command(flatten)]
+    Files(files::FileCommands),
+
+    // Storage and database commands
+    #[command(flatten)]
+    Storage(storage::StorageCommands),
 }
 
 #[async_trait]
@@ -183,6 +193,8 @@ impl Command for Commands {
             Commands::Scheduling(cmd) => cmd.execute(bot).await,
             Commands::Config(cmd) => cmd.execute(bot).await,
             Commands::Diagnostic(cmd) => cmd.execute(bot).await,
+            Commands::Files(cmd) => cmd.execute(bot).await,
+            Commands::Storage(cmd) => cmd.execute(bot).await,
         }
     }
 
@@ -193,6 +205,8 @@ impl Command for Commands {
             Commands::Scheduling(cmd) => cmd.name(),
             Commands::Config(cmd) => Command::name(cmd),
             Commands::Diagnostic(cmd) => cmd.name(),
+            Commands::Files(cmd) => cmd.name(),
+            Commands::Storage(cmd) => cmd.name(),
         }
     }
 
@@ -203,6 +217,8 @@ impl Command for Commands {
             Commands::Scheduling(cmd) => cmd.validate(),
             Commands::Config(cmd) => Command::validate(cmd),
             Commands::Diagnostic(cmd) => cmd.validate(),
+            Commands::Files(cmd) => cmd.validate(),
+            Commands::Storage(cmd) => cmd.validate(),
         }
     }
 }

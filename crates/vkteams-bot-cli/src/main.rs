@@ -5,6 +5,7 @@ pub mod config;
 pub mod constants;
 pub mod errors;
 pub mod file_utils;
+pub mod output;
 pub mod progress;
 pub mod scheduler;
 pub mod utils;
@@ -171,7 +172,7 @@ fn save_configuration(config: &Config, path: &str) -> CliResult<()> {
 async fn execute_command(
     command: &Commands,
     config: &Config,
-    _output_format: &OutputFormat,
+    output_format: &OutputFormat,
 ) -> CliResult<()> {
     let bot = if needs_bot_instance(command) {
         create_bot_instance(config)?
@@ -179,7 +180,19 @@ async fn execute_command(
         create_dummy_bot()
     };
 
-    command.execute(&bot).await
+    // Handle commands that support unified JSON output
+    match command {
+        Commands::Files(cmd) => {
+            cmd.execute_with_output(&bot, output_format).await
+        }
+        Commands::Storage(cmd) => {
+            cmd.execute_with_output(&bot, output_format).await
+        }
+        _ => {
+            // Fall back to legacy execute method for other commands
+            command.execute(&bot).await
+        }
+    }
 }
 
 #[cfg(test)]

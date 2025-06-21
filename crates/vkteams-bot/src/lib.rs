@@ -97,6 +97,8 @@ pub mod config;
 pub mod error;
 #[cfg(feature = "otlp")]
 pub mod otlp;
+#[cfg(feature = "storage")]
+pub mod storage;
 pub mod prelude;
 /// API methods
 mod api {

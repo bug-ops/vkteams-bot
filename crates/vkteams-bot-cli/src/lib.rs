@@ -10,6 +10,7 @@ pub mod config;
 pub mod constants;
 pub mod errors;
 pub mod file_utils;
+pub mod output;
 pub mod progress;
 pub mod scheduler;
 pub mod utils;
