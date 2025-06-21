@@ -58,6 +58,11 @@ pub enum ChatCommands {
         #[arg(short = 'a', long, required = true, value_name = "ACTION")]
         action: String,
     },
+    /// Get chat administrators
+    GetChatAdmins {
+        #[arg(short = 'c', long, required = true, value_name = "CHAT_ID", value_hint = ValueHint::Username)]
+        chat_id: String,
+    },
 }
 
 #[async_trait]
@@ -77,6 +82,9 @@ impl Command for ChatCommands {
             }
             ChatCommands::SendAction { chat_id, action } => {
                 execute_send_action(bot, chat_id, action).await
+            }
+            ChatCommands::GetChatAdmins { chat_id } => {
+                execute_get_chat_admins(bot, chat_id).await
             }
         }
     }
@@ -106,6 +114,9 @@ impl Command for ChatCommands {
             ChatCommands::SendAction { chat_id, action } => {
                 execute_send_action_structured(bot, chat_id, action).await
             }
+            ChatCommands::GetChatAdmins { chat_id } => {
+                execute_get_chat_admins_structured(bot, chat_id).await
+            }
         };
 
         OutputFormatter::print(&response, output_format)?;
@@ -125,6 +136,7 @@ impl Command for ChatCommands {
             ChatCommands::SetChatTitle { .. } => "set-chat-title",
             ChatCommands::SetChatAbout { .. } => "set-chat-about",
             ChatCommands::SendAction { .. } => "send-action",
+            ChatCommands::GetChatAdmins { .. } => "get-chat-admins",
         }
     }
 
@@ -151,6 +163,9 @@ impl Command for ChatCommands {
             ChatCommands::SendAction { chat_id, action } => {
                 validate_chat_id(chat_id)?;
                 validate_chat_action(action)?;
+            }
+            ChatCommands::GetChatAdmins { chat_id } => {
+                validate_chat_id(chat_id)?;
             }
         }
         Ok(())
@@ -323,6 +338,26 @@ async fn execute_send_action_structured(
     }
 }
 
+async fn execute_get_chat_admins_structured(
+    bot: &Bot,
+    chat_id: &str,
+) -> CliResponse<serde_json::Value> {
+    debug!("Getting chat administrators for {}", chat_id);
+
+    let request = RequestChatsGetAdmins::new(ChatId::from_borrowed_str(chat_id));
+    match bot.send_api_request(request).await {
+        Ok(result) => {
+            info!("Successfully retrieved administrators for chat {}", chat_id);
+            let data = json!({
+                "chat_id": chat_id,
+                "admins": result
+            });
+            CliResponse::success("get-chat-admins", data)
+        }
+        Err(e) => CliResponse::error("get-chat-admins", format!("Failed to get chat admins: {}", e)),
+    }
+}
+
 // Legacy output versions (for backward compatibility)
 async fn execute_get_chat_info(bot: &Bot, chat_id: &str) -> CliResult<()> {
     debug!("Getting chat info for {}", chat_id);
@@ -438,6 +473,20 @@ async fn execute_send_action(bot: &Bot, chat_id: &str, action: &str) -> CliResul
         .map_err(CliError::ApiError)?;
 
     info!("Successfully sent {} action to chat {}", action, chat_id);
+    print_success_result(&result, &OutputFormat::Pretty)?;
+    Ok(())
+}
+
+async fn execute_get_chat_admins(bot: &Bot, chat_id: &str) -> CliResult<()> {
+    debug!("Getting chat administrators for {}", chat_id);
+
+    let request = RequestChatsGetAdmins::new(ChatId::from_borrowed_str(chat_id));
+    let result = bot
+        .send_api_request(request)
+        .await
+        .map_err(CliError::ApiError)?;
+
+    info!("Successfully retrieved administrators for chat {}", chat_id);
     print_success_result(&result, &OutputFormat::Pretty)?;
     Ok(())
 }
