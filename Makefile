@@ -10,10 +10,6 @@ DOCKER_REGISTRY ?=
 DOCKER_NAMESPACE ?= vkteams-bot
 DOCKER_TAG ?= $(BUILD_VERSION)
 
-# Build arguments
-RUST_VERSION ?= 1.75
-RUNTIME_IMAGE ?= debian:bookworm-slim
-
 # Export build variables for docker-compose
 export BUILD_DATE
 export BUILD_VERSION
@@ -44,42 +40,16 @@ check: ## Check environment variables
 	@grep -q "VKTEAMS_BOT_CHAT_ID=" .env || (echo "Error: VKTEAMS_BOT_CHAT_ID not set in .env" && exit 1)
 	@echo "Environment check passed ✓"
 
-# Build targets
-build-cli: ## Build CLI container
-	docker build \
-		--file Dockerfile.universal \
-		--build-arg PACKAGE_NAME=vkteams-bot-cli \
-		--build-arg BINARY_NAME=vkteams-bot-cli \
-		--build-arg COMPONENT_TYPE=cli \
-		--build-arg FEATURES=full \
-		--build-arg APP_USER=vkteams \
-		--build-arg RUST_VERSION=$(RUST_VERSION) \
-		--build-arg RUNTIME_IMAGE=$(RUNTIME_IMAGE) \
-		--build-arg BUILD_DATE="$(BUILD_DATE)" \
-		--build-arg BUILD_VERSION="$(BUILD_VERSION)" \
-		--build-arg BUILD_COMMIT="$(BUILD_COMMIT)" \
-		--tag $(DOCKER_NAMESPACE)/cli:$(DOCKER_TAG) \
-		--tag $(DOCKER_NAMESPACE)/cli:latest \
-		.
-
 build-mcp: ## Build MCP server container
 	docker build \
-		--file Dockerfile.universal \
-		--build-arg PACKAGE_NAME=vkteams-bot-mcp \
-		--build-arg BINARY_NAME=vkteams-bot-mcp \
+		--file Dockerfile \
 		--build-arg COMPONENT_TYPE=mcp \
-		--build-arg INCLUDE_CLI_BINARY=true \
 		--build-arg APP_USER=vkteams \
-		--build-arg RUST_VERSION=$(RUST_VERSION) \
-		--build-arg RUNTIME_IMAGE=$(RUNTIME_IMAGE) \
 		--build-arg BUILD_DATE="$(BUILD_DATE)" \
 		--build-arg BUILD_VERSION="$(BUILD_VERSION)" \
 		--build-arg BUILD_COMMIT="$(BUILD_COMMIT)" \
 		--tag $(DOCKER_NAMESPACE)/mcp:$(DOCKER_TAG) \
-		--tag $(DOCKER_NAMESPACE)/mcp:latest \
 		.
-
-build-all: build-cli build-mcp ## Build all containers
 
 build: ## Build all containers using docker-compose
 	docker-compose build
@@ -103,7 +73,7 @@ down: ## Stop all services
 down-volumes: ## Stop all services and remove volumes
 	docker-compose down -v
 
-restart: down up ## Restart all services
+restart: docker-compose down up ## Restart all services
 
 # Database operations
 db-init: ## Initialize database
@@ -132,15 +102,12 @@ status: ## Show service status
 	docker-compose ps
 
 # Development and testing
-shell-cli: ## Open shell in CLI container
-	docker-compose exec vkteams-cli bash
-
 shell-mcp: ## Open shell in MCP container
 	docker-compose exec vkteams-mcp bash
 
 test-cli: ## Test CLI functionality
-	docker-compose run --rm vkteams-cli --version
-	docker-compose run --rm vkteams-cli help
+	docker-compose run --rm vkteams-mcp --version
+	docker-compose run --rm vkteams-mcp help
 
 test-mcp: ## Test MCP server
 	docker-compose exec vkteams-mcp vkteams-bot-mcp --help
@@ -152,29 +119,6 @@ clean: ## Clean up containers and images
 clean-all: ## Full cleanup (containers, images, volumes, networks)
 	docker-compose down --rmi all --volumes --remove-orphans
 	docker system prune -f
-
-# Push targets (if using registry)
-push-cli: build-cli ## Push CLI image to registry
-	@if [ -n "$(DOCKER_REGISTRY)" ]; then \
-		docker tag $(DOCKER_NAMESPACE)/cli:$(DOCKER_TAG) $(DOCKER_REGISTRY)/$(DOCKER_NAMESPACE)/cli:$(DOCKER_TAG); \
-		docker tag $(DOCKER_NAMESPACE)/cli:latest $(DOCKER_REGISTRY)/$(DOCKER_NAMESPACE)/cli:latest; \
-		docker push $(DOCKER_REGISTRY)/$(DOCKER_NAMESPACE)/cli:$(DOCKER_TAG); \
-		docker push $(DOCKER_REGISTRY)/$(DOCKER_NAMESPACE)/cli:latest; \
-	else \
-		echo "DOCKER_REGISTRY not set. Skipping push."; \
-	fi
-
-push-mcp: build-mcp ## Push MCP image to registry
-	@if [ -n "$(DOCKER_REGISTRY)" ]; then \
-		docker tag $(DOCKER_NAMESPACE)/mcp:$(DOCKER_TAG) $(DOCKER_REGISTRY)/$(DOCKER_NAMESPACE)/mcp:$(DOCKER_TAG); \
-		docker tag $(DOCKER_NAMESPACE)/mcp:latest $(DOCKER_REGISTRY)/$(DOCKER_NAMESPACE)/mcp:latest; \
-		docker push $(DOCKER_REGISTRY)/$(DOCKER_NAMESPACE)/mcp:$(DOCKER_TAG); \
-		docker push $(DOCKER_REGISTRY)/$(DOCKER_NAMESPACE)/mcp:latest; \
-	else \
-		echo "DOCKER_REGISTRY not set. Skipping push."; \
-	fi
-
-push-all: push-cli push-mcp ## Push all images to registry
 
 # Info targets
 info: ## Show build information
@@ -192,15 +136,3 @@ info: ## Show build information
 
 version: ## Show version information
 	@echo "$(BUILD_VERSION)"
-
-# Quick deployment targets
-deploy: setup check build up ## Full deployment (setup + build + up)
-
-deploy-full: setup check build up-full ## Full deployment with all features
-
-# Development workflow
-dev-restart: ## Development restart (rebuild and restart)
-	docker-compose down
-	docker-compose build
-	docker-compose up -d
-	docker-compose logs -f

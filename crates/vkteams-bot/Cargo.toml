@@ -130,8 +130,8 @@ dhat = { version = "0.3" }
 tempfile = "3"
 proptest = "1.4"
 serial_test = "3"
-testcontainers = "0.23"
-testcontainers-modules = { version = "0.11", features = ["postgres"] }
+testcontainers = "0.24"
+testcontainers-modules = { version = "0.12", features = ["postgres"] }
 futures = "0.3"
 
 [[bench]]

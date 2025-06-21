@@ -12,3 +12,21 @@ readme = "README.md"
 homepage = "https://github.com/bug-ops/vkteams-bot"
 repository = "https://github.com/bug-ops/vkteams-bot"
 documentation = "https://docs.rs/vkteams-bot"
+
+# Optimize release profile for minimal binary size
+[profile.release]
+opt-level = "z"          # Optimize for size
+lto = true               # Enable Link Time Optimization
+codegen-units = 1        # Single codegen unit for better optimization
+strip = true             # Strip symbols from binary
+panic = "abort"          # Smaller panic handler
+
+# Even more aggressive size optimization profile
+[profile.release-min]
+inherits = "release"
+opt-level = "z"
+lto = "fat"             # More aggressive LTO
+codegen-units = 1
+strip = true
+panic = "abort"
+overflow-checks = false  # Disable overflow checks for smaller code

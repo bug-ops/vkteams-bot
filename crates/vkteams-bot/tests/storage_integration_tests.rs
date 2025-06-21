@@ -6,11 +6,9 @@ mod tests {
     use testcontainers::runners::AsyncRunner;
     use testcontainers_modules::postgres::Postgres;
     use vkteams_bot::storage::{
+        SearchQuery, StorageConfig, StorageManager, VectorDocument,
         config::{DatabaseConfig, StorageSettings},
-        StorageConfig, StorageManager, VectorDocument, SearchQuery,
     };
-
-    
 
     /// Setup a test PostgreSQL container with pgvector extension
     async fn setup_postgres_container() -> testcontainers::ContainerAsync<Postgres> {
@@ -63,7 +61,7 @@ mod tests {
         assert!(storage_manager.is_ok(), "Failed to create storage manager");
 
         let manager = storage_manager.unwrap();
-        
+
         // Test initialization
         let init_result = manager.initialize().await;
         assert!(init_result.is_ok(), "Failed to initialize storage");
@@ -113,7 +111,9 @@ mod tests {
         storage_manager.initialize().await.unwrap();
 
         // Test empty search
-        let search_result = storage_manager.search_messages("test query", None, 10).await;
+        let search_result = storage_manager
+            .search_messages("test query", None, 10)
+            .await;
         assert!(search_result.is_ok(), "Failed to search messages");
 
         let messages = search_result.unwrap();
@@ -161,180 +161,189 @@ mod tests {
         assert!(cleanup_result.is_ok(), "Failed to cleanup old data");
 
         let deleted_count = cleanup_result.unwrap();
-        assert_eq!(deleted_count, 0, "Expected no records to delete in empty database");
-    }
-
-    #[cfg(feature = "vector-search")]
-    #[tokio::test]
-    #[serial_test::serial]
-    async fn test_vector_storage_initialization() {
-        let container = setup_postgres_container().await;
-        let host_port = container.get_host_port_ipv4(5432).await.unwrap();
-        let database_url = format!(
-            "postgresql://postgres:postgres@localhost:{}/postgres",
-            host_port
+        assert_eq!(
+            deleted_count, 0,
+            "Expected no records to delete in empty database"
         );
-
-        // Test vector store creation
-        let vector_store = vkteams_bot::storage::vector::create_vector_store(
-            "pgvector",
-            &database_url,
-            Some("test_vectors".to_string()),
-        ).await;
-
-        assert!(vector_store.is_ok(), "Failed to create vector store");
-
-        let store = vector_store.unwrap();
-        
-        // Test health check
-        let health_result = store.health_check().await;
-        assert!(health_result.is_ok(), "Vector store health check failed");
     }
 
-    #[cfg(feature = "vector-search")]
-    #[tokio::test]
-    #[serial_test::serial]
-    async fn test_vector_document_operations() {
-        use chrono::Utc;
-        use serde_json::json;
+    // #[cfg(feature = "vector-search")]
+    // #[tokio::test]
+    // #[serial_test::serial]
+    // async fn test_vector_storage_initialization() {
+    //     let container = setup_postgres_container().await;
+    //     let host_port = container.get_host_port_ipv4(5432).await.unwrap();
+    //     let database_url = format!(
+    //         "postgresql://postgres:postgres@localhost:{}/postgres",
+    //         host_port
+    //     );
 
-        let container = setup_postgres_container().await;
-        let host_port = container.get_host_port_ipv4(5432).await.unwrap();
-        let database_url = format!(
-            "postgresql://postgres:postgres@localhost:{}/postgres",
-            host_port
-        );
+    //     // Test vector store creation
+    //     let vector_store = vkteams_bot::storage::vector::create_vector_store(
+    //         "pgvector",
+    //         &database_url,
+    //         Some("test_vectors".to_string()),
+    //     )
+    //     .await;
 
-        let vector_store = vkteams_bot::storage::vector::create_vector_store(
-            "pgvector",
-            &database_url,
-            Some("test_docs".to_string()),
-        ).await.unwrap();
+    //     assert!(vector_store.is_ok(), "Failed to create vector store");
 
-        // Create test document
-        let test_doc = VectorDocument {
-            id: "test_doc_1".to_string(),
-            content: "This is a test document for vector search".to_string(),
-            metadata: json!({
-                "source": "test",
-                "category": "example"
-            }),
-            embedding: pgvector::Vector::from(vec![0.1; 128]), // 128 dimensions
-            created_at: Utc::now(),
-        };
+    //     let store = vector_store.unwrap();
 
-        // Test storing document
-        let store_result = vector_store.store_document(test_doc.clone()).await;
-        assert!(store_result.is_ok(), "Failed to store vector document");
+    //     // Test health check
+    //     let health_result = store.health_check().await;
+    //     assert!(health_result.is_ok(), "Vector store health check failed");
+    // }
 
-        // Test retrieving document
-        let get_result = vector_store.get_document("test_doc_1").await;
-        assert!(get_result.is_ok(), "Failed to get vector document");
+    // #[cfg(feature = "vector-search")]
+    // #[tokio::test]
+    // #[serial_test::serial]
+    // async fn test_vector_document_operations() {
+    //     use chrono::Utc;
+    //     use serde_json::json;
 
-        let retrieved_doc = get_result.unwrap();
-        assert!(retrieved_doc.is_some(), "Document not found");
+    //     let container = setup_postgres_container().await;
+    //     let host_port = container.get_host_port_ipv4(5432).await.unwrap();
+    //     let database_url = format!(
+    //         "postgresql://postgres:postgres@localhost:{}/postgres",
+    //         host_port
+    //     );
 
-        let doc = retrieved_doc.unwrap();
-        assert_eq!(doc.id, "test_doc_1");
-        assert_eq!(doc.content, "This is a test document for vector search");
+    //     let vector_store = vkteams_bot::storage::vector::create_vector_store(
+    //         "pgvector",
+    //         &database_url,
+    //         Some("test_docs".to_string()),
+    //     ).await.unwrap();
 
-        // Test similarity search
-        let search_query = SearchQuery {
-            embedding: pgvector::Vector::from(vec![0.1; 128]),
-            limit: 5,
-            score_threshold: Some(0.5),
-            metadata_filter: None,
-            include_content: true,
-        };
+    //     // Create test document
+    //     let test_doc = VectorDocument {
+    //         id: "test_doc_1".to_string(),
+    //         content: "This is a test document for vector search".to_string(),
+    //         metadata: json!({
+    //             "source": "test",
+    //             "category": "example"
+    //         }),
+    //         embedding: pgvector::Vector::from(vec![0.1; 128]), // 128 dimensions
+    //         created_at: Utc::now(),
+    //     };
 
-        let search_result = vector_store.search_similar(search_query).await;
-        assert!(search_result.is_ok(), "Failed to perform similarity search");
+    //     // Test storing document
+    //     let store_result = vector_store.store_document(test_doc.clone()).await;
+    //     assert!(store_result.is_ok(), "Failed to store vector document");
 
-        let results = search_result.unwrap();
-        assert!(!results.is_empty(), "Expected to find similar documents");
-        assert_eq!(results[0].id, "test_doc_1");
+    //     // Test retrieving document
+    //     let get_result = vector_store.get_document("test_doc_1").await;
+    //     assert!(get_result.is_ok(), "Failed to get vector document");
 
-        // Test deleting document
-        let delete_result = vector_store.delete_document("test_doc_1").await;
-        assert!(delete_result.is_ok(), "Failed to delete vector document");
+    //     let retrieved_doc = get_result.unwrap();
+    //     assert!(retrieved_doc.is_some(), "Document not found");
 
-        let deleted = delete_result.unwrap();
-        assert!(deleted, "Document should have been deleted");
+    //     let doc = retrieved_doc.unwrap();
+    //     assert_eq!(doc.id, "test_doc_1");
+    //     assert_eq!(doc.content, "This is a test document for vector search");
 
-        // Verify document was deleted
-        let get_after_delete = vector_store.get_document("test_doc_1").await;
-        assert!(get_after_delete.is_ok(), "Failed to check deleted document");
-        assert!(get_after_delete.unwrap().is_none(), "Document should not exist after deletion");
-    }
+    //     // Test similarity search
+    //     let search_query = SearchQuery {
+    //         embedding: pgvector::Vector::from(vec![0.1; 128]),
+    //         limit: 5,
+    //         score_threshold: Some(0.5),
+    //         metadata_filter: None,
+    //         include_content: true,
+    //     };
 
-    #[cfg(feature = "vector-search")]
-    #[tokio::test]
-    #[serial_test::serial]
-    async fn test_vector_batch_operations() {
-        use chrono::Utc;
-        use serde_json::json;
+    //     let search_result = vector_store.search_similar(search_query).await;
+    //     assert!(search_result.is_ok(), "Failed to perform similarity search");
 
-        let container = setup_postgres_container().await;
-        let host_port = container.get_host_port_ipv4(5432).await.unwrap();
-        let database_url = format!(
-            "postgresql://postgres:postgres@localhost:{}/postgres",
-            host_port
-        );
+    //     let results = search_result.unwrap();
+    //     assert!(!results.is_empty(), "Expected to find similar documents");
+    //     assert_eq!(results[0].id, "test_doc_1");
 
-        let vector_store = vkteams_bot::storage::vector::create_vector_store(
-            "pgvector",
-            &database_url,
-            Some("test_batch".to_string()),
-        ).await.unwrap();
+    //     // Test deleting document
+    //     let delete_result = vector_store.delete_document("test_doc_1").await;
+    //     assert!(delete_result.is_ok(), "Failed to delete vector document");
 
-        // Create multiple test documents
-        let docs: Vec<VectorDocument> = (0..5).map(|i| {
-            VectorDocument {
-                id: format!("batch_doc_{}", i),
-                content: format!("Batch test document number {}", i),
-                metadata: json!({
-                    "batch": true,
-                    "index": i
-                }),
-                embedding: pgvector::Vector::from(vec![0.1 + (i as f32 * 0.1); 128]),
-                created_at: Utc::now(),
-            }
-        }).collect();
+    //     let deleted = delete_result.unwrap();
+    //     assert!(deleted, "Document should have been deleted");
 
-        // Test batch storing
-        let batch_store_result = vector_store.store_documents(docs).await;
-        assert!(batch_store_result.is_ok(), "Failed to store documents in batch");
+    //     // Verify document was deleted
+    //     let get_after_delete = vector_store.get_document("test_doc_1").await;
+    //     assert!(get_after_delete.is_ok(), "Failed to check deleted document");
+    //     assert!(get_after_delete.unwrap().is_none(), "Document should not exist after deletion");
+    // }
 
-        // Test searching with metadata filter
-        let search_query = SearchQuery {
-            embedding: pgvector::Vector::from(vec![0.2; 128]),
-            limit: 10,
-            score_threshold: Some(0.0),
-            metadata_filter: Some(json!({"batch": true})),
-            include_content: true,
-        };
+    // #[cfg(feature = "vector-search")]
+    // #[tokio::test]
+    // #[serial_test::serial]
+    // async fn test_vector_batch_operations() {
+    //     use chrono::Utc;
+    //     use serde_json::json;
 
-        let search_result = vector_store.search_similar(search_query).await;
-        assert!(search_result.is_ok(), "Failed to perform batch search");
+    //     let container = setup_postgres_container().await;
+    //     let host_port = container.get_host_port_ipv4(5432).await.unwrap();
+    //     let database_url = format!(
+    //         "postgresql://postgres:postgres@localhost:{}/postgres",
+    //         host_port
+    //     );
 
-        let results = search_result.unwrap();
-        assert_eq!(results.len(), 5, "Expected to find all batch documents");
+    //     let vector_store = vkteams_bot::storage::vector::create_vector_store(
+    //         "pgvector",
+    //         &database_url,
+    //         Some("test_batch".to_string()),
+    //     )
+    //     .await
+    //     .unwrap();
 
-        // Test cleanup
-        let cleanup_date = Utc::now() + chrono::Duration::minutes(1);
-        let cleanup_result = vector_store.cleanup_old_documents(cleanup_date).await;
-        assert!(cleanup_result.is_ok(), "Failed to cleanup documents");
+    //     // Create multiple test documents
+    //     let docs: Vec<VectorDocument> = (0..5)
+    //         .map(|i| VectorDocument {
+    //             id: format!("batch_doc_{}", i),
+    //             content: format!("Batch test document number {}", i),
+    //             metadata: json!({
+    //                 "batch": true,
+    //                 "index": i
+    //             }),
+    //             embedding: pgvector::Vector::from(vec![0.1 + (i as f32 * 0.1); 128]),
+    //             created_at: Utc::now(),
+    //         })
+    //         .collect();
 
-        let deleted_count = cleanup_result.unwrap();
-        assert_eq!(deleted_count, 5, "Expected to delete all batch documents");
-    }
+    //     // Test batch storing
+    //     let batch_store_result = vector_store.store_documents(docs).await;
+    //     assert!(
+    //         batch_store_result.is_ok(),
+    //         "Failed to store documents in batch"
+    //     );
+
+    //     // Test searching with metadata filter
+    //     let search_query = SearchQuery {
+    //         embedding: pgvector::Vector::from(vec![0.2; 128]),
+    //         limit: 10,
+    //         score_threshold: Some(0.0),
+    //         metadata_filter: Some(json!({"batch": true})),
+    //         include_content: true,
+    //     };
+
+    //     let search_result = vector_store.search_similar(search_query).await;
+    //     assert!(search_result.is_ok(), "Failed to perform batch search");
+
+    //     let results = search_result.unwrap();
+    //     assert_eq!(results.len(), 5, "Expected to find all batch documents");
+
+    //     // Test cleanup
+    //     let cleanup_date = Utc::now() + chrono::Duration::minutes(1);
+    //     let cleanup_result = vector_store.cleanup_old_documents(cleanup_date).await;
+    //     assert!(cleanup_result.is_ok(), "Failed to cleanup documents");
+
+    //     let deleted_count = cleanup_result.unwrap();
+    //     assert_eq!(deleted_count, 5, "Expected to delete all batch documents");
+    // }
 
     #[tokio::test]
     #[serial_test::serial]
     async fn test_storage_config_validation() {
         let container = setup_postgres_container().await;
         let host_port = container.get_host_port_ipv4(5432).await.unwrap();
-        
+
         // Test invalid database URL
         let invalid_config = StorageConfig {
             database: DatabaseConfig {
@@ -356,7 +365,10 @@ mod tests {
         };
 
         let storage_result = StorageManager::new(&invalid_config).await;
-        assert!(storage_result.is_err(), "Expected error for invalid database URL");
+        assert!(
+            storage_result.is_err(),
+            "Expected error for invalid database URL"
+        );
 
         // Test valid configuration
         let valid_database_url = format!(

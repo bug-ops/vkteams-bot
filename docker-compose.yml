@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL database for storage
   postgres:
@@ -12,6 +10,7 @@ services:
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./001_initial.sql:/docker-entrypoint-initdb.d/001_initial.sql:ro
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
     ports:
       - "5432:5432"
@@ -23,6 +22,8 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    profiles:
+      - relational-database
 
   # Optional: pgvector extension for vector search
   postgres-vector:
@@ -35,6 +36,7 @@ services:
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_vector_data:/var/lib/postgresql/data
+      - ./001_initial.sql:/docker-entrypoint-initdb.d/001_initial.sql:ro
       - ./init-vector-db.sql:/docker-entrypoint-initdb.d/init-vector-db.sql:ro
     ports:
       - "5433:5432"
@@ -70,60 +72,15 @@ services:
     profiles:
       - embedding-local
 
-  # VK Teams Bot CLI
-  vkteams-cli:
-    build:
-      context: .
-      dockerfile: Dockerfile.universal
-      args:
-        PACKAGE_NAME: vkteams-bot-cli
-        BINARY_NAME: vkteams-bot-cli
-        COMPONENT_TYPE: cli
-        FEATURES: full
-        APP_USER: vkteams
-        BUILD_DATE: ${BUILD_DATE:-}
-        BUILD_VERSION: ${BUILD_VERSION:-latest}
-        BUILD_COMMIT: ${BUILD_COMMIT:-}
-    container_name: vkteams-cli
-    environment:
-      # API Configuration
-      - VKTEAMS_BOT_API_TOKEN=${VKTEAMS_BOT_API_TOKEN}
-      - VKTEAMS_BOT_API_URL=${VKTEAMS_BOT_API_URL:-https://api.vk.com}
-      - VKTEAMS_BOT_CHAT_ID=${VKTEAMS_BOT_CHAT_ID}
-      
-      # Database Configuration
-      - DATABASE_URL=postgresql://vkteams:${DB_PASSWORD:-vkteams_password}@postgres:5432/vkteams_bot
-      
-      # Embedding Configuration (if using local Ollama)
-      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-ollama}
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-nomic-embed-text}
-      - EMBEDDING_ENDPOINT=${EMBEDDING_ENDPOINT:-http://ollama:11434}
-      
-      # Logging
-      - RUST_LOG=${RUST_LOG:-info}
-    volumes:
-      - ./config:/app/config:ro
-      - cli_downloads:/app/downloads
-      - cli_uploads:/app/uploads
-    networks:
-      - vkteams-network
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: unless-stopped
-    command: ["--version"]  # Override to prevent exit, or use a specific CLI command
-
   # VK Teams Bot MCP Server
   vkteams-mcp:
     build:
-      context: .
-      dockerfile: Dockerfile.universal
+      platforms:
+        - linux/amd64
+        - linux/arm64
       args:
-        PACKAGE_NAME: vkteams-bot-mcp
-        BINARY_NAME: vkteams-bot-mcp
         COMPONENT_TYPE: mcp
-        INCLUDE_CLI_BINARY: "true"
-        APP_USER: vkteams
+        APP_USER: vkteams-bot
         BUILD_DATE: ${BUILD_DATE:-}
         BUILD_VERSION: ${BUILD_VERSION:-latest}
         BUILD_COMMIT: ${BUILD_COMMIT:-}
@@ -155,45 +112,19 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      vkteams-cli:
-        condition: service_started
+        required: false
+      postgres-vector:
+        condition: service_healthy
+        required: false
     restart: unless-stopped
     stdin_open: true  # For MCP stdio transport
     tty: true
-
-  # Database initialization service
-  db-init:
-    build:
-      context: .
-      dockerfile: Dockerfile.universal
-      args:
-        PACKAGE_NAME: vkteams-bot-cli
-        BINARY_NAME: vkteams-bot-cli
-        COMPONENT_TYPE: cli
-        FEATURES: full
-        APP_USER: vkteams
-    container_name: vkteams-db-init
-    environment:
-      - DATABASE_URL=postgresql://vkteams:${DB_PASSWORD:-vkteams_password}@postgres:5432/vkteams_bot
-      - VKTEAMS_BOT_API_TOKEN=${VKTEAMS_BOT_API_TOKEN}
-      - VKTEAMS_BOT_API_URL=${VKTEAMS_BOT_API_URL:-https://api.vk.com}
-      - VKTEAMS_BOT_CHAT_ID=${VKTEAMS_BOT_CHAT_ID}
-      - RUST_LOG=info
-    networks:
-      - vkteams-network
-    depends_on:
-      postgres:
-        condition: service_healthy
-    command: ["database", "init"]
-    restart: "no"  # Run once
 
 networks:
   vkteams-network:
     driver: bridge
 
 volumes:
-  postgres_data:
-    driver: local
   postgres_vector_data:
     driver: local
   ollama_data:

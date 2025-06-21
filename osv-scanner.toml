@@ -1,3 +1,9 @@
 [[IgnoredVulns]]
 id = "RUSTSEC-2024-0436"
 reason = "Not critical"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2023-0071"
+reason = "This is a false positive, the crate is not used in the project."
+
+[[IgnoredVulns]]
