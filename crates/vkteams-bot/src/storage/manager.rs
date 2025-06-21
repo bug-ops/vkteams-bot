@@ -23,10 +23,10 @@ pub struct StorageManager {
     relational: Arc<SimpleRelationalStore>,
     
     #[cfg(feature = "vector-search")]
-    vector: Arc<Box<dyn VectorStore>>,
+    vector: Option<Arc<Box<dyn VectorStore>>>,
     
     #[cfg(feature = "ai-embeddings")]
-    embedding: Arc<Box<dyn EmbeddingClient>>,
+    embedding: Option<Arc<Box<dyn EmbeddingClient>>>,
     
     config: Arc<StorageConfig>,
 }
@@ -56,9 +56,9 @@ impl StorageManager {
                     &vector_config.connection_url,
                     Some(vector_config.collection_name.clone()),
                 ).await?;
-                Arc::new(store)
+                Some(Arc::new(store))
             } else {
-                return Err(StorageError::Configuration("Vector configuration missing".to_string()));
+                None
             }
         };
 
@@ -92,9 +92,9 @@ impl StorageManager {
                 };
                 
                 let client = crate::storage::embedding::create_embedding_client(provider_config).await?;
-                Arc::new(client)
+                Some(Arc::new(client))
             } else {
-                return Err(StorageError::Configuration("Embedding configuration missing".to_string()));
+                None
             }
         };
 
@@ -125,24 +125,28 @@ impl StorageManager {
 
         // Extract text content for embedding
         if let Some(text_content) = self.extract_text_content(event) {
-            // Generate embedding
-            let embedding = self.embedding.generate_embedding(&text_content).await
-                .map_err(|e| StorageError::Embedding(e.to_string()))?;
+            // Generate embedding if embedding client is available
+            if let Some(embedding_client) = &self.embedding {
+                let embedding = embedding_client.generate_embedding(&text_content).await
+                    .map_err(|e| StorageError::Embedding(e.to_string()))?;
 
-            // Store in vector database
-            let vector_doc = VectorDocument {
-                id: format!("event_{}", event_id),
-                content: text_content,
-                metadata: serde_json::json!({
-                    "event_id": event_id,
-                    "event_type": format!("{:?}", event.event_type),
-                    "timestamp": Utc::now()
-                }),
-                embedding: pgvector::Vector::from(embedding),
-                created_at: Utc::now(),
-            };
+                // Store in vector database if vector store is available
+                if let Some(vector_store) = &self.vector {
+                    let vector_doc = VectorDocument {
+                        id: format!("event_{}", event_id),
+                        content: text_content,
+                        metadata: serde_json::json!({
+                            "event_id": event_id,
+                            "event_type": format!("{:?}", event.event_type),
+                            "timestamp": Utc::now()
+                        }),
+                        embedding: pgvector::Vector::from(embedding),
+                        created_at: Utc::now(),
+                    };
 
-            self.vector.store_document(vector_doc).await?;
+                    vector_store.store_document(vector_doc).await?;
+                }
+            }
         }
 
         Ok(event_id)
@@ -161,33 +165,35 @@ impl StorageManager {
         // Generate embeddings in batch if enabled
         #[cfg(all(feature = "vector-search", feature = "ai-embeddings"))]
         {
-            let texts: Vec<String> = events.iter()
-                .filter_map(|e| self.extract_text_content(e))
-                .collect();
-            
-            if !texts.is_empty() {
-                let embeddings = self.embedding.generate_embeddings(&texts).await
-                    .map_err(|e| StorageError::Embedding(e.to_string()))?;
-                
-                let vector_docs: Vec<VectorDocument> = event_ids.iter()
-                    .zip(events.iter())
-                    .zip(embeddings.into_iter())
-                    .filter_map(|((event_id, event), embedding)| {
-                        self.extract_text_content(event).map(|text| VectorDocument {
-                            id: format!("event_{}", event_id),
-                            content: text,
-                            metadata: serde_json::json!({
-                                "event_id": event_id,
-                                "event_type": format!("{:?}", event.event_type),
-                                "timestamp": Utc::now()
-                            }),
-                            embedding: pgvector::Vector::from(embedding),
-                            created_at: Utc::now(),
-                        })
-                    })
+            if let (Some(embedding_client), Some(vector_store)) = (&self.embedding, &self.vector) {
+                let texts: Vec<String> = events.iter()
+                    .filter_map(|e| self.extract_text_content(e))
                     .collect();
                 
-                self.vector.store_documents(vector_docs).await?;
+                if !texts.is_empty() {
+                    let embeddings = embedding_client.generate_embeddings(&texts).await
+                        .map_err(|e| StorageError::Embedding(e.to_string()))?;
+                    
+                    let vector_docs: Vec<VectorDocument> = event_ids.iter()
+                        .zip(events.iter())
+                        .zip(embeddings.into_iter())
+                        .filter_map(|((event_id, event), embedding)| {
+                            self.extract_text_content(event).map(|text| VectorDocument {
+                                id: format!("event_{}", event_id),
+                                content: text,
+                                metadata: serde_json::json!({
+                                    "event_id": event_id,
+                                    "event_type": format!("{:?}", event.event_type),
+                                    "timestamp": Utc::now()
+                                }),
+                                embedding: pgvector::Vector::from(embedding),
+                                created_at: Utc::now(),
+                            })
+                        })
+                        .collect();
+                    
+                    vector_store.store_documents(vector_docs).await?;
+                }
             }
         }
         
@@ -202,26 +208,31 @@ impl StorageManager {
         chat_id: Option<&str>,
         limit: usize,
     ) -> StorageResult<Vec<SearchResult>> {
-        // Generate embedding for query
-        let query_embedding = self.embedding.generate_embedding(query_text).await
-            .map_err(|e| StorageError::Embedding(e.to_string()))?;
+        match (&self.embedding, &self.vector) {
+            (Some(embedding_client), Some(vector_store)) => {
+                // Generate embedding for query
+                let query_embedding = embedding_client.generate_embedding(query_text).await
+                    .map_err(|e| StorageError::Embedding(e.to_string()))?;
 
-        let mut metadata_filter = serde_json::json!({});
-        if let Some(chat_id) = chat_id {
-            metadata_filter["chat_id"] = Value::String(chat_id.to_string());
+                let mut metadata_filter = serde_json::json!({});
+                if let Some(chat_id) = chat_id {
+                    metadata_filter["chat_id"] = Value::String(chat_id.to_string());
+                }
+
+                let search_query = SearchQuery {
+                    embedding: pgvector::Vector::from(query_embedding),
+                    limit,
+                    score_threshold: Some(self.config.vector.as_ref()
+                        .map(|v| v.similarity_threshold)
+                        .unwrap_or(0.7)), 
+                    metadata_filter: Some(metadata_filter),
+                    include_content: true,
+                };
+
+                vector_store.search_similar(search_query).await
+            }
+            _ => Err(StorageError::Configuration("Vector search or embedding client not available".to_string()))
         }
-
-        let search_query = SearchQuery {
-            embedding: pgvector::Vector::from(query_embedding),
-            limit,
-            score_threshold: Some(self.config.vector.as_ref()
-                .map(|v| v.similarity_threshold)
-                .unwrap_or(0.7)), 
-            metadata_filter: Some(metadata_filter),
-            include_content: true,
-        };
-
-        self.vector.search_similar(search_query).await
     }
 
     /// Get recent events from relational database
@@ -259,8 +270,10 @@ impl StorageManager {
 
         #[cfg(feature = "vector-search")]
         {
-            let older_than = Utc::now() - chrono::Duration::days(older_than_days as i64);
-            let _deleted_vectors = self.vector.cleanup_old_documents(older_than).await?;
+            if let Some(vector_store) = &self.vector {
+                let older_than = Utc::now() - chrono::Duration::days(older_than_days as i64);
+                let _deleted_vectors = vector_store.cleanup_old_documents(older_than).await?;
+            }
         }
 
         Ok(deleted_events as u64)
@@ -272,10 +285,18 @@ impl StorageManager {
         self.relational.health_check().await?;
 
         #[cfg(feature = "vector-search")]
-        self.vector.health_check().await?;
+        {
+            if let Some(vector_store) = &self.vector {
+                vector_store.health_check().await?;
+            }
+        }
 
         #[cfg(feature = "ai-embeddings")]
-        self.embedding.health_check().await?;
+        {
+            if let Some(embedding_client) = &self.embedding {
+                embedding_client.health_check().await?;
+            }
+        }
 
         Ok(())
     }

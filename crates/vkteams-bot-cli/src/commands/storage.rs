@@ -135,7 +135,7 @@ impl StorageCommands {
         Ok(())
     }
 
-    async fn get_storage_manager(&self) -> std::result::Result<StorageManager, String> {
+    pub async fn get_storage_manager(&self) -> std::result::Result<StorageManager, String> {
         // Try to load storage configuration
         let config = match self.load_storage_config().await {
             Ok(config) => config,
@@ -148,11 +148,11 @@ impl StorageCommands {
         }
     }
 
-    async fn load_storage_config(&self) -> std::result::Result<StorageConfig, String> {
+    pub async fn load_storage_config(&self) -> std::result::Result<StorageConfig, String> {
         // Try to load from main library configuration first
         #[cfg(feature = "storage")]
         {
-            use vkteams_bot::config::{Config, get_config};
+            use vkteams_bot::config::get_config;
             
             // Try to load from configuration file
             if let Ok(main_config) = get_config() {
@@ -184,7 +184,7 @@ impl StorageCommands {
         Ok(config)
     }
 
-    async fn handle_database(&self, action: &DatabaseAction) -> CliResponse<serde_json::Value> {
+    pub async fn handle_database(&self, action: &DatabaseAction) -> CliResponse<serde_json::Value> {
         let storage = match self.get_storage_manager().await {
             Ok(storage) => storage,
             Err(e) => return CliResponse::error("database", e.to_string()),
@@ -237,7 +237,7 @@ impl StorageCommands {
         }
     }
 
-    async fn handle_search(&self, action: &SearchAction) -> CliResponse<serde_json::Value> {
+    pub async fn handle_search(&self, action: &SearchAction) -> CliResponse<serde_json::Value> {
         let storage = match self.get_storage_manager().await {
             Ok(storage) => storage,
             Err(e) => return CliResponse::error("search", e.to_string()),
@@ -298,7 +298,7 @@ impl StorageCommands {
         }
     }
 
-    async fn handle_context(&self, action: &ContextAction) -> CliResponse<serde_json::Value> {
+    pub async fn handle_context(&self, action: &ContextAction) -> CliResponse<serde_json::Value> {
         let storage = match self.get_storage_manager().await {
             Ok(storage) => storage,
             Err(e) => return CliResponse::error("context", e.to_string()),
