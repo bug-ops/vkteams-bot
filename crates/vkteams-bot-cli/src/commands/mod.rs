@@ -21,6 +21,16 @@ pub trait Command {
     /// Execute the command
     async fn execute(&self, bot: &Bot) -> CliResult<()>;
 
+    /// Execute the command with structured output support (optional implementation)
+    async fn execute_with_output(
+        &self,
+        bot: &Bot,
+        _output_format: &OutputFormat,
+    ) -> CliResult<()> {
+        // Default implementation falls back to legacy execute method
+        self.execute(bot).await
+    }
+
     /// Get command name for logging
     fn name(&self) -> &'static str;
 
