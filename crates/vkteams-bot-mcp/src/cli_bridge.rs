@@ -30,6 +30,7 @@ pub enum BridgeError {
 }
 
 /// Bridge for executing CLI commands from MCP server
+#[derive(Debug)]
 pub struct CliBridge {
     cli_path: String,
     default_args: Vec<String>,
