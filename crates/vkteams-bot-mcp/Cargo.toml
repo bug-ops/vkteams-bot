@@ -34,3 +34,5 @@ vkteams-bot = { version = "0.10", path = "../vkteams-bot", default-features = fa
 ] }
 async-trait = "0.1.88"
 base64 = "0.22"
+which = "6.0"
+tracing = "0.1"
