@@ -1,8 +1,10 @@
 pub mod types;
+pub mod unified;
 pub use crate::config::types::{FmtDirective, OtelDirective};
 use crate::error::Result;
 use types::APP_FOLDER;
 pub use types::{CONFIG, Config, LogFormat, OtlpConfig};
+pub use unified::{UnifiedConfig, ApiConfig as UnifiedApiConfig, McpConfig, CliConfig};
 
 impl Config {
     pub fn new() -> Self {
