@@ -14,7 +14,7 @@ use crate::cli::Cli;
 use clap::Parser;
 use colored::Colorize;
 use commands::{Command, Commands, OutputFormat};
-use config::Config;
+use config::{Config, UnifiedConfigAdapter};
 use constants::{exit_codes, ui::emoji};
 use errors::prelude::Result as CliResult;
 use std::path::Path;
@@ -136,11 +136,12 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 }
 
 fn load_configuration(cli: &Cli) -> CliResult<Config> {
-    // Load from custom path if provided
-    if let Some(_config_path) = &cli.config {
-        Config::from_file()
+    // Load from custom path if provided using unified adapter
+    if let Some(config_path) = &cli.config {
+        UnifiedConfigAdapter::load_from_path(Path::new(config_path))
     } else {
-        Config::load()
+        // Try unified adapter first, fall back to legacy
+        UnifiedConfigAdapter::load()
     }
 }
 
