@@ -7,7 +7,7 @@ mod tests {
     use testcontainers_modules::postgres::Postgres;
     use vkteams_bot::storage::{
         config::{DatabaseConfig, StorageSettings},
-        StorageConfig, StorageManager,
+        StorageConfig, StorageManager, VectorDocument, SearchQuery,
     };
 
     
@@ -164,7 +164,7 @@ mod tests {
         assert_eq!(deleted_count, 0, "Expected no records to delete in empty database");
     }
 
-    #[cfg(all(feature = "vector-search", feature = "pgvector-tests"))]
+    #[cfg(feature = "vector-search")]
     #[tokio::test]
     #[serial_test::serial]
     async fn test_vector_storage_initialization() {
@@ -191,7 +191,7 @@ mod tests {
         assert!(health_result.is_ok(), "Vector store health check failed");
     }
 
-    #[cfg(all(feature = "vector-search", feature = "pgvector-tests"))]
+    #[cfg(feature = "vector-search")]
     #[tokio::test]
     #[serial_test::serial]
     async fn test_vector_document_operations() {
@@ -267,7 +267,7 @@ mod tests {
         assert!(get_after_delete.unwrap().is_none(), "Document should not exist after deletion");
     }
 
-    #[cfg(all(feature = "vector-search", feature = "pgvector-tests"))]
+    #[cfg(feature = "vector-search")]
     #[tokio::test]
     #[serial_test::serial]
     async fn test_vector_batch_operations() {

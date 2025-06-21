@@ -72,7 +72,7 @@ impl Default for ApiConfig {
 
 /// Storage configuration
 #[cfg(feature = "storage")]
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
 #[serde(rename_all = "snake_case")]
 pub struct StorageConfig {
     /// Database configuration
@@ -83,17 +83,6 @@ pub struct StorageConfig {
     #[cfg(feature = "vector-search")]
     #[serde(default)]
     pub embedding: EmbeddingConfig,
-}
-
-#[cfg(feature = "storage")]
-impl Default for StorageConfig {
-    fn default() -> Self {
-        Self {
-            database: DatabaseConfig::default(),
-            #[cfg(feature = "vector-search")]
-            embedding: EmbeddingConfig::default(),
-        }
-    }
 }
 
 /// Database configuration
@@ -197,7 +186,7 @@ impl Default for McpConfig {
 }
 
 /// CLI specific configuration
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
 #[serde(rename_all = "snake_case")]
 pub struct CliConfig {
     /// File handling configuration
@@ -211,16 +200,6 @@ pub struct CliConfig {
     /// UI configuration
     #[serde(default)]
     pub ui: UiConfig,
-}
-
-impl Default for CliConfig {
-    fn default() -> Self {
-        Self {
-            files: FileConfig::default(),
-            logging: LoggingConfig::default(),
-            ui: UiConfig::default(),
-        }
-    }
 }
 
 /// File handling configuration
@@ -524,8 +503,10 @@ mod tests {
     
     #[test]
     fn test_env_overrides() {
-        std::env::set_var("VKTEAMS_BOT_API_TOKEN", "test_token");
-        std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_chat");
+        unsafe {
+            std::env::set_var("VKTEAMS_BOT_API_TOKEN", "test_token");
+            std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_chat");
+        }
         
         let mut config = UnifiedConfig::default();
         config.apply_env_overrides();
@@ -534,7 +515,9 @@ mod tests {
         assert_eq!(config.mcp.chat_id, Some("test_chat".to_string()));
         
         // Cleanup
-        std::env::remove_var("VKTEAMS_BOT_API_TOKEN");
-        std::env::remove_var("VKTEAMS_BOT_CHAT_ID");
+        unsafe {
+            std::env::remove_var("VKTEAMS_BOT_API_TOKEN");
+            std::env::remove_var("VKTEAMS_BOT_CHAT_ID");
+        }
     }
 }

@@ -1,4 +1,4 @@
-#![forbid(unsafe_code)]
+#![cfg_attr(not(test), forbid(unsafe_code))]
 //! # VK Teams Bot API client
 //! This crate provides a client for the [VK Teams Bot API] V1.
 //! Asynchronous request is based on [`reqwest`] and [`tokio`].

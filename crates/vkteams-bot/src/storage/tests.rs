@@ -1,7 +1,7 @@
 //! Tests for storage functionality
 
 #[cfg(test)]
-mod tests {
+mod storage_tests {
     use crate::storage::StorageConfig;
     use crate::storage::config::{DatabaseConfig, StorageSettings};
     

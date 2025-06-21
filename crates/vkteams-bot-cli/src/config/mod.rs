@@ -10,6 +10,8 @@ pub mod unified_adapter;
 pub use legacy::{
     Config, ApiConfig, FileConfig, LoggingConfig, UiConfig, ProxyConfig, RateLimitConfig,
     CONFIG, // Re-export the static CONFIG instance
+    // Re-export async and cache types
+    AsyncConfigManager, LockFreeConfigCache,
     // Re-export default functions for backwards compatibility
     default_timeout, default_retries, default_max_file_size, default_buffer_size,
     default_log_level, default_log_format, default_log_colors, default_show_progress,

@@ -18,6 +18,7 @@ use std::result::Result;
 pub type MCPResult = Result<CallToolResult, ErrorData>;
 
 /// Convert CLI bridge result to MCP result
+#[allow(dead_code)]
 fn convert_bridge_result(result: Result<Value, BridgeError>) -> MCPResult {
     match result {
         Ok(json_response) => {
