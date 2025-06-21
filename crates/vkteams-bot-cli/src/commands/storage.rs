@@ -185,9 +185,15 @@ impl StorageCommands {
     }
 
     pub async fn handle_database(&self, action: &DatabaseAction) -> CliResponse<serde_json::Value> {
+        let command_name = match action {
+            DatabaseAction::Init => "database-init",
+            DatabaseAction::Stats { .. } => "database-stats",
+            DatabaseAction::Cleanup { .. } => "database-cleanup",
+        };
+
         let storage = match self.get_storage_manager().await {
             Ok(storage) => storage,
-            Err(e) => return CliResponse::error("database", e.to_string()),
+            Err(e) => return CliResponse::error(command_name, e.to_string()),
         };
 
         match action {
@@ -238,9 +244,15 @@ impl StorageCommands {
     }
 
     pub async fn handle_search(&self, action: &SearchAction) -> CliResponse<serde_json::Value> {
+        let command_name = match action {
+            SearchAction::Semantic { .. } => "search-semantic",
+            SearchAction::Text { .. } => "search-text",
+            SearchAction::Advanced { .. } => "search-advanced",
+        };
+
         let storage = match self.get_storage_manager().await {
             Ok(storage) => storage,
-            Err(e) => return CliResponse::error("search", e.to_string()),
+            Err(e) => return CliResponse::error(command_name, e.to_string()),
         };
 
         match action {
@@ -299,9 +311,14 @@ impl StorageCommands {
     }
 
     pub async fn handle_context(&self, action: &ContextAction) -> CliResponse<serde_json::Value> {
+        let command_name = match action {
+            ContextAction::Get { .. } => "context-get",
+            ContextAction::Create { .. } => "context-create",
+        };
+
         let storage = match self.get_storage_manager().await {
             Ok(storage) => storage,
-            Err(e) => return CliResponse::error("context", e.to_string()),
+            Err(e) => return CliResponse::error(command_name, e.to_string()),
         };
 
         match action {

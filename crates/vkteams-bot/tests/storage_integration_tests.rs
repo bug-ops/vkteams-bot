@@ -10,8 +10,7 @@ mod tests {
         StorageConfig, StorageManager,
     };
 
-    #[cfg(feature = "vector-search")]
-    use vkteams_bot::storage::vector::{SearchQuery, VectorDocument};
+    
 
     /// Setup a test PostgreSQL container with pgvector extension
     async fn setup_postgres_container() -> testcontainers::ContainerAsync<Postgres> {
