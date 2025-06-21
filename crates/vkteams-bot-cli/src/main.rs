@@ -191,6 +191,9 @@ async fn execute_command(
         Commands::Messaging(cmd) => {
             cmd.execute_with_output(&bot, output_format).await
         }
+        Commands::Chat(cmd) => {
+            cmd.execute_with_output(&bot, output_format).await
+        }
         _ => {
             // Fall back to legacy execute method for other commands
             command.execute(&bot).await
