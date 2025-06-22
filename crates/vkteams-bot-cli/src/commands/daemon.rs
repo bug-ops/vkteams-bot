@@ -176,7 +176,7 @@ impl AutoSaveEventProcessor {
             events_processed: self.stats.events_processed.load(std::sync::atomic::Ordering::Relaxed),
             events_saved: self.stats.events_saved.load(std::sync::atomic::Ordering::Relaxed),
             events_failed: self.stats.events_failed.load(std::sync::atomic::Ordering::Relaxed),
-            last_processed_time: self.stats.last_processed_time.lock().unwrap().clone(),
+            last_processed_time: *self.stats.last_processed_time.lock().unwrap(),
         }
     }
 }
