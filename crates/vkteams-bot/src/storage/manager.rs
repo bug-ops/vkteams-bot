@@ -303,6 +303,33 @@ impl StorageManager {
         self.relational.search_messages(query, chat_id, limit).await
     }
 
+    /// Advanced search with multiple filters
+    #[cfg(feature = "storage")]
+    pub async fn search_events_advanced(
+        &self,
+        user_id: Option<&str>,
+        event_type: Option<&str>,
+        since: Option<chrono::DateTime<chrono::Utc>>,
+        until: Option<chrono::DateTime<chrono::Utc>>,
+        limit: i64,
+    ) -> StorageResult<Vec<Event>> {
+        self.relational.search_events_advanced(user_id, event_type, since, until, limit).await
+    }
+
+    /// Store a vector document (for contexts, summaries, etc.)
+    #[cfg(feature = "vector-search")]
+    pub async fn store_vector_document(
+        &self,
+        document: &VectorDocument,
+    ) -> StorageResult<()> {
+        if let Some(vector_store) = &self.vector {
+            vector_store.store_document(document.clone()).await?;
+            Ok(())
+        } else {
+            Err(StorageError::Vector("Vector store not configured".to_string()))
+        }
+    }
+
     /// Get storage statistics
     #[cfg(feature = "storage")]
     pub async fn get_stats(&self, chat_id: Option<&str>) -> StorageResult<EventStats> {

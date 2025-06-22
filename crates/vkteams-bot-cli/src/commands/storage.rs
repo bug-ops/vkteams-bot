@@ -303,9 +303,51 @@ impl StorageCommands {
                     Err(e) => CliResponse::error("search-text", format!("Search failed: {}", e)),
                 }
             }
-            SearchAction::Advanced { user_id: _, event_type: _, since: _, until: _, limit: _ } => {
-                // TODO: Implement advanced search with filters
-                CliResponse::error("search-advanced", "Advanced search not implemented yet")
+            SearchAction::Advanced { user_id, event_type, since, until, limit } => {
+                // Parse date filters
+                let since_date = match since.as_ref().map(|s| parse_datetime(s)) {
+                    Some(Ok(date)) => Some(date),
+                    Some(Err(_)) => return CliResponse::error("search-advanced", "Invalid 'since' date format. Use ISO 8601 format (e.g., 2023-01-01T00:00:00Z)"),
+                    None => None,
+                };
+
+                let until_date = match until.as_ref().map(|s| parse_datetime(s)) {
+                    Some(Ok(date)) => Some(date),
+                    Some(Err(_)) => return CliResponse::error("search-advanced", "Invalid 'until' date format. Use ISO 8601 format (e.g., 2023-01-01T00:00:00Z)"),
+                    None => None,
+                };
+
+                match storage.search_events_advanced(
+                    user_id.as_deref(),
+                    event_type.as_deref(),
+                    since_date,
+                    until_date,
+                    *limit
+                ).await {
+                    Ok(events) => {
+                        let data = json!({
+                            "filters": {
+                                "user_id": user_id,
+                                "event_type": event_type,
+                                "since": since,
+                                "until": until,
+                                "limit": limit
+                            },
+                            "results_count": events.len(),
+                            "events": events.into_iter().map(|e| json!({
+                                "id": e.id,
+                                "event_id": e.event_id,
+                                "event_type": e.event_type,
+                                "chat_id": e.chat_id,
+                                "user_id": e.user_id,
+                                "timestamp": e.timestamp,
+                                "processed_data": e.processed_data
+                            })).collect::<Vec<_>>()
+                        });
+                        CliResponse::success("search-advanced", data)
+                    }
+                    Err(e) => CliResponse::error("search-advanced", format!("Advanced search failed: {}", e)),
+                }
             }
         }
     }
@@ -346,9 +388,49 @@ impl StorageCommands {
                         Err(e) => CliResponse::error("context-get", format!("Failed to get context: {}", e)),
                     }
             }
-            ContextAction::Create { chat_id: _, summary: _, context_type: _ } => {
-                // TODO: Implement context creation
-                CliResponse::error("context-create", "Context creation not implemented yet")
+            ContextAction::Create { chat_id, summary, context_type } => {
+                // Create a context document based on the provided summary
+                let context_id = uuid::Uuid::new_v4().to_string();
+                
+                // Store context as a vector document if vector search is enabled
+                #[cfg(feature = "vector-search")]
+                {
+                    use vkteams_bot::storage::{VectorDocument, SearchResult};
+                    use std::collections::HashMap;
+                    
+                    let mut metadata = HashMap::new();
+                    metadata.insert("chat_id".to_string(), serde_json::Value::String(chat_id.clone()));
+                    metadata.insert("context_type".to_string(), serde_json::Value::String(format!("{:?}", context_type)));
+                    metadata.insert("created_at".to_string(), serde_json::Value::String(chrono::Utc::now().to_rfc3339()));
+                    
+                    let document = VectorDocument {
+                        id: context_id.clone(),
+                        content: summary.clone(),
+                        metadata: Some(metadata),
+                        created_at: Some(chrono::Utc::now()),
+                    };
+                    
+                    match storage.store_vector_document(&document).await {
+                        Ok(_) => {
+                            let data = json!({
+                                "context_id": context_id,
+                                "chat_id": chat_id,
+                                "summary": summary,
+                                "context_type": format!("{:?}", context_type),
+                                "created_at": chrono::Utc::now().to_rfc3339(),
+                                "status": "created"
+                            });
+                            CliResponse::success("context-create", data)
+                        }
+                        Err(e) => CliResponse::error("context-create", format!("Failed to create context: {}", e)),
+                    }
+                }
+                
+                #[cfg(not(feature = "vector-search"))]
+                {
+                    let _ = (chat_id, summary, context_type); // Avoid unused variable warnings
+                    CliResponse::error("context-create", "Vector search feature not enabled. Context creation requires vector storage.")
+                }
             }
         }
     }
@@ -403,4 +485,70 @@ mod tests {
         let context_type = ContextType::Recent;
         assert!(matches!(context_type, ContextType::Recent));
     }
+
+    #[test]
+    fn test_parse_datetime() {
+        // Test RFC3339 format
+        assert!(parse_datetime("2023-01-01T00:00:00Z").is_ok());
+        
+        // Test ISO format without timezone
+        assert!(parse_datetime("2023-01-01T00:00:00").is_ok());
+        
+        // Test date only
+        assert!(parse_datetime("2023-01-01").is_ok());
+        
+        // Test invalid format
+        assert!(parse_datetime("invalid-date").is_err());
+    }
+
+    #[test]
+    fn test_context_action_variants() {
+        // Test that ContextAction variants are defined correctly
+        let get_action = ContextAction::Get {
+            chat_id: Some("test_chat".to_string()),
+            context_type: ContextType::Recent,
+            timeframe: None,
+        };
+        
+        let create_action = ContextAction::Create {
+            chat_id: "test_chat".to_string(),
+            summary: "Test summary".to_string(),
+            context_type: "recent".to_string(),
+        };
+        
+        // These should match without errors
+        match get_action {
+            ContextAction::Get { .. } => assert!(true),
+            _ => assert!(false),
+        }
+        
+        match create_action {
+            ContextAction::Create { .. } => assert!(true),
+            _ => assert!(false),
+        }
+    }
+}
+
+// Helper function to parse datetime strings
+fn parse_datetime(date_str: &str) -> std::result::Result<chrono::DateTime<chrono::Utc>, &'static str> {
+    use chrono::{DateTime, TimeZone};
+    
+    // Try different formats
+    if let Ok(dt) = DateTime::parse_from_rfc3339(date_str) {
+        return Ok(dt.with_timezone(&chrono::Utc));
+    }
+    
+    // Try ISO format without timezone
+    if let Ok(dt) = chrono::NaiveDateTime::parse_from_str(date_str, "%Y-%m-%dT%H:%M:%S") {
+        return Ok(chrono::Utc.from_utc_datetime(&dt));
+    }
+    
+    // Try date only
+    if let Ok(date) = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
+        if let Some(datetime) = date.and_hms_opt(0, 0, 0) {
+            return Ok(chrono::Utc.from_utc_datetime(&datetime));
+        }
+    }
+    
+    Err("Invalid date format")
 }

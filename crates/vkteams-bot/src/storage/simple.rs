@@ -75,6 +75,18 @@ impl SimpleRelationalStore {
         Ok(vec![])
     }
 
+    pub async fn search_events_advanced(
+        &self, 
+        _user_id: Option<&str>,
+        _event_type: Option<&str>,
+        _since: Option<chrono::DateTime<chrono::Utc>>,
+        _until: Option<chrono::DateTime<chrono::Utc>>,
+        _limit: i64
+    ) -> StorageResult<Vec<Event>> {
+        // Return empty list for now - can be implemented with actual database queries
+        Ok(vec![])
+    }
+
     pub async fn get_recent_events(&self, _chat_id: Option<&str>, _event_type: Option<&str>, _limit: i64) -> StorageResult<Vec<Event>> {
         // Return empty list for now  
         Ok(vec![])
