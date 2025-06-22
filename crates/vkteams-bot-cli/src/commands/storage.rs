@@ -46,6 +46,10 @@ pub enum DatabaseAction {
         #[arg(long, default_value = "365")]
         older_than_days: u32,
     },
+    /// Get vector store performance metrics
+    VectorMetrics,
+    /// Perform vector store maintenance (vacuum, analyze, reindex)
+    VectorMaintenance,
 }
 
 #[derive(Debug, Clone, Subcommand)]
@@ -189,6 +193,8 @@ impl StorageCommands {
             DatabaseAction::Init => "database-init",
             DatabaseAction::Stats { .. } => "database-stats",
             DatabaseAction::Cleanup { .. } => "database-cleanup",
+            DatabaseAction::VectorMetrics => "database-vector-metrics",
+            DatabaseAction::VectorMaintenance => "database-vector-maintenance",
         };
 
         let storage = match self.get_storage_manager().await {
@@ -238,6 +244,75 @@ impl StorageCommands {
                         CliResponse::success("database-cleanup", data)
                     }
                     Err(e) => CliResponse::error("database-cleanup", format!("Failed to cleanup: {}", e)),
+                }
+            }
+            DatabaseAction::VectorMetrics => {
+                #[cfg(feature = "vector-search")]
+                {
+                    match storage.get_vector_metrics().await {
+                        Ok(Some(metrics)) => {
+                            let data = json!({
+                                "collection_name": metrics.collection_name,
+                                "total_documents": metrics.total_documents,
+                                "total_size_bytes": metrics.total_size_bytes,
+                                "total_size_mb": metrics.total_size_bytes as f64 / 1024.0 / 1024.0,
+                                "index_size_bytes": metrics.index_size_bytes,
+                                "index_size_mb": metrics.index_size_bytes as f64 / 1024.0 / 1024.0,
+                                "dimensions": metrics.dimensions,
+                                "performance": {
+                                    "total_queries": metrics.total_queries,
+                                    "failed_queries": metrics.failed_queries,
+                                    "success_rate": if metrics.total_queries > 0 {
+                                        1.0 - (metrics.failed_queries as f64 / metrics.total_queries as f64)
+                                    } else { 0.0 },
+                                    "avg_query_time_ms": metrics.avg_query_time_ms,
+                                    "last_query_time_ms": metrics.last_query_time_ms
+                                },
+                                "index_usage": {
+                                    "index_scans": metrics.index_usage.index_scans,
+                                    "index_tuples_read": metrics.index_usage.index_tuples_read,
+                                    "index_tuples_fetched": metrics.index_usage.index_tuples_fetched,
+                                    "cache_hit_ratio": metrics.index_usage.cache_hit_ratio,
+                                    "index_blocks_read": metrics.index_usage.index_blocks_read,
+                                    "index_blocks_hit": metrics.index_usage.index_blocks_hit
+                                },
+                                "last_maintenance": metrics.last_maintenance
+                            });
+                            CliResponse::success("database-vector-metrics", data)
+                        }
+                        Ok(None) => {
+                            CliResponse::error("database-vector-metrics", "Vector store not configured")
+                        }
+                        Err(e) => {
+                            CliResponse::error("database-vector-metrics", format!("Failed to get vector metrics: {}", e))
+                        }
+                    }
+                }
+                #[cfg(not(feature = "vector-search"))]
+                {
+                    CliResponse::error("database-vector-metrics", "Vector search feature not enabled")
+                }
+            }
+            DatabaseAction::VectorMaintenance => {
+                #[cfg(feature = "vector-search")]
+                {
+                    match storage.perform_vector_maintenance().await {
+                        Ok(()) => {
+                            let data = json!({
+                                "message": "Vector store maintenance completed successfully",
+                                "operations": ["VACUUM ANALYZE", "REINDEX"],
+                                "timestamp": chrono::Utc::now().to_rfc3339()
+                            });
+                            CliResponse::success("database-vector-maintenance", data)
+                        }
+                        Err(e) => {
+                            CliResponse::error("database-vector-maintenance", format!("Failed to perform maintenance: {}", e))
+                        }
+                    }
+                }
+                #[cfg(not(feature = "vector-search"))]
+                {
+                    CliResponse::error("database-vector-maintenance", "Vector search feature not enabled")
                 }
             }
         }
@@ -395,19 +470,22 @@ impl StorageCommands {
                 // Store context as a vector document if vector search is enabled
                 #[cfg(feature = "vector-search")]
                 {
-                    use vkteams_bot::storage::{VectorDocument, SearchResult};
+                    use vkteams_bot::storage::VectorDocument;
                     use std::collections::HashMap;
                     
-                    let mut metadata = HashMap::new();
-                    metadata.insert("chat_id".to_string(), serde_json::Value::String(chat_id.clone()));
-                    metadata.insert("context_type".to_string(), serde_json::Value::String(format!("{:?}", context_type)));
-                    metadata.insert("created_at".to_string(), serde_json::Value::String(chrono::Utc::now().to_rfc3339()));
+                    let mut metadata_map = HashMap::new();
+                    metadata_map.insert("chat_id".to_string(), serde_json::Value::String(chat_id.clone()));
+                    metadata_map.insert("context_type".to_string(), serde_json::Value::String(format!("{:?}", context_type)));
+                    metadata_map.insert("created_at".to_string(), serde_json::Value::String(chrono::Utc::now().to_rfc3339()));
+                    
+                    let metadata = serde_json::to_value(metadata_map).unwrap_or(serde_json::Value::Null);
                     
                     let document = VectorDocument {
                         id: context_id.clone(),
                         content: summary.clone(),
-                        metadata: Some(metadata),
-                        created_at: Some(chrono::Utc::now()),
+                        metadata,
+                        embedding: pgvector::Vector::from(vec![0.0; 768]), // Placeholder embedding
+                        created_at: chrono::Utc::now(),
                     };
                     
                     match storage.store_vector_document(&document).await {
@@ -454,6 +532,30 @@ impl Command for StorageCommands {
         // Add validation logic here if needed
         Ok(())
     }
+}
+
+// Helper function to parse datetime strings
+fn parse_datetime(date_str: &str) -> std::result::Result<chrono::DateTime<chrono::Utc>, &'static str> {
+    use chrono::{DateTime, TimeZone};
+    
+    // Try different formats
+    if let Ok(dt) = DateTime::parse_from_rfc3339(date_str) {
+        return Ok(dt.with_timezone(&chrono::Utc));
+    }
+    
+    // Try ISO format without timezone
+    if let Ok(dt) = chrono::NaiveDateTime::parse_from_str(date_str, "%Y-%m-%dT%H:%M:%S") {
+        return Ok(chrono::Utc.from_utc_datetime(&dt));
+    }
+    
+    // Try date only
+    if let Ok(date) = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
+        if let Some(datetime) = date.and_hms_opt(0, 0, 0) {
+            return Ok(chrono::Utc.from_utc_datetime(&datetime));
+        }
+    }
+    
+    Err("Invalid date format")
 }
 
 #[cfg(test)]
@@ -518,37 +620,13 @@ mod tests {
         
         // These should match without errors
         match get_action {
-            ContextAction::Get { .. } => assert!(true),
-            _ => assert!(false),
+            ContextAction::Get { .. } => {},
+            _ => panic!("Expected ContextAction::Get"),
         }
         
         match create_action {
-            ContextAction::Create { .. } => assert!(true),
-            _ => assert!(false),
+            ContextAction::Create { .. } => {},
+            _ => panic!("Expected ContextAction::Create"),
         }
     }
-}
-
-// Helper function to parse datetime strings
-fn parse_datetime(date_str: &str) -> std::result::Result<chrono::DateTime<chrono::Utc>, &'static str> {
-    use chrono::{DateTime, TimeZone};
-    
-    // Try different formats
-    if let Ok(dt) = DateTime::parse_from_rfc3339(date_str) {
-        return Ok(dt.with_timezone(&chrono::Utc));
-    }
-    
-    // Try ISO format without timezone
-    if let Ok(dt) = chrono::NaiveDateTime::parse_from_str(date_str, "%Y-%m-%dT%H:%M:%S") {
-        return Ok(chrono::Utc.from_utc_datetime(&dt));
-    }
-    
-    // Try date only
-    if let Ok(date) = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
-        if let Some(datetime) = date.and_hms_opt(0, 0, 0) {
-            return Ok(chrono::Utc.from_utc_datetime(&datetime));
-        }
-    }
-    
-    Err("Invalid date format")
 }

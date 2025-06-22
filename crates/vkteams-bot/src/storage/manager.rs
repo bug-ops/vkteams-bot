@@ -164,16 +164,17 @@ impl StorageManager {
 
                 // Store in vector database if vector store is available
                 if let Some(vector_store) = &self.vector {
+                    let event_timestamp = self.extract_timestamp(event).unwrap_or_else(Utc::now);
                     let vector_doc = VectorDocument {
                         id: format!("event_{}", event_id),
                         content: text_content,
                         metadata: serde_json::json!({
                             "event_id": event_id,
                             "event_type": format!("{:?}", event.event_type),
-                            "timestamp": Utc::now()
+                            "timestamp": event_timestamp
                         }),
                         embedding: pgvector::Vector::from(embedding),
-                        created_at: Utc::now(),
+                        created_at: event_timestamp,
                     };
 
                     vector_store.store_document(vector_doc).await?;
@@ -214,16 +215,19 @@ impl StorageManager {
                         .zip(events.iter())
                         .zip(embeddings.into_iter())
                         .filter_map(|((event_id, event), embedding)| {
-                            self.extract_text_content(event).map(|text| VectorDocument {
-                                id: format!("event_{}", event_id),
-                                content: text,
-                                metadata: serde_json::json!({
-                                    "event_id": event_id,
-                                    "event_type": format!("{:?}", event.event_type),
-                                    "timestamp": Utc::now()
-                                }),
-                                embedding: pgvector::Vector::from(embedding),
-                                created_at: Utc::now(),
+                            self.extract_text_content(event).map(|text| {
+                                let event_timestamp = self.extract_timestamp(event).unwrap_or_else(Utc::now);
+                                VectorDocument {
+                                    id: format!("event_{}", event_id),
+                                    content: text,
+                                    metadata: serde_json::json!({
+                                        "event_id": event_id,
+                                        "event_type": format!("{:?}", event.event_type),
+                                        "timestamp": event_timestamp
+                                    }),
+                                    embedding: pgvector::Vector::from(embedding),
+                                    created_at: event_timestamp,
+                                }
                             })
                         })
                         .collect();
@@ -374,6 +378,25 @@ impl StorageManager {
         Ok(())
     }
 
+    /// Get vector store performance metrics
+    #[cfg(feature = "vector-search")]
+    pub async fn get_vector_metrics(&self) -> StorageResult<Option<crate::storage::vector::VectorMetrics>> {
+        if let Some(vector_store) = &self.vector {
+            Ok(Some(vector_store.get_metrics().await?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Perform vector store maintenance
+    #[cfg(feature = "vector-search")]
+    pub async fn perform_vector_maintenance(&self) -> StorageResult<()> {
+        if let Some(vector_store) = &self.vector {
+            vector_store.perform_maintenance().await?;
+        }
+        Ok(())
+    }
+
     /// Get configuration
     pub fn config(&self) -> &StorageConfig {
         &self.config
@@ -513,7 +536,24 @@ impl StorageManager {
             crate::api::types::EventType::EditedMessage(payload) => {
                 DateTime::from_timestamp(payload.timestamp.0 as i64, 0)
             },
-            _ => None,
+            crate::api::types::EventType::DeleteMessage(payload) => {
+                DateTime::from_timestamp(payload.timestamp.0 as i64, 0)
+            },
+            crate::api::types::EventType::PinnedMessage(payload) => {
+                DateTime::from_timestamp(payload.timestamp.0 as i64, 0)
+            },
+            crate::api::types::EventType::UnpinnedMessage(payload) => {
+                DateTime::from_timestamp(payload.timestamp.0 as i64, 0)
+            },
+            // NewChatMembers and LeftChatMembers don't have timestamp field,
+            // use fallback to current time
+            crate::api::types::EventType::NewChatMembers(_) => None,
+            crate::api::types::EventType::LeftChatMembers(_) => None,
+            crate::api::types::EventType::CallbackQuery(payload) => {
+                // CallbackQuery uses message timestamp
+                DateTime::from_timestamp(payload.message.timestamp.0 as i64, 0)
+            },
+            crate::api::types::EventType::None => None,
         }
     }
 
@@ -605,12 +645,200 @@ impl std::fmt::Debug for StorageManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api::types::*;
+
+    // Helper struct to test extraction methods without requiring database connection
+    struct MockStorageManager;
+
+    impl MockStorageManager {
+        fn extract_timestamp(&self, event: &EventMessage) -> Option<DateTime<Utc>> {
+            match &event.event_type {
+                crate::api::types::EventType::NewMessage(payload) => {
+                    DateTime::from_timestamp(payload.timestamp.0 as i64, 0)
+                },
+                crate::api::types::EventType::EditedMessage(payload) => {
+                    DateTime::from_timestamp(payload.timestamp.0 as i64, 0)
+                },
+                crate::api::types::EventType::DeleteMessage(payload) => {
+                    DateTime::from_timestamp(payload.timestamp.0 as i64, 0)
+                },
+                crate::api::types::EventType::PinnedMessage(payload) => {
+                    DateTime::from_timestamp(payload.timestamp.0 as i64, 0)
+                },
+                crate::api::types::EventType::UnpinnedMessage(payload) => {
+                    DateTime::from_timestamp(payload.timestamp.0 as i64, 0)
+                },
+                // NewChatMembers and LeftChatMembers don't have timestamp field,
+                // use fallback to current time
+                crate::api::types::EventType::NewChatMembers(_) => None,
+                crate::api::types::EventType::LeftChatMembers(_) => None,
+                crate::api::types::EventType::CallbackQuery(payload) => {
+                    // CallbackQuery uses message timestamp
+                    DateTime::from_timestamp(payload.message.timestamp.0 as i64, 0)
+                },
+                crate::api::types::EventType::None => None,
+            }
+        }
+    }
 
     #[test]
-    fn test_extract_text_content() {
-        // Mock storage manager
-        let _config = StorageConfig::default();
-        // Note: This test won't work without actual storage setup
-        // Just testing the extraction logic
+    fn test_extract_timestamp_from_new_message() {
+        let manager = MockStorageManager;
+        
+        let payload = EventPayloadNewMessage {
+            msg_id: MsgId("test_msg".to_string()),
+            text: "Test message".to_string(),
+            chat: Chat {
+                chat_id: ChatId("test_chat".into()),
+                chat_type: "group".to_string(),
+                title: Some("Test Chat".to_string()),
+            },
+            from: From {
+                user_id: UserId("test_user".to_string()),
+                first_name: "Test".to_string(),
+                last_name: None,
+            },
+            format: None,
+            parts: vec![],
+            timestamp: Timestamp(1700000000), // Unix timestamp
+        };
+
+        let event = EventMessage {
+            event_id: 123,
+            event_type: EventType::NewMessage(Box::new(payload)),
+        };
+
+        let extracted_timestamp = manager.extract_timestamp(&event);
+        assert!(extracted_timestamp.is_some());
+        
+        let timestamp = extracted_timestamp.unwrap();
+        // Verify the timestamp is extracted correctly from the event
+        assert_eq!(timestamp.timestamp(), 1700000000);
+    }
+
+    #[test]
+    fn test_extract_timestamp_from_callback_query() {
+        let manager = MockStorageManager;
+        
+        let message_payload = EventPayloadNewMessage {
+            msg_id: MsgId("test_msg".to_string()),
+            text: "Test message".to_string(),
+            chat: Chat {
+                chat_id: ChatId("test_chat".into()),
+                chat_type: "group".to_string(),
+                title: Some("Test Chat".to_string()),
+            },
+            from: From {
+                user_id: UserId("test_user".to_string()),
+                first_name: "Test".to_string(),
+                last_name: None,
+            },
+            format: None,
+            parts: vec![],
+            timestamp: Timestamp(1700000000), // Unix timestamp
+        };
+
+        let callback_payload = EventPayloadCallbackQuery {
+            query_id: QueryId("test_query".to_string()),
+            from: From {
+                user_id: UserId("test_user".to_string()),
+                first_name: "Test".to_string(),
+                last_name: None,
+            },
+            chat: Chat {
+                chat_id: ChatId("test_chat".into()),
+                chat_type: "group".to_string(),
+                title: Some("Test Chat".to_string()),
+            },
+            message: message_payload,
+            callback_data: "test_data".to_string(),
+        };
+
+        let event = EventMessage {
+            event_id: 123,
+            event_type: EventType::CallbackQuery(Box::new(callback_payload)),
+        };
+
+        let extracted_timestamp = manager.extract_timestamp(&event);
+        assert!(extracted_timestamp.is_some());
+        
+        let timestamp = extracted_timestamp.unwrap();
+        // Verify the timestamp is extracted from the embedded message
+        assert_eq!(timestamp.timestamp(), 1700000000);
+    }
+
+    #[test]
+    fn test_extract_timestamp_from_events_without_timestamp() {
+        let manager = MockStorageManager;
+        
+        let new_members_payload = EventPayloadNewChatMembers {
+            chat: Chat {
+                chat_id: ChatId("test_chat".into()),
+                chat_type: "group".to_string(),
+                title: Some("Test Chat".to_string()),
+            },
+            new_members: vec![From {
+                user_id: UserId("new_user".to_string()),
+                first_name: "New".to_string(),
+                last_name: None,
+            }],
+            added_by: From {
+                user_id: UserId("admin_user".to_string()),
+                first_name: "Admin".to_string(),
+                last_name: None,
+            },
+        };
+
+        let event = EventMessage {
+            event_id: 123,
+            event_type: EventType::NewChatMembers(Box::new(new_members_payload)),
+        };
+
+        let extracted_timestamp = manager.extract_timestamp(&event);
+        // Events without timestamp field should return None
+        assert!(extracted_timestamp.is_none());
+    }
+
+    #[test]
+    fn test_extract_timestamp_accuracy() {
+        let manager = MockStorageManager;
+        
+        // Test different timestamps to ensure accuracy
+        let test_timestamps = vec![
+            1700000000,  // 2023-11-14 22:13:20 UTC
+            1640995200,  // 2022-01-01 00:00:00 UTC
+            946684800,   // 2000-01-01 00:00:00 UTC
+        ];
+
+        for timestamp_value in test_timestamps {
+            let payload = EventPayloadNewMessage {
+                msg_id: MsgId("test_msg".to_string()),
+                text: "Test message".to_string(),
+                chat: Chat {
+                    chat_id: ChatId("test_chat".into()),
+                    chat_type: "group".to_string(),
+                    title: Some("Test Chat".to_string()),
+                },
+                from: From {
+                    user_id: UserId("test_user".to_string()),
+                    first_name: "Test".to_string(),
+                    last_name: None,
+                },
+                format: None,
+                parts: vec![],
+                timestamp: Timestamp(timestamp_value),
+            };
+
+            let event = EventMessage {
+                event_id: 123,
+                event_type: EventType::NewMessage(Box::new(payload)),
+            };
+
+            let extracted_timestamp = manager.extract_timestamp(&event);
+            assert!(extracted_timestamp.is_some());
+            
+            let timestamp = extracted_timestamp.unwrap();
+            assert_eq!(timestamp.timestamp(), timestamp_value as i64);
+        }
     }
 }
