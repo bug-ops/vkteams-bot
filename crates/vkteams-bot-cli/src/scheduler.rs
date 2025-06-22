@@ -320,6 +320,15 @@ impl Scheduler {
                     info!("Received shutdown signal");
                     break;
                 }
+
+                // Check for stop signal file every 5 seconds
+                _ = tokio::time::sleep(TokioDuration::from_secs(5)) => {
+                    if self.check_stop_signal_file().await {
+                        info!("Stop signal file detected, shutting down...");
+                        self.cleanup_stop_signal_file().await;
+                        break;
+                    }
+                }
             }
 
             // Clean up completed tasks periodically
@@ -577,6 +586,22 @@ impl Scheduler {
     pub async fn shutdown(&self) {
         self.shutdown_signal.store(true, Ordering::Relaxed);
         let _ = self.event_tx.send(SchedulerEvent::Shutdown);
+    }
+
+    /// Check if stop signal file exists
+    async fn check_stop_signal_file(&self) -> bool {
+        let temp_dir = std::env::temp_dir();
+        let stop_file = temp_dir.join("vkteams_scheduler_stop.signal");
+        stop_file.exists()
+    }
+
+    /// Remove stop signal file to acknowledge shutdown
+    async fn cleanup_stop_signal_file(&self) {
+        let temp_dir = std::env::temp_dir();
+        let stop_file = temp_dir.join("vkteams_scheduler_stop.signal");
+        if let Err(e) = std::fs::remove_file(&stop_file) {
+            debug!("Failed to remove stop signal file: {}", e);
+        }
     }
 
     async fn add_to_queue(&self, task: ScheduledTask) {

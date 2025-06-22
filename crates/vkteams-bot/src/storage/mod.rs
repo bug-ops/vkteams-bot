@@ -48,13 +48,14 @@ pub mod config;
 pub mod error;
 #[cfg(feature = "storage")]
 pub mod models;
-// Temporarily disabled complex relational module 
+// Temporarily disabled complex relational module
+// TODO: Revisit later
 // #[cfg(feature = "storage")]
 // pub mod relational;
 #[cfg(feature = "storage")]
-pub mod simple;
-#[cfg(feature = "storage")]
 pub mod manager;
+#[cfg(feature = "storage")]
+pub mod simple;
 
 #[cfg(feature = "vector-search")]
 pub mod vector;
@@ -75,4 +76,4 @@ pub use manager::StorageManager;
 pub use models::*;
 
 #[cfg(feature = "vector-search")]
-pub use vector::{VectorStore, VectorDocument, SearchQuery, SearchResult};
+pub use vector::{SearchQuery, SearchResult, VectorDocument, VectorStore};

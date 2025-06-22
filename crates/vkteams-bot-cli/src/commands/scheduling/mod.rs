@@ -159,8 +159,17 @@ impl Command for SchedulingCommands {
     }
 
     fn validate(&self) -> CliResult<()> {
-        // TODO: Implement validation
-        Ok(())
+        match self {
+            SchedulingCommands::Schedule { message_type } => {
+                validate_schedule_command(message_type)
+            }
+            SchedulingCommands::Scheduler { action } => {
+                validate_scheduler_action(action)
+            }
+            SchedulingCommands::Task { action } => {
+                validate_task_action(action)
+            }
+        }
     }
 }
 
@@ -266,8 +275,9 @@ async fn execute_scheduler_action(_bot: &Bot, action: &SchedulerAction) -> CliRe
             scheduler.run_scheduler().await?;
         }
         SchedulerAction::Stop => {
-            println!("⏹️ Scheduler stop command received (not implemented for daemon mode)");
-            // TODO: Implement proper daemon stop mechanism
+            println!("⏹️ Stopping scheduler daemon...");
+            stop_scheduler_daemon().await?;
+            println!("✅ Scheduler daemon stopped successfully");
         }
         SchedulerAction::Status => {
             let tasks = scheduler.list_tasks().await;
@@ -432,6 +442,181 @@ fn parse_schedule_args(
     } else {
         unreachable!()
     }
+}
+
+// Validation functions
+fn validate_schedule_command(message_type: &ScheduleMessageType) -> CliResult<()> {
+    match message_type {
+        ScheduleMessageType::Text { chat_id, message, time, cron, interval, max_runs } => {
+            validate_chat_id(chat_id)?;
+            validate_message_content(message)?;
+            // Validate schedule arguments by trying to parse them
+            parse_schedule_args(time, cron, interval)?;
+            validate_max_runs(max_runs)?;
+        }
+        ScheduleMessageType::File { chat_id, file_path, time, cron, interval, max_runs } => {
+            validate_chat_id(chat_id)?;
+            validate_file_path_arg(file_path)?;
+            parse_schedule_args(time, cron, interval)?;
+            validate_max_runs(max_runs)?;
+        }
+        ScheduleMessageType::Voice { chat_id, file_path, time, cron, interval, max_runs } => {
+            validate_chat_id(chat_id)?;
+            validate_voice_file_path(file_path)?;
+            parse_schedule_args(time, cron, interval)?;
+            validate_max_runs(max_runs)?;
+        }
+        ScheduleMessageType::Action { chat_id, action, time, cron, interval, max_runs } => {
+            validate_chat_id(chat_id)?;
+            validate_action_type(action)?;
+            parse_schedule_args(time, cron, interval)?;
+            validate_max_runs(max_runs)?;
+        }
+    }
+    Ok(())
+}
+
+fn validate_scheduler_action(action: &SchedulerAction) -> CliResult<()> {
+    // Basic validation - all scheduler actions are valid
+    match action {
+        SchedulerAction::Start | SchedulerAction::Stop | SchedulerAction::Status | SchedulerAction::List => Ok(())
+    }
+}
+
+fn validate_task_action(action: &TaskAction) -> CliResult<()> {
+    match action {
+        TaskAction::Show { task_id } | 
+        TaskAction::Remove { task_id } | 
+        TaskAction::Enable { task_id } | 
+        TaskAction::Disable { task_id } | 
+        TaskAction::Run { task_id } => {
+            validate_task_id(task_id)
+        }
+    }
+}
+
+// Helper validation functions
+fn validate_chat_id(chat_id: &str) -> CliResult<()> {
+    if chat_id.trim().is_empty() {
+        return Err(CliError::InputError("Chat ID cannot be empty".to_string()));
+    }
+    if chat_id.len() > 100 {
+        return Err(CliError::InputError("Chat ID is too long (max 100 characters)".to_string()));
+    }
+    Ok(())
+}
+
+fn validate_message_content(message: &str) -> CliResult<()> {
+    if message.trim().is_empty() {
+        return Err(CliError::InputError("Message content cannot be empty".to_string()));
+    }
+    if message.len() > 10000 {
+        return Err(CliError::InputError("Message is too long (max 10000 characters)".to_string()));
+    }
+    Ok(())
+}
+
+fn validate_file_path_arg(file_path: &str) -> CliResult<()> {
+    if file_path.trim().is_empty() {
+        return Err(CliError::InputError("File path cannot be empty".to_string()));
+    }
+    if !std::path::Path::new(file_path).exists() {
+        return Err(CliError::InputError(format!("File does not exist: {}", file_path)));
+    }
+    Ok(())
+}
+
+fn validate_voice_file_path(file_path: &str) -> CliResult<()> {
+    validate_file_path_arg(file_path)?;
+    
+    // Check file extension for voice messages
+    let path = std::path::Path::new(file_path);
+    if let Some(extension) = path.extension() {
+        let ext = extension.to_string_lossy().to_lowercase();
+        if !["ogg", "mp3", "wav", "m4a", "aac"].contains(&ext.as_str()) {
+            return Err(CliError::InputError(format!(
+                "Unsupported voice file format: {}. Supported: ogg, mp3, wav, m4a, aac", 
+                ext
+            )));
+        }
+    } else {
+        return Err(CliError::InputError("Voice file must have a valid extension".to_string()));
+    }
+    
+    Ok(())
+}
+
+fn validate_action_type(action: &str) -> CliResult<()> {
+    if action.trim().is_empty() {
+        return Err(CliError::InputError("Action type cannot be empty".to_string()));
+    }
+    
+    // Check supported action types
+    let valid_actions = ["typing", "upload_photo", "record_video", "upload_video", "record_audio", "upload_audio", "upload_document", "find_location"];
+    if !valid_actions.contains(&action) {
+        return Err(CliError::InputError(format!(
+            "Unsupported action type: {}. Supported: {}", 
+            action,
+            valid_actions.join(", ")
+        )));
+    }
+    
+    Ok(())
+}
+
+fn validate_max_runs(max_runs: &Option<u64>) -> CliResult<()> {
+    if let Some(runs) = max_runs {
+        if *runs == 0 {
+            return Err(CliError::InputError("Max runs must be greater than 0".to_string()));
+        }
+        if *runs > 10000 {
+            return Err(CliError::InputError("Max runs cannot exceed 10000".to_string()));
+        }
+    }
+    Ok(())
+}
+
+fn validate_task_id(task_id: &str) -> CliResult<()> {
+    if task_id.trim().is_empty() {
+        return Err(CliError::InputError("Task ID cannot be empty".to_string()));
+    }
+    if task_id.len() > 50 {
+        return Err(CliError::InputError("Task ID is too long (max 50 characters)".to_string()));
+    }
+    Ok(())
+}
+
+// Daemon management functions
+async fn stop_scheduler_daemon() -> CliResult<()> {
+    use std::fs;
+    
+    // Create stop signal file in temporary directory
+    let temp_dir = std::env::temp_dir();
+    let stop_file = temp_dir.join("vkteams_scheduler_stop.signal");
+    
+    // Write stop signal
+    fs::write(&stop_file, "stop").map_err(|e| {
+        CliError::FileError(format!("Failed to create stop signal file: {}", e))
+    })?;
+    
+    // Wait for daemon to acknowledge stop signal (max 30 seconds)
+    let mut attempts = 0;
+    const MAX_ATTEMPTS: u32 = 300; // 30 seconds with 100ms intervals
+    
+    while attempts < MAX_ATTEMPTS && stop_file.exists() {
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        attempts += 1;
+    }
+    
+    if stop_file.exists() {
+        // Clean up the file if daemon didn't acknowledge
+        let _ = fs::remove_file(&stop_file);
+        return Err(CliError::UnexpectedError(
+            "Daemon did not respond to stop signal within 30 seconds".to_string()
+        ));
+    }
+    
+    Ok(())
 }
 
 #[cfg(test)]
@@ -628,5 +813,92 @@ mod tests {
         assert!(scheduler.enable_task(&task_id).await.is_ok());
         // Disable
         assert!(scheduler.disable_task(&task_id).await.is_ok());
+    }
+
+    #[test]
+    fn test_validate_chat_id() {
+        assert!(validate_chat_id("valid_chat").is_ok());
+        assert!(validate_chat_id("").is_err());
+        assert!(validate_chat_id("   ").is_err());
+        assert!(validate_chat_id(&"x".repeat(101)).is_err());
+    }
+
+    #[test]
+    fn test_validate_message_content() {
+        assert!(validate_message_content("Hello world").is_ok());
+        assert!(validate_message_content("").is_err());
+        assert!(validate_message_content("   ").is_err());
+        assert!(validate_message_content(&"x".repeat(10001)).is_err());
+    }
+
+    #[test]
+    fn test_validate_action_type() {
+        assert!(validate_action_type("typing").is_ok());
+        assert!(validate_action_type("upload_photo").is_ok());
+        assert!(validate_action_type("invalid_action").is_err());
+        assert!(validate_action_type("").is_err());
+        assert!(validate_action_type("   ").is_err());
+    }
+
+    #[test]
+    fn test_validate_max_runs() {
+        assert!(validate_max_runs(&None).is_ok());
+        assert!(validate_max_runs(&Some(1)).is_ok());
+        assert!(validate_max_runs(&Some(100)).is_ok());
+        assert!(validate_max_runs(&Some(0)).is_err());
+        assert!(validate_max_runs(&Some(10001)).is_err());
+    }
+
+    #[test]
+    fn test_validate_task_id() {
+        assert!(validate_task_id("valid_id").is_ok());
+        assert!(validate_task_id("").is_err());
+        assert!(validate_task_id("   ").is_err());
+        assert!(validate_task_id(&"x".repeat(51)).is_err());
+    }
+
+    #[test]
+    fn test_validate_scheduler_command() {
+        let valid_cmd = SchedulingCommands::Schedule {
+            message_type: ScheduleMessageType::Text {
+                chat_id: "test_chat".to_string(),
+                message: "test message".to_string(),
+                time: Some("2030-01-01T00:00:00Z".to_string()),
+                cron: None,
+                interval: None,
+                max_runs: Some(1),
+            },
+        };
+        assert!(valid_cmd.validate().is_ok());
+
+        let invalid_cmd = SchedulingCommands::Schedule {
+            message_type: ScheduleMessageType::Text {
+                chat_id: "".to_string(), // Empty chat ID
+                message: "test message".to_string(),
+                time: Some("2030-01-01T00:00:00Z".to_string()),
+                cron: None,
+                interval: None,
+                max_runs: Some(1),
+            },
+        };
+        assert!(invalid_cmd.validate().is_err());
+    }
+
+    #[tokio::test]
+    async fn test_stop_scheduler_daemon_no_running_daemon() {
+        use std::fs;
+        
+        // Clean up any existing stop signal file first
+        let temp_dir = std::env::temp_dir();
+        let stop_file = temp_dir.join("vkteams_scheduler_stop.signal");
+        let _ = fs::remove_file(&stop_file);
+        
+        // Test stop command when no daemon is running
+        // Should timeout and return error
+        let result = stop_scheduler_daemon().await;
+        assert!(result.is_err());
+        if let Err(CliError::UnexpectedError(msg)) = result {
+            assert!(msg.contains("30 seconds"));
+        }
     }
 }

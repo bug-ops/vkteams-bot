@@ -121,7 +121,13 @@ impl MessageTextHTMLParser for MessageTextParser {
                 result.push_str(self.parse_tmpl()?.as_str());
                 Ok((result, ParseMode::HTML))
             }
-            _ => todo!("Parse mode not implemented: {:?}", self.parse_mode),
+            ParseMode::MarkdownV2 => {
+                // MarkdownV2 не поддерживается, возвращаем ошибку вместо panic
+                Err(BotError::Validation(format!(
+                    "Parse mode not supported: {:?}. Supported modes: HTML, Template",
+                    self.parse_mode
+                )))
+            }
         }
     }
 }
@@ -258,5 +264,22 @@ mod tests {
         let (html, mode) = parser.parse().unwrap();
         assert_eq!(html, "");
         assert_eq!(mode, ParseMode::HTML);
+    }
+
+    #[test]
+    fn test_markdownv2_parse_mode_returns_error() {
+        let parser = MessageTextParser {
+            text: vec![MessageTextFormat::Plain("Hello".to_string())],
+            parse_mode: ParseMode::MarkdownV2,
+            ..Default::default()
+        };
+        let result = parser.parse();
+        assert!(result.is_err());
+        if let Err(BotError::Validation(msg)) = result {
+            assert!(msg.contains("Parse mode not supported"));
+            assert!(msg.contains("MarkdownV2"));
+        } else {
+            panic!("Expected BotError::Validation");
+        }
     }
 }
