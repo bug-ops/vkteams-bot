@@ -8,7 +8,6 @@ examples/.env
 .cargo
 .ron
 .yaml
-Dockerfile
 compose.yaml
 .svg
 .*ignore
