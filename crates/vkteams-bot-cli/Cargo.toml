@@ -52,7 +52,7 @@ uuid = { version = "1.0", features = ["v4"] }
 async-trait = "0.1"
 tempfile = "3.8"
 dashmap = "6.0"
-tabled = "0.16"
+tabled = "0.20"
 # notify = "8.0"
 
 # Database dependencies (optional features)
