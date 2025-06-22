@@ -1,6 +1,6 @@
 [package]
 name = "vkteams-bot-cli"
-version = "0.6.5"
+version = "0.7.0"
 authors = ["Andrei G. <k05h31@gmail.com>"]
 keywords = ["vkteams", "bot", "api", "automation", "mcp"]
 categories = ["api-bindings", "command-line-utilities", "web-programming"]
