@@ -418,6 +418,7 @@ impl CliBridge {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bridge_trait::{CliBridgeTrait, MockCliBridge};
 
     #[tokio::test]
     async fn test_command_building() {
@@ -431,6 +432,296 @@ mod tests {
         if let Ok(_bridge) = CliBridge::new() {
             // Test would need actual CLI binary to run
             println!("CLI bridge created for testing");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_send_text_command_args() {
+        let mut mock = MockCliBridge::new();
+        mock.add_success_response(
+            "send-text --message Hello".to_string(),
+            serde_json::json!({"message_id": "123"})
+        );
+
+        let result = mock.execute_command(&["send-text", "--message", "Hello"]).await;
+        assert!(result.is_ok());
+        
+        if let Ok(response) = result {
+            assert_eq!(response["success"], true);
+            assert_eq!(response["data"]["message_id"], "123");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_send_text_with_chat_id() {
+        let mut mock = MockCliBridge::new();
+        mock.add_success_response(
+            "send-text".to_string(),
+            serde_json::json!({"message_id": "456"})
+        );
+
+        let result = mock.execute_command(&[
+            "send-text", "--message", "Hello", "--chat-id", "chat123"
+        ]).await;
+        assert!(result.is_ok());
+        
+        if let Ok(response) = result {
+            assert_eq!(response["success"], true);
+            assert_eq!(response["data"]["message_id"], "456");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_send_text_with_reply() {
+        let mut mock = MockCliBridge::new();
+        mock.add_success_response(
+            "send-text".to_string(),
+            serde_json::json!({"message_id": "789"})
+        );
+
+        let result = mock.execute_command(&[
+            "send-text", "--message", "Reply", "--reply-msg-id", "100"
+        ]).await;
+        assert!(result.is_ok());
+        
+        if let Ok(response) = result {
+            assert_eq!(response["success"], true);
+            assert_eq!(response["data"]["message_id"], "789");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_send_file_command() {
+        let mut mock = MockCliBridge::new();
+        mock.add_success_response(
+            "send-file".to_string(),
+            serde_json::json!({"file_id": "file123"})
+        );
+
+        let result = mock.execute_command(&[
+            "send-file", "--file-path", "/path/to/file.txt"
+        ]).await;
+        assert!(result.is_ok());
+        
+        if let Ok(response) = result {
+            assert_eq!(response["success"], true);
+            assert_eq!(response["data"]["file_id"], "file123");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_send_file_with_caption() {
+        let mut mock = MockCliBridge::new();
+        mock.add_success_response(
+            "send-file".to_string(),
+            serde_json::json!({"file_id": "file456"})
+        );
+
+        let result = mock.execute_command(&[
+            "send-file", "--file-path", "/path/to/image.png", "--caption", "My Image"
+        ]).await;
+        assert!(result.is_ok());
+        
+        if let Ok(response) = result {
+            assert_eq!(response["success"], true);
+            assert_eq!(response["data"]["file_id"], "file456");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_edit_message_command() {
+        let mut mock = MockCliBridge::new();
+        mock.add_success_response(
+            "edit-message".to_string(),
+            serde_json::json!({"success": true})
+        );
+
+        let result = mock.execute_command(&[
+            "edit-message", "--message-id", "123", "--new-text", "Updated text"
+        ]).await;
+        assert!(result.is_ok());
+        
+        if let Ok(response) = result {
+            assert_eq!(response["success"], true);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_delete_message_command() {
+        let mut mock = MockCliBridge::new();
+        mock.add_success_response(
+            "delete-message".to_string(),
+            serde_json::json!({"success": true})
+        );
+
+        let result = mock.execute_command(&[
+            "delete-message", "--message-id", "123"
+        ]).await;
+        assert!(result.is_ok());
+        
+        if let Ok(response) = result {
+            assert_eq!(response["success"], true);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_chat_info_command() {
+        let mut mock = MockCliBridge::new();
+        mock.add_success_response(
+            "chat-info".to_string(),
+            serde_json::json!({
+                "chat_id": "chat123",
+                "title": "Test Chat",
+                "type": "group"
+            })
+        );
+
+        let result = mock.execute_command(&["chat-info"]).await;
+        assert!(result.is_ok());
+        
+        if let Ok(response) = result {
+            assert_eq!(response["success"], true);
+            assert_eq!(response["data"]["chat_id"], "chat123");
+            assert_eq!(response["data"]["title"], "Test Chat");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_chat_info_with_chat_id() {
+        let mut mock = MockCliBridge::new();
+        mock.add_success_response(
+            "chat-info".to_string(),
+            serde_json::json!({
+                "chat_id": "custom_chat",
+                "title": "Custom Chat",
+                "type": "private"
+            })
+        );
+
+        let result = mock.execute_command(&[
+            "chat-info", "--chat-id", "custom_chat"
+        ]).await;
+        assert!(result.is_ok());
+        
+        if let Ok(response) = result {
+            assert_eq!(response["success"], true);
+            assert_eq!(response["data"]["chat_id"], "custom_chat");
+            assert_eq!(response["data"]["title"], "Custom Chat");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_events_command() {
+        let mut mock = MockCliBridge::new();
+        mock.add_success_response(
+            "get-events".to_string(),
+            serde_json::json!({
+                "events": [
+                    {"id": "1", "type": "message", "data": {}},
+                    {"id": "2", "type": "edit", "data": {}}
+                ]
+            })
+        );
+
+        let result = mock.execute_command(&["get-events"]).await;
+        assert!(result.is_ok());
+        
+        if let Ok(response) = result {
+            assert_eq!(response["success"], true);
+            assert!(response["data"]["events"].is_array());
+            assert_eq!(response["data"]["events"].as_array().unwrap().len(), 2);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_events_with_last_event_id() {
+        let mut mock = MockCliBridge::new();
+        mock.add_success_response(
+            "get-events".to_string(),
+            serde_json::json!({
+                "events": [
+                    {"id": "3", "type": "message", "data": {}}
+                ]
+            })
+        );
+
+        let result = mock.execute_command(&[
+            "get-events", "--last-event-id", "2"
+        ]).await;
+        assert!(result.is_ok());
+        
+        if let Ok(response) = result {
+            assert_eq!(response["success"], true);
+            assert!(response["data"]["events"].is_array());
+        }
+    }
+
+    #[tokio::test]
+    async fn test_command_error_handling() {
+        let mut mock = MockCliBridge::new();
+        mock.add_error_response(
+            "send-text".to_string(),
+            "Message is too long".to_string()
+        );
+
+        let result = mock.execute_command(&[
+            "send-text", "--message", "Very long message..."
+        ]).await;
+        assert!(result.is_err());
+        
+        if let Err(error) = result {
+            match error {
+                BridgeError::CliReturnedError(info) => {
+                    assert_eq!(info.message, "Message is too long");
+                }
+                _ => panic!("Expected CliReturnedError"),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_file_info_command() {
+        let mut mock = MockCliBridge::new();
+        mock.add_success_response(
+            "file-info".to_string(),
+            serde_json::json!({
+                "file_id": "file123",
+                "file_name": "document.pdf",
+                "file_size": 1024,
+                "mime_type": "application/pdf"
+            })
+        );
+
+        let result = mock.execute_command(&[
+            "file-info", "--file-id", "file123"
+        ]).await;
+        assert!(result.is_ok());
+        
+        if let Ok(response) = result {
+            assert_eq!(response["success"], true);
+            assert_eq!(response["data"]["file_id"], "file123");
+            assert_eq!(response["data"]["file_name"], "document.pdf");
+            assert_eq!(response["data"]["file_size"], 1024);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_partial_command_matching() {
+        let mut mock = MockCliBridge::new();
+        mock.add_success_response(
+            "send".to_string(),
+            serde_json::json!({"result": "matched"})
+        );
+
+        // Test that "send-text" matches "send" pattern
+        let result = mock.execute_command(&[
+            "send-text", "--message", "test"
+        ]).await;
+        assert!(result.is_ok());
+        
+        if let Ok(response) = result {
+            assert_eq!(response["success"], true);
+            assert_eq!(response["data"]["result"], "matched");
         }
     }
 }

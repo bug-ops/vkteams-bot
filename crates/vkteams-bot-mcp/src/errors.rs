@@ -13,7 +13,7 @@ pub struct CliErrorInfo {
 }
 
 /// Errors that can occur when executing CLI commands  
-#[derive(Debug, Error)]
+#[derive(Debug, Error, Clone)]
 pub enum BridgeError {
     #[error("CLI execution failed: {0}")]
     CliError(String),
@@ -22,13 +22,13 @@ pub enum BridgeError {
     CliNotFound(String),
     
     #[error("Invalid JSON response from CLI: {0}")]
-    InvalidResponse(#[from] serde_json::Error),
+    InvalidResponse(String),
     
     #[error("CLI returned error: {}", .0.message)]
     CliReturnedError(CliErrorInfo),
     
     #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
+    Io(String),
     
     #[error("Command timed out after {0:?}")]
     Timeout(Duration),
@@ -92,6 +92,19 @@ impl From<McpError> for Error {
             McpError::Bridge(e) => Error::internal_error(e.to_string(), None),
             McpError::Other(e) => Error::internal_error(e, None),
         }
+    }
+}
+
+// From implementations for BridgeError
+impl From<serde_json::Error> for BridgeError {
+    fn from(err: serde_json::Error) -> Self {
+        BridgeError::InvalidResponse(err.to_string())
+    }
+}
+
+impl From<std::io::Error> for BridgeError {
+    fn from(err: std::io::Error) -> Self {
+        BridgeError::Io(err.to_string())
     }
 }
 

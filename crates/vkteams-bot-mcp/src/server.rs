@@ -625,12 +625,19 @@ impl Server {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bridge_trait::{CliBridgeTrait, MockCliBridge};
+    use crate::errors::CliErrorInfo;
+    use std::time::Duration;
 
     #[test]
     fn test_convert_bridge_result_success() {
         let json_val = serde_json::json!({"success": true, "data": "test"});
         let result = convert_bridge_result(Ok(json_val));
         assert!(result.is_ok());
+        
+        if let Ok(call_result) = result {
+            assert!(!call_result.content.is_empty());
+        }
     }
 
     #[test]
@@ -638,5 +645,206 @@ mod tests {
         let error = BridgeError::CliError("test error".to_string());
         let result = convert_bridge_result(Err(error));
         assert!(result.is_err());
+        
+        if let Err(error_data) = result {
+            assert_eq!(error_data.code.0, -500);
+            assert!(error_data.message.contains("test error"));
+        }
+    }
+
+    #[test]
+    fn test_convert_bridge_result_rate_limit() {
+        let error = BridgeError::RateLimit("too many requests".to_string());
+        let result = convert_bridge_result(Err(error));
+        assert!(result.is_err());
+        
+        if let Err(error_data) = result {
+            assert_eq!(error_data.code.0, -429);
+            assert!(error_data.message.contains("Rate limit exceeded"));
+        }
+    }
+
+    #[test]
+    fn test_convert_bridge_result_timeout() {
+        let error = BridgeError::Timeout(Duration::from_secs(30));
+        let result = convert_bridge_result(Err(error));
+        assert!(result.is_err());
+        
+        if let Err(error_data) = result {
+            assert_eq!(error_data.code.0, -504);
+            assert!(error_data.message.contains("timed out"));
+        }
+    }
+
+    #[test]
+    fn test_convert_bridge_result_cli_returned_error() {
+        let cli_error = CliErrorInfo {
+            code: Some("NOT_FOUND".to_string()),
+            message: "Resource not found".to_string(),
+            details: Some(serde_json::json!({"resource_id": "123"})),
+        };
+        let error = BridgeError::CliReturnedError(cli_error);
+        let result = convert_bridge_result(Err(error));
+        assert!(result.is_err());
+        
+        if let Err(error_data) = result {
+            assert_eq!(error_data.code.0, -404);
+            assert!(error_data.message.contains("Resource not found"));
+            assert!(error_data.data.is_some());
+        }
+    }
+
+    #[test]
+    fn test_convert_bridge_result_cli_not_found() {
+        let error = BridgeError::CliNotFound("/path/to/cli".to_string());
+        let result = convert_bridge_result(Err(error));
+        assert!(result.is_err());
+        
+        if let Err(error_data) = result {
+            assert_eq!(error_data.code.0, -503);
+            assert!(error_data.message.contains("Service unavailable"));
+        }
+    }
+
+    #[test]
+    fn test_convert_bridge_result_invalid_response() {
+        let error = BridgeError::InvalidResponse("malformed json".to_string());
+        let result = convert_bridge_result(Err(error));
+        assert!(result.is_err());
+        
+        if let Err(error_data) = result {
+            assert_eq!(error_data.code.0, -502);
+            assert!(error_data.message.contains("Invalid response"));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_mock_cli_bridge_basic() {
+        let mut mock = MockCliBridge::new();
+        mock.add_success_response(
+            "self-get".to_string(),
+            serde_json::json!({"userId": "123", "firstName": "Bot"})
+        );
+
+        let result = mock.execute_command(&["self-get"]).await;
+        assert!(result.is_ok());
+        
+        if let Ok(response) = result {
+            assert_eq!(response["success"], true);
+            assert_eq!(response["data"]["userId"], "123");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_mock_cli_bridge_error() {
+        let mut mock = MockCliBridge::new();
+        mock.add_error_response(
+            "send-text".to_string(),
+            "Message too long".to_string()
+        );
+
+        let result = mock.execute_command(&["send-text", "very long message..."]).await;
+        assert!(result.is_err());
+        
+        if let Err(BridgeError::CliReturnedError(info)) = result {
+            assert_eq!(info.message, "Message too long");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_mock_cli_bridge_partial_match() {
+        let mut mock = MockCliBridge::new();
+        mock.add_success_response(
+            "chat-info".to_string(),
+            serde_json::json!({"chatId": "chat123", "title": "Test Chat"})
+        );
+
+        let result = mock.execute_command(&["chat-info", "--chat-id", "chat123"]).await;
+        assert!(result.is_ok());
+        
+        if let Ok(response) = result {
+            assert_eq!(response["success"], true);
+            assert_eq!(response["data"]["chatId"], "chat123");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_mock_cli_bridge_default_response() {
+        let mock = MockCliBridge::new();
+        let result = mock.execute_command(&["unknown-command"]).await;
+        assert!(result.is_ok());
+        
+        if let Ok(response) = result {
+            assert_eq!(response["success"], true);
+            assert_eq!(response["command"], "unknown-command");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_mock_health_check() {
+        let mut mock = MockCliBridge::new();
+        mock.add_success_response(
+            "--version".to_string(),
+            serde_json::json!({"version": "1.0.0"})
+        );
+
+        let result = mock.health_check().await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_mock_daemon_status() {
+        let mut mock = MockCliBridge::new();
+        mock.add_success_response(
+            "daemon status".to_string(),
+            serde_json::json!({"status": "running", "uptime": 3600})
+        );
+
+        let result = mock.get_daemon_status().await;
+        assert!(result.is_ok());
+        
+        if let Ok(response) = result {
+            assert_eq!(response["success"], true);
+            assert_eq!(response["data"]["status"], "running");
+        }
+    }
+
+    #[test]
+    fn test_cli_error_info_creation() {
+        let info = CliErrorInfo {
+            code: Some("INVALID_INPUT".to_string()),
+            message: "Invalid parameter".to_string(),
+            details: Some(serde_json::json!({"field": "message_id"})),
+        };
+        
+        assert_eq!(info.code.as_ref(), Some(&"INVALID_INPUT".to_string()));
+        assert_eq!(info.message, "Invalid parameter");
+        assert!(info.details.is_some());
+    }
+
+    #[test]
+    fn test_error_code_mapping() {
+        let test_cases = vec![
+            ("NOT_FOUND", -404),
+            ("UNAUTHORIZED", -401), 
+            ("FORBIDDEN", -403),
+            ("INVALID_INPUT", -400),
+            ("RATE_LIMIT", -429),
+            ("UNKNOWN", -500),
+        ];
+
+        for (code, expected_code) in test_cases {
+            let cli_error = CliErrorInfo {
+                code: Some(code.to_string()),
+                message: "test".to_string(),
+                details: None,
+            };
+            let error = BridgeError::CliReturnedError(cli_error);
+            let result = convert_bridge_result(Err(error));
+            
+            if let Err(error_data) = result {
+                assert_eq!(error_data.code.0, expected_code, "Failed for code: {}", code);
+            }
+        }
     }
 }

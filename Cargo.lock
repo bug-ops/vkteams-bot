@@ -4587,6 +4587,7 @@ dependencies = [
 name = "vkteams-bot-mcp"
 version = "0.3.0"
 dependencies = [
+ "async-trait",
  "base64 0.22.1",
  "once_cell",
  "regex",

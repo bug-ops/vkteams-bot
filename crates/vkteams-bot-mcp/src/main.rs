@@ -1,3 +1,4 @@
+pub mod bridge_trait;
 pub mod cli_bridge;
 pub mod cli_commands;
 pub mod errors;

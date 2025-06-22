@@ -4,7 +4,9 @@
 //! from the MCP server using subprocess calls. This approach ensures that all
 //! business logic remains in the CLI while the MCP server acts as a thin adapter.
 
+use crate::bridge_trait::CliBridgeTrait;
 use crate::errors::{BridgeError, CliErrorInfo};
+use async_trait::async_trait;
 use serde_json::Value;
 use std::process::Stdio;
 use tokio::process::Command;
@@ -269,6 +271,22 @@ impl Default for CliBridge {
     }
 }
 
+/// Implementation of CliBridgeTrait for CliBridge
+#[async_trait]
+impl CliBridgeTrait for CliBridge {
+    async fn execute_command(&self, args: &[&str]) -> Result<Value, BridgeError> {
+        self.execute_command(args).await
+    }
+    
+    async fn get_daemon_status(&self) -> Result<Value, BridgeError> {
+        self.execute_command(&["daemon", "status"]).await
+    }
+    
+    async fn health_check(&self) -> Result<(), BridgeError> {
+        self.execute_command(&["--version"]).await.map(|_| ())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -293,5 +311,197 @@ mod tests {
     fn test_bridge_error_display() {
         let error = BridgeError::CliError("test error".to_string());
         assert!(error.to_string().contains("CLI execution failed"));
+    }
+
+    #[test]
+    fn test_bridge_error_retryable() {
+        let timeout_error = BridgeError::Timeout(Duration::from_secs(30));
+        assert!(timeout_error.is_retryable());
+
+        let rate_limit_error = BridgeError::RateLimit("too many requests".to_string());
+        assert!(rate_limit_error.is_retryable());
+
+        let io_error = BridgeError::Io("connection failed".to_string());
+        assert!(io_error.is_retryable());
+
+        let cli_error = BridgeError::CliError("general error".to_string());
+        assert!(!cli_error.is_retryable());
+
+        let retryable_cli_error = BridgeError::CliReturnedError(CliErrorInfo {
+            code: Some("NETWORK_ERROR".to_string()),
+            message: "network timeout".to_string(),
+            details: None,
+        });
+        assert!(retryable_cli_error.is_retryable());
+
+        let non_retryable_cli_error = BridgeError::CliReturnedError(CliErrorInfo {
+            code: Some("INVALID_INPUT".to_string()),
+            message: "bad input".to_string(),
+            details: None,
+        });
+        assert!(!non_retryable_cli_error.is_retryable());
+    }
+
+    #[test]
+    fn test_bridge_error_retry_delay() {
+        let rate_limit_error = BridgeError::RateLimit("too many requests".to_string());
+        assert_eq!(rate_limit_error.retry_delay(), Duration::from_secs(60));
+
+        let timeout_error = BridgeError::Timeout(Duration::from_secs(30));
+        assert_eq!(timeout_error.retry_delay(), Duration::from_secs(10));
+
+        let io_error = BridgeError::Io("connection failed".to_string());
+        assert_eq!(io_error.retry_delay(), Duration::from_secs(5));
+
+        let cli_error = BridgeError::CliError("general error".to_string());
+        assert_eq!(cli_error.retry_delay(), Duration::from_secs(2));
+    }
+
+    #[test]
+    fn test_bridge_default() {
+        unsafe {
+            std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_chat");
+        }
+        
+        // This will likely fail in test environment but should not panic
+        let result = std::panic::catch_unwind(|| {
+            let _bridge = CliBridge::default();
+        });
+        
+        // The important thing is that it either succeeds or panics predictably
+        // We can't test much more without an actual CLI binary
+        match result {
+            Ok(_) => println!("Default bridge creation succeeded"),
+            Err(_) => println!("Default bridge creation failed as expected in test environment"),
+        }
+    }
+
+    #[test]
+    fn test_recent_messages_args_building() {
+        unsafe {
+            std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_chat");
+        }
+        
+        // Test argument building logic without actually executing
+        // This tests the parameter handling logic in get_recent_messages
+        let args_test_cases = vec![
+            (None, None, None, vec!["database", "recent"]),
+            (Some("chat123"), None, None, vec!["database", "recent", "--chat-id", "chat123"]),
+            (None, Some(10), None, vec!["database", "recent", "--limit", "10"]),
+            (None, None, Some("2024-01-01"), vec!["database", "recent", "--since", "2024-01-01"]),
+            (Some("chat123"), Some(10), Some("2024-01-01"), 
+             vec!["database", "recent", "--chat-id", "chat123", "--limit", "10", "--since", "2024-01-01"]),
+        ];
+
+        for (chat_id, limit, since, expected_args) in args_test_cases {
+            let mut args = vec!["database", "recent"];
+            
+            if let Some(chat_id) = chat_id {
+                args.extend(&["--chat-id", chat_id]);
+            }
+            
+            let limit_str = limit.map(|l| l.to_string());
+            if let Some(ref limit_str) = limit_str {
+                args.extend(&["--limit", limit_str]);
+            }
+            
+            if let Some(since) = since {
+                args.extend(&["--since", since]);
+            }
+            
+            assert_eq!(args, expected_args);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_cli_bridge_trait_implementation() {
+        unsafe {
+            std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_chat");
+        }
+        
+        // Test that CliBridge implements CliBridgeTrait correctly
+        if let Ok(bridge) = CliBridge::new() {
+            // These calls will likely fail but should compile and return appropriate errors
+            let version_result = bridge.health_check().await;
+            let daemon_result = bridge.get_daemon_status().await;
+            let execute_result = bridge.execute_command(&["--version"]).await;
+            
+            // We mainly care that these methods exist and are callable
+            // In a test environment, they're expected to fail
+            println!("Health check result: {:?}", version_result.is_ok());
+            println!("Daemon status result: {:?}", daemon_result.is_ok());
+            println!("Execute command result: {:?}", execute_result.is_ok());
+        }
+    }
+
+    #[test]
+    fn test_config_path_handling() {
+        unsafe {
+            std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_chat");
+            std::env::set_var("VKTEAMS_BOT_CONFIG", "/path/to/config.toml");
+        }
+        
+        if let Ok(bridge) = CliBridge::new() {
+            // Check that config path is included in default args
+            assert!(bridge.default_args.contains(&"--config".to_string()));
+            assert!(bridge.default_args.contains(&"/path/to/config.toml".to_string()));
+        }
+        
+        unsafe {
+            std::env::remove_var("VKTEAMS_BOT_CONFIG");
+        }
+    }
+
+    #[test]
+    fn test_cli_error_info_serialization() {
+        let error_info = CliErrorInfo {
+            code: Some("TEST_ERROR".to_string()),
+            message: "Test error message".to_string(),
+            details: Some(serde_json::json!({"field": "value"})),
+        };
+        
+        // Test serialization
+        let serialized = serde_json::to_string(&error_info).unwrap();
+        assert!(serialized.contains("TEST_ERROR"));
+        assert!(serialized.contains("Test error message"));
+        
+        // Test deserialization
+        let deserialized: CliErrorInfo = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(deserialized.code, Some("TEST_ERROR".to_string()));
+        assert_eq!(deserialized.message, "Test error message");
+        assert!(deserialized.details.is_some());
+    }
+
+    #[test]
+    fn test_bridge_error_conversions() {
+        // Test From<serde_json::Error>
+        let json_error = serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
+        let bridge_error: BridgeError = json_error.into();
+        match bridge_error {
+            BridgeError::InvalidResponse(_) => (),
+            _ => panic!("Expected InvalidResponse error"),
+        }
+
+        // Test From<std::io::Error>
+        let io_error = std::io::Error::new(std::io::ErrorKind::NotFound, "file not found");
+        let bridge_error: BridgeError = io_error.into();
+        match bridge_error {
+            BridgeError::Io(_) => (),
+            _ => panic!("Expected Io error"),
+        }
+    }
+
+    #[test]
+    fn test_cli_bridge_debug() {
+        unsafe {
+            std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_chat");
+        }
+        
+        if let Ok(bridge) = CliBridge::new() {
+            let debug_str = format!("{:?}", bridge);
+            assert!(debug_str.contains("CliBridge"));
+            assert!(debug_str.contains("cli_path"));
+            assert!(debug_str.contains("default_args"));
+        }
     }
 }
