@@ -1,34 +1,31 @@
-use std::path::Path;
 use base64::{Engine as _, engine::general_purpose};
 use serde_json::json;
-use vkteams_bot::{Bot, config::UnifiedConfig};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("📁 Advanced File Operations Example");
+    println!("This example shows MCP server file operation patterns");
     
-    let config = UnifiedConfig::from_file(".config/shared-config.toml")?;
-    let bot = Bot::from_config(&config.api)?;
+    // Note: MCP server uses CLI commands for actual operations
+    // This demonstrates the patterns and data structures
     
-    let test_chat = "your_test_chat_id"; // Replace with actual chat ID
+    // 1. JSON data preparation
+    demonstrate_json_preparation().await?;
     
-    // 1. Upload JSON data as formatted file
-    demonstrate_json_upload(&bot, test_chat).await?;
+    // 2. Base64 encoding demonstration
+    demonstrate_base64_encoding().await?;
     
-    // 2. Upload base64 encoded content
-    demonstrate_base64_upload(&bot, test_chat).await?;
+    // 3. File operation patterns
+    demonstrate_file_patterns().await?;
     
-    // 3. Batch file upload
-    demonstrate_batch_upload(&bot, test_chat).await?;
-    
-    // 4. Create and upload text file on the fly
-    demonstrate_text_file_creation(&bot, test_chat).await?;
+    // 4. MCP tool examples
+    demonstrate_mcp_tools().await?;
     
     Ok(())
 }
 
-async fn demonstrate_json_upload(bot: &Bot, chat_id: &str) -> Result<(), Box<dyn std::error::Error>> {
-    println!("\n📊 JSON File Upload:");
+async fn demonstrate_json_preparation() -> Result<(), Box<dyn std::error::Error>> {
+    println!("\n📊 JSON Data Preparation:");
     
     let analytics_data = json!({
         "report": "Monthly Team Analytics",
@@ -49,38 +46,28 @@ async fn demonstrate_json_upload(bot: &Bot, chat_id: &str) -> Result<(), Box<dyn
     
     // Create formatted JSON content
     let json_content = serde_json::to_string_pretty(&analytics_data)?;
+    println!("✅ Generated JSON content ({} bytes)", json_content.len());
     
-    // Save to temporary file and upload
-    let temp_path = "/tmp/analytics_report.json";
-    tokio::fs::write(temp_path, json_content).await?;
-    
-    let response = bot.send_file(
-        chat_id,
-        temp_path,
-        Some("📊 Monthly Analytics Report - January 2024")
-    ).await?;
-    
-    println!("✅ JSON report uploaded: {:?}", response.file_id);
-    
-    // Clean up
-    tokio::fs::remove_file(temp_path).await.ok();
+    // This would be sent via MCP tool call:
+    // vkteams-bot-cli files upload-json -c chat_id -f report.json --data '{json_content}'
+    println!("🔧 MCP command: upload_json_file");
     
     Ok(())
 }
 
-async fn demonstrate_base64_upload(bot: &Bot, chat_id: &str) -> Result<(), Box<dyn std::error::Error>> {
-    println!("\n🖼️  Base64 Image Upload:");
+async fn demonstrate_base64_encoding() -> Result<(), Box<dyn std::error::Error>> {
+    println!("\n🖼️  Base64 Encoding:");
     
     // Create a simple SVG chart as example
     let svg_content = r#"<svg width="400" height="200" xmlns="http://www.w3.org/2000/svg">
-        <rect width="400" height="200" fill="#f0f0f0"/>
-        <text x="200" y="30" text-anchor="middle" font-family="Arial" font-size="16" fill="#333">
+        <rect width="400" height="200" fill="lightgray"/>
+        <text x="200" y="30" text-anchor="middle" font-family="Arial" font-size="16" fill="black">
             Team Activity Chart
         </text>
-        <rect x="50" y="60" width="40" height="100" fill="#4CAF50"/>
-        <rect x="120" y="80" width="40" height="80" fill="#2196F3"/>
-        <rect x="190" y="70" width="40" height="90" fill="#FF9800"/>
-        <rect x="260" y="50" width="40" height="110" fill="#9C27B0"/>
+        <rect x="50" y="60" width="40" height="100" fill="green"/>
+        <rect x="120" y="80" width="40" height="80" fill="blue"/>
+        <rect x="190" y="70" width="40" height="90" fill="orange"/>
+        <rect x="260" y="50" width="40" height="110" fill="purple"/>
         <text x="70" y="180" text-anchor="middle" font-size="12">Week 1</text>
         <text x="140" y="180" text-anchor="middle" font-size="12">Week 2</text>
         <text x="210" y="180" text-anchor="middle" font-size="12">Week 3</text>
@@ -89,96 +76,116 @@ async fn demonstrate_base64_upload(bot: &Bot, chat_id: &str) -> Result<(), Box<d
     
     // Encode to base64
     let base64_content = general_purpose::STANDARD.encode(svg_content.as_bytes());
+    println!("✅ Generated base64 content ({} chars)", base64_content.len());
     
-    // Save base64 content to file and upload
-    let temp_path = "/tmp/activity_chart.svg";
-    tokio::fs::write(temp_path, svg_content).await?;
-    
-    let response = bot.send_file(
-        chat_id,
-        temp_path,
-        Some("📈 Team Activity Visualization")
-    ).await?;
-    
-    println!("✅ SVG chart uploaded: {:?}", response.file_id);
-    println!("   Base64 size: {} chars", base64_content.len());
-    
-    // Clean up
-    tokio::fs::remove_file(temp_path).await.ok();
+    // This would be sent via MCP tool call:
+    // vkteams-bot-cli files upload-base64 -c chat_id -f chart.svg --data '{base64_content}'
+    println!("🔧 MCP command: upload_base64_file");
     
     Ok(())
 }
 
-async fn demonstrate_batch_upload(bot: &Bot, chat_id: &str) -> Result<(), Box<dyn std::error::Error>> {
-    println!("\n📦 Batch File Upload:");
+async fn demonstrate_file_patterns() -> Result<(), Box<dyn std::error::Error>> {
+    println!("\n📦 File Operation Patterns:");
     
-    // Create multiple temporary files
-    let files = vec![
-        ("/tmp/report1.txt", "Team Meeting Notes - January 15\n\n- Discussed Q1 goals\n- Assigned tasks\n- Next meeting: Jan 22"),
-        ("/tmp/report2.txt", "Sprint Retrospective\n\n- What went well: Good collaboration\n- What to improve: Code review speed\n- Action items: Update process docs"),
-        ("/tmp/report3.txt", "Technical Debt Analysis\n\n- Identified 15 critical issues\n- Estimated 40 hours of work\n- Priority: Database optimization"),
+    // Show different file operation patterns that MCP server handles
+    let file_patterns = vec![
+        ("Single file upload", "vkteams-bot-cli send-file -c chat_id -p /path/to/file.pdf"),
+        ("Batch upload", "vkteams-bot-cli files batch-upload -c chat_id -d /path/to/directory"),
+        ("JSON upload", "vkteams-bot-cli files upload-json -c chat_id -f data.json --pretty"),
+        ("Base64 upload", "vkteams-bot-cli files upload-base64 -c chat_id -f image.png --data 'base64...'"),
+        ("Text file creation", "vkteams-bot-cli files create-text -c chat_id -f report.txt --content 'Report content'"),
     ];
     
-    // Create files
-    for (path, content) in &files {
-        tokio::fs::write(path, content).await?;
+    for (desc, cmd) in file_patterns {
+        println!("📄 {}: {}", desc, cmd);
     }
     
-    // Upload each file
-    for (i, (path, _)) in files.iter().enumerate() {
-        let filename = Path::new(path).file_name().unwrap().to_str().unwrap();
-        
-        let response = bot.send_file(
-            chat_id,
-            path,
-            Some(&format!("📄 Document {}/{}: {}", i + 1, files.len(), filename))
-        ).await?;
-        
-        println!("✅ Uploaded {}: {:?}", filename, response.file_id);
-        
-        // Clean up
-        tokio::fs::remove_file(path).await.ok();
-    }
+    println!("\n💡 MCP server translates AI requests to these CLI commands automatically");
     
     Ok(())
 }
 
-async fn demonstrate_text_file_creation(bot: &Bot, chat_id: &str) -> Result<(), Box<dyn std::error::Error>> {
-    println!("\n📝 Dynamic Text File Creation:");
+async fn demonstrate_mcp_tools() -> Result<(), Box<dyn std::error::Error>> {
+    println!("\n🤖 MCP Tool Definitions:");
     
-    // Generate system status report
-    let system_status = format!(
-        "VK Teams Bot System Status Report\n\
-         Generated: {}\n\n\
-         🚀 Bot Status: Operational\n\
-         💾 Storage: Connected\n\
-         🤖 MCP Server: Active\n\
-         📊 Messages Processed: 1,247\n\
-         🔍 Searches Performed: 89\n\
-         📁 Files Handled: 23\n\n\
-         Recent Activities:\n\
-         - Semantic search implemented ✅\n\
-         - Vector database optimized ✅\n\
-         - MCP integration completed ✅\n\
-         - File operations enhanced ✅\n\n\
-         System Health: EXCELLENT 💚",
-        chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC")
-    );
+    // Show the MCP tool definitions that the server provides
+    let mcp_tools = json!({
+        "tools": [
+            {
+                "name": "send_file",
+                "description": "Upload and send a file to a VK Teams chat",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "chatId": {"type": "string"},
+                        "filePath": {"type": "string"},
+                        "caption": {"type": "string"}
+                    },
+                    "required": ["chatId", "filePath"]
+                }
+            },
+            {
+                "name": "upload_json",
+                "description": "Create and upload a JSON file with formatted data",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "chatId": {"type": "string"},
+                        "filename": {"type": "string"},
+                        "data": {"type": "object"},
+                        "pretty": {"type": "boolean", "default": true}
+                    },
+                    "required": ["chatId", "filename", "data"]
+                }
+            },
+            {
+                "name": "upload_base64",
+                "description": "Upload base64 encoded content as a file",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "chatId": {"type": "string"},
+                        "filename": {"type": "string"},
+                        "base64Data": {"type": "string"},
+                        "caption": {"type": "string"}
+                    },
+                    "required": ["chatId", "filename", "base64Data"]
+                }
+            },
+            {
+                "name": "batch_upload",
+                "description": "Upload multiple files from a directory",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "chatId": {"type": "string"},
+                        "directoryPath": {"type": "string"},
+                        "filePattern": {"type": "string", "default": "*"}
+                    },
+                    "required": ["chatId", "directoryPath"]
+                }
+            }
+        ]
+    });
     
-    // Save and upload
-    let temp_path = "/tmp/system_status.txt";
-    tokio::fs::write(temp_path, system_status).await?;
+    println!("✅ Available MCP file tools:");
+    if let Some(tools) = mcp_tools["tools"].as_array() {
+        for tool in tools {
+            if let Some(name) = tool["name"].as_str() {
+                if let Some(desc) = tool["description"].as_str() {
+                    println!("  • {}: {}", name, desc);
+                }
+            }
+        }
+    }
     
-    let response = bot.send_file(
-        chat_id,
-        temp_path,
-        Some("🔧 System Status Report - Auto-generated")
-    ).await?;
-    
-    println!("✅ System status report uploaded: {:?}", response.file_id);
-    
-    // Clean up
-    tokio::fs::remove_file(temp_path).await.ok();
+    println!("\n🔄 Example AI interaction:");
+    println!("  User: \"Upload this analytics data as a JSON file to the team chat\"");
+    println!("  AI: calls upload_json tool");
+    println!("  MCP: translates to vkteams-bot-cli files upload-json ...");
+    println!("  CLI: executes and returns result");
+    println!("  AI: \"✅ Analytics data uploaded successfully!\"");
     
     Ok(())
 }

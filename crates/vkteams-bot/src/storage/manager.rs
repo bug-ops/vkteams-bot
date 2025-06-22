@@ -1,18 +1,20 @@
 //! Storage manager that coordinates all storage backends
 
 use crate::api::types::EventMessage;
-use crate::storage::{StorageConfig, StorageResult, StorageError};
+use crate::storage::{StorageConfig, StorageError, StorageResult};
 use chrono::{DateTime, Utc};
 use serde_json::Value;
 use std::sync::Arc;
 
 #[cfg(feature = "storage")]
-use crate::storage::simple::SimpleRelationalStore;
-#[cfg(feature = "storage")]
 use crate::storage::models::*;
+#[cfg(feature = "storage")]
+use crate::storage::simple::SimpleRelationalStore;
 
 #[cfg(feature = "vector-search")]
-use crate::storage::vector::{VectorStore, VectorDocument, SearchQuery, SearchResult, create_vector_store};
+use crate::storage::vector::{
+    SearchQuery, SearchResult, VectorDocument, VectorStore, create_vector_store,
+};
 
 #[cfg(feature = "ai-embeddings")]
 use crate::storage::embedding::EmbeddingClient;
@@ -21,13 +23,13 @@ use crate::storage::embedding::EmbeddingClient;
 pub struct StorageManager {
     #[cfg(feature = "storage")]
     relational: Arc<SimpleRelationalStore>,
-    
+
     #[cfg(feature = "vector-search")]
     vector: Option<Arc<Box<dyn VectorStore>>>,
-    
+
     #[cfg(feature = "ai-embeddings")]
     embedding: Option<Arc<Box<dyn EmbeddingClient>>>,
-    
+
     config: Arc<StorageConfig>,
 }
 
@@ -55,7 +57,8 @@ impl StorageManager {
                     &vector_config.provider,
                     &vector_config.connection_url,
                     Some(vector_config.collection_name.clone()),
-                ).await?;
+                )
+                .await?;
                 Some(Arc::new(store))
             } else {
                 None
@@ -66,32 +69,37 @@ impl StorageManager {
         let embedding = {
             if let Some(embedding_config) = &config.embedding {
                 use crate::storage::embedding::EmbeddingProviderConfig;
-                
+
                 let provider_config = match embedding_config.provider.as_str() {
                     "openai" => {
-                        let api_key = std::env::var(&embedding_config.api_key_env)
-                            .map_err(|_| StorageError::Configuration(
-                                format!("Environment variable {} not found", embedding_config.api_key_env)
-                            ))?;
+                        let api_key =
+                            std::env::var(&embedding_config.api_key_env).map_err(|_| {
+                                StorageError::Configuration(format!(
+                                    "Environment variable {} not found",
+                                    embedding_config.api_key_env
+                                ))
+                            })?;
                         EmbeddingProviderConfig::OpenAI {
                             api_key,
                             model: embedding_config.model.clone(),
                         }
+                    }
+                    "ollama" => EmbeddingProviderConfig::Ollama {
+                        host: embedding_config.ollama_host.clone(),
+                        port: embedding_config.ollama_port,
+                        model: embedding_config.model.clone(),
+                        dimensions: embedding_config.custom_dimensions,
                     },
-                    "ollama" => {
-                        EmbeddingProviderConfig::Ollama {
-                            host: embedding_config.ollama_host.clone(),
-                            port: embedding_config.ollama_port,
-                            model: embedding_config.model.clone(),
-                            dimensions: embedding_config.custom_dimensions,
-                        }
-                    },
-                    _ => return Err(StorageError::Configuration(
-                        format!("Unknown embedding provider: {}", embedding_config.provider)
-                    ))
+                    _ => {
+                        return Err(StorageError::Configuration(format!(
+                            "Unknown embedding provider: {}",
+                            embedding_config.provider
+                        )));
+                    }
                 };
-                
-                let client = crate::storage::embedding::create_embedding_client(provider_config).await?;
+
+                let client =
+                    crate::storage::embedding::create_embedding_client(provider_config).await?;
                 Some(Arc::new(client))
             } else {
                 None
@@ -118,7 +126,11 @@ impl StorageManager {
     }
 
     /// Process event with vector embedding generation
-    #[cfg(all(feature = "storage", feature = "vector-search", feature = "ai-embeddings"))]
+    #[cfg(all(
+        feature = "storage",
+        feature = "vector-search",
+        feature = "ai-embeddings"
+    ))]
     pub async fn process_event_with_embeddings(&self, event: &EventMessage) -> StorageResult<i64> {
         // Store in relational database first
         let event_id = self.process_event(event).await?;
@@ -127,7 +139,9 @@ impl StorageManager {
         if let Some(text_content) = self.extract_text_content(event) {
             // Generate embedding if embedding client is available
             if let Some(embedding_client) = &self.embedding {
-                let embedding = embedding_client.generate_embedding(&text_content).await
+                let embedding = embedding_client
+                    .generate_embedding(&text_content)
+                    .await
                     .map_err(|e| StorageError::Embedding(e.to_string()))?;
 
                 // Store in vector database if vector store is available
@@ -156,25 +170,29 @@ impl StorageManager {
     #[cfg(feature = "storage")]
     pub async fn process_events_batch(&self, events: &[EventMessage]) -> StorageResult<Vec<i64>> {
         let mut event_ids = Vec::new();
-        
+
         for event in events {
             let event_id = self.process_event(event).await?;
             event_ids.push(event_id);
         }
-        
+
         // Generate embeddings in batch if enabled
         #[cfg(all(feature = "vector-search", feature = "ai-embeddings"))]
         {
             if let (Some(embedding_client), Some(vector_store)) = (&self.embedding, &self.vector) {
-                let texts: Vec<String> = events.iter()
+                let texts: Vec<String> = events
+                    .iter()
                     .filter_map(|e| self.extract_text_content(e))
                     .collect();
-                
+
                 if !texts.is_empty() {
-                    let embeddings = embedding_client.generate_embeddings(&texts).await
+                    let embeddings = embedding_client
+                        .generate_embeddings(&texts)
+                        .await
                         .map_err(|e| StorageError::Embedding(e.to_string()))?;
-                    
-                    let vector_docs: Vec<VectorDocument> = event_ids.iter()
+
+                    let vector_docs: Vec<VectorDocument> = event_ids
+                        .iter()
                         .zip(events.iter())
                         .zip(embeddings.into_iter())
                         .filter_map(|((event_id, event), embedding)| {
@@ -191,12 +209,12 @@ impl StorageManager {
                             })
                         })
                         .collect();
-                    
+
                     vector_store.store_documents(vector_docs).await?;
                 }
             }
         }
-        
+
         Ok(event_ids)
     }
 
@@ -211,7 +229,9 @@ impl StorageManager {
         match (&self.embedding, &self.vector) {
             (Some(embedding_client), Some(vector_store)) => {
                 // Generate embedding for query
-                let query_embedding = embedding_client.generate_embedding(query_text).await
+                let query_embedding = embedding_client
+                    .generate_embedding(query_text)
+                    .await
                     .map_err(|e| StorageError::Embedding(e.to_string()))?;
 
                 let mut metadata_filter = serde_json::json!({});
@@ -222,16 +242,22 @@ impl StorageManager {
                 let search_query = SearchQuery {
                     embedding: pgvector::Vector::from(query_embedding),
                     limit,
-                    score_threshold: Some(self.config.vector.as_ref()
-                        .map(|v| v.similarity_threshold)
-                        .unwrap_or(0.7)), 
+                    score_threshold: Some(
+                        self.config
+                            .vector
+                            .as_ref()
+                            .map(|v| v.similarity_threshold)
+                            .unwrap_or(0.7),
+                    ),
                     metadata_filter: Some(metadata_filter),
                     include_content: true,
                 };
 
                 vector_store.search_similar(search_query).await
             }
-            _ => Err(StorageError::Configuration("Vector search or embedding client not available".to_string()))
+            _ => Err(StorageError::Configuration(
+                "Vector search or embedding client not available".to_string(),
+            )),
         }
     }
 
@@ -243,7 +269,9 @@ impl StorageManager {
         _since: Option<DateTime<Utc>>,
         limit: i64,
     ) -> StorageResult<Vec<Event>> {
-        self.relational.get_recent_events(chat_id, None, limit).await
+        self.relational
+            .get_recent_events(chat_id, None, limit)
+            .await
     }
 
     /// Search messages using full-text search
@@ -308,7 +336,11 @@ impl StorageManager {
 
     /// Extract message data from event (private helper)
     #[allow(dead_code)]
-    fn extract_message_data(&self, _event: &EventMessage, _event_id: i64) -> StorageResult<Option<NewMessage>> {
+    fn extract_message_data(
+        &self,
+        _event: &EventMessage,
+        _event_id: i64,
+    ) -> StorageResult<Option<NewMessage>> {
         // Simplified implementation - returns None until API structures are properly defined
         Ok(None)
     }
@@ -333,7 +365,7 @@ impl std::fmt::Debug for StorageManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_extract_text_content() {
         // Mock storage manager

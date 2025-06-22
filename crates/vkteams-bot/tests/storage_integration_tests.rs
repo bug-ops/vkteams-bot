@@ -6,7 +6,7 @@ mod tests {
     use testcontainers::runners::AsyncRunner;
     use testcontainers_modules::postgres::Postgres;
     use vkteams_bot::storage::{
-        SearchQuery, StorageConfig, StorageManager, VectorDocument,
+        StorageConfig, StorageManager,
         config::{DatabaseConfig, StorageSettings},
     };
 

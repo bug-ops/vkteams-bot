@@ -1,64 +1,110 @@
-use std::time::Duration;
-use tokio::time::sleep;
-use vkteams_bot::{Bot, storage::StorageManager, config::UnifiedConfig};
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Load configuration from .config/shared-config.toml
-    let config = UnifiedConfig::from_file(".config/shared-config.toml")?;
+    println!("🚀 VK Teams Bot Storage & Semantic Search Example");
     
-    // Initialize bot and storage
-    let bot = Bot::from_config(&config.api)?;
-    let storage = StorageManager::from_config(&config.storage).await?;
+    // Note: This example demonstrates the storage concepts
+    // For actual usage, use the CLI tool: vkteams-bot-cli
     
-    println!("🚀 Starting VK Teams Bot with semantic search...");
+    demonstrate_storage_concepts().await?;
+    demonstrate_semantic_search().await?;
+    demonstrate_cli_usage().await?;
     
-    // Monitor and save events with semantic indexing
-    loop {
-        // Get new events
-        let events = bot.get_events().await?;
+    Ok(())
+}
+
+async fn demonstrate_storage_concepts() -> Result<(), Box<dyn std::error::Error>> {
+    println!("\n💾 Storage Infrastructure:");
+    
+    println!("📊 Available storage features:");
+    println!("  • PostgreSQL relational storage");
+    println!("  • pgvector extension for semantic search");
+    println!("  • Full-text search with GIN indexes");
+    println!("  • Automatic event processing and indexing");
+    println!("  • AI embedding generation (OpenAI/Ollama)");
+    
+    #[cfg(feature = "storage")]
+    {
+        println!("\n🔧 Storage features enabled");
+        println!("✅ Database operations available");
+        println!("✅ Event processing and storage");
+        println!("✅ Full-text search capabilities");
         
-        if !events.is_empty() {
-            println!("📥 Processing {} new events", events.len());
-            
-            // Save events to database with automatic embedding generation
-            storage.save_events(&events).await?;
-            
-            // Demonstrate semantic search
-            let search_queries = vec![
-                "project deadlines",
-                "meeting schedule", 
-                "technical issues",
-                "deployment status"
-            ];
-            
-            for query in search_queries {
-                println!("\n🔍 Searching for: '{}'", query);
-                
-                let results = storage.search_semantic(query, 5).await?;
-                
-                if results.is_empty() {
-                    println!("   No results found");
-                } else {
-                    for (i, message) in results.iter().enumerate() {
-                        println!(
-                            "   {}. {} (similarity: {:.3})\n      \"{}\"",
-                            i + 1,
-                            message.from_name.as_deref().unwrap_or("Unknown"),
-                            message.similarity_score.unwrap_or(0.0),
-                            message.text.chars().take(100).collect::<String>()
-                                + if message.text.len() > 100 { "..." } else { "" }
-                        );
-                    }
-                }
-            }
-        }
+        #[cfg(feature = "vector-search")]
+        println!("✅ Vector search with pgvector");
         
-        // Check storage statistics
-        let stats = storage.get_stats().await?;
-        println!("\n📊 Storage stats: {} events, {} messages stored", 
-                 stats.total_events, stats.total_messages);
-        
-        sleep(Duration::from_secs(10)).await;
+        #[cfg(feature = "ai-embeddings")]
+        println!("✅ AI embedding generation");
     }
+    
+    #[cfg(not(feature = "storage"))]
+    {
+        println!("⚠️  Storage features not enabled. Enable with --features storage-full");
+    }
+    
+    Ok(())
+}
+
+async fn demonstrate_semantic_search() -> Result<(), Box<dyn std::error::Error>> {
+    println!("\n🔍 Semantic Search Capabilities:");
+    
+    println!("🧠 AI-powered search features:");
+    println!("  • Semantic similarity using vector embeddings");
+    println!("  • Context-aware search results");
+    println!("  • Multi-language support");
+    println!("  • Relevance scoring");
+    
+    let search_examples = vec![
+        ("project deadlines", "Find discussions about project timelines"),
+        ("meeting schedule", "Locate scheduling conversations"),
+        ("technical issues", "Discover problem reports and solutions"),
+        ("deployment status", "Track deployment-related updates"),
+    ];
+    
+    for (query, description) in search_examples {
+        println!("  🔎 '{}': {}", query, description);
+    }
+    
+    println!("\n💡 Search combines:");
+    println!("  • Vector similarity (semantic meaning)");
+    println!("  • Full-text search (exact matches)");
+    println!("  • Metadata filtering (chat, date, user)");
+    
+    Ok(())
+}
+
+async fn demonstrate_cli_usage() -> Result<(), Box<dyn std::error::Error>> {
+    println!("\n🖥️  CLI Integration:");
+    
+    println!("📋 Storage CLI commands:");
+    let cli_commands = vec![
+        ("storage stats", "Show database statistics"),
+        ("storage search-text <query>", "Full-text search through messages"),
+        ("storage search-semantic <query>", "AI-powered semantic search"),
+        ("storage get-context -c <chat_id>", "Get conversation context"),
+        ("storage save-event <json>", "Store a VK Teams event"),
+    ];
+    
+    for (cmd, desc) in cli_commands {
+        println!("  $ vkteams-bot-cli {:<30} # {}", cmd, desc);
+    }
+    
+    println!("\n🔄 Event processing workflow:");
+    println!("  1. Bot receives VK Teams events");
+    println!("  2. Events stored in PostgreSQL");
+    println!("  3. Text content extracted and embedded");
+    println!("  4. Vector representations stored in pgvector");
+    println!("  5. Full-text indexes updated");
+    println!("  6. Ready for semantic and text search");
+    
+    println!("\n🚀 Example usage:");
+    println!("  # Start event monitoring and storage");
+    println!("  $ vkteams-bot-cli get-events --listen --save-to-storage");
+    println!();
+    println!("  # Search for specific topics");
+    println!("  $ vkteams-bot-cli storage search-semantic 'project planning'");
+    println!();
+    println!("  # Get conversation context for AI");
+    println!("  $ vkteams-bot-cli storage get-context -c team_chat --limit 50");
+    
+    Ok(())
 }
