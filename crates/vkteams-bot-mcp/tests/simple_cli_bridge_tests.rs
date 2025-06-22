@@ -58,7 +58,7 @@ impl MockCliBridge {
     
     pub fn mock_execute_command(&self, command: &[&str]) -> Result<serde_json::Value, MockBridgeError> {
         // Mock implementation that returns different responses based on command
-        match command.get(0) {
+        match command.first() {
             Some(&"--version") => Ok(serde_json::json!({
                 "success": true,
                 "version": "test-version"
@@ -86,7 +86,7 @@ impl MockCliBridge {
         limit: Option<usize>,
         since: Option<&str>,
     ) -> Result<serde_json::Value, MockBridgeError> {
-        let mut args = vec!["database", "recent"];
+        let args = vec!["database", "recent"];
         
         let mut _extra_args = Vec::new();
         if let Some(chat_id) = chat_id {

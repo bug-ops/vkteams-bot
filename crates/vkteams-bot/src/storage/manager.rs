@@ -128,7 +128,7 @@ impl StorageManager {
             user_id: self.extract_user_id(event),
             timestamp: self.extract_timestamp(event).unwrap_or_else(Utc::now),
             raw_payload: serde_json::to_value(event)
-                .map_err(|e| StorageError::Serialization(e))?,
+                .map_err(StorageError::Serialization)?,
             processed_data: None,
         };
 

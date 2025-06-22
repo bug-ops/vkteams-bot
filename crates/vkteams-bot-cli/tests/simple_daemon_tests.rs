@@ -229,12 +229,15 @@ fn test_processor_stats_structure() {
     let stats = processor.get_stats();
     
     // Verify all fields are present and have expected types
-    assert!(stats.events_processed >= 0);
-    assert!(stats.events_saved >= 0);
-    assert!(stats.events_failed >= 0);
-    assert!(stats.bytes_processed >= 0);
-    assert!(stats.uptime_seconds >= 0);
-    assert!(stats.events_per_second >= 0.0);
+    // Note: These are u64 types, so they're always >= 0
+    assert_eq!(stats.events_processed, 0); // Should start at 0
+    assert_eq!(stats.events_saved, 0);     // Should start at 0  
+    assert_eq!(stats.events_failed, 0);    // Should start at 0
+    assert_eq!(stats.bytes_processed, 0);  // Should start at 0
+    // uptime_seconds is i64 and should be >= 0 for valid timestamps
+    assert!(stats.uptime_seconds >= 0, "uptime should be non-negative");
+    // events_per_second is f64 and should be >= 0.0
+    assert!(stats.events_per_second >= 0.0, "events per second should be non-negative");
     
     // start_time should be a valid datetime
     assert!(stats.start_time <= chrono::Utc::now());
