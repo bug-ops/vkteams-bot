@@ -2,13 +2,15 @@
 //!
 //! This module contains all commands related to configuration management.
 
-use crate::commands::{Command, CommandExecutor, CommandResult};
+use crate::commands::{Command, CommandExecutor, CommandResult, OutputFormat};
 use crate::config::Config;
 use crate::constants::{help, ui::emoji};
 use crate::errors::prelude::{CliError, Result as CliResult};
+use crate::output::{CliResponse, OutputFormatter};
 use async_trait::async_trait;
 use clap::Subcommand;
 use colored::Colorize;
+use serde_json::json;
 use std::io::{self, Write};
 use vkteams_bot::prelude::*;
 
@@ -85,6 +87,33 @@ impl Command for ConfigCommands {
 
     fn validate(&self) -> CliResult<()> {
         // Configuration commands don't need pre-validation
+        Ok(())
+    }
+
+    /// New method for structured output support
+    async fn execute_with_output(&self, bot: &Bot, output_format: &OutputFormat) -> CliResult<()> {
+        let response = match self {
+            ConfigCommands::Setup => execute_setup_structured().await,
+            ConfigCommands::Examples => execute_examples_structured().await,
+            ConfigCommands::ListCommands => execute_list_commands_structured().await,
+            ConfigCommands::Validate => execute_validate_structured(bot).await,
+            ConfigCommands::Config { show, init, wizard } => {
+                execute_config_structured(*show, *init, *wizard).await
+            }
+            ConfigCommands::Completion {
+                shell,
+                output,
+                install,
+                all,
+            } => execute_completion_structured(*shell, output.as_deref(), *install, *all).await,
+        };
+
+        OutputFormatter::print(&response, output_format)?;
+
+        if !response.success {
+            return Err(CliError::UnexpectedError("Command failed".to_string()));
+        }
+
         Ok(())
     }
 }
@@ -720,6 +749,289 @@ async fn execute_config(show: bool, init: bool, wizard: bool) -> CliResult<()> {
     }
 
     Ok(())
+}
+
+// Structured output versions
+
+async fn execute_setup_structured() -> CliResponse<serde_json::Value> {
+    // Setup is interactive, return a message for structured output
+    CliResponse::success(
+        "setup",
+        json!({
+            "status": "interactive",
+            "message": "Setup wizard requires interactive terminal. Use regular execute mode.",
+            "help": "Run without --output-format flag for interactive setup"
+        }),
+    )
+}
+
+async fn execute_examples_structured() -> CliResponse<serde_json::Value> {
+    let examples = vec![
+        json!({
+            "category": "Messaging",
+            "examples": [
+                {
+                    "command": "vkteams-bot-cli send-text -u @user -m \"Hello!\"",
+                    "description": "Send text message to user"
+                },
+                {
+                    "command": "vkteams-bot-cli send-file -u chatId -p /path/to/file.pdf",
+                    "description": "Send file to chat"
+                }
+            ]
+        }),
+        json!({
+            "category": "Chat Management",
+            "examples": [
+                {
+                    "command": "vkteams-bot-cli get-chat-info -c chatId",
+                    "description": "Get chat information"
+                },
+                {
+                    "command": "vkteams-bot-cli set-chat-title -c chatId -t \"New Title\"",
+                    "description": "Set chat title"
+                }
+            ]
+        }),
+        json!({
+            "category": "Storage",
+            "examples": [
+                {
+                    "command": "vkteams-bot-cli storage database init",
+                    "description": "Initialize database with migrations"
+                },
+                {
+                    "command": "vkteams-bot-cli storage search semantic -q \"search query\"",
+                    "description": "Search using semantic similarity"
+                }
+            ]
+        }),
+    ];
+
+    CliResponse::success(
+        "examples",
+        json!({
+            "examples": examples,
+            "note": "Use --help with any command for detailed options"
+        }),
+    )
+}
+
+async fn execute_list_commands_structured() -> CliResponse<serde_json::Value> {
+    let commands = vec![
+        json!({
+            "category": "Messaging",
+            "commands": ["send-text", "send-file", "send-voice", "edit-message", "delete-message", "pin-message", "unpin-message"]
+        }),
+        json!({
+            "category": "Chat",
+            "commands": ["get-chat-info", "get-profile", "get-chat-members", "set-chat-title", "set-chat-about", "send-action"]
+        }),
+        json!({
+            "category": "Files",
+            "commands": ["upload", "download", "get-info"]
+        }),
+        json!({
+            "category": "Storage",
+            "commands": ["database", "search", "context"]
+        }),
+        json!({
+            "category": "Diagnostic",
+            "commands": ["get-self", "get-events", "get-file", "health-check", "network-test", "system-info", "rate-limit-test"]
+        }),
+        json!({
+            "category": "Config",
+            "commands": ["setup", "examples", "list-commands", "validate", "config", "completion"]
+        }),
+        json!({
+            "category": "Daemon",
+            "commands": ["start", "stop", "status", "restart", "logs"]
+        }),
+    ];
+
+    CliResponse::success(
+        "list-commands",
+        json!({
+            "command_categories": commands,
+            "total_categories": commands.len()
+        }),
+    )
+}
+
+async fn execute_validate_structured(bot: &Bot) -> CliResponse<serde_json::Value> {
+    let mut validation_results = Vec::new();
+    
+    // Test 1: Configuration file
+    let config_result = match Config::from_file() {
+        Ok(config) => {
+            let mut issues = Vec::new();
+            if config.api.token.is_none() {
+                issues.push("Missing API token");
+            }
+            if config.api.url.is_none() {
+                issues.push("Missing API URL");
+            }
+            
+            json!({
+                "test": "Configuration File",
+                "status": if issues.is_empty() { "pass" } else { "fail" },
+                "issues": issues
+            })
+        }
+        Err(e) => json!({
+            "test": "Configuration File",
+            "status": "fail",
+            "error": e.to_string()
+        }),
+    };
+    validation_results.push(config_result);
+
+    // Test 2: Bot connection
+    let connection_result = match bot.send_api_request(RequestSelfGet::new(())).await {
+        Ok(result) => json!({
+            "test": "Bot Connection",
+            "status": "pass",
+            "bot_info": {
+                "user_id": result.user_id,
+                "nickname": result.nick,
+                "first_name": result.first_name
+            }
+        }),
+        Err(e) => json!({
+            "test": "Bot Connection",
+            "status": "fail",
+            "error": e.to_string()
+        }),
+    };
+    validation_results.push(connection_result);
+
+    // Test 3: Environment variables
+    let env_vars = [
+        "VKTEAMS_BOT_API_TOKEN",
+        "VKTEAMS_BOT_API_URL",
+        "VKTEAMS_BOT_DOWNLOAD_DIR",
+    ];
+    let mut env_status = Vec::new();
+    for var in &env_vars {
+        env_status.push(json!({
+            "variable": var,
+            "set": std::env::var(var).is_ok()
+        }));
+    }
+    validation_results.push(json!({
+        "test": "Environment Variables",
+        "status": "info",
+        "variables": env_status
+    }));
+
+    let all_passed = validation_results.iter().all(|r| {
+        r.get("status").and_then(|s| s.as_str()) != Some("fail")
+    });
+
+    CliResponse::success(
+        "validate",
+        json!({
+            "validation_status": if all_passed { "valid" } else { "invalid" },
+            "test_results": validation_results
+        }),
+    )
+}
+
+async fn execute_config_structured(
+    show: bool,
+    init: bool,
+    wizard: bool,
+) -> CliResponse<serde_json::Value> {
+    if wizard {
+        return CliResponse::success(
+            "config",
+            json!({
+                "mode": "wizard",
+                "status": "interactive",
+                "message": "Configuration wizard requires interactive terminal",
+                "help": "Run without --output-format flag for interactive wizard"
+            }),
+        );
+    }
+
+    if init {
+        match Config::default().save(None) {
+            Ok(_) => {
+                let config_path = crate::utils::config_helpers::get_config_paths()
+                    .first()
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_else(|| "unknown".to_string());
+                
+                CliResponse::success(
+                    "config",
+                    json!({
+                        "action": "init",
+                        "status": "created",
+                        "path": config_path
+                    }),
+                )
+            }
+            Err(e) => CliResponse::error("config", format!("Failed to initialize config: {}", e)),
+        }
+    } else if show {
+        match Config::from_file() {
+            Ok(config) => {
+                let config_json = serde_json::to_value(&config).unwrap_or(json!({}));
+                CliResponse::success(
+                    "config",
+                    json!({
+                        "action": "show",
+                        "configuration": config_json
+                    }),
+                )
+            }
+            Err(e) => CliResponse::error("config", format!("Failed to load config: {}", e)),
+        }
+    } else {
+        CliResponse::success(
+            "config",
+            json!({
+                "message": "No action specified",
+                "available_flags": ["--show", "--init", "--wizard"]
+            }),
+        )
+    }
+}
+
+async fn execute_completion_structured(
+    shell: crate::completion::CompletionShell,
+    output: Option<&str>,
+    install: bool,
+    all: bool,
+) -> CliResponse<serde_json::Value> {
+    if all {
+        return CliResponse::success(
+            "completion",
+            json!({
+                "mode": "all",
+                "message": "Generating completions for all shells",
+                "shells": ["bash", "zsh", "fish", "powershell"],
+                "note": "Use regular execute mode to generate files"
+            }),
+        );
+    }
+
+    let shell_name = match shell {
+        crate::completion::CompletionShell::Bash => "bash",
+        crate::completion::CompletionShell::Zsh => "zsh",
+        crate::completion::CompletionShell::Fish => "fish",
+        crate::completion::CompletionShell::PowerShell => "powershell",
+    };
+
+    CliResponse::success(
+        "completion",
+        json!({
+            "shell": shell_name,
+            "output": output.unwrap_or("stdout"),
+            "install": install,
+            "note": "Completion script generation requires regular execute mode"
+        }),
+    )
 }
 
 #[cfg(test)]
