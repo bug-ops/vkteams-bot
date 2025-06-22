@@ -132,6 +132,41 @@ impl CliBridge {
         self.execute_command(&["--version"]).await?;
         Ok(())
     }
+    
+    // === Daemon Commands ===
+    
+    /// Get daemon status
+    pub async fn get_daemon_status(&self) -> Result<Value, BridgeError> {
+        self.execute_command(&["status"]).await
+    }
+    
+    // === Enhanced Storage Commands ===
+    
+    /// Get recent messages from storage
+    pub async fn get_recent_messages(
+        &self,
+        chat_id: Option<&str>,
+        limit: Option<usize>,
+        since: Option<&str>,
+    ) -> Result<Value, BridgeError> {
+        let mut args = vec!["database", "recent"];
+        
+        if let Some(chat_id) = chat_id {
+            args.extend(&["--chat-id", chat_id]);
+        }
+        
+        let limit_str;
+        if let Some(limit) = limit {
+            limit_str = limit.to_string();
+            args.extend(&["--limit", &limit_str]);
+        }
+        
+        if let Some(since) = since {
+            args.extend(&["--since", since]);
+        }
+        
+        self.execute_command(&args).await
+    }
 }
 
 impl Default for CliBridge {

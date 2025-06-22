@@ -496,6 +496,35 @@ impl Server {
         convert_bridge_result(result)
     }
 
+    // === Daemon Management Commands ===
+    
+    #[tool(description = "Get daemon status and statistics")]
+    async fn daemon_status(&self) -> MCPResult {
+        let result = self.cli.get_daemon_status().await;
+        convert_bridge_result(result)
+    }
+    
+    #[tool(description = "Get recent messages from storage")]
+    async fn get_recent_messages(
+        &self,
+        #[tool(param)]
+        #[schemars(description = "Chat ID (optional, gets from all chats if not provided)")]
+        chat_id: Option<String>,
+        #[tool(param)]
+        #[schemars(description = "Maximum number of messages to return (default: 50)")]
+        limit: Option<usize>,
+        #[tool(param)]
+        #[schemars(description = "Get messages since this timestamp (ISO 8601 format)")]
+        since: Option<String>,
+    ) -> MCPResult {
+        let result = self.cli.get_recent_messages(
+            chat_id.as_deref(),
+            limit,
+            since.as_deref(),
+        ).await;
+        convert_bridge_result(result)
+    }
+    
     // === Diagnostic Commands ===
     
     #[tool(description = "Get information about the bot")]
@@ -545,6 +574,8 @@ impl Server {
         search_text,
         get_database_stats,
         get_context,
+        daemon_status,
+        get_recent_messages,
         events_get
     });
 }
