@@ -94,4 +94,13 @@ impl SimpleRelationalStore {
         // Return dummy ID for now
         Ok(1)
     }
+
+    // Method aliases for compatibility with StorageManager
+    pub async fn store_event(&self, new_event: NewEvent) -> StorageResult<i64> {
+        self.insert_event(new_event).await
+    }
+
+    pub async fn store_message(&self, new_message: NewMessage) -> StorageResult<i64> {
+        self.insert_message(new_message).await
+    }
 }

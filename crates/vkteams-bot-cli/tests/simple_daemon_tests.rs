@@ -242,3 +242,17 @@ fn test_processor_stats_structure() {
     // last_processed_time should initially be None
     assert!(stats.last_processed_time.is_none());
 }
+
+#[cfg(feature = "storage")]
+#[tokio::test]
+async fn test_processor_with_storage_integration() {
+    let config = Config::default();
+    let processor = AutoSaveEventProcessor::new(&config).await.unwrap();
+    
+    // Test that processor can be created with storage features enabled
+    // Storage might not actually connect (no real database), but the structure should be valid
+    let stats = processor.get_stats();
+    assert_eq!(stats.events_processed, 0);
+    assert_eq!(stats.events_saved, 0);
+    assert_eq!(stats.events_failed, 0);
+}

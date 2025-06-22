@@ -13,8 +13,9 @@ pub mod file_utils;
 pub mod output;
 pub mod progress;
 pub mod scheduler;
-#[cfg(feature = "storage")]
-pub mod storage;
+// Storage functionality is provided by vkteams-bot crate
+// #[cfg(feature = "storage")]
+// pub mod storage;
 pub mod utils;
 
 // Re-export commonly used types for convenience

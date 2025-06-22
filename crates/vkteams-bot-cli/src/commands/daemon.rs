@@ -5,6 +5,8 @@ use crate::errors::prelude::Result as CliResult;
 use crate::commands::{Command, OutputFormat, CommandResult};
 use async_trait::async_trait;
 use vkteams_bot::prelude::{Bot, ResponseEventsGet};
+#[cfg(feature = "storage")]
+use vkteams_bot::storage::StorageManager;
 use crate::config::Config;
 use tokio::signal;
 use tracing::{info, error, warn, debug};
@@ -94,7 +96,8 @@ impl Command for DaemonCommands {
 
 /// Auto-save event processor for automatic storage of events
 pub struct AutoSaveEventProcessor {
-    // TODO: Add storage when storage issues are resolved
+    #[cfg(feature = "storage")]
+    storage: Option<Arc<StorageManager>>,
     stats: Arc<ProcessorStats>,
 }
 
@@ -134,9 +137,33 @@ pub struct ProcessorStatsSnapshot {
 
 impl AutoSaveEventProcessor {
     pub async fn new(_config: &Config) -> CliResult<Self> {
-        // TODO: Initialize storage when storage issues are resolved
+        #[cfg(feature = "storage")]
+        let storage = {
+            // Use default storage configuration for now
+            // In future, this should read from environment variables or config file
+            let storage_config = vkteams_bot::storage::StorageConfig::default();
+            
+            match StorageManager::new(&storage_config).await {
+                Ok(manager) => {
+                    // Initialize storage (run migrations)
+                    if let Err(e) = manager.initialize().await {
+                        warn!("Failed to initialize storage: {}", e);
+                        None
+                    } else {
+                        info!("Storage manager initialized successfully");
+                        Some(Arc::new(manager))
+                    }
+                }
+                Err(e) => {
+                    warn!("Failed to create storage manager: {}", e);
+                    None
+                }
+            }
+        };
         
         Ok(Self {
+            #[cfg(feature = "storage")]
+            storage,
             stats: Arc::new(ProcessorStats::default()),
         })
     }
@@ -152,14 +179,51 @@ impl AutoSaveEventProcessor {
         
         let start_time = Instant::now();
         let mut saved_count = 0;
-        let failed_count = 0;
+        let mut failed_count = 0;
+        let mut total_bytes = 0;
 
-        // Process events - for now just log them
-        // TODO: Add actual storage when storage issues are resolved
-        for event in events.events {
-            debug!("Processing event: {} (type: {:?})", event.event_id, event.event_type);
-            // Simulate processing
-            saved_count += 1;
+        #[cfg(feature = "storage")]
+        {
+            if let Some(storage) = &self.storage {
+                // Process events using real storage
+                for event in events.events {
+                    debug!("Processing event: {} (type: {:?})", event.event_id, event.event_type);
+                    
+                    // Calculate event size for statistics
+                    if let Ok(serialized) = serde_json::to_vec(&event) {
+                        total_bytes += serialized.len();
+                    }
+                    
+                    // Try to store the event
+                    match storage.process_event(&event).await {
+                        Ok(event_id) => {
+                            debug!("Successfully stored event {} with ID {}", event.event_id, event_id);
+                            saved_count += 1;
+                        }
+                        Err(e) => {
+                            error!("Failed to store event {}: {}", event.event_id, e);
+                            failed_count += 1;
+                        }
+                    }
+                }
+            } else {
+                // No storage available - just count events
+                for event in events.events {
+                    debug!("Processing event: {} (type: {:?}) - no storage available", 
+                           event.event_id, event.event_type);
+                    saved_count += 1;
+                }
+            }
+        }
+        
+        #[cfg(not(feature = "storage"))]
+        {
+            // Storage feature not enabled - just count events
+            for event in events.events {
+                debug!("Processing event: {} (type: {:?}) - storage not enabled", 
+                       event.event_id, event.event_type);
+                saved_count += 1;
+            }
         }
 
         let duration = start_time.elapsed();
@@ -168,14 +232,15 @@ impl AutoSaveEventProcessor {
         self.stats.events_processed.fetch_add(event_count as u64, std::sync::atomic::Ordering::Relaxed);
         self.stats.events_saved.fetch_add(saved_count, std::sync::atomic::Ordering::Relaxed);
         self.stats.events_failed.fetch_add(failed_count, std::sync::atomic::Ordering::Relaxed);
+        self.stats.bytes_processed.fetch_add(total_bytes as u64, std::sync::atomic::Ordering::Relaxed);
         
         if let Ok(mut last_time) = self.stats.last_processed_time.lock() {
             *last_time = Some(chrono::Utc::now());
         }
 
         info!(
-            "Processed {} events in {:?}: {} saved, {} failed", 
-            event_count, duration, saved_count, failed_count
+            "Processed {} events in {:?}: {} saved, {} failed, {} bytes processed", 
+            event_count, duration, saved_count, failed_count, total_bytes
         );
 
         if failed_count > 0 {
@@ -339,6 +404,8 @@ mod tests {
     #[test]
     fn test_processor_stats() {
         let processor = AutoSaveEventProcessor {
+            #[cfg(feature = "storage")]
+            storage: None,
             stats: Arc::new(ProcessorStats::default()),
         };
         

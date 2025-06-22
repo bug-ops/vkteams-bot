@@ -119,10 +119,28 @@ impl StorageManager {
 
     /// Process a VK Teams event and store it
     #[cfg(feature = "storage")]
-    pub async fn process_event(&self, _event: &EventMessage) -> StorageResult<i64> {
-        // Simplified implementation for now
-        // TODO: Implement full event processing when API structures are properly defined
-        Ok(1) // Return dummy event ID
+    pub async fn process_event(&self, event: &EventMessage) -> StorageResult<i64> {
+        // Create event record
+        let new_event = NewEvent {
+            event_id: event.event_id.to_string(),
+            event_type: self.event_type_to_string(&event.event_type),
+            chat_id: self.extract_chat_id(event).unwrap_or_default(),
+            user_id: self.extract_user_id(event),
+            timestamp: self.extract_timestamp(event).unwrap_or_else(Utc::now),
+            raw_payload: serde_json::to_value(event)
+                .map_err(|e| StorageError::Serialization(e))?,
+            processed_data: None,
+        };
+
+        // Store event in relational database
+        let event_id = self.relational.store_event(new_event).await?;
+
+        // Store message data if this is a message event
+        if let Some(message_data) = self.extract_message_data(event, event_id)? {
+            self.relational.store_message(message_data).await?;
+        }
+
+        Ok(event_id)
     }
 
     /// Process event with vector embedding generation
@@ -335,21 +353,216 @@ impl StorageManager {
     }
 
     /// Extract message data from event (private helper)
-    #[allow(dead_code)]
     fn extract_message_data(
         &self,
-        _event: &EventMessage,
-        _event_id: i64,
+        event: &EventMessage,
+        event_id: i64,
     ) -> StorageResult<Option<NewMessage>> {
-        // Simplified implementation - returns None until API structures are properly defined
-        Ok(None)
+        match &event.event_type {
+            crate::api::types::EventType::NewMessage(payload) => {
+                let user_id = payload.from.user_id.clone();
+                let chat_id = payload.chat.chat_id.clone();
+                
+                // Detect mentions in text
+                let (has_mentions, mentions) = self.detect_mentions(&payload.text);
+                
+                // Extract file attachments from parts
+                let file_attachments = self.extract_file_attachments(&payload.parts);
+                
+                Ok(Some(NewMessage {
+                    event_id,
+                    message_id: payload.msg_id.0.clone(),
+                    chat_id: chat_id.0.to_string(),
+                    user_id: user_id.0.to_string(),
+                    text: Some(payload.text.clone()).filter(|t| !t.is_empty()),
+                    formatted_text: self.extract_formatted_text(payload),
+                    reply_to_message_id: None, // VK Teams API doesn't provide this in standard payload
+                    forward_from_chat_id: None,
+                    forward_from_message_id: None,
+                    file_attachments,
+                    has_mentions,
+                    mentions,
+                    timestamp: DateTime::from_timestamp(payload.timestamp.0 as i64, 0)
+                        .unwrap_or_else(Utc::now),
+                }))
+            }
+            crate::api::types::EventType::EditedMessage(payload) => {
+                // For edited messages, we can update the existing message
+                let user_id = payload.from.user_id.clone();
+                let chat_id = payload.chat.chat_id.clone();
+                
+                let (has_mentions, mentions) = self.detect_mentions(&payload.text);
+                // Note: EventPayloadEditedMessage doesn't have parts field
+                let file_attachments = None;
+                
+                Ok(Some(NewMessage {
+                    event_id,
+                    message_id: payload.msg_id.0.clone(),
+                    chat_id: chat_id.0.to_string(),
+                    user_id: user_id.0.to_string(),
+                    text: Some(payload.text.clone()).filter(|t| !t.is_empty()),
+                    formatted_text: self.extract_formatted_text_edited(payload),
+                    reply_to_message_id: None,
+                    forward_from_chat_id: None,
+                    forward_from_message_id: None,
+                    file_attachments,
+                    has_mentions,
+                    mentions,
+                    timestamp: DateTime::from_timestamp(payload.timestamp.0 as i64, 0)
+                        .unwrap_or_else(Utc::now),
+                }))
+            }
+            _ => Ok(None), // Other event types don't contain message data
+        }
     }
 
     /// Extract text content for embedding generation (private helper)
-    #[allow(dead_code)]
-    fn extract_text_content(&self, _event: &EventMessage) -> Option<String> {
-        // Simplified implementation - returns None until API structures are properly defined
-        None
+    fn extract_text_content(&self, event: &EventMessage) -> Option<String> {
+        match &event.event_type {
+            crate::api::types::EventType::NewMessage(payload) => {
+                if payload.text.is_empty() {
+                    None
+                } else {
+                    Some(payload.text.clone())
+                }
+            }
+            crate::api::types::EventType::EditedMessage(payload) => {
+                if payload.text.is_empty() {
+                    None
+                } else {
+                    Some(payload.text.clone())
+                }
+            }
+            _ => None,
+        }
+    }
+
+    /// Convert EventType to string representation
+    fn event_type_to_string(&self, event_type: &crate::api::types::EventType) -> String {
+        match event_type {
+            crate::api::types::EventType::NewMessage(_) => "newMessage".to_string(),
+            crate::api::types::EventType::EditedMessage(_) => "editedMessage".to_string(),
+            crate::api::types::EventType::DeleteMessage(_) => "deleteMessage".to_string(),
+            crate::api::types::EventType::PinnedMessage(_) => "pinnedMessage".to_string(),
+            crate::api::types::EventType::UnpinnedMessage(_) => "unpinnedMessage".to_string(),
+            crate::api::types::EventType::NewChatMembers(_) => "newChatMembers".to_string(),
+            crate::api::types::EventType::LeftChatMembers(_) => "leftChatMembers".to_string(),
+            crate::api::types::EventType::CallbackQuery(_) => "callbackQuery".to_string(),
+            crate::api::types::EventType::None => "none".to_string(),
+        }
+    }
+
+    /// Extract chat ID from event
+    fn extract_chat_id(&self, event: &EventMessage) -> Option<String> {
+        match &event.event_type {
+            crate::api::types::EventType::NewMessage(payload) => Some(payload.chat.chat_id.0.to_string()),
+            crate::api::types::EventType::EditedMessage(payload) => Some(payload.chat.chat_id.0.to_string()),
+            crate::api::types::EventType::DeleteMessage(payload) => Some(payload.chat.chat_id.0.to_string()),
+            crate::api::types::EventType::PinnedMessage(payload) => Some(payload.chat.chat_id.0.to_string()),
+            crate::api::types::EventType::UnpinnedMessage(payload) => Some(payload.chat.chat_id.0.to_string()),
+            crate::api::types::EventType::NewChatMembers(payload) => Some(payload.chat.chat_id.0.to_string()),
+            crate::api::types::EventType::LeftChatMembers(payload) => Some(payload.chat.chat_id.0.to_string()),
+            crate::api::types::EventType::CallbackQuery(payload) => Some(payload.message.chat.chat_id.0.to_string()),
+            _ => None,
+        }
+    }
+
+    /// Extract user ID from event
+    fn extract_user_id(&self, event: &EventMessage) -> Option<String> {
+        match &event.event_type {
+            crate::api::types::EventType::NewMessage(payload) => Some(payload.from.user_id.0.to_string()),
+            crate::api::types::EventType::EditedMessage(payload) => Some(payload.from.user_id.0.to_string()),
+            crate::api::types::EventType::CallbackQuery(payload) => Some(payload.from.user_id.0.to_string()),
+            _ => None,
+        }
+    }
+
+    /// Extract timestamp from event
+    fn extract_timestamp(&self, event: &EventMessage) -> Option<DateTime<Utc>> {
+        match &event.event_type {
+            crate::api::types::EventType::NewMessage(payload) => {
+                DateTime::from_timestamp(payload.timestamp.0 as i64, 0)
+            },
+            crate::api::types::EventType::EditedMessage(payload) => {
+                DateTime::from_timestamp(payload.timestamp.0 as i64, 0)
+            },
+            _ => None,
+        }
+    }
+
+    /// Detect mentions in text
+    fn detect_mentions(&self, text: &str) -> (bool, Option<Value>) {
+        // Simple regex-based mention detection
+        let mention_regex = regex::Regex::new(r"@(\w+)").unwrap();
+        let mentions: Vec<String> = mention_regex
+            .captures_iter(text)
+            .map(|cap| cap[1].to_string())
+            .collect();
+
+        let has_mentions = !mentions.is_empty();
+        let mentions_json = if has_mentions {
+            Some(serde_json::to_value(mentions).unwrap_or(Value::Null))
+        } else {
+            None
+        };
+
+        (has_mentions, mentions_json)
+    }
+
+    /// Extract file attachments from message parts
+    fn extract_file_attachments(&self, parts: &[crate::api::types::MessageParts]) -> Option<Value> {
+        let mut attachments = Vec::new();
+
+        for part in parts {
+            match &part.part_type {
+                crate::api::types::MessagePartsType::File(file_payload) => {
+                    attachments.push(serde_json::json!({
+                        "type": "file",
+                        "file_id": file_payload.file_id,
+                        "filename": file_payload.caption
+                    }));
+                }
+                crate::api::types::MessagePartsType::Sticker(sticker_payload) => {
+                    attachments.push(serde_json::json!({
+                        "type": "sticker",
+                        "file_id": sticker_payload.file_id
+                    }));
+                }
+                crate::api::types::MessagePartsType::Voice(voice_payload) => {
+                    attachments.push(serde_json::json!({
+                        "type": "voice",
+                        "file_id": voice_payload.file_id
+                    }));
+                }
+                _ => {} // Other part types don't contain file attachments
+            }
+        }
+
+        if attachments.is_empty() {
+            None
+        } else {
+            Some(serde_json::to_value(attachments).unwrap_or(Value::Null))
+        }
+    }
+
+    /// Extract formatted text from message payload
+    fn extract_formatted_text(&self, payload: &crate::api::types::EventPayloadNewMessage) -> Option<String> {
+        if let Some(format) = &payload.format {
+            // Convert MessageFormat to formatted text representation
+            serde_json::to_string(format).ok()
+        } else {
+            None
+        }
+    }
+
+    /// Extract formatted text from edited message payload
+    fn extract_formatted_text_edited(&self, payload: &crate::api::types::EventPayloadEditedMessage) -> Option<String> {
+        if let Some(format) = &payload.format {
+            // Convert MessageFormat to formatted text representation
+            serde_json::to_string(format).ok()
+        } else {
+            None
+        }
     }
 }
 
