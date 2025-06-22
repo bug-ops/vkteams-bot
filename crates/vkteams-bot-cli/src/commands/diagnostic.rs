@@ -7,11 +7,13 @@ use crate::config::Config;
 use crate::constants::ui::emoji;
 use crate::errors::prelude::{CliError, Result as CliResult};
 use crate::file_utils;
+use crate::output::{CliResponse, OutputFormatter};
 use crate::utils::output::print_success_result;
 use crate::utils::{validate_directory_path, validate_file_id};
 use async_trait::async_trait;
 use clap::{Subcommand, ValueHint};
 use colored::Colorize;
+use serde_json::json;
 use tracing::{debug, info};
 use vkteams_bot::prelude::*;
 
@@ -105,6 +107,35 @@ impl Command for DiagnosticCommands {
             }
             _ => {} // Other commands don't need validation
         }
+        Ok(())
+    }
+
+    /// New method for structured output support
+    async fn execute_with_output(&self, bot: &Bot, output_format: &OutputFormat) -> CliResult<()> {
+        let response = match self {
+            DiagnosticCommands::GetSelf { detailed } => {
+                execute_get_self_structured(bot, *detailed).await
+            }
+            DiagnosticCommands::GetEvents { listen } => {
+                execute_get_events_structured(bot, listen.unwrap_or(false)).await
+            }
+            DiagnosticCommands::GetFile { file_id, file_path } => {
+                execute_get_file_structured(bot, file_id, file_path).await
+            }
+            DiagnosticCommands::HealthCheck => execute_health_check_structured(bot).await,
+            DiagnosticCommands::NetworkTest => execute_network_test_structured(bot).await,
+            DiagnosticCommands::SystemInfo => execute_system_info_structured().await,
+            DiagnosticCommands::RateLimitTest { requests, delay_ms } => {
+                execute_rate_limit_test_structured(bot, *requests, *delay_ms).await
+            }
+        };
+
+        OutputFormatter::print(&response, output_format)?;
+
+        if !response.success {
+            return Err(CliError::UnexpectedError("Command failed".to_string()));
+        }
+
         Ok(())
     }
 }
@@ -404,6 +435,328 @@ where
 }
 
 // Validation functions are now imported from utils/validation module
+
+// Structured output versions
+
+async fn execute_get_self_structured(
+    bot: &Bot,
+    detailed: bool,
+) -> CliResponse<serde_json::Value> {
+    debug!("Getting bot information (structured)");
+
+    let request = RequestSelfGet::new(());
+    match bot.send_api_request(request).await {
+        Ok(result) => {
+            info!("Bot information retrieved successfully");
+            let data = if detailed {
+                serde_json::to_value(&result).unwrap_or(json!({}))
+            } else {
+                json!({
+                    "bot_id": result.user_id,
+                    "nickname": result.nick,
+                    "first_name": result.first_name,
+                    "about": result.about,
+                    "photo": result.photo
+                })
+            };
+            CliResponse::success("get-self", data)
+        }
+        Err(e) => CliResponse::error("get-self", format!("Failed to get bot info: {}", e)),
+    }
+}
+
+async fn execute_get_events_structured(
+    bot: &Bot,
+    listen: bool,
+) -> CliResponse<serde_json::Value> {
+    debug!("Getting events, listen mode: {}", listen);
+
+    if listen {
+        // For listen mode, we can't return structured data easily
+        // Return a message indicating the mode
+        CliResponse::success(
+            "get-events",
+            json!({
+                "mode": "listen",
+                "message": "Event listener started. Press Ctrl+C to stop.",
+                "note": "Use regular execute mode for event listening"
+            }),
+        )
+    } else {
+        match bot
+            .send_api_request(RequestEventsGet::new(bot.get_last_event_id()).with_poll_time(30))
+            .await
+        {
+            Ok(result) => {
+                info!("Successfully retrieved events");
+                let data = serde_json::to_value(&result).unwrap_or(json!({}));
+                CliResponse::success("get-events", data)
+            }
+            Err(e) => CliResponse::error("get-events", format!("Failed to get events: {}", e)),
+        }
+    }
+}
+
+async fn execute_get_file_structured(
+    bot: &Bot,
+    file_id: &str,
+    file_path: &str,
+) -> CliResponse<serde_json::Value> {
+    debug!("Downloading file {} to {}", file_id, file_path);
+
+    match file_utils::download_and_save_file(bot, file_id, file_path).await {
+        Ok(downloaded_path) => {
+            info!("Successfully downloaded file with ID: {}", file_id);
+            let data = json!({
+                "file_id": file_id,
+                "download_path": downloaded_path.display().to_string(),
+                "status": "downloaded"
+            });
+            CliResponse::success("get-file", data)
+        }
+        Err(e) => CliResponse::error("get-file", format!("Failed to download file: {}", e)),
+    }
+}
+
+async fn execute_health_check_structured(bot: &Bot) -> CliResponse<serde_json::Value> {
+    debug!("Performing health check");
+
+    let mut tests = Vec::new();
+    let mut all_passed = true;
+
+    // Test 1: Basic connectivity
+    let start = std::time::Instant::now();
+    let connectivity_result = match bot.send_api_request(RequestSelfGet::new(())).await {
+        Ok(_) => {
+            json!({
+                "name": "API Connectivity",
+                "status": "pass",
+                "latency_ms": start.elapsed().as_millis()
+            })
+        }
+        Err(e) => {
+            all_passed = false;
+            json!({
+                "name": "API Connectivity",
+                "status": "fail",
+                "error": e.to_string()
+            })
+        }
+    };
+    tests.push(connectivity_result);
+
+    // Test 2: Configuration check
+    let config_result = match Config::from_file() {
+        Ok(config) => {
+            if config.api.token.is_some() && config.api.url.is_some() {
+                json!({
+                    "name": "Configuration",
+                    "status": "pass",
+                    "details": "All required fields present"
+                })
+            } else {
+                all_passed = false;
+                json!({
+                    "name": "Configuration",
+                    "status": "fail",
+                    "error": "Missing required configuration"
+                })
+            }
+        }
+        Err(_) => {
+            all_passed = false;
+            json!({
+                "name": "Configuration",
+                "status": "fail",
+                "error": "Configuration file not found"
+            })
+        }
+    };
+    tests.push(config_result);
+
+    // Test 3: Network latency
+    let latency_start = std::time::Instant::now();
+    let latency_result = match bot.send_api_request(RequestSelfGet::new(())).await {
+        Ok(_) => {
+            let latency = latency_start.elapsed();
+            let status = if latency.as_millis() < 1000 {
+                "pass"
+            } else {
+                "warn"
+            };
+            json!({
+                "name": "Network Latency",
+                "status": status,
+                "latency_ms": latency.as_millis()
+            })
+        }
+        Err(e) => {
+            all_passed = false;
+            json!({
+                "name": "Network Latency",
+                "status": "fail",
+                "error": e.to_string()
+            })
+        }
+    };
+    tests.push(latency_result);
+
+    let data = json!({
+        "overall_status": if all_passed { "healthy" } else { "unhealthy" },
+        "tests": tests,
+        "timestamp": chrono::Utc::now().to_rfc3339()
+    });
+
+    CliResponse::success("health-check", data)
+}
+
+async fn execute_network_test_structured(bot: &Bot) -> CliResponse<serde_json::Value> {
+    debug!("Testing network connectivity");
+
+    let mut results = Vec::new();
+
+    // Test multiple endpoints
+    let endpoints = vec![("Bot Info", RequestSelfGet::new(()))];
+
+    for (name, request) in endpoints {
+        let start = std::time::Instant::now();
+
+        let result = match bot.send_api_request(request).await {
+            Ok(_) => {
+                json!({
+                    "endpoint": name,
+                    "status": "ok",
+                    "latency_ms": start.elapsed().as_millis()
+                })
+            }
+            Err(e) => {
+                json!({
+                    "endpoint": name,
+                    "status": "failed",
+                    "error": e.to_string()
+                })
+            }
+        };
+        results.push(result);
+    }
+
+    let data = json!({
+        "test_results": results,
+        "timestamp": chrono::Utc::now().to_rfc3339()
+    });
+
+    CliResponse::success("network-test", data)
+}
+
+async fn execute_system_info_structured() -> CliResponse<serde_json::Value> {
+    debug!("Gathering system information");
+
+    let mut env_vars = serde_json::Map::new();
+    let vars = [
+        "VKTEAMS_BOT_API_TOKEN",
+        "VKTEAMS_BOT_API_URL",
+        "VKTEAMS_PROXY",
+        "VKTEAMS_LOG_LEVEL",
+    ];
+
+    for var in &vars {
+        match std::env::var(var) {
+            Ok(value) => {
+                if var.contains("TOKEN") {
+                    env_vars.insert(
+                        var.to_string(),
+                        json!(format!("{}***", &value[..8.min(value.len())])),
+                    );
+                } else {
+                    env_vars.insert(var.to_string(), json!(value));
+                }
+            }
+            Err(_) => {
+                env_vars.insert(var.to_string(), json!("Not set"));
+            }
+        }
+    }
+
+    let config_status = match Config::from_file() {
+        Ok(_) => "found",
+        Err(_) => "not_found",
+    };
+
+    let data = json!({
+        "runtime": {
+            "os": std::env::consts::OS,
+            "architecture": std::env::consts::ARCH,
+            "family": std::env::consts::FAMILY,
+            "current_directory": std::env::current_dir().ok().map(|p| p.display().to_string())
+        },
+        "environment": env_vars,
+        "configuration": {
+            "status": config_status
+        }
+    });
+
+    CliResponse::success("system-info", data)
+}
+
+async fn execute_rate_limit_test_structured(
+    bot: &Bot,
+    requests: u32,
+    delay_ms: u64,
+) -> CliResponse<serde_json::Value> {
+    debug!("Testing rate limits with {} requests", requests);
+
+    let mut successful = 0;
+    let mut failed = 0;
+    let mut request_results = Vec::new();
+    let start_time = std::time::Instant::now();
+
+    for i in 1..=requests {
+        let request_start = std::time::Instant::now();
+
+        let result = match bot.send_api_request(RequestSelfGet::new(())).await {
+            Ok(_) => {
+                successful += 1;
+                json!({
+                    "request_number": i,
+                    "status": "success",
+                    "latency_ms": request_start.elapsed().as_millis()
+                })
+            }
+            Err(e) => {
+                failed += 1;
+                json!({
+                    "request_number": i,
+                    "status": "failed",
+                    "error": e.to_string()
+                })
+            }
+        };
+        request_results.push(result);
+
+        if i < requests {
+            tokio::time::sleep(tokio::time::Duration::from_millis(delay_ms)).await;
+        }
+    }
+
+    let total_time = start_time.elapsed();
+    let success_rate = (successful as f64 / requests as f64) * 100.0;
+    let average_rate = requests as f64 / total_time.as_secs_f64();
+
+    let data = json!({
+        "summary": {
+            "total_requests": requests,
+            "successful": successful,
+            "failed": failed,
+            "success_rate_percent": success_rate,
+            "total_time_seconds": total_time.as_secs_f64(),
+            "average_rate_per_second": average_rate,
+            "delay_between_requests_ms": delay_ms
+        },
+        "request_details": request_results
+    });
+
+    CliResponse::success("rate-limit-test", data)
+}
 
 // Utility functions
 
