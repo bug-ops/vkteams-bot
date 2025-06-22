@@ -4,7 +4,7 @@
 mod storage_tests {
     use crate::storage::StorageConfig;
     use crate::storage::config::{DatabaseConfig, StorageSettings};
-    
+
     #[test]
     fn test_storage_config_default() {
         let config = StorageConfig::default();
@@ -110,7 +110,12 @@ mod storage_tests {
         }
 
         match ollama_config {
-            EmbeddingProviderConfig::Ollama { host, port, model, dimensions } => {
+            EmbeddingProviderConfig::Ollama {
+                host,
+                port,
+                model,
+                dimensions,
+            } => {
                 assert_eq!(host, "localhost");
                 assert_eq!(port, 11434);
                 assert_eq!(model, "llama2");
@@ -179,24 +184,37 @@ mod storage_tests {
 mod cli_tests {
     // Note: CLI tests would normally be in the CLI crate
     // These are simplified storage-related enum tests
-    
+
     #[derive(Debug, Clone)]
     pub enum DatabaseAction {
         Init,
-        Stats { chat_id: Option<String>, _since: Option<String> },
-        Cleanup { older_than_days: u32 },
+        Stats {
+            chat_id: Option<String>,
+            _since: Option<String>,
+        },
+        Cleanup {
+            older_than_days: u32,
+        },
     }
 
     #[derive(Debug, Clone)]
     pub enum SearchAction {
-        Semantic { query: String, chat_id: Option<String>, limit: usize },
-        Text { query: String, chat_id: Option<String>, limit: i64 },
-        Advanced { 
-            user_id: Option<String>, 
-            event_type: Option<String>, 
-            _since: Option<String>, 
-            _until: Option<String>, 
-            limit: i64 
+        Semantic {
+            query: String,
+            chat_id: Option<String>,
+            limit: usize,
+        },
+        Text {
+            query: String,
+            chat_id: Option<String>,
+            limit: i64,
+        },
+        Advanced {
+            user_id: Option<String>,
+            event_type: Option<String>,
+            _since: Option<String>,
+            _until: Option<String>,
+            limit: i64,
         },
     }
 
@@ -220,21 +238,21 @@ mod cli_tests {
 
         // Test that all variants can be created
         match init_action {
-            DatabaseAction::Init => {},
+            DatabaseAction::Init => {}
             _ => panic!("Expected Init variant"),
         }
 
         match stats_action {
             DatabaseAction::Stats { chat_id, _since: _ } => {
                 assert_eq!(chat_id, Some("test_chat".to_string()));
-            },
+            }
             _ => panic!("Expected Stats variant"),
         }
 
         match cleanup_action {
             DatabaseAction::Cleanup { older_than_days } => {
                 assert_eq!(older_than_days, 30);
-            },
+            }
             _ => panic!("Expected Cleanup variant"),
         }
     }
@@ -263,29 +281,43 @@ mod cli_tests {
 
         // Test that all variants work correctly
         match semantic_action {
-            SearchAction::Semantic { query, chat_id, limit } => {
+            SearchAction::Semantic {
+                query,
+                chat_id,
+                limit,
+            } => {
                 assert_eq!(query, "test query");
                 assert_eq!(chat_id, None);
                 assert_eq!(limit, 10);
-            },
+            }
             _ => panic!("Expected Semantic variant"),
         }
 
         match text_action {
-            SearchAction::Text { query, chat_id, limit } => {
+            SearchAction::Text {
+                query,
+                chat_id,
+                limit,
+            } => {
                 assert_eq!(query, "search text");
                 assert_eq!(chat_id, Some("chat123".to_string()));
                 assert_eq!(limit, 20);
-            },
+            }
             _ => panic!("Expected Text variant"),
         }
 
         match advanced_action {
-            SearchAction::Advanced { user_id, event_type, _since: _, _until: _, limit } => {
+            SearchAction::Advanced {
+                user_id,
+                event_type,
+                _since: _,
+                _until: _,
+                limit,
+            } => {
                 assert_eq!(user_id, Some("user123".to_string()));
                 assert_eq!(event_type, Some("message".to_string()));
                 assert_eq!(limit, 15);
-            },
+            }
             _ => panic!("Expected Advanced variant"),
         }
     }

@@ -83,18 +83,12 @@ impl Command for ChatCommands {
             ChatCommands::SendAction { chat_id, action } => {
                 execute_send_action(bot, chat_id, action).await
             }
-            ChatCommands::GetChatAdmins { chat_id } => {
-                execute_get_chat_admins(bot, chat_id).await
-            }
+            ChatCommands::GetChatAdmins { chat_id } => execute_get_chat_admins(bot, chat_id).await,
         }
     }
 
     /// New method for structured output support
-    async fn execute_with_output(
-        &self,
-        bot: &Bot,
-        output_format: &OutputFormat,
-    ) -> CliResult<()> {
+    async fn execute_with_output(&self, bot: &Bot, output_format: &OutputFormat) -> CliResult<()> {
         let response = match self {
             ChatCommands::GetChatInfo { chat_id } => {
                 execute_get_chat_info_structured(bot, chat_id).await
@@ -120,11 +114,11 @@ impl Command for ChatCommands {
         };
 
         OutputFormatter::print(&response, output_format)?;
-        
+
         if !response.success {
             return Err(CliError::UnexpectedError("Command failed".to_string()));
         }
-        
+
         Ok(())
     }
 
@@ -247,7 +241,10 @@ async fn execute_get_chat_members_structured(
             });
             CliResponse::success("get-chat-members", data)
         }
-        Err(e) => CliResponse::error("get-chat-members", format!("Failed to get chat members: {}", e)),
+        Err(e) => CliResponse::error(
+            "get-chat-members",
+            format!("Failed to get chat members: {}", e),
+        ),
     }
 }
 
@@ -287,7 +284,10 @@ async fn execute_set_chat_about_structured(
 
     match bot.send_api_request(request).await {
         Ok(_result) => {
-            info!("Successfully set description for chat {}: {}", chat_id, about);
+            info!(
+                "Successfully set description for chat {}: {}",
+                chat_id, about
+            );
             let data = json!({
                 "chat_id": chat_id,
                 "about": about,
@@ -354,7 +354,10 @@ async fn execute_get_chat_admins_structured(
             });
             CliResponse::success("get-chat-admins", data)
         }
-        Err(e) => CliResponse::error("get-chat-admins", format!("Failed to get chat admins: {}", e)),
+        Err(e) => CliResponse::error(
+            "get-chat-admins",
+            format!("Failed to get chat admins: {}", e),
+        ),
     }
 }
 

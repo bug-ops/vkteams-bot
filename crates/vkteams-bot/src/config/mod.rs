@@ -4,26 +4,26 @@ pub use crate::config::types::{FmtDirective, OtelDirective};
 use crate::error::Result;
 use types::APP_FOLDER;
 pub use types::{CONFIG, Config, LogFormat, OtlpConfig};
-pub use unified::{UnifiedConfig, ApiConfig as UnifiedApiConfig, McpConfig, CliConfig};
+pub use unified::{ApiConfig as UnifiedApiConfig, CliConfig, McpConfig, UnifiedConfig};
 
 impl Config {
     pub fn new() -> Self {
         // Get APP_NAME from .env file
         get_config().unwrap_or_default()
     }
-    
+
     /// Get storage configuration with environment variable overrides
     #[cfg(feature = "storage")]
     pub fn get_storage_config(&self) -> crate::storage::StorageConfig {
         let mut storage_config = self.storage.clone();
-        
+
         // Override database URL from environment variables if provided
-        if let Ok(database_url) = std::env::var("DATABASE_URL")
-            .or_else(|_| std::env::var("VKTEAMS_BOT_DATABASE_URL"))
+        if let Ok(database_url) =
+            std::env::var("DATABASE_URL").or_else(|_| std::env::var("VKTEAMS_BOT_DATABASE_URL"))
         {
             storage_config.database.url = database_url;
         }
-        
+
         storage_config
     }
 }
@@ -97,7 +97,7 @@ mod tests {
     fn test_get_storage_config() {
         let config = Config::default();
         let storage_config = config.get_storage_config();
-        
+
         // Test that storage config is properly returned
         assert_eq!(storage_config.database.max_connections, 20);
         assert!(storage_config.database.auto_migrate);
@@ -109,13 +109,16 @@ mod tests {
     fn test_get_storage_config_basic() {
         let config = Config::default();
         let storage_config = config.get_storage_config();
-        
+
         // Test that storage config method works correctly
         assert_eq!(storage_config.database.max_connections, 20);
         assert!(storage_config.database.auto_migrate);
         assert_eq!(storage_config.settings.event_retention_days, 365);
-        
+
         // Test that default URL is used when no env var is set
-        assert_eq!(storage_config.database.url, "postgresql://localhost/vkteams_bot");
+        assert_eq!(
+            storage_config.database.url,
+            "postgresql://localhost/vkteams_bot"
+        );
     }
 }

@@ -23,11 +23,7 @@ pub trait Command {
     async fn execute(&self, bot: &Bot) -> CliResult<()>;
 
     /// Execute the command with structured output support (optional implementation)
-    async fn execute_with_output(
-        &self,
-        bot: &Bot,
-        _output_format: &OutputFormat,
-    ) -> CliResult<()> {
+    async fn execute_with_output(&self, bot: &Bot, _output_format: &OutputFormat) -> CliResult<()> {
         // Default implementation falls back to legacy execute method
         self.execute(bot).await
     }
@@ -193,7 +189,7 @@ pub enum Commands {
     // Storage and database commands
     #[command(flatten)]
     Storage(storage::StorageCommands),
-    
+
     // Daemon management commands
     #[command(flatten)]
     Daemon(daemon::DaemonCommands),

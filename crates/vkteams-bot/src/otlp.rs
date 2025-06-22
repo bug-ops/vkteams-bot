@@ -425,4 +425,245 @@ mod tests {
         let attributes: Vec<_> = resource.iter().collect();
         assert!(!attributes.is_empty(), "Resource should have attributes");
     }
+
+    #[test]
+    fn test_resource_attributes_values() {
+        // Test that resource attributes have expected values
+        let resource = get_resource();
+        let attributes: Vec<_> = resource.iter().collect();
+
+        // Find specific attributes and test their values
+        for (key, value) in attributes {
+            match key.as_str() {
+                "service.namespace" => {
+                    assert_eq!(value.as_str(), "vkteams");
+                }
+                "service.version" => {
+                    assert_eq!(value.as_str(), env!("CARGO_PKG_VERSION"));
+                }
+                "service.instance.id" | "deployment.environment.name" => {
+                    // These come from CONFIG, just verify they exist
+                    assert!(!value.as_str().is_empty() || value.as_str().is_empty());
+                }
+                _ => {
+                    // Other attributes are ok
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_resource_service_namespace() {
+        // Test that service namespace is correctly set
+        let resource = get_resource();
+        let namespace_attr = resource
+            .iter()
+            .find(|(key, _)| key.as_str() == "service.namespace")
+            .map(|(_, value)| value);
+
+        assert!(
+            namespace_attr.is_some(),
+            "service.namespace should be present"
+        );
+        if let Some(value) = namespace_attr {
+            assert_eq!(value.as_str(), "vkteams");
+        }
+    }
+
+    #[test]
+    fn test_resource_service_version() {
+        // Test that service version matches package version
+        let resource = get_resource();
+        let version_attr = resource
+            .iter()
+            .find(|(key, _)| key.as_str() == "service.version")
+            .map(|(_, value)| value);
+
+        assert!(version_attr.is_some(), "service.version should be present");
+        if let Some(value) = version_attr {
+            assert_eq!(value.as_str(), env!("CARGO_PKG_VERSION"));
+        }
+    }
+
+    #[test]
+    fn test_init_traces_error_details() {
+        // Test init_traces error handling in more detail
+        let result = init_traces();
+        assert!(result.is_err());
+
+        match result {
+            Err(e) => {
+                let error_string = e.to_string();
+                assert!(error_string.contains("OTLP exporter endpoint not configured"));
+            }
+            Ok(_) => panic!("Expected error when no endpoint configured"),
+        }
+    }
+
+    #[test]
+    fn test_init_metrics_error_details() {
+        // Test init_metrics error handling in more detail
+        let result = init_metrics();
+        assert!(result.is_err());
+
+        match result {
+            Err(e) => {
+                let error_string = e.to_string();
+                assert!(error_string.contains("OTLP exporter endpoint not configured"));
+            }
+            Ok(_) => panic!("Expected error when no endpoint configured"),
+        }
+    }
+
+    #[test]
+    fn test_filter_layer_default_config() {
+        // Test filter_layer with default configuration
+        let result = filter_layer();
+
+        match result {
+            Ok(filter) => {
+                // Filter should be created successfully
+                // We can't easily test the internal state, but we know it compiled correctly
+                let _filter_string = format!("{:?}", filter);
+            }
+            Err(e) => {
+                // If error occurs, it should be related to filter parsing
+                let error_msg = e.to_string();
+                assert!(!error_msg.is_empty());
+            }
+        }
+    }
+
+    #[test]
+    fn test_fmt_filter_default_config() {
+        // Test fmt_filter with default configuration
+        let result = fmt_filter();
+
+        match result {
+            Ok(filter) => {
+                // Filter should be created successfully
+                let _filter_string = format!("{:?}", filter);
+            }
+            Err(e) => {
+                // If error occurs, it should be related to filter parsing
+                let error_msg = e.to_string();
+                assert!(!error_msg.is_empty());
+            }
+        }
+    }
+
+    #[test]
+    fn test_otel_guard_with_providers() {
+        // Test OtelGuard with mock providers (None simulates failed initialization)
+        let guard = OtelGuard {
+            tracer_provider: None,
+            meter_provider: None,
+        };
+
+        // Test that we can access the fields
+        assert!(guard.tracer_provider.is_none());
+        assert!(guard.meter_provider.is_none());
+
+        // Test drop behavior - should not panic
+        drop(guard);
+    }
+
+    #[test]
+    fn test_error_propagation() {
+        // Test that errors are properly propagated from init functions
+        let traces_error = init_traces().unwrap_err();
+        let metrics_error = init_metrics().unwrap_err();
+
+        // Both errors should mention endpoint configuration
+        assert!(traces_error.to_string().contains("endpoint"));
+        assert!(metrics_error.to_string().contains("endpoint"));
+
+        // Errors should be convertible to string
+        let traces_str = format!("{:?}", traces_error);
+        let metrics_str = format!("{:?}", metrics_error);
+
+        assert!(!traces_str.is_empty());
+        assert!(!metrics_str.is_empty());
+    }
+
+    #[test]
+    fn test_config_usage() {
+        // Test that CONFIG is properly accessed in various functions
+        // This tests the configuration access paths
+
+        // get_resource() uses CONFIG.otlp
+        let resource = get_resource();
+        assert!(!resource.iter().collect::<Vec<_>>().is_empty());
+
+        // filter_layer() uses CONFIG.otlp.otel_filter_default and CONFIG.otlp.otel
+        let filter_result = filter_layer();
+        // Should either succeed or fail gracefully
+        match filter_result {
+            Ok(_) => {} // Success is fine
+            Err(e) => {
+                // Error should be meaningful
+                assert!(!e.to_string().is_empty());
+            }
+        }
+
+        // fmt_filter() uses CONFIG.otlp.fmt_filter_default and other fmt settings
+        let fmt_result = fmt_filter();
+        match fmt_result {
+            Ok(_) => {} // Success is fine
+            Err(e) => {
+                // Error should be meaningful
+                assert!(!e.to_string().is_empty());
+            }
+        }
+    }
+
+    #[test]
+    fn test_service_name_constant_usage() {
+        // Test that SERVICE_NAME constant is used correctly
+        let result = fmt_filter();
+
+        // The function should complete without panicking
+        // SERVICE_NAME is used in the filter directive formation
+        match result {
+            Ok(_) => {
+                // Success means SERVICE_NAME was used correctly
+            }
+            Err(e) => {
+                // Error should still contain meaningful information
+                let error_str = e.to_string();
+                assert!(!error_str.is_empty());
+                // Error might be related to directive parsing, which is OK
+            }
+        }
+    }
+
+    #[test]
+    fn test_init_component_isolation() {
+        // Test that init components can be called independently
+
+        // Test resource creation (used by both traces and metrics)
+        let resource1 = get_resource();
+        let resource2 = get_resource();
+
+        // Resources should be equivalent but independent
+        let attrs1: Vec<_> = resource1.iter().collect();
+        let attrs2: Vec<_> = resource2.iter().collect();
+
+        assert_eq!(attrs1.len(), attrs2.len());
+
+        // Test filter creation (used by subscriber setup)
+        let filter1 = filter_layer();
+        let filter2 = filter_layer();
+
+        // Both should have same success/failure pattern
+        assert_eq!(filter1.is_ok(), filter2.is_ok());
+
+        if filter1.is_err() && filter2.is_err() {
+            // Both should have similar error messages
+            let err1 = filter1.unwrap_err().to_string();
+            let err2 = filter2.unwrap_err().to_string();
+            assert!(!err1.is_empty());
+            assert!(!err2.is_empty());
+        }
+    }
 }

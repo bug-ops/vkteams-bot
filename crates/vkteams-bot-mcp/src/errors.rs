@@ -17,25 +17,25 @@ pub struct CliErrorInfo {
 pub enum BridgeError {
     #[error("CLI execution failed: {0}")]
     CliError(String),
-    
+
     #[error("CLI not found at path: {0}")]
     CliNotFound(String),
-    
+
     #[error("Invalid JSON response from CLI: {0}")]
     InvalidResponse(String),
-    
+
     #[error("CLI returned error: {}", .0.message)]
     CliReturnedError(CliErrorInfo),
-    
+
     #[error("IO error: {0}")]
     Io(String),
-    
+
     #[error("Command timed out after {0:?}")]
     Timeout(Duration),
-    
+
     #[error("CLI process terminated with signal: {0}")]
     ProcessTerminated(String),
-    
+
     #[error("Rate limit exceeded: {0}")]
     RateLimit(String),
 }
@@ -48,16 +48,15 @@ impl BridgeError {
             BridgeError::Io(_) => true,
             BridgeError::RateLimit(_) => true,
             BridgeError::CliReturnedError(info) => {
-                matches!(info.code.as_deref(), 
-                    Some("NETWORK_ERROR") | 
-                    Some("TIMEOUT") | 
-                    Some("TEMPORARY_ERROR")
+                matches!(
+                    info.code.as_deref(),
+                    Some("NETWORK_ERROR") | Some("TIMEOUT") | Some("TEMPORARY_ERROR")
                 )
-            },
+            }
             _ => false,
         }
     }
-    
+
     /// Get suggested retry delay based on error type
     pub fn retry_delay(&self) -> Duration {
         match self {
@@ -148,7 +147,7 @@ mod tests {
         let msg = format!("{}", rmcp_err);
         assert!(msg.contains("other error"));
     }
-    
+
     #[test]
     fn test_mcp_error_bridge() {
         let bridge_err = BridgeError::RateLimit("rate limit exceeded".to_string());

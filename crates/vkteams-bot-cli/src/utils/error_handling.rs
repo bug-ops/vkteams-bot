@@ -151,10 +151,7 @@ pub fn print_error(error: &CliError, show_details: bool) {
         CliError::DaemonNotRunning => {
             eprintln!("{} Daemon is not running", emoji::CROSS.red());
             if show_details {
-                eprintln!(
-                    "  {}",
-                    "Use 'daemon start' to start the daemon.".dimmed()
-                );
+                eprintln!("  {}", "Use 'daemon start' to start the daemon.".dimmed());
             }
         }
         CliError::System(msg) => {
@@ -162,7 +159,8 @@ pub fn print_error(error: &CliError, show_details: bool) {
             if show_details {
                 eprintln!(
                     "  {}",
-                    "This is a system-level error. Check system resources and permissions.".dimmed()
+                    "This is a system-level error. Check system resources and permissions."
+                        .dimmed()
                 );
             }
         }

@@ -4,7 +4,7 @@
 mod tests {
     use crate::commands::storage::*;
     use crate::output::CliResponse;
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     #[test]
     fn test_database_action_variants() {
@@ -19,21 +19,21 @@ mod tests {
 
         // Test that all variants can be created
         match init_action {
-            DatabaseAction::Init => {},
+            DatabaseAction::Init => {}
             _ => panic!("Expected Init variant"),
         }
 
         match stats_action {
             DatabaseAction::Stats { chat_id, since: _ } => {
                 assert_eq!(chat_id, Some("test_chat".to_string()));
-            },
+            }
             _ => panic!("Expected Stats variant"),
         }
 
         match cleanup_action {
             DatabaseAction::Cleanup { older_than_days } => {
                 assert_eq!(older_than_days, 30);
-            },
+            }
             _ => panic!("Expected Cleanup variant"),
         }
     }
@@ -62,29 +62,43 @@ mod tests {
 
         // Test that all variants work correctly
         match semantic_action {
-            SearchAction::Semantic { query, chat_id, limit } => {
+            SearchAction::Semantic {
+                query,
+                chat_id,
+                limit,
+            } => {
                 assert_eq!(query, "test query");
                 assert_eq!(chat_id, None);
                 assert_eq!(limit, 10);
-            },
+            }
             _ => panic!("Expected Semantic variant"),
         }
 
         match text_action {
-            SearchAction::Text { query, chat_id, limit } => {
+            SearchAction::Text {
+                query,
+                chat_id,
+                limit,
+            } => {
                 assert_eq!(query, "search text");
                 assert_eq!(chat_id, Some("chat123".to_string()));
                 assert_eq!(limit, 20);
-            },
+            }
             _ => panic!("Expected Text variant"),
         }
 
         match advanced_action {
-            SearchAction::Advanced { user_id, event_type, since: _, until: _, limit } => {
+            SearchAction::Advanced {
+                user_id,
+                event_type,
+                since: _,
+                until: _,
+                limit,
+            } => {
                 assert_eq!(user_id, Some("user123".to_string()));
                 assert_eq!(event_type, Some("message".to_string()));
                 assert_eq!(limit, 15);
-            },
+            }
             _ => panic!("Expected Advanced variant"),
         }
     }
@@ -116,27 +130,36 @@ mod tests {
         };
 
         match get_action {
-            ContextAction::Get { chat_id, context_type, timeframe: _ } => {
+            ContextAction::Get {
+                chat_id,
+                context_type,
+                timeframe: _,
+            } => {
                 assert_eq!(chat_id, Some("test_chat".to_string()));
                 assert!(matches!(context_type, ContextType::Recent));
-            },
+            }
             _ => panic!("Expected Get variant"),
         }
 
         match create_action {
-            ContextAction::Create { chat_id, summary, context_type } => {
+            ContextAction::Create {
+                chat_id,
+                summary,
+                context_type,
+            } => {
                 assert_eq!(chat_id, "new_chat");
                 assert_eq!(summary, "Test summary");
                 assert_eq!(context_type, "conversation");
-            },
+            }
             _ => panic!("Expected Create variant"),
         }
     }
 
-    #[test] 
+    #[test]
     fn test_cli_response_creation() {
         let success_response = CliResponse::success("test-command", json!({"result": "ok"}));
-        let error_response: CliResponse<Value> = CliResponse::error("test-command", "Something went wrong".to_string());
+        let error_response: CliResponse<Value> =
+            CliResponse::error("test-command", "Something went wrong".to_string());
 
         assert!(success_response.success);
         assert_eq!(success_response.command, "test-command");

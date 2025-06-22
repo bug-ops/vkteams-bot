@@ -26,19 +26,19 @@ pub struct UploadFileArgs {
     /// File name with extension
     #[arg(long)]
     pub name: String,
-    
+
     /// Base64 encoded file content
     #[arg(long)]
     pub content_base64: String,
-    
+
     /// Optional caption/text message
     #[arg(long)]
     pub caption: Option<String>,
-    
+
     /// Reply to message ID
     #[arg(long)]
     pub reply_msg_id: Option<String>,
-    
+
     /// Chat ID (will use default from config if not provided)
     #[arg(long)]
     pub chat_id: Option<String>,
@@ -49,19 +49,19 @@ pub struct UploadTextArgs {
     /// File name with extension
     #[arg(long)]
     pub name: String,
-    
+
     /// Text content to save as file
     #[arg(long)]
     pub content: String,
-    
+
     /// Optional caption/description
     #[arg(long)]
     pub caption: Option<String>,
-    
+
     /// Reply to message ID
     #[arg(long)]
     pub reply_msg_id: Option<String>,
-    
+
     /// Chat ID (will use default from config if not provided)
     #[arg(long)]
     pub chat_id: Option<String>,
@@ -72,23 +72,23 @@ pub struct UploadJsonArgs {
     /// File name (will add .json extension if missing)
     #[arg(long)]
     pub name: String,
-    
+
     /// JSON data as string
     #[arg(long)]
     pub json_data: String,
-    
+
     /// Pretty print JSON
     #[arg(long, default_value = "true")]
     pub pretty: bool,
-    
+
     /// Optional caption/description
     #[arg(long)]
     pub caption: Option<String>,
-    
+
     /// Reply to message ID
     #[arg(long)]
     pub reply_msg_id: Option<String>,
-    
+
     /// Chat ID (will use default from config if not provided)
     #[arg(long)]
     pub chat_id: Option<String>,
@@ -115,19 +115,27 @@ impl FileCommands {
         };
 
         OutputFormatter::print(&response, output_format)?;
-        
+
         if !response.success {
             std::process::exit(1);
         }
-        
+
         Ok(())
     }
 
-    async fn handle_upload(&self, bot: &Bot, args: &UploadFileArgs) -> CliResponse<serde_json::Value> {
+    async fn handle_upload(
+        &self,
+        bot: &Bot,
+        args: &UploadFileArgs,
+    ) -> CliResponse<serde_json::Value> {
         // Decode base64 content
-        let file_content = match base64::engine::general_purpose::STANDARD.decode(&args.content_base64) {
+        let file_content = match base64::engine::general_purpose::STANDARD
+            .decode(&args.content_base64)
+        {
             Ok(content) => content,
-            Err(e) => return CliResponse::error("upload-file", format!("Invalid base64 content: {}", e)),
+            Err(e) => {
+                return CliResponse::error("upload-file", format!("Invalid base64 content: {}", e));
+            }
         };
 
         // Validate file size (100MB limit)
@@ -141,7 +149,12 @@ impl FileCommands {
                 // Get default chat ID from environment or config
                 match std::env::var("VKTEAMS_BOT_CHAT_ID") {
                     Ok(id) => ChatId::from_borrowed_str(&id),
-                    Err(_) => return CliResponse::error("upload-file", "No chat ID provided and VKTEAMS_BOT_CHAT_ID not set"),
+                    Err(_) => {
+                        return CliResponse::error(
+                            "upload-file",
+                            "No chat ID provided and VKTEAMS_BOT_CHAT_ID not set",
+                        );
+                    }
                 }
             }
         };
@@ -177,17 +190,24 @@ impl FileCommands {
         }
     }
 
-    async fn handle_upload_text(&self, bot: &Bot, args: &UploadTextArgs) -> CliResponse<serde_json::Value> {
+    async fn handle_upload_text(
+        &self,
+        bot: &Bot,
+        args: &UploadTextArgs,
+    ) -> CliResponse<serde_json::Value> {
         let file_content = args.content.as_bytes().to_vec();
 
         let chat_id = match &args.chat_id {
             Some(id) => ChatId::from_borrowed_str(id),
-            None => {
-                match std::env::var("VKTEAMS_BOT_CHAT_ID") {
-                    Ok(id) => ChatId::from_borrowed_str(&id),
-                    Err(_) => return CliResponse::error("upload-text", "No chat ID provided and VKTEAMS_BOT_CHAT_ID not set"),
+            None => match std::env::var("VKTEAMS_BOT_CHAT_ID") {
+                Ok(id) => ChatId::from_borrowed_str(&id),
+                Err(_) => {
+                    return CliResponse::error(
+                        "upload-text",
+                        "No chat ID provided and VKTEAMS_BOT_CHAT_ID not set",
+                    );
                 }
-            }
+            },
         };
 
         let mut req = RequestMessagesSendFile::new((
@@ -221,26 +241,44 @@ impl FileCommands {
                 });
                 CliResponse::success("upload-text", data)
             }
-            Err(e) => CliResponse::error("upload-text", format!("Failed to upload text file: {}", e)),
+            Err(e) => {
+                CliResponse::error("upload-text", format!("Failed to upload text file: {}", e))
+            }
         }
     }
 
-    async fn handle_upload_json(&self, bot: &Bot, args: &UploadJsonArgs) -> CliResponse<serde_json::Value> {
+    async fn handle_upload_json(
+        &self,
+        bot: &Bot,
+        args: &UploadJsonArgs,
+    ) -> CliResponse<serde_json::Value> {
         // Parse and format JSON
         let json_value: serde_json::Value = match serde_json::from_str(&args.json_data) {
             Ok(value) => value,
-            Err(e) => return CliResponse::error("upload-json", format!("Invalid JSON data: {}", e)),
+            Err(e) => {
+                return CliResponse::error("upload-json", format!("Invalid JSON data: {}", e));
+            }
         };
 
         let formatted_json = if args.pretty {
             match serde_json::to_string_pretty(&json_value) {
                 Ok(s) => s,
-                Err(e) => return CliResponse::error("upload-json", format!("Failed to format JSON: {}", e)),
+                Err(e) => {
+                    return CliResponse::error(
+                        "upload-json",
+                        format!("Failed to format JSON: {}", e),
+                    );
+                }
             }
         } else {
             match serde_json::to_string(&json_value) {
                 Ok(s) => s,
-                Err(e) => return CliResponse::error("upload-json", format!("Failed to serialize JSON: {}", e)),
+                Err(e) => {
+                    return CliResponse::error(
+                        "upload-json",
+                        format!("Failed to serialize JSON: {}", e),
+                    );
+                }
             }
         };
 
@@ -254,12 +292,15 @@ impl FileCommands {
 
         let chat_id = match &args.chat_id {
             Some(id) => ChatId::from_borrowed_str(id),
-            None => {
-                match std::env::var("VKTEAMS_BOT_CHAT_ID") {
-                    Ok(id) => ChatId::from_borrowed_str(&id),
-                    Err(_) => return CliResponse::error("upload-json", "No chat ID provided and VKTEAMS_BOT_CHAT_ID not set"),
+            None => match std::env::var("VKTEAMS_BOT_CHAT_ID") {
+                Ok(id) => ChatId::from_borrowed_str(&id),
+                Err(_) => {
+                    return CliResponse::error(
+                        "upload-json",
+                        "No chat ID provided and VKTEAMS_BOT_CHAT_ID not set",
+                    );
                 }
-            }
+            },
         };
 
         let mut req = RequestMessagesSendFile::new((
@@ -290,11 +331,17 @@ impl FileCommands {
                 });
                 CliResponse::success("upload-json", data)
             }
-            Err(e) => CliResponse::error("upload-json", format!("Failed to upload JSON file: {}", e)),
+            Err(e) => {
+                CliResponse::error("upload-json", format!("Failed to upload JSON file: {}", e))
+            }
         }
     }
 
-    async fn handle_file_info(&self, bot: &Bot, args: &FileInfoArgs) -> CliResponse<serde_json::Value> {
+    async fn handle_file_info(
+        &self,
+        bot: &Bot,
+        args: &FileInfoArgs,
+    ) -> CliResponse<serde_json::Value> {
         let req = RequestFilesGetInfo::new(FileId(args.file_id.clone()));
 
         match bot.send_api_request(req).await {
@@ -332,23 +379,33 @@ impl Command for FileCommands {
         match self {
             FileCommands::Upload(args) => {
                 if args.name.is_empty() {
-                    return Err(CliError::InputError("File name cannot be empty".to_string()));
+                    return Err(CliError::InputError(
+                        "File name cannot be empty".to_string(),
+                    ));
                 }
                 if args.content_base64.is_empty() {
-                    return Err(CliError::InputError("File content cannot be empty".to_string()));
+                    return Err(CliError::InputError(
+                        "File content cannot be empty".to_string(),
+                    ));
                 }
             }
             FileCommands::UploadText(args) => {
                 if args.name.is_empty() {
-                    return Err(CliError::InputError("File name cannot be empty".to_string()));
+                    return Err(CliError::InputError(
+                        "File name cannot be empty".to_string(),
+                    ));
                 }
             }
             FileCommands::UploadJson(args) => {
                 if args.name.is_empty() {
-                    return Err(CliError::InputError("File name cannot be empty".to_string()));
+                    return Err(CliError::InputError(
+                        "File name cannot be empty".to_string(),
+                    ));
                 }
                 if args.json_data.is_empty() {
-                    return Err(CliError::InputError("JSON data cannot be empty".to_string()));
+                    return Err(CliError::InputError(
+                        "JSON data cannot be empty".to_string(),
+                    ));
                 }
             }
             FileCommands::Info(args) => {
@@ -401,7 +458,7 @@ mod tests {
             reply_msg_id: None,
             chat_id: None,
         };
-        
+
         let cmd = FileCommands::Upload(args);
         assert!(cmd.validate().is_err());
     }
@@ -416,14 +473,14 @@ mod tests {
             reply_msg_id: None,
             chat_id: None,
         };
-        
+
         // In real usage, this would be handled in handle_upload_json
         let expected_filename = if args.name.ends_with(".json") {
             args.name.clone()
         } else {
             format!("{}.json", args.name)
         };
-        
+
         assert_eq!(expected_filename, "test.json");
     }
 }

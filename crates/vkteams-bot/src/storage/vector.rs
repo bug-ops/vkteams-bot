@@ -190,14 +190,15 @@ impl PgVectorStore {
     /// Track query execution time and update performance metrics
     fn track_query_performance(&self, duration: std::time::Duration, success: bool) {
         use std::sync::atomic::Ordering;
-        
+
         let duration_ms = duration.as_secs_f64() * 1000.0;
-        
+
         if success {
             self.query_count.fetch_add(1, Ordering::Relaxed);
             // Convert f64 to u64 by multiplying by 1000 to preserve precision
             let duration_micros = (duration_ms * 1000.0) as u64;
-            self.total_query_time_ms.fetch_add(duration_micros, Ordering::Relaxed);
+            self.total_query_time_ms
+                .fetch_add(duration_micros, Ordering::Relaxed);
         } else {
             self.failed_query_count.fetch_add(1, Ordering::Relaxed);
         }
@@ -211,12 +212,12 @@ impl PgVectorStore {
         let start = Instant::now();
         let result = operation.await;
         let duration = start.elapsed();
-        
+
         match &result {
             Ok(_) => self.track_query_performance(duration, true),
             Err(_) => self.track_query_performance(duration, false),
         }
-        
+
         result
     }
 }
@@ -244,7 +245,10 @@ impl VectorStore for PgVectorStore {
     }
 
     async fn store_documents(&self, documents: Vec<VectorDocument>) -> StorageResult<()> {
-        let mut tx = self.pool.begin().await
+        let mut tx = self
+            .pool
+            .begin()
+            .await
             .map_err(|e| StorageError::Query(e.to_string()))?;
 
         for document in documents {
@@ -265,7 +269,8 @@ impl VectorStore for PgVectorStore {
                 .map_err(|e| StorageError::Query(e.to_string()))?;
         }
 
-        tx.commit().await
+        tx.commit()
+            .await
             .map_err(|e| StorageError::Query(e.to_string()))?;
 
         Ok(())
@@ -277,9 +282,9 @@ impl VectorStore for PgVectorStore {
                 "SELECT id, content, metadata, embedding <=> $1 as distance, created_at FROM {} WHERE 1=1",
                 self.collection_name
             );
-            
+
             let mut bind_count = 1;
-            
+
             // Add score threshold filter
             if let Some(_threshold) = query.score_threshold {
                 bind_count += 1;
@@ -477,7 +482,7 @@ impl VectorStore for PgVectorStore {
         let total_queries = self.query_count.load(Ordering::Relaxed);
         let failed_queries = self.failed_query_count.load(Ordering::Relaxed);
         let total_time_micros = self.total_query_time_ms.load(Ordering::Relaxed);
-        
+
         // Calculate average query time
         let avg_query_time_ms = if total_queries > 0 {
             (total_time_micros as f64) / 1000.0 / (total_queries as f64)
@@ -503,18 +508,17 @@ impl VectorStore for PgVectorStore {
             .await
             .map_err(|e| StorageError::Query(e.to_string()))?;
 
-        let last_maintenance = maintenance_row
-            .and_then(|row| {
-                let last_vacuum: Option<DateTime<Utc>> = row.get("last_vacuum");
-                let last_analyze: Option<DateTime<Utc>> = row.get("last_analyze");
-                
-                match (last_vacuum, last_analyze) {
-                    (Some(vacuum), Some(analyze)) => Some(vacuum.max(analyze)),
-                    (Some(vacuum), None) => Some(vacuum),
-                    (None, Some(analyze)) => Some(analyze),
-                    (None, None) => None,
-                }
-            });
+        let last_maintenance = maintenance_row.and_then(|row| {
+            let last_vacuum: Option<DateTime<Utc>> = row.get("last_vacuum");
+            let last_analyze: Option<DateTime<Utc>> = row.get("last_analyze");
+
+            match (last_vacuum, last_analyze) {
+                (Some(vacuum), Some(analyze)) => Some(vacuum.max(analyze)),
+                (Some(vacuum), None) => Some(vacuum),
+                (None, Some(analyze)) => Some(analyze),
+                (None, None) => None,
+            }
+        });
 
         Ok(VectorMetrics {
             total_documents: stats_row.get::<i64, _>("total_documents"),
@@ -534,7 +538,7 @@ impl VectorStore for PgVectorStore {
     async fn perform_maintenance(&self) -> StorageResult<()> {
         // Vacuum and analyze the vector table for optimal performance
         let vacuum_query = format!("VACUUM ANALYZE {}", self.collection_name);
-        
+
         sqlx::query(&vacuum_query)
             .execute(&self.pool)
             .await
@@ -542,7 +546,7 @@ impl VectorStore for PgVectorStore {
 
         // Reindex the vector index if needed (optional, can be resource-intensive)
         let reindex_query = format!("REINDEX INDEX {}_embedding_idx", self.collection_name);
-        
+
         sqlx::query(&reindex_query)
             .execute(&self.pool)
             .await
@@ -564,9 +568,10 @@ pub async fn create_vector_store(
             let store = PgVectorStore::new(connection_url, collection, 1536).await?;
             Ok(Box::new(store))
         }
-        _ => Err(StorageError::Configuration(
-            format!("Unknown vector store provider: {}", provider)
-        )),
+        _ => Err(StorageError::Configuration(format!(
+            "Unknown vector store provider: {}",
+            provider
+        ))),
     }
 }
 
@@ -631,7 +636,7 @@ mod tests {
         } else {
             0.0
         };
-        
+
         assert_eq!(success_rate, 0.95); // 95% success rate
 
         // Test size conversions

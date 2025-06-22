@@ -1,15 +1,15 @@
 //! Storage and database commands
 
 use crate::commands::{Command, OutputFormat};
-use crate::errors::prelude::{Result as CliResult};
+use crate::errors::prelude::Result as CliResult;
 use crate::output::{CliResponse, OutputFormatter};
 use async_trait::async_trait;
 use clap::Subcommand;
 use serde_json::json;
 use vkteams_bot::prelude::*;
 
-use vkteams_bot::storage::{StorageManager, StorageConfig};
 use vkteams_bot::storage::config::{DatabaseConfig, StorageSettings};
+use vkteams_bot::storage::{StorageConfig, StorageManager};
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum StorageCommands {
@@ -130,12 +130,12 @@ impl StorageCommands {
             };
 
             OutputFormatter::print(&response, output_format)?;
-            
+
             if !response.success {
                 std::process::exit(1);
             }
         }
-        
+
         Ok(())
     }
 
@@ -157,13 +157,13 @@ impl StorageCommands {
         #[cfg(feature = "storage")]
         {
             use vkteams_bot::config::get_config;
-            
+
             // Try to load from configuration file
             if let Ok(main_config) = get_config() {
                 return Ok(main_config.get_storage_config());
             }
         }
-        
+
         // Fallback to environment-based configuration if main config fails
         let database_url = std::env::var("DATABASE_URL")
             .or_else(|_| std::env::var("VKTEAMS_BOT_DATABASE_URL"))
@@ -203,37 +203,41 @@ impl StorageCommands {
         };
 
         match action {
-            DatabaseAction::Init => {
-                match storage.initialize().await {
-                    Ok(_) => {
-                        let data = json!({
-                            "message": "Database initialized successfully",
-                            "migrations_applied": true
-                        });
-                        CliResponse::success("database-init", data)
-                    }
-                    Err(e) => CliResponse::error("database-init", format!("Failed to initialize database: {}", e)),
+            DatabaseAction::Init => match storage.initialize().await {
+                Ok(_) => {
+                    let data = json!({
+                        "message": "Database initialized successfully",
+                        "migrations_applied": true
+                    });
+                    CliResponse::success("database-init", data)
                 }
-            }
-            DatabaseAction::Stats { chat_id, since: _since } => {
-                match storage.get_stats(chat_id.as_deref()).await {
-                    Ok(stats) => {
-                        let data = json!({
-                            "total_events": stats.total_events,
-                            "total_messages": stats.total_messages,
-                            "unique_chats": stats.unique_chats,
-                            "unique_users": stats.unique_users,
-                            "events_last_24h": stats.events_last_24h,
-                            "events_last_week": stats.events_last_week,
-                            "oldest_event": stats.oldest_event,
-                            "newest_event": stats.newest_event,
-                            "storage_size_bytes": stats.storage_size_bytes
-                        });
-                        CliResponse::success("database-stats", data)
-                    }
-                    Err(e) => CliResponse::error("database-stats", format!("Failed to get stats: {}", e)),
+                Err(e) => CliResponse::error(
+                    "database-init",
+                    format!("Failed to initialize database: {}", e),
+                ),
+            },
+            DatabaseAction::Stats {
+                chat_id,
+                since: _since,
+            } => match storage.get_stats(chat_id.as_deref()).await {
+                Ok(stats) => {
+                    let data = json!({
+                        "total_events": stats.total_events,
+                        "total_messages": stats.total_messages,
+                        "unique_chats": stats.unique_chats,
+                        "unique_users": stats.unique_users,
+                        "events_last_24h": stats.events_last_24h,
+                        "events_last_week": stats.events_last_week,
+                        "oldest_event": stats.oldest_event,
+                        "newest_event": stats.newest_event,
+                        "storage_size_bytes": stats.storage_size_bytes
+                    });
+                    CliResponse::success("database-stats", data)
                 }
-            }
+                Err(e) => {
+                    CliResponse::error("database-stats", format!("Failed to get stats: {}", e))
+                }
+            },
             DatabaseAction::Cleanup { older_than_days } => {
                 match storage.cleanup_old_data(*older_than_days).await {
                     Ok(deleted_count) => {
@@ -243,7 +247,9 @@ impl StorageCommands {
                         });
                         CliResponse::success("database-cleanup", data)
                     }
-                    Err(e) => CliResponse::error("database-cleanup", format!("Failed to cleanup: {}", e)),
+                    Err(e) => {
+                        CliResponse::error("database-cleanup", format!("Failed to cleanup: {}", e))
+                    }
                 }
             }
             DatabaseAction::VectorMetrics => {
@@ -280,17 +286,22 @@ impl StorageCommands {
                             });
                             CliResponse::success("database-vector-metrics", data)
                         }
-                        Ok(None) => {
-                            CliResponse::error("database-vector-metrics", "Vector store not configured")
-                        }
-                        Err(e) => {
-                            CliResponse::error("database-vector-metrics", format!("Failed to get vector metrics: {}", e))
-                        }
+                        Ok(None) => CliResponse::error(
+                            "database-vector-metrics",
+                            "Vector store not configured",
+                        ),
+                        Err(e) => CliResponse::error(
+                            "database-vector-metrics",
+                            format!("Failed to get vector metrics: {}", e),
+                        ),
                     }
                 }
                 #[cfg(not(feature = "vector-search"))]
                 {
-                    CliResponse::error("database-vector-metrics", "Vector search feature not enabled")
+                    CliResponse::error(
+                        "database-vector-metrics",
+                        "Vector search feature not enabled",
+                    )
                 }
             }
             DatabaseAction::VectorMaintenance => {
@@ -305,14 +316,18 @@ impl StorageCommands {
                             });
                             CliResponse::success("database-vector-maintenance", data)
                         }
-                        Err(e) => {
-                            CliResponse::error("database-vector-maintenance", format!("Failed to perform maintenance: {}", e))
-                        }
+                        Err(e) => CliResponse::error(
+                            "database-vector-maintenance",
+                            format!("Failed to perform maintenance: {}", e),
+                        ),
                     }
                 }
                 #[cfg(not(feature = "vector-search"))]
                 {
-                    CliResponse::error("database-vector-maintenance", "Vector search feature not enabled")
+                    CliResponse::error(
+                        "database-vector-maintenance",
+                        "Vector search feature not enabled",
+                    )
                 }
             }
         }
@@ -331,10 +346,17 @@ impl StorageCommands {
         };
 
         match action {
-            SearchAction::Semantic { query, chat_id, limit } => {
+            SearchAction::Semantic {
+                query,
+                chat_id,
+                limit,
+            } => {
                 #[cfg(feature = "vector-search")]
                 {
-                    match storage.search_similar_events(query, chat_id.as_deref(), *limit).await {
+                    match storage
+                        .search_similar_events(query, chat_id.as_deref(), *limit)
+                        .await
+                    {
                         Ok(results) => {
                             let data = json!({
                                 "query": query,
@@ -349,7 +371,10 @@ impl StorageCommands {
                             });
                             CliResponse::success("search-semantic", data)
                         }
-                        Err(e) => CliResponse::error("search-semantic", format!("Semantic search failed: {}", e)),
+                        Err(e) => CliResponse::error(
+                            "search-semantic",
+                            format!("Semantic search failed: {}", e),
+                        ),
                     }
                 }
                 #[cfg(not(feature = "vector-search"))]
@@ -358,8 +383,15 @@ impl StorageCommands {
                     CliResponse::error("search-semantic", "Vector search feature not enabled")
                 }
             }
-            SearchAction::Text { query, chat_id, limit } => {
-                match storage.search_messages(query, chat_id.as_deref(), *limit).await {
+            SearchAction::Text {
+                query,
+                chat_id,
+                limit,
+            } => {
+                match storage
+                    .search_messages(query, chat_id.as_deref(), *limit)
+                    .await
+                {
                     Ok(messages) => {
                         let data = json!({
                             "query": query,
@@ -378,27 +410,46 @@ impl StorageCommands {
                     Err(e) => CliResponse::error("search-text", format!("Search failed: {}", e)),
                 }
             }
-            SearchAction::Advanced { user_id, event_type, since, until, limit } => {
+            SearchAction::Advanced {
+                user_id,
+                event_type,
+                since,
+                until,
+                limit,
+            } => {
                 // Parse date filters
                 let since_date = match since.as_ref().map(|s| parse_datetime(s)) {
                     Some(Ok(date)) => Some(date),
-                    Some(Err(_)) => return CliResponse::error("search-advanced", "Invalid 'since' date format. Use ISO 8601 format (e.g., 2023-01-01T00:00:00Z)"),
+                    Some(Err(_)) => {
+                        return CliResponse::error(
+                            "search-advanced",
+                            "Invalid 'since' date format. Use ISO 8601 format (e.g., 2023-01-01T00:00:00Z)",
+                        );
+                    }
                     None => None,
                 };
 
                 let until_date = match until.as_ref().map(|s| parse_datetime(s)) {
                     Some(Ok(date)) => Some(date),
-                    Some(Err(_)) => return CliResponse::error("search-advanced", "Invalid 'until' date format. Use ISO 8601 format (e.g., 2023-01-01T00:00:00Z)"),
+                    Some(Err(_)) => {
+                        return CliResponse::error(
+                            "search-advanced",
+                            "Invalid 'until' date format. Use ISO 8601 format (e.g., 2023-01-01T00:00:00Z)",
+                        );
+                    }
                     None => None,
                 };
 
-                match storage.search_events_advanced(
-                    user_id.as_deref(),
-                    event_type.as_deref(),
-                    since_date,
-                    until_date,
-                    *limit
-                ).await {
+                match storage
+                    .search_events_advanced(
+                        user_id.as_deref(),
+                        event_type.as_deref(),
+                        since_date,
+                        until_date,
+                        *limit,
+                    )
+                    .await
+                {
                     Ok(events) => {
                         let data = json!({
                             "filters": {
@@ -421,7 +472,10 @@ impl StorageCommands {
                         });
                         CliResponse::success("search-advanced", data)
                     }
-                    Err(e) => CliResponse::error("search-advanced", format!("Advanced search failed: {}", e)),
+                    Err(e) => CliResponse::error(
+                        "search-advanced",
+                        format!("Advanced search failed: {}", e),
+                    ),
                 }
             }
         }
@@ -439,47 +493,68 @@ impl StorageCommands {
         };
 
         match action {
-            ContextAction::Get { chat_id, context_type: _, timeframe: _ } => {
-                let default_chat_id = std::env::var("VKTEAMS_BOT_CHAT_ID").unwrap_or_else(|_| "default".to_string());
+            ContextAction::Get {
+                chat_id,
+                context_type: _,
+                timeframe: _,
+            } => {
+                let default_chat_id =
+                    std::env::var("VKTEAMS_BOT_CHAT_ID").unwrap_or_else(|_| "default".to_string());
                 let chat_id_ref = chat_id.as_deref().unwrap_or(&default_chat_id);
-                
+
                 // Get recent events as context
                 match storage.get_recent_events(Some(chat_id_ref), None, 20).await {
-                        Ok(events) => {
-                            let data = json!({
-                                "chat_id": chat_id_ref,
-                                "context_type": "recent",
-                                "events_count": events.len(),
-                                "events": events.into_iter().map(|e| json!({
-                                    "id": e.id,
-                                    "event_id": e.event_id,
-                                    "event_type": e.event_type,
-                                    "timestamp": e.timestamp,
-                                    "user_id": e.user_id
-                                })).collect::<Vec<_>>()
-                            });
-                            CliResponse::success("context-get", data)
-                        }
-                        Err(e) => CliResponse::error("context-get", format!("Failed to get context: {}", e)),
+                    Ok(events) => {
+                        let data = json!({
+                            "chat_id": chat_id_ref,
+                            "context_type": "recent",
+                            "events_count": events.len(),
+                            "events": events.into_iter().map(|e| json!({
+                                "id": e.id,
+                                "event_id": e.event_id,
+                                "event_type": e.event_type,
+                                "timestamp": e.timestamp,
+                                "user_id": e.user_id
+                            })).collect::<Vec<_>>()
+                        });
+                        CliResponse::success("context-get", data)
                     }
+                    Err(e) => {
+                        CliResponse::error("context-get", format!("Failed to get context: {}", e))
+                    }
+                }
             }
-            ContextAction::Create { chat_id, summary, context_type } => {
+            ContextAction::Create {
+                chat_id,
+                summary,
+                context_type,
+            } => {
                 // Create a context document based on the provided summary
                 let context_id = uuid::Uuid::new_v4().to_string();
-                
+
                 // Store context as a vector document if vector search is enabled
                 #[cfg(feature = "vector-search")]
                 {
-                    use vkteams_bot::storage::VectorDocument;
                     use std::collections::HashMap;
-                    
+                    use vkteams_bot::storage::VectorDocument;
+
                     let mut metadata_map = HashMap::new();
-                    metadata_map.insert("chat_id".to_string(), serde_json::Value::String(chat_id.clone()));
-                    metadata_map.insert("context_type".to_string(), serde_json::Value::String(format!("{:?}", context_type)));
-                    metadata_map.insert("created_at".to_string(), serde_json::Value::String(chrono::Utc::now().to_rfc3339()));
-                    
-                    let metadata = serde_json::to_value(metadata_map).unwrap_or(serde_json::Value::Null);
-                    
+                    metadata_map.insert(
+                        "chat_id".to_string(),
+                        serde_json::Value::String(chat_id.clone()),
+                    );
+                    metadata_map.insert(
+                        "context_type".to_string(),
+                        serde_json::Value::String(format!("{:?}", context_type)),
+                    );
+                    metadata_map.insert(
+                        "created_at".to_string(),
+                        serde_json::Value::String(chrono::Utc::now().to_rfc3339()),
+                    );
+
+                    let metadata =
+                        serde_json::to_value(metadata_map).unwrap_or(serde_json::Value::Null);
+
                     let document = VectorDocument {
                         id: context_id.clone(),
                         content: summary.clone(),
@@ -487,7 +562,7 @@ impl StorageCommands {
                         embedding: pgvector::Vector::from(vec![0.0; 768]), // Placeholder embedding
                         created_at: chrono::Utc::now(),
                     };
-                    
+
                     match storage.store_vector_document(&document).await {
                         Ok(_) => {
                             let data = json!({
@@ -500,14 +575,20 @@ impl StorageCommands {
                             });
                             CliResponse::success("context-create", data)
                         }
-                        Err(e) => CliResponse::error("context-create", format!("Failed to create context: {}", e)),
+                        Err(e) => CliResponse::error(
+                            "context-create",
+                            format!("Failed to create context: {}", e),
+                        ),
                     }
                 }
-                
+
                 #[cfg(not(feature = "vector-search"))]
                 {
                     let _ = (chat_id, summary, context_type); // Avoid unused variable warnings
-                    CliResponse::error("context-create", "Vector search feature not enabled. Context creation requires vector storage.")
+                    CliResponse::error(
+                        "context-create",
+                        "Vector search feature not enabled. Context creation requires vector storage.",
+                    )
                 }
             }
         }
@@ -535,26 +616,28 @@ impl Command for StorageCommands {
 }
 
 // Helper function to parse datetime strings
-fn parse_datetime(date_str: &str) -> std::result::Result<chrono::DateTime<chrono::Utc>, &'static str> {
+fn parse_datetime(
+    date_str: &str,
+) -> std::result::Result<chrono::DateTime<chrono::Utc>, &'static str> {
     use chrono::{DateTime, TimeZone};
-    
+
     // Try different formats
     if let Ok(dt) = DateTime::parse_from_rfc3339(date_str) {
         return Ok(dt.with_timezone(&chrono::Utc));
     }
-    
+
     // Try ISO format without timezone
     if let Ok(dt) = chrono::NaiveDateTime::parse_from_str(date_str, "%Y-%m-%dT%H:%M:%S") {
         return Ok(chrono::Utc.from_utc_datetime(&dt));
     }
-    
+
     // Try date only
     if let Ok(date) = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
         if let Some(datetime) = date.and_hms_opt(0, 0, 0) {
             return Ok(chrono::Utc.from_utc_datetime(&datetime));
         }
     }
-    
+
     Err("Invalid date format")
 }
 
@@ -567,17 +650,17 @@ mod tests {
 
     #[test]
     fn test_storage_commands_name() {
-        let cmd = StorageCommands::Database { 
-            action: DatabaseAction::Init 
+        let cmd = StorageCommands::Database {
+            action: DatabaseAction::Init,
         };
         assert_eq!(cmd.name(), "database");
 
-        let cmd = StorageCommands::Search { 
-            action: SearchAction::Text { 
-                query: "test".to_string(), 
-                chat_id: None, 
-                limit: 10 
-            } 
+        let cmd = StorageCommands::Search {
+            action: SearchAction::Text {
+                query: "test".to_string(),
+                chat_id: None,
+                limit: 10,
+            },
         };
         assert_eq!(cmd.name(), "search");
     }
@@ -592,13 +675,13 @@ mod tests {
     fn test_parse_datetime() {
         // Test RFC3339 format
         assert!(parse_datetime("2023-01-01T00:00:00Z").is_ok());
-        
+
         // Test ISO format without timezone
         assert!(parse_datetime("2023-01-01T00:00:00").is_ok());
-        
+
         // Test date only
         assert!(parse_datetime("2023-01-01").is_ok());
-        
+
         // Test invalid format
         assert!(parse_datetime("invalid-date").is_err());
     }
@@ -611,21 +694,21 @@ mod tests {
             context_type: ContextType::Recent,
             timeframe: None,
         };
-        
+
         let create_action = ContextAction::Create {
             chat_id: "test_chat".to_string(),
             summary: "Test summary".to_string(),
             context_type: "recent".to_string(),
         };
-        
+
         // These should match without errors
         match get_action {
-            ContextAction::Get { .. } => {},
+            ContextAction::Get { .. } => {}
             _ => panic!("Expected ContextAction::Get"),
         }
-        
+
         match create_action {
-            ContextAction::Create { .. } => {},
+            ContextAction::Create { .. } => {}
             _ => panic!("Expected ContextAction::Create"),
         }
     }

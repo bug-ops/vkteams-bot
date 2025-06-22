@@ -183,21 +183,11 @@ async fn execute_command(
 
     // Handle commands that support unified JSON output
     match command {
-        Commands::Files(cmd) => {
-            cmd.execute_with_output(&bot, output_format).await
-        }
-        Commands::Storage(cmd) => {
-            cmd.execute_with_output(&bot, output_format).await
-        }
-        Commands::Messaging(cmd) => {
-            cmd.execute_with_output(&bot, output_format).await
-        }
-        Commands::Chat(cmd) => {
-            cmd.execute_with_output(&bot, output_format).await
-        }
-        Commands::Daemon(cmd) => {
-            cmd.execute_with_output(&bot, output_format).await
-        }
+        Commands::Files(cmd) => cmd.execute_with_output(&bot, output_format).await,
+        Commands::Storage(cmd) => cmd.execute_with_output(&bot, output_format).await,
+        Commands::Messaging(cmd) => cmd.execute_with_output(&bot, output_format).await,
+        Commands::Chat(cmd) => cmd.execute_with_output(&bot, output_format).await,
+        Commands::Daemon(cmd) => cmd.execute_with_output(&bot, output_format).await,
         _ => {
             // Fall back to legacy execute method for other commands
             command.execute(&bot).await

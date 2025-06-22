@@ -5,28 +5,28 @@ use serde_json::json;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("📁 Advanced File Operations Example");
     println!("This example shows MCP server file operation patterns");
-    
+
     // Note: MCP server uses CLI commands for actual operations
     // This demonstrates the patterns and data structures
-    
+
     // 1. JSON data preparation
     demonstrate_json_preparation().await?;
-    
+
     // 2. Base64 encoding demonstration
     demonstrate_base64_encoding().await?;
-    
+
     // 3. File operation patterns
     demonstrate_file_patterns().await?;
-    
+
     // 4. MCP tool examples
     demonstrate_mcp_tools().await?;
-    
+
     Ok(())
 }
 
 async fn demonstrate_json_preparation() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n📊 JSON Data Preparation:");
-    
+
     let analytics_data = json!({
         "report": "Monthly Team Analytics",
         "period": "2024-01",
@@ -43,21 +43,21 @@ async fn demonstrate_json_preparation() -> Result<(), Box<dyn std::error::Error>
         ],
         "summary": "High engagement month with 23% increase in activity"
     });
-    
+
     // Create formatted JSON content
     let json_content = serde_json::to_string_pretty(&analytics_data)?;
     println!("✅ Generated JSON content ({} bytes)", json_content.len());
-    
+
     // This would be sent via MCP tool call:
     // vkteams-bot-cli files upload-json -c chat_id -f report.json --data '{json_content}'
     println!("🔧 MCP command: upload_json_file");
-    
+
     Ok(())
 }
 
 async fn demonstrate_base64_encoding() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n🖼️  Base64 Encoding:");
-    
+
     // Create a simple SVG chart as example
     let svg_content = r#"<svg width="400" height="200" xmlns="http://www.w3.org/2000/svg">
         <rect width="400" height="200" fill="lightgray"/>
@@ -73,42 +73,60 @@ async fn demonstrate_base64_encoding() -> Result<(), Box<dyn std::error::Error>>
         <text x="210" y="180" text-anchor="middle" font-size="12">Week 3</text>
         <text x="280" y="180" text-anchor="middle" font-size="12">Week 4</text>
     </svg>"#;
-    
+
     // Encode to base64
     let base64_content = general_purpose::STANDARD.encode(svg_content.as_bytes());
-    println!("✅ Generated base64 content ({} chars)", base64_content.len());
-    
+    println!(
+        "✅ Generated base64 content ({} chars)",
+        base64_content.len()
+    );
+
     // This would be sent via MCP tool call:
     // vkteams-bot-cli files upload-base64 -c chat_id -f chart.svg --data '{base64_content}'
     println!("🔧 MCP command: upload_base64_file");
-    
+
     Ok(())
 }
 
 async fn demonstrate_file_patterns() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n📦 File Operation Patterns:");
-    
+
     // Show different file operation patterns that MCP server handles
     let file_patterns = vec![
-        ("Single file upload", "vkteams-bot-cli send-file -c chat_id -p /path/to/file.pdf"),
-        ("Batch upload", "vkteams-bot-cli files batch-upload -c chat_id -d /path/to/directory"),
-        ("JSON upload", "vkteams-bot-cli files upload-json -c chat_id -f data.json --pretty"),
-        ("Base64 upload", "vkteams-bot-cli files upload-base64 -c chat_id -f image.png --data 'base64...'"),
-        ("Text file creation", "vkteams-bot-cli files create-text -c chat_id -f report.txt --content 'Report content'"),
+        (
+            "Single file upload",
+            "vkteams-bot-cli send-file -c chat_id -p /path/to/file.pdf",
+        ),
+        (
+            "Batch upload",
+            "vkteams-bot-cli files batch-upload -c chat_id -d /path/to/directory",
+        ),
+        (
+            "JSON upload",
+            "vkteams-bot-cli files upload-json -c chat_id -f data.json --pretty",
+        ),
+        (
+            "Base64 upload",
+            "vkteams-bot-cli files upload-base64 -c chat_id -f image.png --data 'base64...'",
+        ),
+        (
+            "Text file creation",
+            "vkteams-bot-cli files create-text -c chat_id -f report.txt --content 'Report content'",
+        ),
     ];
-    
+
     for (desc, cmd) in file_patterns {
         println!("📄 {}: {}", desc, cmd);
     }
-    
+
     println!("\n💡 MCP server translates AI requests to these CLI commands automatically");
-    
+
     Ok(())
 }
 
 async fn demonstrate_mcp_tools() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n🤖 MCP Tool Definitions:");
-    
+
     // Show the MCP tool definitions that the server provides
     let mcp_tools = json!({
         "tools": [
@@ -168,7 +186,7 @@ async fn demonstrate_mcp_tools() -> Result<(), Box<dyn std::error::Error>> {
             }
         ]
     });
-    
+
     println!("✅ Available MCP file tools:");
     if let Some(tools) = mcp_tools["tools"].as_array() {
         for tool in tools {
@@ -179,13 +197,13 @@ async fn demonstrate_mcp_tools() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
-    
+
     println!("\n🔄 Example AI interaction:");
     println!("  User: \"Upload this analytics data as a JSON file to the team chat\"");
     println!("  AI: calls upload_json tool");
     println!("  MCP: translates to vkteams-bot-cli files upload-json ...");
     println!("  CLI: executes and returns result");
     println!("  AI: \"✅ Analytics data uploaded successfully!\"");
-    
+
     Ok(())
 }

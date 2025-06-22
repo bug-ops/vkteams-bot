@@ -715,4 +715,148 @@ mod tests {
             Ok(())
         }
     }
+
+    // Tests for AdaptiveBackoff component
+    #[test]
+    fn test_adaptive_backoff_new() {
+        let min_delay = Duration::from_millis(100);
+        let max_delay = Duration::from_millis(5000);
+        let backoff = AdaptiveBackoff::new(min_delay, max_delay);
+
+        assert_eq!(backoff.current_delay(), min_delay);
+    }
+
+    #[test]
+    fn test_adaptive_backoff_calculate_delay_no_events() {
+        let min_delay = Duration::from_millis(100);
+        let max_delay = Duration::from_millis(5000);
+        let mut backoff = AdaptiveBackoff::new(min_delay, max_delay);
+
+        let calculated = backoff.calculate_delay(0);
+        assert!(calculated >= min_delay);
+        assert!(calculated <= max_delay);
+    }
+
+    #[test]
+    fn test_adaptive_backoff_calculate_delay_with_events() {
+        let min_delay = Duration::from_millis(100);
+        let max_delay = Duration::from_millis(5000);
+        let mut backoff = AdaptiveBackoff::new(min_delay, max_delay);
+
+        let calculated = backoff.calculate_delay(5);
+        assert_eq!(calculated, min_delay);
+    }
+
+    #[test]
+    fn test_adaptive_backoff_reset() {
+        let min_delay = Duration::from_millis(100);
+        let max_delay = Duration::from_millis(5000);
+        let mut backoff = AdaptiveBackoff::new(min_delay, max_delay);
+
+        // Increase delay first
+        backoff.calculate_delay(0);
+        let after_increase = backoff.current_delay();
+        assert!(after_increase >= min_delay);
+
+        // Reset and check
+        backoff.reset();
+        assert_eq!(backoff.current_delay(), min_delay);
+    }
+
+    #[test]
+    fn test_adaptive_backoff_current_delay() {
+        let min_delay = Duration::from_millis(50);
+        let max_delay = Duration::from_millis(2000);
+        let backoff = AdaptiveBackoff::new(min_delay, max_delay);
+
+        assert_eq!(backoff.current_delay(), min_delay);
+    }
+
+    // Tests for ZeroCopyEventStream component
+    #[test]
+    fn test_zero_copy_event_stream_new() {
+        let stream = ZeroCopyEventStream::new(100);
+        assert_eq!(stream.len(), 0);
+        assert!(stream.is_empty());
+    }
+
+    #[test]
+    fn test_zero_copy_event_stream_push_events() {
+        let mut stream = ZeroCopyEventStream::new(10);
+        let events = make_events(3);
+
+        stream.push_events(events.events.clone());
+        assert_eq!(stream.len(), 3);
+        assert!(!stream.is_empty());
+    }
+
+    #[test]
+    fn test_zero_copy_event_stream_push_events_overflow() {
+        let mut stream = ZeroCopyEventStream::new(2);
+        let events = make_events(5);
+
+        stream.push_events(events.events.clone());
+        assert_eq!(stream.len(), 2); // Should be capped at capacity
+    }
+
+    #[test]
+    fn test_zero_copy_event_stream_drain_batch() {
+        let mut stream = ZeroCopyEventStream::new(10);
+        let events = make_events(5);
+
+        stream.push_events(events.events.clone());
+        let drained = stream.drain_batch(3);
+
+        assert_eq!(drained.len(), 3);
+        assert_eq!(stream.len(), 2); // 5 - 3 = 2 remaining
+    }
+
+    #[test]
+    fn test_zero_copy_event_stream_drain_batch_more_than_available() {
+        let mut stream = ZeroCopyEventStream::new(10);
+        let events = make_events(2);
+
+        stream.push_events(events.events.clone());
+        let drained = stream.drain_batch(5);
+
+        assert_eq!(drained.len(), 2); // Only 2 available
+        assert_eq!(stream.len(), 0);
+        assert!(stream.is_empty());
+    }
+
+    #[test]
+    fn test_zero_copy_event_stream_peek_events() {
+        let mut stream = ZeroCopyEventStream::new(10);
+        let events = make_events(5);
+
+        stream.push_events(events.events.clone());
+        let peeked = stream.peek_events(3);
+
+        assert_eq!(peeked.len(), 3);
+        assert_eq!(stream.len(), 5); // Stream unchanged after peek
+
+        // Check that peeked events match the first 3 events
+        for (i, event_ref) in peeked.iter().enumerate() {
+            assert_eq!(event_ref.event_id, events.events[i].event_id);
+        }
+    }
+
+    #[test]
+    fn test_zero_copy_event_stream_peek_events_more_than_available() {
+        let mut stream = ZeroCopyEventStream::new(10);
+        let events = make_events(2);
+
+        stream.push_events(events.events.clone());
+        let peeked = stream.peek_events(5);
+
+        assert_eq!(peeked.len(), 2); // Only 2 available
+        assert_eq!(stream.len(), 2); // Stream unchanged
+    }
+
+    // Tests for ParallelEventProcessor component
+    #[test]
+    fn test_parallel_event_processor_new() {
+        let _processor = ParallelEventProcessor::new(5, 10);
+        // Can't directly test internal fields, but constructor should not panic
+    }
 }

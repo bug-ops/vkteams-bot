@@ -1,17 +1,17 @@
 //! Daemon commands for automatic chat listening and event processing
 
-use clap::Subcommand;
-use crate::errors::{prelude::Result as CliResult, CliError};
-use crate::commands::{Command, OutputFormat, CommandResult};
+use crate::commands::{Command, CommandResult, OutputFormat};
+use crate::config::Config;
+use crate::errors::{CliError, prelude::Result as CliResult};
 use async_trait::async_trait;
+use clap::Subcommand;
+use std::sync::Arc;
+use std::time::Instant;
+use tokio::signal;
+use tracing::{debug, error, info, warn};
 use vkteams_bot::prelude::{Bot, ResponseEventsGet};
 #[cfg(feature = "storage")]
 use vkteams_bot::storage::StorageManager;
-use crate::config::Config;
-use tokio::signal;
-use tracing::{info, error, warn, debug};
-use std::sync::Arc;
-use std::time::Instant;
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum DaemonCommands {
@@ -21,20 +21,20 @@ pub enum DaemonCommands {
         /// Run in foreground (don't daemonize)
         #[arg(short, long)]
         foreground: bool,
-        
+
         /// PID file path
         #[arg(long, value_name = "PATH")]
         pid_file: Option<String>,
-        
+
         /// Enable auto-storage of events
         #[arg(long)]
         auto_save: bool,
-        
+
         /// Chat ID to listen (optional, uses config default)
         #[arg(long)]
         chat_id: Option<String>,
     },
-    
+
     /// Stop daemon
     #[command(name = "stop")]
     Stop {
@@ -42,7 +42,7 @@ pub enum DaemonCommands {
         #[arg(long, value_name = "PATH")]
         pid_file: Option<String>,
     },
-    
+
     /// Check daemon status
     #[command(name = "status")]
     Status {
@@ -56,7 +56,11 @@ pub enum DaemonCommands {
 impl Command for DaemonCommands {
     async fn execute(&self, bot: &Bot) -> CliResult<()> {
         match self {
-            DaemonCommands::Start { foreground, auto_save, .. } => {
+            DaemonCommands::Start {
+                foreground,
+                auto_save,
+                ..
+            } => {
                 if *foreground {
                     start_foreground_daemon(bot, *auto_save).await
                 } else {
@@ -81,11 +85,11 @@ impl Command for DaemonCommands {
             DaemonCommands::Status { pid_file } => {
                 match get_daemon_status(pid_file.as_deref()).await {
                     Ok(status) => CommandResult::success_with_data(status),
-                    Err(e) => CommandResult::error(format!("Failed to get daemon status: {}", e))
+                    Err(e) => CommandResult::error(format!("Failed to get daemon status: {}", e)),
                 }
             }
         };
-        
+
         result.display(format)
     }
 
@@ -142,7 +146,7 @@ impl AutoSaveEventProcessor {
             // Use default storage configuration for now
             // In future, this should read from environment variables or config file
             let storage_config = vkteams_bot::storage::StorageConfig::default();
-            
+
             match StorageManager::new(&storage_config).await {
                 Ok(manager) => {
                     // Initialize storage (run migrations)
@@ -160,7 +164,7 @@ impl AutoSaveEventProcessor {
                 }
             }
         };
-        
+
         Ok(Self {
             #[cfg(feature = "storage")]
             storage,
@@ -174,9 +178,9 @@ impl AutoSaveEventProcessor {
         if event_count == 0 {
             return Ok(());
         }
-        
+
         debug!("Auto-saving {} events to storage", event_count);
-        
+
         let start_time = Instant::now();
         let mut saved_count = 0;
         let mut failed_count = 0;
@@ -187,17 +191,23 @@ impl AutoSaveEventProcessor {
             if let Some(storage) = &self.storage {
                 // Process events using real storage
                 for event in events.events {
-                    debug!("Processing event: {} (type: {:?})", event.event_id, event.event_type);
-                    
+                    debug!(
+                        "Processing event: {} (type: {:?})",
+                        event.event_id, event.event_type
+                    );
+
                     // Calculate event size for statistics
                     if let Ok(serialized) = serde_json::to_vec(&event) {
                         total_bytes += serialized.len();
                     }
-                    
+
                     // Try to store the event
                     match storage.process_event(&event).await {
                         Ok(event_id) => {
-                            debug!("Successfully stored event {} with ID {}", event.event_id, event_id);
+                            debug!(
+                                "Successfully stored event {} with ID {}",
+                                event.event_id, event_id
+                            );
                             saved_count += 1;
                         }
                         Err(e) => {
@@ -209,42 +219,57 @@ impl AutoSaveEventProcessor {
             } else {
                 // No storage available - just count events
                 for event in events.events {
-                    debug!("Processing event: {} (type: {:?}) - no storage available", 
-                           event.event_id, event.event_type);
+                    debug!(
+                        "Processing event: {} (type: {:?}) - no storage available",
+                        event.event_id, event.event_type
+                    );
                     saved_count += 1;
                 }
             }
         }
-        
+
         #[cfg(not(feature = "storage"))]
         {
             // Storage feature not enabled - just count events
             for event in events.events {
-                debug!("Processing event: {} (type: {:?}) - storage not enabled", 
-                       event.event_id, event.event_type);
+                debug!(
+                    "Processing event: {} (type: {:?}) - storage not enabled",
+                    event.event_id, event.event_type
+                );
                 saved_count += 1;
             }
         }
 
         let duration = start_time.elapsed();
-        
+
         // Update statistics
-        self.stats.events_processed.fetch_add(event_count as u64, std::sync::atomic::Ordering::Relaxed);
-        self.stats.events_saved.fetch_add(saved_count, std::sync::atomic::Ordering::Relaxed);
-        self.stats.events_failed.fetch_add(failed_count, std::sync::atomic::Ordering::Relaxed);
-        self.stats.bytes_processed.fetch_add(total_bytes as u64, std::sync::atomic::Ordering::Relaxed);
-        
+        self.stats
+            .events_processed
+            .fetch_add(event_count as u64, std::sync::atomic::Ordering::Relaxed);
+        self.stats
+            .events_saved
+            .fetch_add(saved_count, std::sync::atomic::Ordering::Relaxed);
+        self.stats
+            .events_failed
+            .fetch_add(failed_count, std::sync::atomic::Ordering::Relaxed);
+        self.stats
+            .bytes_processed
+            .fetch_add(total_bytes as u64, std::sync::atomic::Ordering::Relaxed);
+
         if let Ok(mut last_time) = self.stats.last_processed_time.lock() {
             *last_time = Some(chrono::Utc::now());
         }
 
         info!(
-            "Processed {} events in {:?}: {} saved, {} failed, {} bytes processed", 
+            "Processed {} events in {:?}: {} saved, {} failed, {} bytes processed",
             event_count, duration, saved_count, failed_count, total_bytes
         );
 
         if failed_count > 0 {
-            warn!("{} events failed to save - check storage connection", failed_count);
+            warn!(
+                "{} events failed to save - check storage connection",
+                failed_count
+            );
         }
 
         Ok(())
@@ -255,20 +280,32 @@ impl AutoSaveEventProcessor {
         let start_time = *self.stats.start_time.lock().unwrap();
         let now = chrono::Utc::now();
         let uptime_seconds = (now - start_time).num_seconds();
-        let events_processed = self.stats.events_processed.load(std::sync::atomic::Ordering::Relaxed);
-        
+        let events_processed = self
+            .stats
+            .events_processed
+            .load(std::sync::atomic::Ordering::Relaxed);
+
         ProcessorStatsSnapshot {
             events_processed,
-            events_saved: self.stats.events_saved.load(std::sync::atomic::Ordering::Relaxed),
-            events_failed: self.stats.events_failed.load(std::sync::atomic::Ordering::Relaxed),
+            events_saved: self
+                .stats
+                .events_saved
+                .load(std::sync::atomic::Ordering::Relaxed),
+            events_failed: self
+                .stats
+                .events_failed
+                .load(std::sync::atomic::Ordering::Relaxed),
             last_processed_time: *self.stats.last_processed_time.lock().unwrap(),
             start_time,
             uptime_seconds,
-            bytes_processed: self.stats.bytes_processed.load(std::sync::atomic::Ordering::Relaxed),
-            events_per_second: if uptime_seconds > 0 { 
-                events_processed as f64 / uptime_seconds as f64 
-            } else { 
-                0.0 
+            bytes_processed: self
+                .stats
+                .bytes_processed
+                .load(std::sync::atomic::Ordering::Relaxed),
+            events_per_second: if uptime_seconds > 0 {
+                events_processed as f64 / uptime_seconds as f64
+            } else {
+                0.0
             },
         }
     }
@@ -276,8 +313,11 @@ impl AutoSaveEventProcessor {
 
 /// Start daemon in foreground mode
 async fn start_foreground_daemon(bot: &Bot, auto_save: bool) -> CliResult<()> {
-    info!("Starting VKTeams Bot daemon in foreground mode with auto_save={}", auto_save);
-    
+    info!(
+        "Starting VKTeams Bot daemon in foreground mode with auto_save={}",
+        auto_save
+    );
+
     let processor = if auto_save {
         // Load config for storage initialization
         let config = crate::config::UnifiedConfigAdapter::load()
@@ -286,10 +326,10 @@ async fn start_foreground_daemon(bot: &Bot, auto_save: bool) -> CliResult<()> {
     } else {
         None
     };
-    
+
     // Setup graceful shutdown
     let shutdown_signal = setup_shutdown_signal();
-    
+
     // Create the event processing function
     let event_processor = {
         let processor_clone = processor.clone();
@@ -299,16 +339,19 @@ async fn start_foreground_daemon(bot: &Bot, auto_save: bool) -> CliResult<()> {
                 let result = if let Some(processor) = processor_inner {
                     processor.process_events(bot, events).await
                 } else {
-                    debug!("Received {} events (auto-save disabled)", events.events.len());
+                    debug!(
+                        "Received {} events (auto-save disabled)",
+                        events.events.len()
+                    );
                     Ok(())
                 };
-                
+
                 // Convert CliError to BotError for compatibility with event_listener
                 result.map_err(|e| vkteams_bot::error::BotError::System(e.to_string()))
             }
         }
     };
-    
+
     tokio::select! {
         result = bot.event_listener(event_processor) => {
             match result {
@@ -320,7 +363,7 @@ async fn start_foreground_daemon(bot: &Bot, auto_save: bool) -> CliResult<()> {
             info!("Received shutdown signal, stopping daemon...");
         }
     }
-    
+
     Ok(())
 }
 
@@ -328,14 +371,14 @@ async fn start_foreground_daemon(bot: &Bot, auto_save: bool) -> CliResult<()> {
 async fn start_background_daemon(_bot: &Bot, _auto_save: bool) -> CliResult<()> {
     // For now, just return an error - background mode would require more complex implementation
     Err(crate::errors::prelude::CliError::UnexpectedError(
-        "Background daemon mode not yet implemented. Use --foreground flag.".to_string()
+        "Background daemon mode not yet implemented. Use --foreground flag.".to_string(),
     ))
 }
 
 /// Stop daemon (placeholder)
 async fn stop_daemon() -> CliResult<()> {
     Err(crate::errors::prelude::CliError::UnexpectedError(
-        "Daemon stop not yet implemented.".to_string()
+        "Daemon stop not yet implemented.".to_string(),
     ))
 }
 
@@ -347,9 +390,9 @@ async fn check_daemon_status() -> CliResult<()> {
 
 /// Get daemon status with detailed information
 async fn get_daemon_status(pid_file: Option<&str>) -> CliResult<serde_json::Value> {
-    use std::path::PathBuf;
     use chrono::{DateTime, Utc};
-    
+    use std::path::PathBuf;
+
     // Determine PID file path
     let pid_file_path = if let Some(path) = pid_file {
         PathBuf::from(path)
@@ -361,7 +404,7 @@ async fn get_daemon_status(pid_file: Option<&str>) -> CliResult<serde_json::Valu
         data_dir.push("daemon.pid");
         data_dir
     };
-    
+
     // Check if PID file exists
     if !pid_file_path.exists() {
         return Ok(serde_json::json!({
@@ -370,12 +413,12 @@ async fn get_daemon_status(pid_file: Option<&str>) -> CliResult<serde_json::Valu
             "pid_file": pid_file_path
         }));
     }
-    
+
     // Read PID file content
     let pid_content = tokio::fs::read_to_string(&pid_file_path)
         .await
         .map_err(|e| CliError::FileError(format!("Failed to read PID file: {}", e)))?;
-    
+
     let lines: Vec<&str> = pid_content.trim().split('\n').collect();
     if lines.len() < 2 {
         return Ok(serde_json::json!({
@@ -384,25 +427,26 @@ async fn get_daemon_status(pid_file: Option<&str>) -> CliResult<serde_json::Valu
             "pid_file": pid_file_path
         }));
     }
-    
-    let pid: u32 = lines[0].parse()
+
+    let pid: u32 = lines[0]
+        .parse()
         .map_err(|_| CliError::InputError("Invalid PID in file".to_string()))?;
-    
+
     let started_at = DateTime::parse_from_rfc3339(lines[1])
         .map_err(|_| CliError::InputError("Invalid timestamp in PID file".to_string()))?
         .with_timezone(&Utc);
-    
+
     // Check if process is actually running
     let is_running = is_process_running(pid);
-    
+
     if is_running {
         // Calculate uptime
         let uptime = Utc::now().signed_duration_since(started_at);
         let uptime_str = format_duration(uptime);
-        
+
         // Try to get memory usage (platform specific)
         let memory_usage = get_process_memory_usage(pid).unwrap_or_else(|| "unknown".to_string());
-        
+
         Ok(serde_json::json!({
             "status": "running",
             "pid": pid,
@@ -426,18 +470,19 @@ async fn get_daemon_status(pid_file: Option<&str>) -> CliResult<serde_json::Valu
 async fn setup_shutdown_signal() {
     #[cfg(unix)]
     {
-        use tokio::signal::unix::{signal, SignalKind};
-        
-        let mut sigterm = signal(SignalKind::terminate()).expect("Failed to create SIGTERM handler");
+        use tokio::signal::unix::{SignalKind, signal};
+
+        let mut sigterm =
+            signal(SignalKind::terminate()).expect("Failed to create SIGTERM handler");
         let mut sigint = signal(SignalKind::interrupt()).expect("Failed to create SIGINT handler");
-        
+
         tokio::select! {
             _ = sigterm.recv() => debug!("Received SIGTERM"),
             _ = sigint.recv() => debug!("Received SIGINT"),
             _ = signal::ctrl_c() => debug!("Received Ctrl+C"),
         }
     }
-    
+
     #[cfg(windows)]
     {
         let _ = signal::ctrl_c().await;
@@ -456,23 +501,23 @@ fn is_process_running(pid: u32) -> bool {
             Err(_) => false,
         }
     }
-    
+
     #[cfg(windows)]
     {
         use std::process::Command;
         // On Windows, use tasklist to check if process exists
         match Command::new("tasklist")
             .args(["/FI", &format!("PID eq {}", pid), "/FO", "CSV"])
-            .output() 
+            .output()
         {
             Ok(output) => {
                 let output_str = String::from_utf8_lossy(&output.stdout);
                 output_str.lines().count() > 1 // More than just header
-            },
+            }
             Err(_) => false,
         }
     }
-    
+
     #[cfg(not(any(unix, windows)))]
     {
         false // For other platforms, assume not running
@@ -485,7 +530,7 @@ fn format_duration(duration: chrono::Duration) -> String {
     let minutes = seconds / 60;
     let hours = minutes / 60;
     let days = hours / 24;
-    
+
     if days > 0 {
         format!("{}d {}h {}m", days, hours % 24, minutes % 60)
     } else if hours > 0 {
@@ -504,7 +549,7 @@ fn get_process_memory_usage(pid: u32) -> Option<String> {
         use std::process::Command;
         match Command::new("ps")
             .args(["-p", &pid.to_string(), "-o", "rss="])
-            .output() 
+            .output()
         {
             Ok(output) => {
                 let rss_str = String::from_utf8_lossy(&output.stdout);
@@ -514,17 +559,17 @@ fn get_process_memory_usage(pid: u32) -> Option<String> {
                 } else {
                     None
                 }
-            },
+            }
             Err(_) => None,
         }
     }
-    
+
     #[cfg(windows)]
     {
         use std::process::Command;
         match Command::new("tasklist")
             .args(["/FI", &format!("PID eq {}", pid), "/FO", "CSV", "/NH"])
-            .output() 
+            .output()
         {
             Ok(output) => {
                 let output_str = String::from_utf8_lossy(&output.stdout);
@@ -539,11 +584,11 @@ fn get_process_memory_usage(pid: u32) -> Option<String> {
                     }
                 }
                 None
-            },
+            }
             Err(_) => None,
         }
     }
-    
+
     #[cfg(not(any(unix, windows)))]
     {
         None
@@ -554,7 +599,7 @@ fn get_process_memory_usage(pid: u32) -> Option<String> {
 mod tests {
     use super::*;
     use std::sync::atomic::Ordering;
-    
+
     #[test]
     fn test_processor_stats() {
         let processor = AutoSaveEventProcessor {
@@ -562,26 +607,29 @@ mod tests {
             storage: None,
             stats: Arc::new(ProcessorStats::default()),
         };
-        
+
         // Test initial stats
         let stats = processor.get_stats();
         assert_eq!(stats.events_processed, 0);
         assert_eq!(stats.events_saved, 0);
         assert_eq!(stats.events_failed, 0);
         assert!(stats.last_processed_time.is_none());
-        
+
         // Test updating stats
-        processor.stats.events_processed.store(100, Ordering::Relaxed);
+        processor
+            .stats
+            .events_processed
+            .store(100, Ordering::Relaxed);
         processor.stats.events_saved.store(95, Ordering::Relaxed);
         processor.stats.events_failed.store(5, Ordering::Relaxed);
-        
+
         let updated_stats = processor.get_stats();
         assert_eq!(updated_stats.events_processed, 100);
         assert_eq!(updated_stats.events_saved, 95);
         assert_eq!(updated_stats.events_failed, 5);
         assert!(updated_stats.uptime_seconds >= 0);
     }
-    
+
     #[test]
     fn test_daemon_command_name() {
         let cmd = DaemonCommands::Status { pid_file: None };

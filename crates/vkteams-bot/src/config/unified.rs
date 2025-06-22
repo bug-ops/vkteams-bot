@@ -14,24 +14,24 @@ pub struct UnifiedConfig {
     /// API configuration shared by CLI and MCP
     #[serde(default)]
     pub api: ApiConfig,
-    
+
     /// Storage configuration (database and vector search)
     #[cfg(feature = "storage")]
     #[serde(default)]
     pub storage: StorageConfig,
-    
+
     /// MCP server specific configuration
     #[serde(default)]
     pub mcp: McpConfig,
-    
+
     /// CLI specific configuration
     #[serde(default)]
     pub cli: CliConfig,
-    
+
     /// Network configuration shared by both components
     #[serde(default)]
     pub network: NetworkConfig,
-    
+
     /// OpenTelemetry configuration
     #[cfg(feature = "otlp")]
     #[serde(default)]
@@ -45,15 +45,15 @@ pub struct ApiConfig {
     /// VK Teams Bot API token
     #[serde(skip_serializing_if = "Option::is_none")]
     pub token: Option<String>,
-    
+
     /// API base URL
     #[serde(default = "default_api_url")]
     pub url: String,
-    
+
     /// Request timeout in seconds
     #[serde(default = "default_timeout")]
     pub timeout: u64,
-    
+
     /// Maximum retry attempts
     #[serde(default = "default_retries")]
     pub max_retries: u32,
@@ -78,7 +78,7 @@ pub struct StorageConfig {
     /// Database configuration
     #[serde(default)]
     pub database: DatabaseConfig,
-    
+
     /// Vector embedding configuration
     #[cfg(feature = "vector-search")]
     #[serde(default)]
@@ -93,11 +93,11 @@ pub struct DatabaseConfig {
     /// Database connection URL
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
-    
+
     /// Maximum number of connections
     #[serde(default = "default_max_connections")]
     pub max_connections: u32,
-    
+
     /// Whether to auto-migrate on startup
     #[serde(default = "default_auto_migrate")]
     pub auto_migrate: bool,
@@ -122,15 +122,15 @@ pub struct EmbeddingConfig {
     /// Embedding provider (ollama, openai)
     #[serde(default = "default_embedding_provider")]
     pub provider: String,
-    
+
     /// Model name
     #[serde(default = "default_embedding_model")]
     pub model: String,
-    
+
     /// API endpoint (for ollama or custom endpoints)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub endpoint: Option<String>,
-    
+
     /// API key (for OpenAI and similar services)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub api_key: Option<String>,
@@ -155,19 +155,19 @@ pub struct McpConfig {
     /// Default chat ID for MCP operations
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chat_id: Option<String>,
-    
+
     /// Path to CLI binary
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cli_path: Option<PathBuf>,
-    
+
     /// Enable storage tools in MCP
     #[serde(default = "default_enable_storage_tools")]
     pub enable_storage_tools: bool,
-    
+
     /// Enable file tools in MCP
     #[serde(default = "default_enable_file_tools")]
     pub enable_file_tools: bool,
-    
+
     /// Maximum retry attempts for CLI calls
     #[serde(default = "default_cli_retries")]
     pub cli_retries: usize,
@@ -192,11 +192,11 @@ pub struct CliConfig {
     /// File handling configuration
     #[serde(default)]
     pub files: FileConfig,
-    
+
     /// Logging configuration
     #[serde(default)]
     pub logging: LoggingConfig,
-    
+
     /// UI configuration
     #[serde(default)]
     pub ui: UiConfig,
@@ -209,11 +209,11 @@ pub struct FileConfig {
     /// Download directory
     #[serde(skip_serializing_if = "Option::is_none")]
     pub download_dir: Option<PathBuf>,
-    
+
     /// Upload directory
     #[serde(skip_serializing_if = "Option::is_none")]
     pub upload_dir: Option<PathBuf>,
-    
+
     /// Maximum file size in bytes
     #[serde(default = "default_max_file_size")]
     pub max_file_size: usize,
@@ -236,7 +236,7 @@ pub struct LoggingConfig {
     /// Log level
     #[serde(default = "default_log_level")]
     pub level: String,
-    
+
     /// Log format
     #[serde(default = "default_log_format")]
     pub format: String,
@@ -258,7 +258,7 @@ pub struct UiConfig {
     /// Show progress bars
     #[serde(default = "default_show_progress")]
     pub show_progress: bool,
-    
+
     /// Use colored output
     #[serde(default = "default_colored_output")]
     pub colored_output: bool,
@@ -280,11 +280,11 @@ pub struct NetworkConfig {
     /// Number of retry attempts
     #[serde(default = "default_retries_usize")]
     pub retries: usize,
-    
+
     /// Request timeout in seconds
     #[serde(default = "default_request_timeout")]
     pub request_timeout_secs: u64,
-    
+
     /// Connection timeout in seconds
     #[serde(default = "default_connect_timeout")]
     pub connect_timeout_secs: u64,
@@ -308,11 +308,11 @@ pub struct OtlpConfig {
     /// Instance ID
     #[serde(default = "default_instance_id")]
     pub instance_id: Cow<'static, str>,
-    
+
     /// Deployment environment
     #[serde(default = "default_environment")]
     pub deployment_environment_name: Cow<'static, str>,
-    
+
     /// OTLP exporter endpoint
     #[serde(skip_serializing_if = "Option::is_none")]
     pub exporter_endpoint: Option<String>,
@@ -418,16 +418,18 @@ fn default_environment() -> Cow<'static, str> {
 
 impl UnifiedConfig {
     /// Load configuration from file or environment variables
-    pub fn load_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn load_from_file<P: AsRef<std::path::Path>>(
+        path: P,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         let content = std::fs::read_to_string(path)?;
         let mut config: UnifiedConfig = toml::from_str(&content)?;
-        
+
         // Override with environment variables
         config.apply_env_overrides();
-        
+
         Ok(config)
     }
-    
+
     /// Apply environment variable overrides
     pub fn apply_env_overrides(&mut self) {
         // API configuration
@@ -437,7 +439,7 @@ impl UnifiedConfig {
         if let Ok(url) = std::env::var("VKTEAMS_BOT_API_URL") {
             self.api.url = url;
         }
-        
+
         // MCP configuration
         if let Ok(chat_id) = std::env::var("VKTEAMS_BOT_CHAT_ID") {
             self.mcp.chat_id = Some(chat_id);
@@ -445,13 +447,13 @@ impl UnifiedConfig {
         if let Ok(cli_path) = std::env::var("VKTEAMS_BOT_CLI_PATH") {
             self.mcp.cli_path = Some(PathBuf::from(cli_path));
         }
-        
+
         // Storage configuration
         #[cfg(feature = "storage")]
         if let Ok(db_url) = std::env::var("DATABASE_URL") {
             self.storage.database.url = Some(db_url);
         }
-        
+
         // Embedding configuration
         #[cfg(all(feature = "storage", feature = "vector-search"))]
         {
@@ -469,9 +471,11 @@ impl UnifiedConfig {
             }
         }
     }
-    
+
     /// Create a default configuration file
-    pub fn create_default_file<P: AsRef<std::path::Path>>(path: P) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn create_default_file<P: AsRef<std::path::Path>>(
+        path: P,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let config = UnifiedConfig::default();
         let content = toml::to_string_pretty(&config)?;
         std::fs::write(path, content)?;
@@ -482,7 +486,7 @@ impl UnifiedConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_default_config() {
         let config = UnifiedConfig::default();
@@ -492,7 +496,7 @@ mod tests {
         assert!(config.mcp.enable_storage_tools);
         assert!(config.cli.ui.show_progress);
     }
-    
+
     #[test]
     fn test_serialize_deserialize() {
         let config = UnifiedConfig::default();
@@ -500,24 +504,193 @@ mod tests {
         let deserialized: UnifiedConfig = toml::from_str(&toml_str).unwrap();
         assert_eq!(config, deserialized);
     }
-    
+
     #[test]
     fn test_env_overrides() {
         unsafe {
             std::env::set_var("VKTEAMS_BOT_API_TOKEN", "test_token");
             std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_chat");
         }
-        
+
         let mut config = UnifiedConfig::default();
         config.apply_env_overrides();
-        
+
         assert_eq!(config.api.token, Some("test_token".to_string()));
         assert_eq!(config.mcp.chat_id, Some("test_chat".to_string()));
-        
+
         // Cleanup
         unsafe {
             std::env::remove_var("VKTEAMS_BOT_API_TOKEN");
             std::env::remove_var("VKTEAMS_BOT_CHAT_ID");
         }
+    }
+
+    #[test]
+    fn test_api_config_default() {
+        let api_config = ApiConfig::default();
+        assert_eq!(api_config.url, "https://api.vk.com");
+        assert_eq!(api_config.timeout, 30);
+        assert!(api_config.token.is_none());
+        assert_eq!(api_config.max_retries, 3);
+    }
+
+    #[test]
+    fn test_network_config_default() {
+        let network_config = NetworkConfig::default();
+        assert_eq!(network_config.retries, 3);
+        assert_eq!(network_config.request_timeout_secs, 30);
+        assert_eq!(network_config.connect_timeout_secs, 10);
+    }
+
+    #[test]
+    fn test_mcp_config_default() {
+        let mcp_config = McpConfig::default();
+        assert!(mcp_config.chat_id.is_none());
+        assert!(mcp_config.cli_path.is_none());
+        assert!(mcp_config.enable_storage_tools);
+        assert!(mcp_config.enable_file_tools);
+        assert_eq!(mcp_config.cli_retries, 3);
+    }
+
+    #[test]
+    fn test_cli_config_default() {
+        let cli_config = CliConfig::default();
+        assert!(cli_config.ui.show_progress);
+    }
+
+    #[test]
+    fn test_api_config_custom() {
+        let api_config = ApiConfig {
+            url: "https://custom.api.com".to_string(),
+            token: Some("custom_token".to_string()),
+            timeout: 60,
+            max_retries: 5,
+        };
+
+        assert_eq!(api_config.url, "https://custom.api.com");
+        assert_eq!(api_config.token, Some("custom_token".to_string()));
+        assert_eq!(api_config.timeout, 60);
+        assert_eq!(api_config.max_retries, 5);
+    }
+
+    #[test]
+    fn test_mcp_config_custom() {
+        let mcp_config = McpConfig {
+            chat_id: Some("custom_chat".to_string()),
+            cli_path: Some(PathBuf::from("/usr/bin/cli")),
+            enable_storage_tools: false,
+            enable_file_tools: false,
+            cli_retries: 5,
+        };
+
+        assert_eq!(mcp_config.chat_id, Some("custom_chat".to_string()));
+        assert_eq!(mcp_config.cli_path, Some(PathBuf::from("/usr/bin/cli")));
+        assert!(!mcp_config.enable_storage_tools);
+        assert!(!mcp_config.enable_file_tools);
+        assert_eq!(mcp_config.cli_retries, 5);
+    }
+
+    #[test]
+    fn test_config_serialization_with_custom_values() {
+        let mut config = UnifiedConfig::default();
+        config.api.url = "https://custom.com".to_string();
+        config.api.token = Some("secret".to_string());
+        config.mcp.chat_id = Some("chat123".to_string());
+        config.network.retries = 5;
+
+        let serialized = toml::to_string(&config).unwrap();
+        assert!(serialized.contains("https://custom.com"));
+        assert!(serialized.contains("secret"));
+        assert!(serialized.contains("chat123"));
+        assert!(serialized.contains("retries = 5"));
+
+        let deserialized: UnifiedConfig = toml::from_str(&serialized).unwrap();
+        assert_eq!(config, deserialized);
+    }
+
+    #[test]
+    fn test_env_override_partial() {
+        unsafe {
+            std::env::set_var("VKTEAMS_BOT_API_TOKEN", "env_token");
+            // Don't set VKTEAMS_BOT_CHAT_ID to test partial override
+        }
+
+        let mut config = UnifiedConfig::default();
+        config.mcp.chat_id = Some("original_chat".to_string());
+        config.apply_env_overrides();
+
+        // Token should be overridden
+        assert_eq!(config.api.token, Some("env_token".to_string()));
+        // Chat ID should remain original since env var not set
+        assert_eq!(config.mcp.chat_id, Some("original_chat".to_string()));
+
+        // Cleanup
+        unsafe {
+            std::env::remove_var("VKTEAMS_BOT_API_TOKEN");
+        }
+    }
+
+    #[test]
+    fn test_default_functions() {
+        // Test the key default functions
+        assert_eq!(default_api_url(), "https://api.vk.com");
+        assert_eq!(default_timeout(), 30);
+        assert_eq!(default_retries(), 3);
+        assert!(default_enable_storage_tools());
+        assert!(default_enable_file_tools());
+        assert_eq!(default_cli_retries(), 3);
+    }
+
+    #[test]
+    fn test_file_config_default() {
+        let file_config = FileConfig::default();
+        assert_eq!(file_config.max_file_size, 104_857_600); // 100MB
+    }
+
+    #[test]
+    fn test_logging_config_default() {
+        let logging_config = LoggingConfig::default();
+        assert_eq!(logging_config.level, "info");
+        assert_eq!(logging_config.format, "pretty");
+    }
+
+    #[test]
+    fn test_ui_config_default() {
+        let ui_config = UiConfig::default();
+        assert!(ui_config.show_progress);
+    }
+
+    #[test]
+    fn test_config_equality() {
+        let config1 = UnifiedConfig::default();
+        let config2 = UnifiedConfig::default();
+        assert_eq!(config1, config2);
+
+        let mut config3 = UnifiedConfig::default();
+        config3.api.timeout = 60;
+        assert_ne!(config1, config3);
+    }
+
+    #[test]
+    fn test_config_cloning() {
+        let mut original = UnifiedConfig::default();
+        original.api.token = Some("test_token".to_string());
+        original.mcp.chat_id = Some("test_chat".to_string());
+
+        let cloned = original.clone();
+        assert_eq!(original, cloned);
+        assert_eq!(cloned.api.token, Some("test_token".to_string()));
+        assert_eq!(cloned.mcp.chat_id, Some("test_chat".to_string()));
+    }
+
+    #[test]
+    fn test_config_debug_format() {
+        let config = UnifiedConfig::default();
+        let debug_str = format!("{:?}", config);
+        assert!(debug_str.contains("UnifiedConfig"));
+        assert!(debug_str.contains("ApiConfig"));
+        assert!(debug_str.contains("NetworkConfig"));
+        assert!(debug_str.contains("McpConfig"));
+        assert!(debug_str.contains("CliConfig"));
     }
 }

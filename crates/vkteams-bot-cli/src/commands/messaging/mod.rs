@@ -110,11 +110,7 @@ impl Command for MessagingCommands {
     }
 
     /// New method for structured output support
-    async fn execute_with_output(
-        &self,
-        bot: &Bot,
-        output_format: &OutputFormat,
-    ) -> CliResult<()> {
+    async fn execute_with_output(&self, bot: &Bot, output_format: &OutputFormat) -> CliResult<()> {
         let response = match self {
             MessagingCommands::SendText { chat_id, message } => {
                 execute_send_text_structured(bot, chat_id, message).await
@@ -145,11 +141,11 @@ impl Command for MessagingCommands {
         };
 
         OutputFormatter::print(&response, output_format)?;
-        
+
         if !response.success {
             return Err(CliError::UnexpectedError("Command failed".to_string()));
         }
-        
+
         Ok(())
     }
 
@@ -219,12 +215,13 @@ async fn execute_send_text_structured(
     debug!("Sending text message to {}", chat_id);
 
     let parser = MessageTextParser::new().add(MessageTextFormat::Plain(message.to_string()));
-    let request = match RequestMessagesSendText::new(ChatId::from_borrowed_str(chat_id))
-        .set_text(parser)
-    {
-        Ok(req) => req,
-        Err(e) => return CliResponse::error("send-text", format!("Failed to create message: {}", e)),
-    };
+    let request =
+        match RequestMessagesSendText::new(ChatId::from_borrowed_str(chat_id)).set_text(parser) {
+            Ok(req) => req,
+            Err(e) => {
+                return CliResponse::error("send-text", format!("Failed to create message: {}", e));
+            }
+        };
 
     match bot.send_api_request(request).await {
         Ok(result) => {
@@ -298,7 +295,12 @@ async fn execute_edit_message_structured(
     .set_text(parser)
     {
         Ok(req) => req,
-        Err(e) => return CliResponse::error("edit-message", format!("Failed to set message text: {}", e)),
+        Err(e) => {
+            return CliResponse::error(
+                "edit-message",
+                format!("Failed to set message text: {}", e),
+            );
+        }
     };
 
     match bot.send_api_request(request).await {
@@ -329,7 +331,10 @@ async fn execute_delete_message_structured(
 
     match bot.send_api_request(request).await {
         Ok(_result) => {
-            info!("Successfully deleted message {} from {}", message_id, chat_id);
+            info!(
+                "Successfully deleted message {} from {}",
+                message_id, chat_id
+            );
             let data = json!({
                 "chat_id": chat_id,
                 "message_id": message_id,
@@ -381,7 +386,10 @@ async fn execute_unpin_message_structured(
 
     match bot.send_api_request(request).await {
         Ok(_result) => {
-            info!("Successfully unpinned message {} from {}", message_id, chat_id);
+            info!(
+                "Successfully unpinned message {} from {}",
+                message_id, chat_id
+            );
             let data = json!({
                 "chat_id": chat_id,
                 "message_id": message_id,

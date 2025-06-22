@@ -60,13 +60,13 @@ fn print_table_result<T>(result: &T) -> CliResult<()>
 where
     T: serde::Serialize,
 {
-    use tabled::{Table, Tabled};
     use std::collections::BTreeMap;
-    
+    use tabled::{Table, Tabled};
+
     // Convert to JSON first for processing
     let json_value = serde_json::to_value(result)
         .map_err(|e| CliError::UnexpectedError(format!("Failed to serialize for table: {}", e)))?;
-    
+
     #[derive(Tabled)]
     struct TableRow {
         #[tabled(rename = "Key")]
@@ -74,21 +74,21 @@ where
         #[tabled(rename = "Value")]
         value: String,
     }
-    
+
     match json_value {
         serde_json::Value::Object(map) => {
             // Convert object to key-value table
-            let ordered_map: BTreeMap<String, &serde_json::Value> = map.iter()
-                .map(|(k, v)| (k.clone(), v))
-                .collect();
-            
-            let rows: Vec<TableRow> = ordered_map.into_iter()
+            let ordered_map: BTreeMap<String, &serde_json::Value> =
+                map.iter().map(|(k, v)| (k.clone(), v)).collect();
+
+            let rows: Vec<TableRow> = ordered_map
+                .into_iter()
                 .map(|(key, value)| TableRow {
                     key,
                     value: format_table_value(value),
                 })
                 .collect();
-            
+
             let table = Table::new(rows);
             println!("{}", table);
         }
@@ -97,21 +97,22 @@ where
                 println!("No data available");
                 return Ok(());
             }
-            
+
             // Try to create a table from array of objects
             if let Some(first) = arr.first() {
                 if let serde_json::Value::Object(_) = first {
                     print_array_as_table(&arr)?;
                 } else {
                     // Array of primitives - show as numbered list
-                    let rows: Vec<TableRow> = arr.iter()
+                    let rows: Vec<TableRow> = arr
+                        .iter()
                         .enumerate()
                         .map(|(i, item)| TableRow {
                             key: format!("Item {}", i + 1),
                             value: format_table_value(item),
                         })
                         .collect();
-                    
+
                     let table = Table::new(rows);
                     println!("{}", table);
                 }
@@ -119,27 +120,25 @@ where
         }
         _ => {
             // Single value
-            let rows = vec![
-                TableRow {
-                    key: "Value".to_string(),
-                    value: format_table_value(&json_value),
-                }
-            ];
+            let rows = vec![TableRow {
+                key: "Value".to_string(),
+                value: format_table_value(&json_value),
+            }];
             let table = Table::new(rows);
             println!("{}", table);
         }
     }
-    
+
     Ok(())
 }
 
 /// Print array of objects as table
 fn print_array_as_table(arr: &[serde_json::Value]) -> CliResult<()> {
     use std::collections::BTreeSet;
-    
+
     // Collect all unique keys from objects in the array
     let mut all_keys: BTreeSet<String> = BTreeSet::new();
-    
+
     for item in arr {
         if let serde_json::Value::Object(obj) = item {
             for key in obj.keys() {
@@ -147,25 +146,26 @@ fn print_array_as_table(arr: &[serde_json::Value]) -> CliResult<()> {
             }
         }
     }
-    
+
     if all_keys.is_empty() {
         println!("No data available");
         return Ok(());
     }
-    
+
     // Create dynamic table data
     let mut table_data: Vec<Vec<String>> = Vec::new();
-    
+
     // Add header row
     let header: Vec<String> = all_keys.iter().cloned().collect();
     table_data.push(header);
-    
+
     // Add data rows
     for item in arr {
         if let serde_json::Value::Object(obj) = item {
             let mut row = Vec::new();
             for key in &all_keys {
-                let value = obj.get(key)
+                let value = obj
+                    .get(key)
                     .map(format_table_value)
                     .unwrap_or_else(|| "-".to_string());
                 row.push(value);
@@ -173,14 +173,14 @@ fn print_array_as_table(arr: &[serde_json::Value]) -> CliResult<()> {
             table_data.push(row);
         }
     }
-    
+
     // Convert to table using the raw data approach
     if !table_data.is_empty() {
         use tabled::Table;
         let table = Table::from_iter(table_data);
         println!("{}", table);
     }
-    
+
     Ok(())
 }
 
@@ -196,9 +196,7 @@ fn format_table_value(value: &serde_json::Value) -> String {
                 "[]".to_string()
             } else if arr.len() <= 3 {
                 // Show small arrays inline
-                let items: Vec<String> = arr.iter()
-                    .map(format_table_value)
-                    .collect();
+                let items: Vec<String> = arr.iter().map(format_table_value).collect();
                 format!("[{}]", items.join(", "))
             } else {
                 format!("[{} items]", arr.len())
@@ -209,7 +207,8 @@ fn format_table_value(value: &serde_json::Value) -> String {
                 "{}".to_string()
             } else if obj.len() <= 2 {
                 // Show small objects inline
-                let items: Vec<String> = obj.iter()
+                let items: Vec<String> = obj
+                    .iter()
                     .map(|(k, v)| format!("{}: {}", k, format_table_value(v)))
                     .collect();
                 format!("{{{}}}", items.join(", "))
@@ -310,7 +309,7 @@ where
         }
         OutputFormat::Table => {
             use tabled::{Table, Tabled};
-            
+
             #[derive(Tabled)]
             struct ListItem {
                 #[tabled(rename = "#")]
@@ -318,20 +317,21 @@ where
                 #[tabled(rename = "Item")]
                 item: String,
             }
-            
+
             if !title.is_empty() {
                 println!("{}", title);
                 println!("{}", "=".repeat(title.len()));
             }
-            
-            let rows: Vec<ListItem> = items.iter()
+
+            let rows: Vec<ListItem> = items
+                .iter()
                 .enumerate()
                 .map(|(i, item)| ListItem {
                     index: i + 1,
                     item: item.to_string(),
                 })
                 .collect();
-            
+
             let table = Table::new(rows);
             println!("{}", table);
         }
@@ -368,9 +368,9 @@ pub fn print_key_value_pairs(
             );
         }
         OutputFormat::Table => {
-            use tabled::{Table, Tabled};
             use std::collections::BTreeMap;
-            
+            use tabled::{Table, Tabled};
+
             #[derive(Tabled)]
             struct KeyValue {
                 #[tabled(rename = "Key")]
@@ -378,21 +378,21 @@ pub fn print_key_value_pairs(
                 #[tabled(rename = "Value")]
                 value: String,
             }
-            
+
             if !title.is_empty() {
                 println!("{}", title);
                 println!("{}", "=".repeat(title.len()));
             }
-            
+
             // Sort keys for consistent output
-            let ordered_pairs: BTreeMap<String, String> = pairs.iter()
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect();
-            
-            let rows: Vec<KeyValue> = ordered_pairs.into_iter()
+            let ordered_pairs: BTreeMap<String, String> =
+                pairs.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+
+            let rows: Vec<KeyValue> = ordered_pairs
+                .into_iter()
                 .map(|(key, value)| KeyValue { key, value })
                 .collect();
-            
+
             let table = Table::new(rows);
             println!("{}", table);
         }
@@ -458,9 +458,9 @@ pub fn print_statistics(
             );
         }
         OutputFormat::Table => {
-            use tabled::{Table, Tabled};
             use std::collections::BTreeMap;
-            
+            use tabled::{Table, Tabled};
+
             #[derive(Tabled)]
             struct Statistic {
                 #[tabled(rename = "Metric")]
@@ -468,19 +468,19 @@ pub fn print_statistics(
                 #[tabled(rename = "Value")]
                 value: u64,
             }
-            
+
             println!("{}", title);
             println!("{}", "=".repeat(title.len()));
-            
+
             // Sort keys for consistent output
-            let ordered_stats: BTreeMap<String, u64> = stats.iter()
-                .map(|(k, v)| (k.clone(), *v))
-                .collect();
-            
-            let rows: Vec<Statistic> = ordered_stats.into_iter()
+            let ordered_stats: BTreeMap<String, u64> =
+                stats.iter().map(|(k, v)| (k.clone(), *v)).collect();
+
+            let rows: Vec<Statistic> = ordered_stats
+                .into_iter()
                 .map(|(metric, value)| Statistic { metric, value })
                 .collect();
-            
+
             let table = Table::new(rows);
             println!("{}", table);
         }

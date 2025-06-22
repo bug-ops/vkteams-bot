@@ -5,8 +5,8 @@ mod tests {
     use std::time::Duration;
     use testcontainers::runners::AsyncRunner;
     use testcontainers_modules::postgres::Postgres;
-    use vkteams_bot_cli::commands::storage::*;
     use vkteams_bot_cli::commands::Command;
+    use vkteams_bot_cli::commands::storage::*;
 
     #[tokio::test]
     #[serial_test::serial]
@@ -33,10 +33,12 @@ mod tests {
             },
         };
 
-        let stats_response = stats_commands.handle_database(&DatabaseAction::Stats {
-            chat_id: None,
-            since: None,
-        }).await;
+        let stats_response = stats_commands
+            .handle_database(&DatabaseAction::Stats {
+                chat_id: None,
+                since: None,
+            })
+            .await;
         // Will fail without proper database connection, just check command structure
         assert_eq!(stats_response.command, "database-stats");
         assert!(!stats_response.success);
@@ -50,11 +52,13 @@ mod tests {
             },
         };
 
-        let search_response = search_commands.handle_search(&SearchAction::Text {
-            query: "test search query".to_string(),
-            chat_id: None,
-            limit: 10,
-        }).await;
+        let search_response = search_commands
+            .handle_search(&SearchAction::Text {
+                query: "test search query".to_string(),
+                chat_id: None,
+                limit: 10,
+            })
+            .await;
         // Will fail without proper database connection, just check command structure
         assert_eq!(search_response.command, "search-text");
         assert!(!search_response.success);
@@ -68,11 +72,13 @@ mod tests {
             },
         };
 
-        let context_response = context_commands.handle_context(&ContextAction::Get {
-            chat_id: Some("test_chat".to_string()),
-            context_type: ContextType::Recent,
-            timeframe: None,
-        }).await;
+        let context_response = context_commands
+            .handle_context(&ContextAction::Get {
+                chat_id: Some("test_chat".to_string()),
+                context_type: ContextType::Recent,
+                timeframe: None,
+            })
+            .await;
         // Will fail without proper database connection, just check command structure
         assert_eq!(context_response.command, "context-get");
         assert!(!context_response.success);
@@ -84,9 +90,11 @@ mod tests {
             },
         };
 
-        let cleanup_response = cleanup_commands.handle_database(&DatabaseAction::Cleanup {
-            older_than_days: 30,
-        }).await;
+        let cleanup_response = cleanup_commands
+            .handle_database(&DatabaseAction::Cleanup {
+                older_than_days: 30,
+            })
+            .await;
         // Will fail without proper database connection, just check command structure
         assert_eq!(cleanup_response.command, "database-cleanup");
         assert!(!cleanup_response.success);
@@ -118,7 +126,9 @@ mod tests {
 
         // Test basic functionality (without env vars since they require unsafe)
         // In real usage, environment variables would be set externally
-        let _init_response = storage_commands.handle_database(&DatabaseAction::Init).await;
+        let _init_response = storage_commands
+            .handle_database(&DatabaseAction::Init)
+            .await;
         // This might fail without proper env setup, which is expected
     }
 
@@ -132,7 +142,9 @@ mod tests {
         };
 
         // Test that commands handle errors gracefully
-        let _init_response = storage_commands.handle_database(&DatabaseAction::Init).await;
+        let _init_response = storage_commands
+            .handle_database(&DatabaseAction::Init)
+            .await;
         // This tests error handling when no valid database connection is available
     }
 
@@ -162,11 +174,13 @@ mod tests {
             },
         };
 
-        let _search_response = search_commands.handle_search(&SearchAction::Semantic {
-            query: "test semantic search".to_string(),
-            chat_id: None,
-            limit: 5,
-        }).await;
+        let _search_response = search_commands
+            .handle_search(&SearchAction::Semantic {
+                query: "test semantic search".to_string(),
+                chat_id: None,
+                limit: 5,
+            })
+            .await;
 
         // Test that semantic search command is recognized (regardless of database connection)
     }
@@ -183,15 +197,25 @@ mod tests {
             },
         };
 
-        let _search_response = search_commands.handle_search(&SearchAction::Semantic {
-            query: "test semantic search".to_string(),
-            chat_id: None,
-            limit: 5,
-        }).await;
+        let _search_response = search_commands
+            .handle_search(&SearchAction::Semantic {
+                query: "test semantic search".to_string(),
+                chat_id: None,
+                limit: 5,
+            })
+            .await;
 
         // Should return error when vector-search feature is disabled
-        assert!(!_search_response.success, "Semantic search should be disabled without vector-search feature");
-        assert!(_search_response.error.unwrap().contains("Vector search feature not enabled"));
+        assert!(
+            !_search_response.success,
+            "Semantic search should be disabled without vector-search feature"
+        );
+        assert!(
+            _search_response
+                .error
+                .unwrap()
+                .contains("Vector search feature not enabled")
+        );
     }
 
     #[tokio::test]
@@ -199,59 +223,76 @@ mod tests {
     async fn test_command_validation() {
         // Test valid commands
         let valid_commands = vec![
-            StorageCommands::Database { action: DatabaseAction::Init },
-            StorageCommands::Database { 
-                action: DatabaseAction::Stats { 
-                    chat_id: Some("test_chat".to_string()), 
-                    since: None 
-                } 
+            StorageCommands::Database {
+                action: DatabaseAction::Init,
             },
-            StorageCommands::Database { 
-                action: DatabaseAction::Cleanup { 
-                    older_than_days: 30 
-                } 
+            StorageCommands::Database {
+                action: DatabaseAction::Stats {
+                    chat_id: Some("test_chat".to_string()),
+                    since: None,
+                },
             },
-            StorageCommands::Search { 
-                action: SearchAction::Text { 
-                    query: "test".to_string(), 
-                    chat_id: None, 
-                    limit: 10 
-                } 
+            StorageCommands::Database {
+                action: DatabaseAction::Cleanup {
+                    older_than_days: 30,
+                },
             },
-            StorageCommands::Context { 
-                action: ContextAction::Get { 
-                    chat_id: Some("test".to_string()), 
-                    context_type: ContextType::Recent, 
-                    timeframe: None 
-                } 
+            StorageCommands::Search {
+                action: SearchAction::Text {
+                    query: "test".to_string(),
+                    chat_id: None,
+                    limit: 10,
+                },
+            },
+            StorageCommands::Context {
+                action: ContextAction::Get {
+                    chat_id: Some("test".to_string()),
+                    context_type: ContextType::Recent,
+                    timeframe: None,
+                },
             },
         ];
 
         for command in valid_commands {
             let validation_result = command.validate();
-            assert!(validation_result.is_ok(), "Command validation should pass: {:?}", command);
+            assert!(
+                validation_result.is_ok(),
+                "Command validation should pass: {:?}",
+                command
+            );
         }
     }
 
     #[tokio::test]
-    #[serial_test::serial] 
+    #[serial_test::serial]
     async fn test_command_names() {
         let commands_with_names = vec![
-            (StorageCommands::Database { action: DatabaseAction::Init }, "database"),
-            (StorageCommands::Search { 
-                action: SearchAction::Text { 
-                    query: "test".to_string(), 
-                    chat_id: None, 
-                    limit: 10 
-                } 
-            }, "search"),
-            (StorageCommands::Context { 
-                action: ContextAction::Get { 
-                    chat_id: Some("test".to_string()), 
-                    context_type: ContextType::Recent, 
-                    timeframe: None 
-                } 
-            }, "context"),
+            (
+                StorageCommands::Database {
+                    action: DatabaseAction::Init,
+                },
+                "database",
+            ),
+            (
+                StorageCommands::Search {
+                    action: SearchAction::Text {
+                        query: "test".to_string(),
+                        chat_id: None,
+                        limit: 10,
+                    },
+                },
+                "search",
+            ),
+            (
+                StorageCommands::Context {
+                    action: ContextAction::Get {
+                        chat_id: Some("test".to_string()),
+                        context_type: ContextType::Recent,
+                        timeframe: None,
+                    },
+                },
+                "context",
+            ),
         ];
 
         for (command, expected_name) in commands_with_names {

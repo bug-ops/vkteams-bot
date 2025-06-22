@@ -1,7 +1,7 @@
 //! Simplified storage implementation for initial compilation
 
-use crate::storage::{StorageError, StorageResult};
 use crate::storage::models::*;
+use crate::storage::{StorageError, StorageResult};
 use sqlx::PgPool;
 
 /// Simplified relational store that compiles without query cache
@@ -14,7 +14,7 @@ impl SimpleRelationalStore {
         let pool = PgPool::connect(database_url)
             .await
             .map_err(|e| StorageError::Connection(e.to_string()))?;
-        
+
         Ok(Self { pool })
     }
 
@@ -32,7 +32,7 @@ impl SimpleRelationalStore {
                 raw_payload JSONB NOT NULL,
                 processed_data JSONB
             )
-            "#
+            "#,
         )
         .execute(&self.pool)
         .await
@@ -46,7 +46,7 @@ impl SimpleRelationalStore {
             .execute(&self.pool)
             .await
             .map_err(|e| StorageError::Connection(e.to_string()))?;
-        
+
         Ok(())
     }
 
@@ -70,25 +70,35 @@ impl SimpleRelationalStore {
         Ok(0)
     }
 
-    pub async fn search_messages(&self, _query: &str, _chat_id: Option<&str>, _limit: i64) -> StorageResult<Vec<Message>> {
+    pub async fn search_messages(
+        &self,
+        _query: &str,
+        _chat_id: Option<&str>,
+        _limit: i64,
+    ) -> StorageResult<Vec<Message>> {
         // Return empty list for now
         Ok(vec![])
     }
 
     pub async fn search_events_advanced(
-        &self, 
+        &self,
         _user_id: Option<&str>,
         _event_type: Option<&str>,
         _since: Option<chrono::DateTime<chrono::Utc>>,
         _until: Option<chrono::DateTime<chrono::Utc>>,
-        _limit: i64
+        _limit: i64,
     ) -> StorageResult<Vec<Event>> {
         // Return empty list for now - can be implemented with actual database queries
         Ok(vec![])
     }
 
-    pub async fn get_recent_events(&self, _chat_id: Option<&str>, _event_type: Option<&str>, _limit: i64) -> StorageResult<Vec<Event>> {
-        // Return empty list for now  
+    pub async fn get_recent_events(
+        &self,
+        _chat_id: Option<&str>,
+        _event_type: Option<&str>,
+        _limit: i64,
+    ) -> StorageResult<Vec<Event>> {
+        // Return empty list for now
         Ok(vec![])
     }
 
@@ -156,7 +166,7 @@ mod tests {
     async fn test_simple_store_creation_invalid_url() {
         let result = SimpleRelationalStore::new("invalid://database/url").await;
         assert!(result.is_err());
-        
+
         if let Err(StorageError::Connection(msg)) = result {
             assert!(!msg.is_empty());
         } else {
@@ -168,17 +178,16 @@ mod tests {
     async fn test_simple_store_methods_interface() {
         // Test that all methods exist and return expected types
         // Note: These test the interface without requiring a real database
-        
+
         // Mock a simple store structure for interface testing
-        let mock_pool = sqlx::PgPool::connect("postgres://fake:fake@localhost:5432/fake")
-            .await;
-        
+        let mock_pool = sqlx::PgPool::connect("postgres://fake:fake@localhost:5432/fake").await;
+
         // Since we can't connect to a real DB in tests, we test the interface
         // by checking that methods exist and have correct signatures
         match mock_pool {
             Ok(pool) => {
                 let store = SimpleRelationalStore { pool };
-                
+
                 // Test interface exists - these will fail with connection errors but that's expected
                 let _health_result = store.health_check().await;
                 let _stats_result = store.get_stats(None).await;
@@ -186,10 +195,10 @@ mod tests {
                 let _search_result = store.search_messages("test", None, 10).await;
                 let _events_result = store.get_recent_events(None, None, 10).await;
                 let _migrate_result = store.migrate().await;
-                
+
                 // Test that these methods exist and can be called
                 // If we get here, all methods exist
-            },
+            }
             Err(_) => {
                 // Expected in test environment - just verify interface compiles
             }
@@ -231,7 +240,7 @@ mod tests {
             newest_event: None,
             storage_size_bytes: Some(1024),
         };
-        
+
         assert_eq!(stats.total_events, 100);
         assert_eq!(stats.total_messages, 80);
         assert_eq!(stats.unique_chats, 5);
@@ -247,16 +256,17 @@ mod tests {
     async fn test_dummy_implementations() {
         // Test the dummy implementations without requiring database
         // We can create a mock store for this
-        
+
         // Since these are dummy implementations, we test they return expected values
         // Create a fake pool that we won't actually use
-        let store = if let Ok(pool) = sqlx::PgPool::connect("postgres://fake:fake@localhost/fake").await {
-            SimpleRelationalStore { pool }
-        } else {
-            // If connection fails (expected in test), we can't test further
-            // but we know the interface is correct
-            return;
-        };
+        let store =
+            if let Ok(pool) = sqlx::PgPool::connect("postgres://fake:fake@localhost/fake").await {
+                SimpleRelationalStore { pool }
+            } else {
+                // If connection fails (expected in test), we can't test further
+                // but we know the interface is correct
+                return;
+            };
 
         // Test dummy get_stats
         if let Ok(stats) = store.get_stats(Some("test_chat")).await {
@@ -265,7 +275,7 @@ mod tests {
             assert_eq!(stats.unique_chats, 0);
         }
 
-        // Test dummy cleanup_old_data  
+        // Test dummy cleanup_old_data
         if let Ok(count) = store.cleanup_old_data(30).await {
             assert_eq!(count, 0);
         }
@@ -276,7 +286,10 @@ mod tests {
         }
 
         // Test dummy search_events_advanced
-        if let Ok(events) = store.search_events_advanced(None, None, None, None, 10).await {
+        if let Ok(events) = store
+            .search_events_advanced(None, None, None, None, 10)
+            .await
+        {
             assert!(events.is_empty());
         }
 
@@ -302,12 +315,12 @@ mod tests {
     fn test_storage_error_types() {
         let connection_error = StorageError::Connection("DB connection failed".to_string());
         let query_error = StorageError::Query("Invalid SQL".to_string());
-        
+
         match connection_error {
             StorageError::Connection(msg) => assert_eq!(msg, "DB connection failed"),
             _ => panic!("Expected Connection error"),
         }
-        
+
         match query_error {
             StorageError::Query(msg) => assert_eq!(msg, "Invalid SQL"),
             _ => panic!("Expected Query error"),
@@ -320,7 +333,7 @@ mod tests {
         let message_type = "newMessage";
         let edit_type = "editedMessage";
         let delete_type = "deleteMessage";
-        
+
         assert_eq!(message_type, "newMessage");
         assert_eq!(edit_type, "editedMessage");
         assert_eq!(delete_type, "deleteMessage");
@@ -330,7 +343,7 @@ mod tests {
     fn test_message_handling() {
         // Test that message creation works with different content types
         let message = create_test_message();
-        
+
         assert!(message.text.is_some());
         assert!(!message.has_mentions);
         assert!(message.file_attachments.is_some());
@@ -348,12 +361,12 @@ mod tests {
                 "key": "nested_value"
             }
         });
-        
+
         assert_eq!(json_data["test"], "value");
         assert_eq!(json_data["number"], 42);
         assert_eq!(json_data["array"][0], 1);
         assert_eq!(json_data["nested"]["key"], "nested_value");
-        
+
         // Test that JSON can be converted to string and back
         let json_string = serde_json::to_string(&json_data).unwrap();
         let parsed_back: serde_json::Value = serde_json::from_str(&json_string).unwrap();
@@ -365,13 +378,17 @@ mod tests {
         // Test that UTC timestamps work correctly
         let now = Utc::now();
         let earlier = now - chrono::Duration::seconds(3600); // 1 hour ago
-        
+
         assert!(now > earlier);
         assert_eq!(now.timezone(), Utc);
-        
+
         // Test timestamp formatting
         let timestamp_str = now.to_rfc3339();
         assert!(timestamp_str.contains('T'));
-        assert!(timestamp_str.ends_with('Z') || timestamp_str.contains('+') || timestamp_str.contains('-'));
+        assert!(
+            timestamp_str.ends_with('Z')
+                || timestamp_str.contains('+')
+                || timestamp_str.contains('-')
+        );
     }
 }

@@ -307,4 +307,193 @@ mod tests {
         let resp = router.oneshot(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
     }
+
+    #[tokio::test]
+    async fn test_webhook_handler_error_value() {
+        let state = DummyState::default();
+        let router = build_router(state).unwrap();
+        let payload = serde_json::json!({"value": "error"}).to_string();
+        let req = Request::builder()
+            .method("POST")
+            .uri("/webhook")
+            .header("content-type", "application/json")
+            .body(Body::from(payload))
+            .unwrap();
+        let resp = router.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[tokio::test]
+    async fn test_webhook_handler_invalid_json() {
+        let state = DummyState::default();
+        let router = build_router(state).unwrap();
+        let payload = "{invalid json";
+        let req = Request::builder()
+            .method("POST")
+            .uri("/webhook")
+            .header("content-type", "application/json")
+            .body(Body::from(payload))
+            .unwrap();
+        let resp = router.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn test_dummy_webhook_type_serialization() {
+        let webhook = DummyWebhookType {
+            value: "test_value".to_string(),
+        };
+
+        let serialized = serde_json::to_string(&webhook).unwrap();
+        assert!(serialized.contains("test_value"));
+
+        let deserialized: DummyWebhookType = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(deserialized.value, "test_value");
+    }
+
+    #[test]
+    fn test_dummy_state_creation() {
+        let state = DummyState::default();
+        assert!(!state.fail_path);
+        assert!(!state.fail_deserialize);
+        assert!(!state.fail_handler);
+
+        let state_with_failures = DummyState {
+            fail_path: true,
+            fail_deserialize: true,
+            fail_handler: true,
+        };
+        assert!(state_with_failures.fail_path);
+        assert!(state_with_failures.fail_deserialize);
+        assert!(state_with_failures.fail_handler);
+    }
+
+    #[test]
+    fn test_app_state_creation() {
+        let dummy_state = DummyState::default();
+        let app_state = AppState {
+            ext: dummy_state.clone(),
+        };
+
+        // Test that AppState wraps the state correctly
+        assert_eq!(app_state.ext.fail_path, dummy_state.fail_path);
+    }
+
+    #[test]
+    fn test_webhook_state_deserialize_default() {
+        let state = DummyState::default();
+        let json = r#"{"value": "test"}"#;
+
+        let result = state.deserialize(json.to_string());
+        assert!(result.is_ok());
+
+        let webhook = result.unwrap();
+        assert_eq!(webhook.value, "test");
+    }
+
+    #[test]
+    fn test_webhook_state_deserialize_invalid() {
+        let state = DummyState::default();
+        let json = r#"{"invalid": "json"}"#; // Missing "value" field
+
+        let result = state.deserialize(json.to_string());
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_webhook_state_handler_success() {
+        let state = DummyState::default();
+        let webhook = DummyWebhookType {
+            value: "success".to_string(),
+        };
+
+        let result = state.handler(webhook).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_webhook_state_handler_error_value() {
+        let state = DummyState::default();
+        let webhook = DummyWebhookType {
+            value: "error".to_string(),
+        };
+
+        let result = state.handler(webhook).await;
+        assert!(result.is_err());
+
+        if let Err(BotError::Api(api_error)) = result {
+            assert_eq!(api_error.description, "error value");
+        } else {
+            panic!("Expected Api error");
+        }
+    }
+
+    #[test]
+    fn test_from_ref_implementation() {
+        let dummy_state = DummyState {
+            fail_path: true,
+            fail_deserialize: false,
+            fail_handler: true,
+        };
+        let app_state = AppState {
+            ext: dummy_state.clone(),
+        };
+
+        let extracted_state = DummyState::from_ref(&app_state);
+        assert_eq!(extracted_state.fail_path, dummy_state.fail_path);
+        assert_eq!(
+            extracted_state.fail_deserialize,
+            dummy_state.fail_deserialize
+        );
+        assert_eq!(extracted_state.fail_handler, dummy_state.fail_handler);
+    }
+
+    #[test]
+    fn test_constants() {
+        assert_eq!(DEFAULT_TCP_PORT, "VKTEAMS_TCP_PORT");
+        assert_eq!(TIMEOUT_SECS, 5);
+    }
+
+    #[tokio::test]
+    async fn test_webhook_handler_different_paths() {
+        // Test with custom webhook path
+        let state = DummyState::default();
+        let router = build_router(state).unwrap();
+
+        // Test valid path
+        let payload = serde_json::json!({"value": "test"}).to_string();
+        let req = Request::builder()
+            .method("POST")
+            .uri("/webhook")
+            .header("content-type", "application/json")
+            .body(Body::from(payload))
+            .unwrap();
+        let resp = router.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_webhook_handler_wrong_method() {
+        let state = DummyState::default();
+        let router = build_router(state).unwrap();
+
+        // Test GET method (should fail as only POST is allowed)
+        let req = Request::builder()
+            .method("GET")
+            .uri("/webhook")
+            .body(Body::empty())
+            .unwrap();
+        let resp = router.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::METHOD_NOT_ALLOWED);
+    }
+
+    #[test]
+    fn test_bot_router_trait() {
+        // Test that BotRouter trait can be used with a concrete state type
+        let router: Router<AppState<DummyState>> = Router::new();
+        let _routed = router.route_bot();
+
+        // If we get here without panicking, the trait works
+        // We can't easily test the internal routing without more complex setup
+    }
 }

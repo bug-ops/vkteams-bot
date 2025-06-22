@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use serde_json::Value;
 use std::process::Stdio;
 use tokio::process::Command;
-use tokio::time::{timeout, Duration};
+use tokio::time::{Duration, timeout};
 use tracing::{debug, error, warn};
 
 /// Bridge for executing CLI commands from MCP server
@@ -23,30 +23,35 @@ pub struct CliBridge {
 impl CliBridge {
     /// Create a new CLI bridge instance
     pub fn new() -> Result<Self, BridgeError> {
-        let _chat_id = std::env::var("VKTEAMS_BOT_CHAT_ID")
-            .map_err(|_| BridgeError::CliError("VKTEAMS_BOT_CHAT_ID environment variable not set".to_string()))?;
-        
+        let _chat_id = std::env::var("VKTEAMS_BOT_CHAT_ID").map_err(|_| {
+            BridgeError::CliError("VKTEAMS_BOT_CHAT_ID environment variable not set".to_string())
+        })?;
+
         let config_path = std::env::var("VKTEAMS_BOT_CONFIG").ok();
-        
+
         // Try to find CLI binary
         let cli_path = which::which("vkteams-bot-cli")
             .or_else(|_| {
                 // Try relative path from current executable
-                std::env::current_exe()
-                    .map(|mut p| {
-                        p.pop(); // remove filename
-                        p.push("vkteams-bot-cli");
-                        p
-                    })
+                std::env::current_exe().map(|mut p| {
+                    p.pop(); // remove filename
+                    p.push("vkteams-bot-cli");
+                    p
+                })
             })
-            .map_err(|_| BridgeError::CliNotFound("vkteams-bot-cli not found in PATH or relative to current executable".to_string()))?;
-            
+            .map_err(|_| {
+                BridgeError::CliNotFound(
+                    "vkteams-bot-cli not found in PATH or relative to current executable"
+                        .to_string(),
+                )
+            })?;
+
         let mut default_args = vec!["--output".to_string(), "json".to_string()];
-        
+
         if let Some(config) = config_path {
             default_args.extend(vec!["--config".to_string(), config]);
         }
-        
+
         Ok(Self {
             cli_path: cli_path.to_string_lossy().to_string(),
             default_args,
@@ -55,23 +60,24 @@ impl CliBridge {
 
     /// Execute a CLI command with arguments
     pub async fn execute_command(&self, command: &[&str]) -> Result<Value, BridgeError> {
-        self.execute_command_with_timeout(command, Duration::from_secs(30)).await
+        self.execute_command_with_timeout(command, Duration::from_secs(30))
+            .await
     }
-    
+
     /// Execute a CLI command with custom timeout
     pub async fn execute_command_with_timeout(
-        &self, 
-        command: &[&str], 
-        timeout_duration: Duration
+        &self,
+        command: &[&str],
+        timeout_duration: Duration,
     ) -> Result<Value, BridgeError> {
         debug!("Executing CLI command: {} {:?}", self.cli_path, command);
-        
+
         let mut cmd = Command::new(&self.cli_path);
         cmd.args(&self.default_args)
-           .args(command)
-           .stdout(Stdio::piped())
-           .stderr(Stdio::piped());
-           
+            .args(command)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+
         let output = match timeout(timeout_duration, cmd.output()).await {
             Ok(Ok(output)) => output,
             Ok(Err(e)) => return Err(e.into()),
@@ -80,52 +86,56 @@ impl CliBridge {
                 return Err(BridgeError::Timeout(timeout_duration));
             }
         };
-        
+
         // Check if process was terminated by signal
         if let Some(code) = output.status.code() {
             if code < 0 {
-                return Err(BridgeError::ProcessTerminated(
-                    format!("Process terminated with signal {}", -code)
-                ));
+                return Err(BridgeError::ProcessTerminated(format!(
+                    "Process terminated with signal {}",
+                    -code
+                )));
             }
         }
-        
+
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            
+
             // Try to parse structured error from stderr
             if let Ok(error_info) = serde_json::from_str::<CliErrorInfo>(&stderr) {
                 // Check for specific error types
                 if let Some(ref code) = error_info.code {
                     match code.as_str() {
-                        "RATE_LIMIT" => return Err(BridgeError::RateLimit(error_info.message.clone())),
+                        "RATE_LIMIT" => {
+                            return Err(BridgeError::RateLimit(error_info.message.clone()));
+                        }
                         _ => return Err(BridgeError::CliReturnedError(error_info)),
                     }
                 }
                 return Err(BridgeError::CliReturnedError(error_info));
             }
-            
+
             error!("CLI command failed with unstructured error: {}", stderr);
             return Err(BridgeError::CliError(stderr.to_string()));
         }
-        
+
         let response_text = String::from_utf8_lossy(&output.stdout);
         debug!("CLI response: {}", response_text);
-        
+
         // Handle empty responses
         if response_text.trim().is_empty() {
             warn!("CLI returned empty response");
             return Ok(serde_json::json!({"success": true, "data": null}));
         }
-        
+
         let response: Value = serde_json::from_str(&response_text)?;
-        
+
         // Check if CLI returned an error in the JSON response
         if let Some(success) = response.get("success") {
             if !success.as_bool().unwrap_or(true) {
                 let error_info = if let Some(error) = response.get("error") {
                     CliErrorInfo {
-                        code: response.get("error_code")
+                        code: response
+                            .get("error_code")
                             .and_then(|v| v.as_str())
                             .map(|s| s.to_string()),
                         message: error.as_str().unwrap_or("Unknown error").to_string(),
@@ -138,43 +148,43 @@ impl CliBridge {
                         details: None,
                     }
                 };
-                
+
                 // Check for rate limiting in response
                 if error_info.code.as_deref() == Some("RATE_LIMIT") {
                     return Err(BridgeError::RateLimit(error_info.message));
                 }
-                
+
                 return Err(BridgeError::CliReturnedError(error_info));
             }
         }
-        
+
         Ok(response)
     }
 
     /// Execute command with retry logic
     pub async fn execute_command_with_retry(
-        &self, 
-        command: &[&str], 
-        max_retries: usize
+        &self,
+        command: &[&str],
+        max_retries: usize,
     ) -> Result<Value, BridgeError> {
-        self.execute_command_with_retry_and_timeout(
-            command, 
-            max_retries, 
-            Duration::from_secs(30)
-        ).await
+        self.execute_command_with_retry_and_timeout(command, max_retries, Duration::from_secs(30))
+            .await
     }
-    
+
     /// Execute command with retry logic and custom timeout
     pub async fn execute_command_with_retry_and_timeout(
-        &self, 
-        command: &[&str], 
+        &self,
+        command: &[&str],
         max_retries: usize,
-        timeout_duration: Duration
+        timeout_duration: Duration,
     ) -> Result<Value, BridgeError> {
         let mut last_error = None;
-        
+
         for attempt in 0..=max_retries {
-            match self.execute_command_with_timeout(command, timeout_duration).await {
+            match self
+                .execute_command_with_timeout(command, timeout_duration)
+                .await
+            {
                 Ok(result) => return Ok(result),
                 Err(e) => {
                     // Determine if error is retryable
@@ -189,16 +199,19 @@ impl CliBridge {
                                 tokio::time::sleep(backoff).await;
                             }
                             true
-                        },
+                        }
                         BridgeError::CliReturnedError(info) => {
                             // Check if error code indicates a retryable error
-                            matches!(info.code.as_deref(), Some("NETWORK_ERROR") | Some("TIMEOUT"))
-                        },
+                            matches!(
+                                info.code.as_deref(),
+                                Some("NETWORK_ERROR") | Some("TIMEOUT")
+                            )
+                        }
                         _ => false,
                     };
-                    
+
                     last_error = Some(e);
-                    
+
                     if attempt < max_retries && should_retry {
                         let delay = if matches!(last_error, Some(BridgeError::RateLimit(_))) {
                             // Already handled above
@@ -207,9 +220,14 @@ impl CliBridge {
                             // Standard backoff for other errors
                             Duration::from_millis(100 * (attempt + 1) as u64)
                         };
-                        
+
                         if !delay.is_zero() {
-                            debug!("Retrying command after {:?} (attempt {}/{})", delay, attempt + 1, max_retries);
+                            debug!(
+                                "Retrying command after {:?} (attempt {}/{})",
+                                delay,
+                                attempt + 1,
+                                max_retries
+                            );
                             tokio::time::sleep(delay).await;
                         }
                     } else if !should_retry {
@@ -219,25 +237,25 @@ impl CliBridge {
                 }
             }
         }
-        
+
         Err(last_error.unwrap())
     }
-    
+
     /// Health check - test if CLI is working
     pub async fn health_check(&self) -> Result<(), BridgeError> {
         self.execute_command(&["--version"]).await?;
         Ok(())
     }
-    
+
     // === Daemon Commands ===
-    
+
     /// Get daemon status
     pub async fn get_daemon_status(&self) -> Result<Value, BridgeError> {
         self.execute_command(&["status"]).await
     }
-    
+
     // === Enhanced Storage Commands ===
-    
+
     /// Get recent messages from storage
     pub async fn get_recent_messages(
         &self,
@@ -246,21 +264,21 @@ impl CliBridge {
         since: Option<&str>,
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["database", "recent"];
-        
+
         if let Some(chat_id) = chat_id {
             args.extend(&["--chat-id", chat_id]);
         }
-        
+
         let limit_str;
         if let Some(limit) = limit {
             limit_str = limit.to_string();
             args.extend(&["--limit", &limit_str]);
         }
-        
+
         if let Some(since) = since {
             args.extend(&["--since", since]);
         }
-        
+
         self.execute_command(&args).await
     }
 }
@@ -277,11 +295,11 @@ impl CliBridgeTrait for CliBridge {
     async fn execute_command(&self, args: &[&str]) -> Result<Value, BridgeError> {
         self.execute_command(args).await
     }
-    
+
     async fn get_daemon_status(&self) -> Result<Value, BridgeError> {
         self.execute_command(&["daemon", "status"]).await
     }
-    
+
     async fn health_check(&self) -> Result<(), BridgeError> {
         self.execute_command(&["--version"]).await.map(|_| ())
     }
@@ -297,7 +315,7 @@ mod tests {
         unsafe {
             std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_chat");
         }
-        
+
         let result = CliBridge::new();
         // Note: This might fail if CLI binary is not available, which is expected in test environment
         // The important thing is that the code compiles and handles errors properly
@@ -362,12 +380,12 @@ mod tests {
         unsafe {
             std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_chat");
         }
-        
+
         // This will likely fail in test environment but should not panic
         let result = std::panic::catch_unwind(|| {
             let _bridge = CliBridge::default();
         });
-        
+
         // The important thing is that it either succeeds or panics predictably
         // We can't test much more without an actual CLI binary
         match result {
@@ -381,34 +399,62 @@ mod tests {
         unsafe {
             std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_chat");
         }
-        
+
         // Test argument building logic without actually executing
         // This tests the parameter handling logic in get_recent_messages
         let args_test_cases = vec![
             (None, None, None, vec!["database", "recent"]),
-            (Some("chat123"), None, None, vec!["database", "recent", "--chat-id", "chat123"]),
-            (None, Some(10), None, vec!["database", "recent", "--limit", "10"]),
-            (None, None, Some("2024-01-01"), vec!["database", "recent", "--since", "2024-01-01"]),
-            (Some("chat123"), Some(10), Some("2024-01-01"), 
-             vec!["database", "recent", "--chat-id", "chat123", "--limit", "10", "--since", "2024-01-01"]),
+            (
+                Some("chat123"),
+                None,
+                None,
+                vec!["database", "recent", "--chat-id", "chat123"],
+            ),
+            (
+                None,
+                Some(10),
+                None,
+                vec!["database", "recent", "--limit", "10"],
+            ),
+            (
+                None,
+                None,
+                Some("2024-01-01"),
+                vec!["database", "recent", "--since", "2024-01-01"],
+            ),
+            (
+                Some("chat123"),
+                Some(10),
+                Some("2024-01-01"),
+                vec![
+                    "database",
+                    "recent",
+                    "--chat-id",
+                    "chat123",
+                    "--limit",
+                    "10",
+                    "--since",
+                    "2024-01-01",
+                ],
+            ),
         ];
 
         for (chat_id, limit, since, expected_args) in args_test_cases {
             let mut args = vec!["database", "recent"];
-            
+
             if let Some(chat_id) = chat_id {
                 args.extend(&["--chat-id", chat_id]);
             }
-            
+
             let limit_str = limit.map(|l| l.to_string());
             if let Some(ref limit_str) = limit_str {
                 args.extend(&["--limit", limit_str]);
             }
-            
+
             if let Some(since) = since {
                 args.extend(&["--since", since]);
             }
-            
+
             assert_eq!(args, expected_args);
         }
     }
@@ -418,14 +464,14 @@ mod tests {
         unsafe {
             std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_chat");
         }
-        
+
         // Test that CliBridge implements CliBridgeTrait correctly
         if let Ok(bridge) = CliBridge::new() {
             // These calls will likely fail but should compile and return appropriate errors
             let version_result = bridge.health_check().await;
             let daemon_result = bridge.get_daemon_status().await;
             let execute_result = bridge.execute_command(&["--version"]).await;
-            
+
             // We mainly care that these methods exist and are callable
             // In a test environment, they're expected to fail
             println!("Health check result: {:?}", version_result.is_ok());
@@ -440,13 +486,17 @@ mod tests {
             std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_chat");
             std::env::set_var("VKTEAMS_BOT_CONFIG", "/path/to/config.toml");
         }
-        
+
         if let Ok(bridge) = CliBridge::new() {
             // Check that config path is included in default args
             assert!(bridge.default_args.contains(&"--config".to_string()));
-            assert!(bridge.default_args.contains(&"/path/to/config.toml".to_string()));
+            assert!(
+                bridge
+                    .default_args
+                    .contains(&"/path/to/config.toml".to_string())
+            );
         }
-        
+
         unsafe {
             std::env::remove_var("VKTEAMS_BOT_CONFIG");
         }
@@ -459,12 +509,12 @@ mod tests {
             message: "Test error message".to_string(),
             details: Some(serde_json::json!({"field": "value"})),
         };
-        
+
         // Test serialization
         let serialized = serde_json::to_string(&error_info).unwrap();
         assert!(serialized.contains("TEST_ERROR"));
         assert!(serialized.contains("Test error message"));
-        
+
         // Test deserialization
         let deserialized: CliErrorInfo = serde_json::from_str(&serialized).unwrap();
         assert_eq!(deserialized.code, Some("TEST_ERROR".to_string()));
@@ -496,7 +546,7 @@ mod tests {
         unsafe {
             std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_chat");
         }
-        
+
         if let Ok(bridge) = CliBridge::new() {
             let debug_str = format!("{:?}", bridge);
             assert!(debug_str.contains("CliBridge"));

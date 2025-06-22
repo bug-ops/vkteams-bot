@@ -54,8 +54,7 @@ RUN groupadd -g ${APP_GID} ${APP_USER} && \
 
 # Create application directories
 RUN mkdir -p config data logs downloads uploads data/pids && \
-    chown -R ${APP_USER}:${APP_USER} . && \
-    chown -R ${APP_USER}:${APP_USER} /home/${APP_USER}
+    chown -R ${APP_USER}:${APP_USER} .
 
 # Copy the binary from builder stage
 COPY --chown=${APP_UID}:${APP_GID} --from=builder /app/target/release/vkteams-bot-mcp ${BINARY_PATH}/vkteams-bot-mcp
@@ -82,22 +81,22 @@ ENV COMPONENT_TYPE=${COMPONENT_TYPE}
 
 # Set component-specific environment variables and create appropriate CMD scripts
 RUN if [ "$COMPONENT_TYPE" = "mcp" ]; then \
-        echo "export VKTEAMS_BOT_CLI_PATH=${BINARY_PATH}/vkteams-bot-cli" >> ~/.bashrc && \
-        echo "exec ${BINARY_PATH}/vkteams-bot-mcp" >> ./cmd.sh; \
+    echo "export VKTEAMS_BOT_CLI_PATH=${BINARY_PATH}/vkteams-bot-cli" >> ~/.bashrc && \
+    echo "exec ${BINARY_PATH}/vkteams-bot-mcp" >> ./cmd.sh; \
     elif [ "$COMPONENT_TYPE" = "daemon" ]; then \
-        echo "exec ${BINARY_PATH}/vkteams-bot-cli daemon start --foreground --auto-save" >> ./cmd.sh; \
+    echo "exec ${BINARY_PATH}/vkteams-bot-cli daemon start --foreground --auto-save" >> ./cmd.sh; \
     else \
-        echo "exec ${BINARY_PATH}/vkteams-bot-cli --help" >> ./cmd.sh; \
+    echo "exec ${BINARY_PATH}/vkteams-bot-cli --help" >> ./cmd.sh; \
     fi && \
     chmod +x ./cmd.sh
 
 # Component-specific healthchecks
 RUN if [ "$COMPONENT_TYPE" = "daemon" ]; then \
-        echo "#!/bin/bash" > ./healthcheck.sh && \
-        echo "${BINARY_PATH}/vkteams-bot-cli daemon status >/dev/null 2>&1" >> ./healthcheck.sh; \
+    echo "#!/bin/bash" > ./healthcheck.sh && \
+    echo "${BINARY_PATH}/vkteams-bot-cli daemon status >/dev/null 2>&1" >> ./healthcheck.sh; \
     else \
-        echo "#!/bin/bash" > ./healthcheck.sh && \
-        echo "./cmd.sh --version >/dev/null 2>&1" >> ./healthcheck.sh; \
+    echo "#!/bin/bash" > ./healthcheck.sh && \
+    echo "./cmd.sh --version >/dev/null 2>&1" >> ./healthcheck.sh; \
     fi && \
     chmod +x ./healthcheck.sh
 

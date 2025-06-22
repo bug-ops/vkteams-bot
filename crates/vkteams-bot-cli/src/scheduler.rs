@@ -641,11 +641,11 @@ impl Scheduler {
     async fn create_pid_file(&self) -> CliResult<()> {
         let pid = std::process::id();
         let pid_content = format!("{}\n{}", pid, Utc::now().to_rfc3339());
-        
+
         tokio::fs::write(&self.pid_file, pid_content)
             .await
             .map_err(|e| CliError::FileError(format!("Failed to create PID file: {}", e)))?;
-        
+
         info!("Created PID file at: {:?} with PID: {}", self.pid_file, pid);
         Ok(())
     }
@@ -910,7 +910,7 @@ impl Scheduler {
         data_file.push("scheduler_tasks_test.json");
         let mut pid_file = PathBuf::from(temp_dir.path());
         pid_file.push("scheduler_daemon_test.pid");
-        
+
         if let Some(parent) = data_file.parent() {
             tokio::fs::create_dir_all(parent).await.unwrap();
         }
@@ -1069,14 +1069,14 @@ mod tests {
     #[tokio::test]
     async fn test_pid_file_creation_and_cleanup() {
         let (scheduler, _temp_dir) = Scheduler::create_test_scheduler().await;
-        
+
         // Initially no PID file should exist
         assert!(!scheduler.pid_file.exists());
-        
+
         // Create PID file
         scheduler.create_pid_file().await.unwrap();
         assert!(scheduler.pid_file.exists());
-        
+
         // Check daemon status shows running
         let status = scheduler.is_daemon_running().await;
         match status {
@@ -1085,7 +1085,7 @@ mod tests {
             }
             _ => panic!("Expected DaemonStatus::Running"),
         }
-        
+
         // Clean up PID file
         scheduler.cleanup_pid_file().await;
         assert!(!scheduler.pid_file.exists());
@@ -1094,19 +1094,22 @@ mod tests {
     #[tokio::test]
     async fn test_get_daemon_status_info() {
         let (mut scheduler, _temp_dir) = Scheduler::create_test_scheduler().await;
-        
+
         // Add some test tasks
-        scheduler.add_task(
-            TaskType::SendText {
-                chat_id: "test_chat".to_string(),
-                message: "test message".to_string(),
-            },
-            ScheduleType::Once(Utc::now() + Duration::hours(1)),
-            None,
-        ).await.unwrap();
-        
+        scheduler
+            .add_task(
+                TaskType::SendText {
+                    chat_id: "test_chat".to_string(),
+                    message: "test message".to_string(),
+                },
+                ScheduleType::Once(Utc::now() + Duration::hours(1)),
+                None,
+            )
+            .await
+            .unwrap();
+
         let status_info = scheduler.get_daemon_status().await;
-        
+
         assert_eq!(status_info.total_tasks, 1);
         assert_eq!(status_info.enabled_tasks, 1);
         assert!(matches!(status_info.status, DaemonStatus::NotRunning));

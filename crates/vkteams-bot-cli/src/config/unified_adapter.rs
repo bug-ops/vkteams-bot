@@ -1,14 +1,14 @@
 use crate::config::legacy::Config as CliConfig;
 use crate::errors::prelude::Result as CliResult;
-use vkteams_bot::config::unified::UnifiedConfig;
 use std::path::Path;
+use vkteams_bot::config::unified::UnifiedConfig;
 
 /// Adapter for converting between CLI-specific config and unified config
 pub struct UnifiedConfigAdapter;
 
 impl UnifiedConfigAdapter {
     /// Load unified configuration with CLI compatibility
-    /// 
+    ///
     /// This method tries to load configuration in the following order:
     /// 1. Unified configuration file (shared-config.toml)
     /// 2. Legacy CLI configuration file (cli_config.toml)
@@ -59,7 +59,9 @@ impl UnifiedConfigAdapter {
     }
 
     /// Load unified configuration from specific path
-    fn load_unified_config_from_path(path: &Path) -> Result<UnifiedConfig, Box<dyn std::error::Error>> {
+    fn load_unified_config_from_path(
+        path: &Path,
+    ) -> Result<UnifiedConfig, Box<dyn std::error::Error>> {
         let content = std::fs::read_to_string(path)?;
         let config: UnifiedConfig = toml::from_str(&content)?;
         Ok(config)
@@ -75,8 +77,16 @@ impl UnifiedConfigAdapter {
                 max_retries: unified.api.max_retries,
             },
             files: crate::config::legacy::FileConfig {
-                download_dir: unified.cli.files.download_dir.map(|p| p.to_string_lossy().to_string()),
-                upload_dir: unified.cli.files.upload_dir.map(|p| p.to_string_lossy().to_string()),
+                download_dir: unified
+                    .cli
+                    .files
+                    .download_dir
+                    .map(|p| p.to_string_lossy().to_string()),
+                upload_dir: unified
+                    .cli
+                    .files
+                    .upload_dir
+                    .map(|p| p.to_string_lossy().to_string()),
                 max_file_size: unified.cli.files.max_file_size,
                 buffer_size: 8192, // Default buffer size as it's not in unified config
             },
@@ -88,7 +98,7 @@ impl UnifiedConfigAdapter {
             ui: crate::config::legacy::UiConfig {
                 show_progress: unified.cli.ui.show_progress,
                 progress_style: "bar".to_string(), // Default progress style
-                progress_refresh_rate: 10, // Default refresh rate
+                progress_refresh_rate: 10,         // Default refresh rate
             },
             proxy: None, // Proxy config not implemented in unified yet
             rate_limit: crate::config::legacy::RateLimitConfig::default(),

@@ -45,7 +45,9 @@ impl From<sqlx::Error> for StorageError {
         match err {
             sqlx::Error::RowNotFound => StorageError::NotFound("Record not found".to_string()),
             sqlx::Error::Database(db_err) => StorageError::Query(db_err.message().to_string()),
-            sqlx::Error::PoolClosed | sqlx::Error::PoolTimedOut => StorageError::Connection(err.to_string()),
+            sqlx::Error::PoolClosed | sqlx::Error::PoolTimedOut => {
+                StorageError::Connection(err.to_string())
+            }
             _ => StorageError::Query(err.to_string()),
         }
     }
