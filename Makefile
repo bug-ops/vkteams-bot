@@ -15,7 +15,7 @@ export BUILD_DATE
 export BUILD_VERSION
 export BUILD_COMMIT
 
-.PHONY: help build build-cli build-mcp build-all up down logs clean setup check
+.PHONY: help build build-daemon build-mcp build-all up down logs clean setup check
 
 help: ## Show this help message
 	@echo "VKTeams Bot Docker Management"
@@ -40,14 +40,27 @@ check: ## Check environment variables
 	@grep -q "VKTEAMS_BOT_CHAT_ID=" .env || (echo "Error: VKTEAMS_BOT_CHAT_ID not set in .env" && exit 1)
 	@echo "Environment check passed ✓"
 
+build-daemon: ## Build CLI daemon container
+	docker build \
+		--file Dockerfile \
+		--build-arg COMPONENT_TYPE=daemon \
+		--build-arg APP_USER=vkteams-bot \
+		--build-arg BUILD_DATE="$(BUILD_DATE)" \
+		--build-arg BUILD_VERSION="$(BUILD_VERSION)" \
+		--build-arg BUILD_COMMIT="$(BUILD_COMMIT)" \
+		--build-arg FEATURES="storage,vector-search,ai-embeddings" \
+		--tag $(DOCKER_NAMESPACE)/daemon:$(DOCKER_TAG) \
+		.
+
 build-mcp: ## Build MCP server container
 	docker build \
 		--file Dockerfile \
 		--build-arg COMPONENT_TYPE=mcp \
-		--build-arg APP_USER=vkteams \
+		--build-arg APP_USER=vkteams-bot \
 		--build-arg BUILD_DATE="$(BUILD_DATE)" \
 		--build-arg BUILD_VERSION="$(BUILD_VERSION)" \
 		--build-arg BUILD_COMMIT="$(BUILD_COMMIT)" \
+		--build-arg FEATURES="storage,vector-search,ai-embeddings" \
 		--tag $(DOCKER_NAMESPACE)/mcp:$(DOCKER_TAG) \
 		.
 
@@ -55,11 +68,17 @@ build: ## Build all containers using docker-compose
 	docker-compose build
 
 # Runtime targets
-up: check ## Start all services
-	docker-compose up -d
+up: check ## Start all services (basic setup)
+	docker-compose --profile relational-database up -d
+
+up-daemon: check ## Start daemon with vector search and embeddings
+	docker-compose --profile daemon --profile vector-search --profile embedding-local up -d
+
+up-mcp: check ## Start MCP server only
+	docker-compose --profile mcp --profile vector-search up -d
 
 up-full: check ## Start all services with all profiles
-	docker-compose --profile vector-search --profile embedding-local up -d
+	docker-compose --profile daemon --profile mcp --profile vector-search --profile embedding-local up -d
 
 up-vector: check ## Start services with vector search
 	docker-compose --profile vector-search up -d
@@ -89,8 +108,8 @@ db-shell: ## Connect to database shell
 logs: ## Show logs for all services
 	docker-compose logs -f
 
-logs-cli: ## Show CLI logs
-	docker-compose logs -f vkteams-cli
+logs-daemon: ## Show daemon logs
+	docker-compose logs -f vkteams-daemon
 
 logs-mcp: ## Show MCP server logs
 	docker-compose logs -f vkteams-mcp
@@ -102,15 +121,28 @@ status: ## Show service status
 	docker-compose ps
 
 # Development and testing
+shell-daemon: ## Open shell in daemon container
+	docker-compose exec vkteams-daemon bash
+
 shell-mcp: ## Open shell in MCP container
 	docker-compose exec vkteams-mcp bash
 
-test-cli: ## Test CLI functionality
-	docker-compose run --rm vkteams-mcp --version
-	docker-compose run --rm vkteams-mcp help
+test-daemon: ## Test daemon functionality
+	docker-compose exec vkteams-daemon vkteams-bot-cli --version
+	docker-compose exec vkteams-daemon vkteams-bot-cli daemon status
 
 test-mcp: ## Test MCP server
 	docker-compose exec vkteams-mcp vkteams-bot-mcp --help
+
+# Daemon management
+daemon-status: ## Check daemon status
+	docker-compose exec vkteams-daemon vkteams-bot-cli daemon status
+
+daemon-stop: ## Stop daemon gracefully
+	docker-compose exec vkteams-daemon vkteams-bot-cli daemon stop
+
+daemon-restart: ## Restart daemon container
+	docker-compose restart vkteams-daemon
 
 # Cleanup targets
 clean: ## Clean up containers and images

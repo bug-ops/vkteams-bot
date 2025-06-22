@@ -53,7 +53,7 @@ RUN groupadd -g ${APP_GID} ${APP_USER} && \
     useradd -r -u ${APP_UID} -g ${APP_USER} -m -d /home/${APP_USER} ${APP_USER}
 
 # Create application directories
-RUN mkdir -p config data logs downloads uploads && \
+RUN mkdir -p config data logs downloads uploads data/pids && \
     chown -R ${APP_USER}:${APP_USER} . && \
     chown -R ${APP_USER}:${APP_USER} ${BINARY_PATH} && \
     chown -R ${APP_USER}:${APP_USER} /home/${APP_USER}
@@ -81,20 +81,32 @@ ENV APP_CONFIG_PATH=${APP_CONFIG_PATH}
 ARG COMPONENT_TYPE
 ENV COMPONENT_TYPE=${COMPONENT_TYPE}
 
-# Set component-specific environment variables
+# Set component-specific environment variables and create appropriate CMD scripts
 RUN if [ "$COMPONENT_TYPE" = "mcp" ]; then \
-    echo "export VKTEAMS_BOT_CLI_PATH=${BINARY_PATH}/vkteams-bot-cli" >> ~/.bashrc; \
-    fi
-
-# Create CMD script with variables
-RUN echo "exec ${BINARY_PATH}/vkteams-bot-mcp" >> ./cmd.sh && \
+        echo "export VKTEAMS_BOT_CLI_PATH=${BINARY_PATH}/vkteams-bot-cli" >> ~/.bashrc && \
+        echo "exec ${BINARY_PATH}/vkteams-bot-mcp" >> ./cmd.sh; \
+    elif [ "$COMPONENT_TYPE" = "daemon" ]; then \
+        echo "exec ${BINARY_PATH}/vkteams-bot-cli daemon start --foreground --auto-save" >> ./cmd.sh; \
+    else \
+        echo "exec ${BINARY_PATH}/vkteams-bot-cli --help" >> ./cmd.sh; \
+    fi && \
     chmod +x ./cmd.sh
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD ./cmd.sh || exit 1
+# Component-specific healthchecks
+RUN if [ "$COMPONENT_TYPE" = "daemon" ]; then \
+        echo "#!/bin/bash" > ./healthcheck.sh && \
+        echo "${BINARY_PATH}/vkteams-bot-cli daemon status >/dev/null 2>&1" >> ./healthcheck.sh; \
+    else \
+        echo "#!/bin/bash" > ./healthcheck.sh && \
+        echo "./cmd.sh --version >/dev/null 2>&1" >> ./healthcheck.sh; \
+    fi && \
+    chmod +x ./healthcheck.sh
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD ./healthcheck.sh || exit 1
 
 # Default entrypoint and command using script
-CMD ["sh", "-c", "/app/cmd.sh","--version"]
+ENTRYPOINT ["./cmd.sh"]
 
 # Labels for better container management
 ARG BUILD_DATE=""

@@ -72,9 +72,73 @@ services:
     profiles:
       - embedding-local
 
+  # VK Teams Bot CLI Daemon for event processing
+  vkteams-daemon:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      platforms:
+        - linux/amd64
+        - linux/arm64
+      args:
+        COMPONENT_TYPE: daemon
+        APP_USER: vkteams-bot
+        BUILD_DATE: ${BUILD_DATE:-}
+        BUILD_VERSION: ${BUILD_VERSION:-latest}
+        BUILD_COMMIT: ${BUILD_COMMIT:-}
+        FEATURES: "storage,vector-search,ai-embeddings"
+    container_name: vkteams-daemon
+    environment:
+      # API Configuration
+      - VKTEAMS_BOT_API_TOKEN=${VKTEAMS_BOT_API_TOKEN}
+      - VKTEAMS_BOT_API_URL=${VKTEAMS_BOT_API_URL:-https://api.vk.com}
+      - VKTEAMS_BOT_CHAT_ID=${VKTEAMS_BOT_CHAT_ID}
+      
+      # Database Configuration
+      - DATABASE_URL=postgresql://vkteams:${DB_PASSWORD:-vkteams_password}@postgres-vector:5432/vkteams_bot
+      
+      # Embedding Configuration
+      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-ollama}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-nomic-embed-text}
+      - EMBEDDING_ENDPOINT=${EMBEDDING_ENDPOINT:-http://ollama:11434}
+      
+      # Daemon Configuration
+      - DAEMON_PID_DIR=/app/data/pids
+      - DAEMON_AUTO_SAVE=${DAEMON_AUTO_SAVE:-true}
+      - DAEMON_POLL_INTERVAL=${DAEMON_POLL_INTERVAL:-30}
+      
+      # Logging
+      - RUST_LOG=${RUST_LOG:-info}
+    volumes:
+      - ./config:/app/config:ro
+      - daemon_data:/app/data
+      - daemon_logs:/app/logs
+      - daemon_pids:/app/data/pids
+    networks:
+      - vkteams-network
+    depends_on:
+      postgres-vector:
+        condition: service_healthy
+        required: true
+      ollama:
+        condition: service_healthy
+        required: false
+    restart: unless-stopped
+    command: ["vkteams-bot-cli", "daemon", "start", "--foreground", "--auto-save"]
+    healthcheck:
+      test: ["CMD", "vkteams-bot-cli", "daemon", "status"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    profiles:
+      - daemon
+
   # VK Teams Bot MCP Server
   vkteams-mcp:
     build:
+      context: .
+      dockerfile: Dockerfile
       platforms:
         - linux/amd64
         - linux/arm64
@@ -84,6 +148,7 @@ services:
         BUILD_DATE: ${BUILD_DATE:-}
         BUILD_VERSION: ${BUILD_VERSION:-latest}
         BUILD_COMMIT: ${BUILD_COMMIT:-}
+        FEATURES: "storage,vector-search,ai-embeddings"
     container_name: vkteams-mcp
     environment:
       # API Configuration
@@ -92,7 +157,7 @@ services:
       - VKTEAMS_BOT_CHAT_ID=${VKTEAMS_BOT_CHAT_ID}
       
       # Database Configuration
-      - DATABASE_URL=postgresql://vkteams:${DB_PASSWORD:-vkteams_password}@postgres:5432/vkteams_bot
+      - DATABASE_URL=postgresql://vkteams:${DB_PASSWORD:-vkteams_password}@postgres-vector:5432/vkteams_bot
       
       # Embedding Configuration (if using local Ollama)
       - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-ollama}
@@ -110,21 +175,25 @@ services:
     networks:
       - vkteams-network
     depends_on:
-      postgres:
+      postgres-vector:
         condition: service_healthy
         required: false
-      postgres-vector:
+      vkteams-daemon:
         condition: service_healthy
         required: false
     restart: unless-stopped
     stdin_open: true  # For MCP stdio transport
     tty: true
+    profiles:
+      - mcp
 
 networks:
   vkteams-network:
     driver: bridge
 
 volumes:
+  postgres_data:
+    driver: local
   postgres_vector_data:
     driver: local
   ollama_data:
@@ -132,6 +201,12 @@ volumes:
   cli_downloads:
     driver: local
   cli_uploads:
+    driver: local
+  daemon_data:
+    driver: local
+  daemon_logs:
+    driver: local
+  daemon_pids:
     driver: local
   mcp_logs:
     driver: local
