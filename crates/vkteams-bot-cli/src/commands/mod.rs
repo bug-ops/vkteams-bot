@@ -9,6 +9,7 @@ use vkteams_bot::prelude::Bot;
 
 pub mod chat;
 pub mod config;
+pub mod daemon;
 pub mod diagnostic;
 pub mod files;
 pub mod messaging;
@@ -192,6 +193,10 @@ pub enum Commands {
     // Storage and database commands
     #[command(flatten)]
     Storage(storage::StorageCommands),
+    
+    // Daemon management commands
+    #[command(flatten)]
+    Daemon(daemon::DaemonCommands),
 }
 
 #[async_trait]
@@ -205,6 +210,7 @@ impl Command for Commands {
             Commands::Diagnostic(cmd) => cmd.execute(bot).await,
             Commands::Files(cmd) => cmd.execute(bot).await,
             Commands::Storage(cmd) => cmd.execute(bot).await,
+            Commands::Daemon(cmd) => cmd.execute(bot).await,
         }
     }
 
@@ -217,6 +223,7 @@ impl Command for Commands {
             Commands::Diagnostic(cmd) => cmd.name(),
             Commands::Files(cmd) => cmd.name(),
             Commands::Storage(cmd) => cmd.name(),
+            Commands::Daemon(cmd) => cmd.name(),
         }
     }
 
@@ -229,6 +236,7 @@ impl Command for Commands {
             Commands::Diagnostic(cmd) => cmd.validate(),
             Commands::Files(cmd) => cmd.validate(),
             Commands::Storage(cmd) => cmd.validate(),
+            Commands::Daemon(cmd) => cmd.validate(),
         }
     }
 }

@@ -24,6 +24,16 @@ pub enum CliError {
     InputError(String),
     /// Unexpected or general error
     UnexpectedError(String),
+    /// Storage related errors
+    Storage(String),
+    /// Configuration related errors
+    Config(String),
+    /// Daemon related errors
+    DaemonAlreadyRunning,
+    /// Daemon not running error
+    DaemonNotRunning,
+    /// System related errors
+    System(String),
 }
 
 /// Result type for CLI operations
@@ -54,6 +64,11 @@ impl fmt::Display for CliError {
             CliError::FileError(err) => write!(f, "File Error: {err}"),
             CliError::InputError(err) => write!(f, "{INPUT_ERROR}{err}"),
             CliError::UnexpectedError(err) => write!(f, "{UNEXPECTED_ERROR}{err}"),
+            CliError::Storage(err) => write!(f, "Storage Error: {err}"),
+            CliError::Config(err) => write!(f, "Configuration Error: {err}"),
+            CliError::DaemonAlreadyRunning => write!(f, "Daemon is already running"),
+            CliError::DaemonNotRunning => write!(f, "Daemon is not running"),
+            CliError::System(err) => write!(f, "System Error: {err}"),
         }
     }
 }
@@ -69,6 +84,11 @@ impl CliError {
             CliError::FileError(_) => exitcode::IOERR,
             CliError::InputError(_) => exitcode::USAGE,
             CliError::UnexpectedError(_) => exitcode::SOFTWARE,
+            CliError::Storage(_) => exitcode::IOERR,
+            CliError::Config(_) => exitcode::CONFIG,
+            CliError::DaemonAlreadyRunning => exitcode::TEMPFAIL,
+            CliError::DaemonNotRunning => exitcode::TEMPFAIL,
+            CliError::System(_) => exitcode::OSERR,
         }
     }
 

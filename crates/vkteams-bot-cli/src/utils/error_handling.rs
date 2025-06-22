@@ -121,6 +121,51 @@ pub fn print_error(error: &CliError, show_details: bool) {
                 );
             }
         }
+        CliError::Storage(msg) => {
+            eprintln!("{} Storage Error: {}", emoji::CROSS.red(), msg.red());
+            if show_details {
+                eprintln!(
+                    "  {}",
+                    "Check database connection and storage configuration.".dimmed()
+                );
+            }
+        }
+        CliError::Config(msg) => {
+            eprintln!("{} Configuration Error: {}", emoji::CROSS.red(), msg.red());
+            if show_details {
+                eprintln!(
+                    "  {}",
+                    "Check your configuration file and environment variables.".dimmed()
+                );
+            }
+        }
+        CliError::DaemonAlreadyRunning => {
+            eprintln!("{} Daemon is already running", emoji::CROSS.red());
+            if show_details {
+                eprintln!(
+                    "  {}",
+                    "Use 'daemon stop' to stop the running daemon first.".dimmed()
+                );
+            }
+        }
+        CliError::DaemonNotRunning => {
+            eprintln!("{} Daemon is not running", emoji::CROSS.red());
+            if show_details {
+                eprintln!(
+                    "  {}",
+                    "Use 'daemon start' to start the daemon.".dimmed()
+                );
+            }
+        }
+        CliError::System(msg) => {
+            eprintln!("{} System Error: {}", emoji::CROSS.red(), msg.red());
+            if show_details {
+                eprintln!(
+                    "  {}",
+                    "This is a system-level error. Check system resources and permissions.".dimmed()
+                );
+            }
+        }
     }
 }
 
@@ -243,6 +288,49 @@ pub fn create_friendly_error_message(error: &CliError) -> String {
                  • Try running the command again\n\
                  • Check the logs for more details\n\
                  • Report this issue if it persists",
+                emoji::CROSS
+            )
+        }
+        CliError::Storage(_) => {
+            format!(
+                "{}Storage error occurred. Please:\n\
+                 • Check database connection\n\
+                 • Verify storage configuration\n\
+                 • Ensure database migrations are applied",
+                emoji::CROSS
+            )
+        }
+        CliError::Config(_) => {
+            format!(
+                "{}Configuration error. Please:\n\
+                 • Check your configuration file\n\
+                 • Verify environment variables\n\
+                 • Use --help for configuration examples",
+                emoji::CROSS
+            )
+        }
+        CliError::DaemonAlreadyRunning => {
+            format!(
+                "{}Daemon is already running. Try:\n\
+                 • Use 'daemon stop' to stop it first\n\
+                 • Check 'daemon status' for details",
+                emoji::CROSS
+            )
+        }
+        CliError::DaemonNotRunning => {
+            format!(
+                "{}Daemon is not running. Try:\n\
+                 • Use 'daemon start' to start it\n\
+                 • Check configuration and logs",
+                emoji::CROSS
+            )
+        }
+        CliError::System(_) => {
+            format!(
+                "{}System error occurred. Please:\n\
+                 • Check system resources\n\
+                 • Verify permissions\n\
+                 • Contact system administrator if needed",
                 emoji::CROSS
             )
         }
