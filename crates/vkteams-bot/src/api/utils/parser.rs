@@ -122,7 +122,7 @@ impl MessageTextHTMLParser for MessageTextParser {
                 Ok((result, ParseMode::HTML))
             }
             ParseMode::MarkdownV2 => {
-                // MarkdownV2 не поддерживается, возвращаем ошибку вместо panic
+                // MarkdownV2 is not supported in this parser
                 Err(BotError::Validation(format!(
                     "Parse mode not supported: {:?}. Supported modes: HTML, Template",
                     self.parse_mode
@@ -224,7 +224,7 @@ mod tests {
         let mut parser = parser_html();
         parser = parser.add(MessageTextFormat::None);
         let res = parser.parse();
-        assert!(res.is_ok()); // None просто пропускается
+        assert!(res.is_ok()); // None should be ignored, not error
     }
 
     #[test]
