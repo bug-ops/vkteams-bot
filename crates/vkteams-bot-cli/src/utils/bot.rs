@@ -63,6 +63,17 @@ pub fn needs_bot_instance(command: &Commands) -> bool {
         Commands::Config(_) => false,
         Commands::Diagnostic(crate::commands::diagnostic::DiagnosticCommands::SystemInfo) => false,
         Commands::Diagnostic(_) => true,
+        Commands::Files(_) => true, // File operations need real bot for API calls
+        Commands::Storage(storage_cmd) => {
+            match storage_cmd {
+                // Database operations don't need bot
+                crate::commands::storage::StorageCommands::Database { .. } => false,
+                // Search operations don't need bot (they use storage directly)
+                crate::commands::storage::StorageCommands::Search { .. } => false,
+                // Context operations don't need bot
+                crate::commands::storage::StorageCommands::Context { .. } => false,
+            }
+        }
         _ => true,
     }
 }

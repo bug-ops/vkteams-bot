@@ -94,8 +94,7 @@ mod tests {
 
     #[test]
     fn test_serialize_deserialize_request_full() {
-        let mut req =
-            RequestMessagesEditText::new((ChatId::from("c1"), MsgId("m1".to_string())));
+        let mut req = RequestMessagesEditText::new((ChatId::from("c1"), MsgId("m1".to_string())));
         req.text = Some("hello".to_string());
         let val = serde_json::to_value(&req).unwrap();
         let req2: RequestMessagesEditText = serde_json::from_value(val).unwrap();

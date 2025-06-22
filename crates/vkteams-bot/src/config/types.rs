@@ -19,6 +19,9 @@ pub struct Config {
     #[cfg(feature = "longpoll")]
     #[serde(default)]
     pub listener: EventListenerConfig,
+    #[cfg(feature = "storage")]
+    #[serde(default)]
+    pub storage: crate::storage::StorageConfig,
 }
 
 /// Otlp variables
@@ -335,6 +338,12 @@ mod tests {
             // Проверяем значения по умолчанию для rate_limit
             assert_eq!(config.rate_limit.limit, 100);
         }
+        #[cfg(feature = "storage")]
+        {
+            // Проверяем storage config
+            assert_eq!(config.storage.database.max_connections, 20);
+            assert!(config.storage.database.auto_migrate);
+        }
         // Проверяем network config
         assert_eq!(config.network.retries, 3);
         assert_eq!(config.network.request_timeout_secs, 30);
@@ -347,12 +356,20 @@ mod tests {
         {
             config.otlp.instance_id = "test_id".into();
         }
+        #[cfg(feature = "storage")]
+        {
+            config.storage.database.max_connections = 42;
+        }
         config.network.retries = 7;
         let toml_str = toml::to_string(&config).unwrap();
         let deser: Config = toml::from_str(&toml_str).unwrap();
         #[cfg(feature = "otlp")]
         {
             assert_eq!(deser.otlp.instance_id, "test_id");
+        }
+        #[cfg(feature = "storage")]
+        {
+            assert_eq!(deser.storage.database.max_connections, 42);
         }
         assert_eq!(deser.network.retries, 7);
     }

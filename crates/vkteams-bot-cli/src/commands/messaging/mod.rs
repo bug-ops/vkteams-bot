@@ -6,6 +6,7 @@ use crate::commands::{Command, OutputFormat};
 use crate::constants::ui::emoji;
 use crate::errors::prelude::{CliError, Result as CliResult};
 use crate::file_utils;
+use crate::output::{CliResponse, OutputFormatter};
 use crate::utils::output::print_success_result;
 use crate::utils::{
     validate_chat_id, validate_file_path, validate_message_id, validate_message_text,
@@ -15,6 +16,7 @@ use crate::utils::{
 use async_trait::async_trait;
 use clap::{Subcommand, ValueHint};
 use colored::Colorize;
+use serde_json::json;
 use tracing::{debug, info};
 use vkteams_bot::prelude::*;
 
@@ -107,6 +109,46 @@ impl Command for MessagingCommands {
         }
     }
 
+    /// New method for structured output support
+    async fn execute_with_output(&self, bot: &Bot, output_format: &OutputFormat) -> CliResult<()> {
+        let response = match self {
+            MessagingCommands::SendText { chat_id, message } => {
+                execute_send_text_structured(bot, chat_id, message).await
+            }
+            MessagingCommands::SendFile { chat_id, file_path } => {
+                execute_send_file_structured(bot, chat_id, file_path).await
+            }
+            MessagingCommands::SendVoice { chat_id, file_path } => {
+                execute_send_voice_structured(bot, chat_id, file_path).await
+            }
+            MessagingCommands::EditMessage {
+                chat_id,
+                message_id,
+                new_text,
+            } => execute_edit_message_structured(bot, chat_id, message_id, new_text).await,
+            MessagingCommands::DeleteMessage {
+                chat_id,
+                message_id,
+            } => execute_delete_message_structured(bot, chat_id, message_id).await,
+            MessagingCommands::PinMessage {
+                chat_id,
+                message_id,
+            } => execute_pin_message_structured(bot, chat_id, message_id).await,
+            MessagingCommands::UnpinMessage {
+                chat_id,
+                message_id,
+            } => execute_unpin_message_structured(bot, chat_id, message_id).await,
+        };
+
+        OutputFormatter::print(&response, output_format)?;
+
+        if !response.success {
+            return Err(CliError::UnexpectedError("Command failed".to_string()));
+        }
+
+        Ok(())
+    }
+
     fn name(&self) -> &'static str {
         match self {
             MessagingCommands::SendText { .. } => "send-text",
@@ -164,6 +206,202 @@ impl Command for MessagingCommands {
 
 // Command execution functions
 
+// Structured output versions
+async fn execute_send_text_structured(
+    bot: &Bot,
+    chat_id: &str,
+    message: &str,
+) -> CliResponse<serde_json::Value> {
+    debug!("Sending text message to {}", chat_id);
+
+    let parser = MessageTextParser::new().add(MessageTextFormat::Plain(message.to_string()));
+    let request =
+        match RequestMessagesSendText::new(ChatId::from_borrowed_str(chat_id)).set_text(parser) {
+            Ok(req) => req,
+            Err(e) => {
+                return CliResponse::error("send-text", format!("Failed to create message: {}", e));
+            }
+        };
+
+    match bot.send_api_request(request).await {
+        Ok(result) => {
+            info!("Successfully sent text message to {}", chat_id);
+            let data = json!({
+                "chat_id": chat_id,
+                "message": message,
+                "message_id": result.msg_id
+            });
+            CliResponse::success("send-text", data)
+        }
+        Err(e) => CliResponse::error("send-text", format!("Failed to send message: {}", e)),
+    }
+}
+
+async fn execute_send_file_structured(
+    bot: &Bot,
+    chat_id: &str,
+    file_path: &str,
+) -> CliResponse<serde_json::Value> {
+    debug!("Sending file {} to {}", file_path, chat_id);
+
+    match file_utils::upload_file(bot, chat_id, file_path).await {
+        Ok(file_id) => {
+            info!("Successfully sent file to {}", chat_id);
+            let data = json!({
+                "chat_id": chat_id,
+                "file_path": file_path,
+                "file_id": file_id
+            });
+            CliResponse::success("send-file", data)
+        }
+        Err(e) => CliResponse::error("send-file", format!("Failed to send file: {}", e)),
+    }
+}
+
+async fn execute_send_voice_structured(
+    bot: &Bot,
+    chat_id: &str,
+    file_path: &str,
+) -> CliResponse<serde_json::Value> {
+    debug!("Sending voice message {} to {}", file_path, chat_id);
+
+    match file_utils::upload_voice(bot, chat_id, file_path).await {
+        Ok(file_id) => {
+            info!("Successfully sent voice message to {}", chat_id);
+            let data = json!({
+                "chat_id": chat_id,
+                "file_path": file_path,
+                "file_id": file_id
+            });
+            CliResponse::success("send-voice", data)
+        }
+        Err(e) => CliResponse::error("send-voice", format!("Failed to send voice: {}", e)),
+    }
+}
+
+async fn execute_edit_message_structured(
+    bot: &Bot,
+    chat_id: &str,
+    message_id: &str,
+    new_text: &str,
+) -> CliResponse<serde_json::Value> {
+    debug!("Editing message {} in {}", message_id, chat_id);
+
+    let parser = MessageTextParser::new().add(MessageTextFormat::Plain(new_text.to_string()));
+    let request = match RequestMessagesEditText::new((
+        ChatId::from_borrowed_str(chat_id),
+        MsgId(message_id.to_string()),
+    ))
+    .set_text(parser)
+    {
+        Ok(req) => req,
+        Err(e) => {
+            return CliResponse::error(
+                "edit-message",
+                format!("Failed to set message text: {}", e),
+            );
+        }
+    };
+
+    match bot.send_api_request(request).await {
+        Ok(_result) => {
+            info!("Successfully edited message {} in {}", message_id, chat_id);
+            let data = json!({
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "new_text": new_text
+            });
+            CliResponse::success("edit-message", data)
+        }
+        Err(e) => CliResponse::error("edit-message", format!("Failed to edit message: {}", e)),
+    }
+}
+
+async fn execute_delete_message_structured(
+    bot: &Bot,
+    chat_id: &str,
+    message_id: &str,
+) -> CliResponse<serde_json::Value> {
+    debug!("Deleting message {} from {}", message_id, chat_id);
+
+    let request = RequestMessagesDeleteMessages::new((
+        ChatId::from_borrowed_str(chat_id),
+        MsgId(message_id.to_string()),
+    ));
+
+    match bot.send_api_request(request).await {
+        Ok(_result) => {
+            info!(
+                "Successfully deleted message {} from {}",
+                message_id, chat_id
+            );
+            let data = json!({
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "action": "deleted"
+            });
+            CliResponse::success("delete-message", data)
+        }
+        Err(e) => CliResponse::error("delete-message", format!("Failed to delete message: {}", e)),
+    }
+}
+
+async fn execute_pin_message_structured(
+    bot: &Bot,
+    chat_id: &str,
+    message_id: &str,
+) -> CliResponse<serde_json::Value> {
+    debug!("Pinning message {} in {}", message_id, chat_id);
+
+    let request = RequestChatsPinMessage::new((
+        ChatId::from_borrowed_str(chat_id),
+        MsgId(message_id.to_string()),
+    ));
+
+    match bot.send_api_request(request).await {
+        Ok(_result) => {
+            info!("Successfully pinned message {} in {}", message_id, chat_id);
+            let data = json!({
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "action": "pinned"
+            });
+            CliResponse::success("pin-message", data)
+        }
+        Err(e) => CliResponse::error("pin-message", format!("Failed to pin message: {}", e)),
+    }
+}
+
+async fn execute_unpin_message_structured(
+    bot: &Bot,
+    chat_id: &str,
+    message_id: &str,
+) -> CliResponse<serde_json::Value> {
+    debug!("Unpinning message {} from {}", message_id, chat_id);
+
+    let request = RequestChatsUnpinMessage::new((
+        ChatId::from_borrowed_str(chat_id),
+        MsgId(message_id.to_string()),
+    ));
+
+    match bot.send_api_request(request).await {
+        Ok(_result) => {
+            info!(
+                "Successfully unpinned message {} from {}",
+                message_id, chat_id
+            );
+            let data = json!({
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "action": "unpinned"
+            });
+            CliResponse::success("unpin-message", data)
+        }
+        Err(e) => CliResponse::error("unpin-message", format!("Failed to unpin message: {}", e)),
+    }
+}
+
+// Legacy output versions (for backward compatibility)
 async fn execute_send_text(bot: &Bot, chat_id: &str, message: &str) -> CliResult<()> {
     debug!("Sending text message to {}", chat_id);
 

@@ -9,15 +9,24 @@ use vkteams_bot::prelude::Bot;
 
 pub mod chat;
 pub mod config;
+pub mod daemon;
 pub mod diagnostic;
+pub mod files;
 pub mod messaging;
 pub mod scheduling;
+pub mod storage;
 
 /// Trait that all CLI commands must implement
 #[async_trait]
 pub trait Command {
     /// Execute the command
     async fn execute(&self, bot: &Bot) -> CliResult<()>;
+
+    /// Execute the command with structured output support (optional implementation)
+    async fn execute_with_output(&self, bot: &Bot, _output_format: &OutputFormat) -> CliResult<()> {
+        // Default implementation falls back to legacy execute method
+        self.execute(bot).await
+    }
 
     /// Get command name for logging
     fn name(&self) -> &'static str;
@@ -172,6 +181,18 @@ pub enum Commands {
     // Diagnostic commands
     #[command(flatten)]
     Diagnostic(diagnostic::DiagnosticCommands),
+
+    // File management commands
+    #[command(flatten)]
+    Files(files::FileCommands),
+
+    // Storage and database commands
+    #[command(flatten)]
+    Storage(storage::StorageCommands),
+
+    // Daemon management commands
+    #[command(flatten)]
+    Daemon(daemon::DaemonCommands),
 }
 
 #[async_trait]
@@ -183,6 +204,9 @@ impl Command for Commands {
             Commands::Scheduling(cmd) => cmd.execute(bot).await,
             Commands::Config(cmd) => cmd.execute(bot).await,
             Commands::Diagnostic(cmd) => cmd.execute(bot).await,
+            Commands::Files(cmd) => cmd.execute(bot).await,
+            Commands::Storage(cmd) => cmd.execute(bot).await,
+            Commands::Daemon(cmd) => cmd.execute(bot).await,
         }
     }
 
@@ -193,6 +217,9 @@ impl Command for Commands {
             Commands::Scheduling(cmd) => cmd.name(),
             Commands::Config(cmd) => Command::name(cmd),
             Commands::Diagnostic(cmd) => cmd.name(),
+            Commands::Files(cmd) => cmd.name(),
+            Commands::Storage(cmd) => cmd.name(),
+            Commands::Daemon(cmd) => cmd.name(),
         }
     }
 
@@ -203,6 +230,9 @@ impl Command for Commands {
             Commands::Scheduling(cmd) => cmd.validate(),
             Commands::Config(cmd) => Command::validate(cmd),
             Commands::Diagnostic(cmd) => cmd.validate(),
+            Commands::Files(cmd) => cmd.validate(),
+            Commands::Storage(cmd) => cmd.validate(),
+            Commands::Daemon(cmd) => cmd.validate(),
         }
     }
 }

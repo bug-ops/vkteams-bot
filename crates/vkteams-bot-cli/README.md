@@ -18,6 +18,7 @@
 - ⚙️ **Smart Configuration**: Interactive setup wizard and multiple config sources
 - 🔍 **Diagnostics**: Built-in validation and connection testing
 - 🎨 **User-Friendly**: Colored output, progress indicators, and helpful examples
+- 📊 **Structured Output**: JSON output support for all commands for easy integration
 
 ## Table of Contents
 
@@ -25,6 +26,7 @@
 - [Shell Completion](#shell-completion)
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
+- [Output Formats](#output-formats)
 - [Commands](#commands)
 - [Examples](#examples)
 - [Advanced Usage](#advanced-usage)
@@ -216,7 +218,63 @@ vkteams-bot-cli config --wizard
 vkteams-bot-cli config --show
 ```
 
+## Output Formats
+
+The CLI supports multiple output formats for all commands:
+
+### Default (Pretty) Output
+By default, commands display human-readable formatted output with colors and emoji:
+
+```bash
+vkteams-bot-cli send-text -u USER_ID -m "Hello!"
+# ✅ Message sent successfully (msgId: 123456789)
+```
+
+### JSON Output
+For programmatic usage and integration with other tools, use `--output json`:
+
+```bash
+vkteams-bot-cli --output json send-text -u USER_ID -m "Hello!"
+```
+
+Output:
+```json
+{
+  "success": true,
+  "data": {
+    "msgId": "123456789",
+    "ok": true
+  },
+  "error": null,
+  "timestamp": "2024-01-20T10:30:45Z",
+  "command": "send-text"
+}
+```
+
+### Other Output Formats
+- `--output table`: Tabular format (where applicable)
+- `--output quiet`: Minimal output, only errors
+
+### Using JSON Output in Scripts
+
+```bash
+# Extract message ID using jq
+MSG_ID=$(vkteams-bot-cli --output json send-text -u USER_ID -m "Test" | jq -r '.data.msgId')
+
+# Check command success
+if vkteams-bot-cli --output json health-check | jq -e '.success' > /dev/null; then
+  echo "Bot is healthy"
+fi
+
+# Get scheduler task count
+TASK_COUNT=$(vkteams-bot-cli --output json scheduler list | jq '.data.total')
+```
+
+📚 **[See detailed JSON Output documentation](docs/JSON_OUTPUT.md)** for more examples and integration guides.
+
 ## Commands
+
+📖 **[Complete Command Reference](docs/COMMANDS.md)** - Detailed documentation for all commands with options and examples.
 
 ### 📤 Message Operations
 
@@ -457,6 +515,51 @@ vkteams-bot-cli schedule text -u daily-chat -m "Every 30 minutes update" -i 1800
 vkteams-bot-cli schedule text -u chat456 -m "In 1 hour" -t "1h"
 vkteams-bot-cli schedule text -u chat456 -m "Tomorrow morning" -t "tomorrow"
 vkteams-bot-cli schedule text -u chat456 -m "Next week" -t "7d"
+```
+
+### JSON Output Examples
+
+```bash
+# Get chat info in JSON format
+vkteams-bot-cli --output json get-chat-info -c chat456
+
+# Parse response and extract specific fields
+vkteams-bot-cli --output json get-chat-info -c chat456 | jq '.data.title'
+
+# Check if bot is healthy and get details
+vkteams-bot-cli --output json health-check | jq '{healthy: .success, bot_id: .data.userId}'
+
+# Get all scheduled tasks and filter active ones
+vkteams-bot-cli --output json scheduler list | jq '.data.tasks[] | select(.enabled == true)'
+
+# Create a monitoring script
+#!/bin/bash
+HEALTH=$(vkteams-bot-cli --output json health-check)
+if [ $(echo $HEALTH | jq -r '.success') == "true" ]; then
+  BOT_ID=$(echo $HEALTH | jq -r '.data.userId')
+  echo "Bot $BOT_ID is healthy"
+else
+  ERROR=$(echo $HEALTH | jq -r '.error')
+  echo "Bot check failed: $ERROR"
+  exit 1
+fi
+
+# Batch operations with JSON output
+for user in user1 user2 user3; do
+  RESULT=$(vkteams-bot-cli --output json send-text -u $user -m "Batch message")
+  MSG_ID=$(echo $RESULT | jq -r '.data.msgId')
+  echo "Sent message $MSG_ID to $user"
+done
+
+# Store command results in files
+vkteams-bot-cli --output json get-chat-members -c chat456 > members.json
+vkteams-bot-cli --output json scheduler list > tasks.json
+
+# Process multiple chats
+CHATS=$(vkteams-bot-cli --output json list-chats | jq -r '.data[].chatId')
+for chat in $CHATS; do
+  vkteams-bot-cli --output json get-chat-info -c $chat | jq '.data.membersCount'
+done
 ```
 
 ## Advanced Usage

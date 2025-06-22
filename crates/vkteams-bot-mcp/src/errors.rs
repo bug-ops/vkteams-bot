@@ -1,6 +1,72 @@
 use rmcp::Error;
+use serde::{Deserialize, Serialize};
+use std::time::Duration;
 use thiserror::Error;
 use vkteams_bot::error::BotError;
+
+/// Structured error response from CLI
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CliErrorInfo {
+    pub code: Option<String>,
+    pub message: String,
+    pub details: Option<serde_json::Value>,
+}
+
+/// Errors that can occur when executing CLI commands  
+#[derive(Debug, Error, Clone)]
+pub enum BridgeError {
+    #[error("CLI execution failed: {0}")]
+    CliError(String),
+
+    #[error("CLI not found at path: {0}")]
+    CliNotFound(String),
+
+    #[error("Invalid JSON response from CLI: {0}")]
+    InvalidResponse(String),
+
+    #[error("CLI returned error: {}", .0.message)]
+    CliReturnedError(CliErrorInfo),
+
+    #[error("IO error: {0}")]
+    Io(String),
+
+    #[error("Command timed out after {0:?}")]
+    Timeout(Duration),
+
+    #[error("CLI process terminated with signal: {0}")]
+    ProcessTerminated(String),
+
+    #[error("Rate limit exceeded: {0}")]
+    RateLimit(String),
+}
+
+impl BridgeError {
+    /// Check if the error is retryable
+    pub fn is_retryable(&self) -> bool {
+        match self {
+            BridgeError::Timeout(_) => true,
+            BridgeError::Io(_) => true,
+            BridgeError::RateLimit(_) => true,
+            BridgeError::CliReturnedError(info) => {
+                matches!(
+                    info.code.as_deref(),
+                    Some("NETWORK_ERROR") | Some("TIMEOUT") | Some("TEMPORARY_ERROR")
+                )
+            }
+            _ => false,
+        }
+    }
+
+    /// Get suggested retry delay based on error type
+    pub fn retry_delay(&self) -> Duration {
+        match self {
+            BridgeError::RateLimit(_) => Duration::from_secs(60),
+            BridgeError::Timeout(_) => Duration::from_secs(10),
+            BridgeError::Io(_) => Duration::from_secs(5),
+            _ => Duration::from_secs(2),
+        }
+    }
+}
 
 #[derive(Debug, Error)]
 pub enum McpError {
@@ -10,6 +76,8 @@ pub enum McpError {
     Serde(#[from] serde_json::Error),
     #[error("RMCP error: {0}")]
     Rmcp(#[from] rmcp::Error),
+    #[error("Bridge error: {0}")]
+    Bridge(#[from] BridgeError),
     #[error("Other: {0}")]
     Other(String),
 }
@@ -20,8 +88,22 @@ impl From<McpError> for Error {
             McpError::Bot(e) => Error::internal_error(e.to_string(), None),
             McpError::Serde(e) => Error::parse_error(e.to_string(), None),
             McpError::Rmcp(e) => Error::internal_error(e.to_string(), None),
+            McpError::Bridge(e) => Error::internal_error(e.to_string(), None),
             McpError::Other(e) => Error::internal_error(e, None),
         }
+    }
+}
+
+// From implementations for BridgeError
+impl From<serde_json::Error> for BridgeError {
+    fn from(err: serde_json::Error) -> Self {
+        BridgeError::InvalidResponse(err.to_string())
+    }
+}
+
+impl From<std::io::Error> for BridgeError {
+    fn from(err: std::io::Error) -> Self {
+        BridgeError::Io(err.to_string())
     }
 }
 
@@ -64,5 +146,14 @@ mod tests {
         let rmcp_err: Error = err.into();
         let msg = format!("{}", rmcp_err);
         assert!(msg.contains("other error"));
+    }
+
+    #[test]
+    fn test_mcp_error_bridge() {
+        let bridge_err = BridgeError::RateLimit("rate limit exceeded".to_string());
+        let err = McpError::Bridge(bridge_err);
+        let rmcp_err: Error = err.into();
+        let msg = format!("{}", rmcp_err);
+        assert!(msg.contains("rate limit"));
     }
 }

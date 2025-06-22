@@ -1,0 +1,208 @@
+services:
+  # PostgreSQL database for storage
+  postgres:
+    image: postgres:16-alpine
+    container_name: vkteams-postgres
+    environment:
+      POSTGRES_DB: vkteams_bot
+      POSTGRES_USER: vkteams
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-vkteams_password}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./001_initial.sql:/docker-entrypoint-initdb.d/001_initial.sql:ro
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - vkteams-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vkteams -d vkteams_bot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    profiles:
+      - relational-database
+
+  # Optional: pgvector extension for vector search
+  postgres-vector:
+    image: pgvector/pgvector:pg16
+    container_name: vkteams-postgres-vector
+    environment:
+      POSTGRES_DB: vkteams_bot
+      POSTGRES_USER: vkteams
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-vkteams_password}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_vector_data:/var/lib/postgresql/data
+      - ./001_initial.sql:/docker-entrypoint-initdb.d/001_initial.sql:ro
+      - ./init-vector-db.sql:/docker-entrypoint-initdb.d/init-vector-db.sql:ro
+    ports:
+      - "5433:5432"
+    networks:
+      - vkteams-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vkteams -d vkteams_bot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    profiles:
+      - vector-search
+
+  # Ollama for local embeddings (optional)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: vkteams-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    networks:
+      - vkteams-network
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    profiles:
+      - embedding-local
+
+  # VK Teams Bot CLI Daemon for event processing
+  vkteams-daemon:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      platforms:
+        - linux/amd64
+        - linux/arm64
+      args:
+        COMPONENT_TYPE: daemon
+        APP_USER: vkteams-bot
+        BUILD_DATE: ${BUILD_DATE:-}
+        BUILD_VERSION: ${BUILD_VERSION:-latest}
+        BUILD_COMMIT: ${BUILD_COMMIT:-}
+        FEATURES: "storage,vector-search,ai-embeddings"
+    container_name: vkteams-daemon
+    environment:
+      # API Configuration
+      - VKTEAMS_BOT_API_TOKEN=${VKTEAMS_BOT_API_TOKEN}
+      - VKTEAMS_BOT_API_URL=${VKTEAMS_BOT_API_URL:-https://api.vk.com}
+      - VKTEAMS_BOT_CHAT_ID=${VKTEAMS_BOT_CHAT_ID}
+      
+      # Database Configuration
+      - DATABASE_URL=postgresql://vkteams:${DB_PASSWORD:-vkteams_password}@postgres-vector:5432/vkteams_bot
+      
+      # Embedding Configuration
+      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-ollama}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-nomic-embed-text}
+      - EMBEDDING_ENDPOINT=${EMBEDDING_ENDPOINT:-http://ollama:11434}
+      
+      # Daemon Configuration
+      - DAEMON_PID_DIR=/app/data/pids
+      - DAEMON_AUTO_SAVE=${DAEMON_AUTO_SAVE:-true}
+      - DAEMON_POLL_INTERVAL=${DAEMON_POLL_INTERVAL:-30}
+      
+      # Logging
+      - RUST_LOG=${RUST_LOG:-info}
+    volumes:
+      - ./config:/app/config:ro
+      - daemon_data:/app/data
+      - daemon_logs:/app/logs
+      - daemon_pids:/app/data/pids
+    networks:
+      - vkteams-network
+    depends_on:
+      postgres-vector:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+    command: ["vkteams-bot-cli", "daemon", "start", "--foreground", "--auto-save"]
+    healthcheck:
+      test: ["CMD", "vkteams-bot-cli", "daemon", "status"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    profiles:
+      - daemon
+
+  # VK Teams Bot MCP Server
+  vkteams-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      platforms:
+        - linux/amd64
+        - linux/arm64
+      args:
+        COMPONENT_TYPE: mcp
+        APP_USER: vkteams-bot
+        BUILD_DATE: ${BUILD_DATE:-}
+        BUILD_VERSION: ${BUILD_VERSION:-latest}
+        BUILD_COMMIT: ${BUILD_COMMIT:-}
+        FEATURES: "storage,vector-search,ai-embeddings"
+    container_name: vkteams-mcp
+    environment:
+      # API Configuration
+      - VKTEAMS_BOT_API_TOKEN=${VKTEAMS_BOT_API_TOKEN}
+      - VKTEAMS_BOT_API_URL=${VKTEAMS_BOT_API_URL:-https://api.vk.com}
+      - VKTEAMS_BOT_CHAT_ID=${VKTEAMS_BOT_CHAT_ID}
+      
+      # Database Configuration
+      - DATABASE_URL=postgresql://vkteams:${DB_PASSWORD:-vkteams_password}@postgres-vector:5432/vkteams_bot
+      
+      # Embedding Configuration (if using local Ollama)
+      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-ollama}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-nomic-embed-text}
+      - EMBEDDING_ENDPOINT=${EMBEDDING_ENDPOINT:-http://ollama:11434}
+      
+      # MCP Configuration
+      - VKTEAMS_BOT_CLI_PATH=/usr/local/bin/vkteams-bot-cli
+      
+      # Logging
+      - RUST_LOG=${RUST_LOG:-info}
+    volumes:
+      - ./config:/app/config:ro
+      - mcp_logs:/app/logs
+    networks:
+      - vkteams-network
+    depends_on:
+      postgres-vector:
+        condition: service_healthy
+      vkteams-daemon:
+        condition: service_healthy
+    restart: unless-stopped
+    stdin_open: true  # For MCP stdio transport
+    tty: true
+    profiles:
+      - mcp
+
+networks:
+  vkteams-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  postgres_vector_data:
+    driver: local
+  ollama_data:
+    driver: local
+  cli_downloads:
+    driver: local
+  cli_uploads:
+    driver: local
+  daemon_data:
+    driver: local
+  daemon_logs:
+    driver: local
+  daemon_pids:
+    driver: local
+  mcp_logs:
+    driver: local

@@ -5,6 +5,7 @@ pub mod config;
 pub mod constants;
 pub mod errors;
 pub mod file_utils;
+pub mod output;
 pub mod progress;
 pub mod scheduler;
 pub mod utils;
@@ -13,7 +14,7 @@ use crate::cli::Cli;
 use clap::Parser;
 use colored::Colorize;
 use commands::{Command, Commands, OutputFormat};
-use config::Config;
+use config::{Config, UnifiedConfigAdapter};
 use constants::{exit_codes, ui::emoji};
 use errors::prelude::Result as CliResult;
 use std::path::Path;
@@ -135,11 +136,12 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 }
 
 fn load_configuration(cli: &Cli) -> CliResult<Config> {
-    // Load from custom path if provided
-    if let Some(_config_path) = &cli.config {
-        Config::from_file()
+    // Load from custom path if provided using unified adapter
+    if let Some(config_path) = &cli.config {
+        UnifiedConfigAdapter::load_from_path(Path::new(config_path))
     } else {
-        Config::load()
+        // Try unified adapter first, fall back to legacy
+        UnifiedConfigAdapter::load()
     }
 }
 
@@ -171,7 +173,7 @@ fn save_configuration(config: &Config, path: &str) -> CliResult<()> {
 async fn execute_command(
     command: &Commands,
     config: &Config,
-    _output_format: &OutputFormat,
+    output_format: &OutputFormat,
 ) -> CliResult<()> {
     let bot = if needs_bot_instance(command) {
         create_bot_instance(config)?
@@ -179,7 +181,17 @@ async fn execute_command(
         create_dummy_bot()
     };
 
-    command.execute(&bot).await
+    // Handle commands that support unified JSON output
+    match command {
+        Commands::Files(cmd) => cmd.execute_with_output(&bot, output_format).await,
+        Commands::Storage(cmd) => cmd.execute_with_output(&bot, output_format).await,
+        Commands::Messaging(cmd) => cmd.execute_with_output(&bot, output_format).await,
+        Commands::Chat(cmd) => cmd.execute_with_output(&bot, output_format).await,
+        Commands::Daemon(cmd) => cmd.execute_with_output(&bot, output_format).await,
+        Commands::Diagnostic(cmd) => cmd.execute_with_output(&bot, output_format).await,
+        Commands::Config(cmd) => cmd.execute_with_output(&bot, output_format).await,
+        Commands::Scheduling(cmd) => cmd.execute_with_output(&bot, output_format).await,
+    }
 }
 
 #[cfg(test)]

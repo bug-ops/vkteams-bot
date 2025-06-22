@@ -16,6 +16,29 @@ use uuid::Uuid;
 use vkteams_bot::prelude::*;
 
 pub const SCHEDULER_DATA_FILE: &str = "scheduler_tasks.json";
+pub const SCHEDULER_PID_FILE: &str = "scheduler_daemon.pid";
+
+/// Daemon status based on PID file
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum DaemonStatus {
+    /// Daemon is not running (no PID file)
+    NotRunning,
+    /// Daemon is running with given PID and start time
+    Running { pid: u32, started_at: DateTime<Utc> },
+    /// PID file exists but process is not running (stale PID file)
+    Stale { pid: u32, started_at: DateTime<Utc> },
+    /// Cannot determine status (e.g., invalid PID file)
+    Unknown(String),
+}
+
+/// Comprehensive daemon status information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DaemonStatusInfo {
+    pub status: DaemonStatus,
+    pub total_tasks: usize,
+    pub enabled_tasks: usize,
+    pub pid_file_path: PathBuf,
+}
 
 /// Events that can trigger scheduler wakeup
 #[derive(Debug, Clone)]
@@ -92,6 +115,7 @@ pub struct Scheduler {
     tasks: Arc<RwLock<HashMap<String, ScheduledTask>>>,
     task_queue: Arc<RwLock<BinaryHeap<ScheduledTaskWrapper>>>,
     data_file: PathBuf,
+    pid_file: PathBuf,
     bot: Option<Bot>,
     event_tx: mpsc::UnboundedSender<SchedulerEvent>,
     event_rx: Arc<RwLock<Option<mpsc::UnboundedReceiver<SchedulerEvent>>>>,
@@ -114,6 +138,7 @@ impl Scheduler {
             .map_err(|e| CliError::FileError(format!("Could not create data directory: {e}")))?;
 
         let data_file = data_dir.join(SCHEDULER_DATA_FILE);
+        let pid_file = data_dir.join(SCHEDULER_PID_FILE);
 
         let (event_tx, event_rx) = mpsc::unbounded_channel();
 
@@ -121,6 +146,7 @@ impl Scheduler {
             tasks: Arc::new(RwLock::new(HashMap::new())),
             task_queue: Arc::new(RwLock::new(BinaryHeap::new())),
             data_file,
+            pid_file,
             bot: None,
             event_tx,
             event_rx: Arc::new(RwLock::new(Some(event_rx))),
@@ -276,6 +302,9 @@ impl Scheduler {
 
         info!("Starting event-driven scheduler...");
 
+        // Create PID file to indicate daemon is running
+        self.create_pid_file().await?;
+
         let mut event_rx = {
             let mut rx_guard = self.event_rx.write().await;
             rx_guard
@@ -320,6 +349,15 @@ impl Scheduler {
                     info!("Received shutdown signal");
                     break;
                 }
+
+                // Check for stop signal file every 5 seconds
+                _ = tokio::time::sleep(TokioDuration::from_secs(5)) => {
+                    if self.check_stop_signal_file().await {
+                        info!("Stop signal file detected, shutting down...");
+                        self.cleanup_stop_signal_file().await;
+                        break;
+                    }
+                }
             }
 
             // Clean up completed tasks periodically
@@ -327,6 +365,10 @@ impl Scheduler {
                 error!("Error cleaning up tasks: {}", e);
             }
         }
+
+        // Clean up PID file when daemon stops
+        self.cleanup_pid_file().await;
+        info!("Scheduler daemon stopped");
 
         Ok(())
     }
@@ -579,6 +621,125 @@ impl Scheduler {
         let _ = self.event_tx.send(SchedulerEvent::Shutdown);
     }
 
+    /// Check if stop signal file exists
+    async fn check_stop_signal_file(&self) -> bool {
+        let temp_dir = std::env::temp_dir();
+        let stop_file = temp_dir.join("vkteams_scheduler_stop.signal");
+        stop_file.exists()
+    }
+
+    /// Remove stop signal file to acknowledge shutdown
+    async fn cleanup_stop_signal_file(&self) {
+        let temp_dir = std::env::temp_dir();
+        let stop_file = temp_dir.join("vkteams_scheduler_stop.signal");
+        if let Err(e) = std::fs::remove_file(&stop_file) {
+            debug!("Failed to remove stop signal file: {}", e);
+        }
+    }
+
+    /// Create PID file when daemon starts
+    async fn create_pid_file(&self) -> CliResult<()> {
+        let pid = std::process::id();
+        let pid_content = format!("{}\n{}", pid, Utc::now().to_rfc3339());
+
+        tokio::fs::write(&self.pid_file, pid_content)
+            .await
+            .map_err(|e| CliError::FileError(format!("Failed to create PID file: {}", e)))?;
+
+        info!("Created PID file at: {:?} with PID: {}", self.pid_file, pid);
+        Ok(())
+    }
+
+    /// Remove PID file when daemon stops
+    async fn cleanup_pid_file(&self) {
+        if let Err(e) = tokio::fs::remove_file(&self.pid_file).await {
+            debug!("Failed to remove PID file: {}", e);
+        } else {
+            info!("Removed PID file: {:?}", self.pid_file);
+        }
+    }
+
+    /// Check if daemon is currently running based on PID file
+    pub async fn is_daemon_running(&self) -> DaemonStatus {
+        if !self.pid_file.exists() {
+            return DaemonStatus::NotRunning;
+        }
+
+        let pid_content = match tokio::fs::read_to_string(&self.pid_file).await {
+            Ok(content) => content,
+            Err(_) => return DaemonStatus::NotRunning,
+        };
+
+        let lines: Vec<&str> = pid_content.trim().split('\n').collect();
+        if lines.len() < 2 {
+            return DaemonStatus::Unknown("Invalid PID file format".to_string());
+        }
+
+        let pid: u32 = match lines[0].parse() {
+            Ok(pid) => pid,
+            Err(_) => return DaemonStatus::Unknown("Invalid PID in file".to_string()),
+        };
+
+        let started_at = match DateTime::parse_from_rfc3339(lines[1]) {
+            Ok(dt) => dt.with_timezone(&Utc),
+            Err(_) => return DaemonStatus::Unknown("Invalid timestamp in PID file".to_string()),
+        };
+
+        // Check if process with this PID is actually running
+        if self.is_process_running(pid) {
+            DaemonStatus::Running { pid, started_at }
+        } else {
+            DaemonStatus::Stale { pid, started_at }
+        }
+    }
+
+    /// Check if a process with given PID is running
+    fn is_process_running(&self, pid: u32) -> bool {
+        #[cfg(unix)]
+        {
+            match std::process::Command::new("kill")
+                .arg("-0")
+                .arg(pid.to_string())
+                .output()
+            {
+                Ok(output) => output.status.success(),
+                Err(_) => false,
+            }
+        }
+
+        #[cfg(windows)]
+        {
+            match std::process::Command::new("tasklist")
+                .arg("/FI")
+                .arg(&format!("PID eq {}", pid))
+                .arg("/FO")
+                .arg("CSV")
+                .output()
+            {
+                Ok(output) => {
+                    let output_str = String::from_utf8_lossy(&output.stdout);
+                    output_str.lines().count() > 1 // More than just header line
+                }
+                Err(_) => false,
+            }
+        }
+    }
+
+    /// Get detailed daemon status information
+    pub async fn get_daemon_status(&self) -> DaemonStatusInfo {
+        let status = self.is_daemon_running().await;
+        let tasks = self.tasks.read().await;
+        let total_tasks = tasks.len();
+        let enabled_tasks = tasks.values().filter(|t| t.enabled).count();
+
+        DaemonStatusInfo {
+            status,
+            total_tasks,
+            enabled_tasks,
+            pid_file_path: self.pid_file.clone(),
+        }
+    }
+
     async fn add_to_queue(&self, task: ScheduledTask) {
         if !task.enabled {
             return;
@@ -747,6 +908,9 @@ impl Scheduler {
         let temp_dir = tempdir().unwrap();
         let mut data_file = PathBuf::from(temp_dir.path());
         data_file.push("scheduler_tasks_test.json");
+        let mut pid_file = PathBuf::from(temp_dir.path());
+        pid_file.push("scheduler_daemon_test.pid");
+
         if let Some(parent) = data_file.parent() {
             tokio::fs::create_dir_all(parent).await.unwrap();
         }
@@ -757,6 +921,7 @@ impl Scheduler {
             tasks: Arc::new(RwLock::new(HashMap::new())),
             task_queue: Arc::new(RwLock::new(BinaryHeap::new())),
             data_file,
+            pid_file,
             bot: None,
             event_tx,
             event_rx: Arc::new(RwLock::new(Some(event_rx))),
@@ -892,6 +1057,63 @@ mod tests {
         let schedule = ScheduleType::Cron("0 0 0 * * *".to_string()); // Daily at midnight (sec min hour day month dayofweek)
         let next_run = schedule.next_run_time(Utc::now()).unwrap();
         assert!(next_run > Utc::now());
+    }
+
+    #[tokio::test]
+    async fn test_daemon_status_not_running() {
+        let (scheduler, _temp_dir) = Scheduler::create_test_scheduler().await;
+        let status = scheduler.is_daemon_running().await;
+        assert!(matches!(status, DaemonStatus::NotRunning));
+    }
+
+    #[tokio::test]
+    async fn test_pid_file_creation_and_cleanup() {
+        let (scheduler, _temp_dir) = Scheduler::create_test_scheduler().await;
+
+        // Initially no PID file should exist
+        assert!(!scheduler.pid_file.exists());
+
+        // Create PID file
+        scheduler.create_pid_file().await.unwrap();
+        assert!(scheduler.pid_file.exists());
+
+        // Check daemon status shows running
+        let status = scheduler.is_daemon_running().await;
+        match status {
+            DaemonStatus::Running { pid, .. } => {
+                assert_eq!(pid, std::process::id());
+            }
+            _ => panic!("Expected DaemonStatus::Running"),
+        }
+
+        // Clean up PID file
+        scheduler.cleanup_pid_file().await;
+        assert!(!scheduler.pid_file.exists());
+    }
+
+    #[tokio::test]
+    async fn test_get_daemon_status_info() {
+        let (mut scheduler, _temp_dir) = Scheduler::create_test_scheduler().await;
+
+        // Add some test tasks
+        scheduler
+            .add_task(
+                TaskType::SendText {
+                    chat_id: "test_chat".to_string(),
+                    message: "test message".to_string(),
+                },
+                ScheduleType::Once(Utc::now() + Duration::hours(1)),
+                None,
+            )
+            .await
+            .unwrap();
+
+        let status_info = scheduler.get_daemon_status().await;
+
+        assert_eq!(status_info.total_tasks, 1);
+        assert_eq!(status_info.enabled_tasks, 1);
+        assert!(matches!(status_info.status, DaemonStatus::NotRunning));
+        assert_eq!(status_info.pid_file_path, scheduler.pid_file);
     }
 
     #[tokio::test]

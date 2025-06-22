@@ -1,6 +1,6 @@
 [package]
 name = "vkteams-bot-cli"
-version = "0.6.5"
+version = "0.7.0"
 authors = ["Andrei G. <k05h31@gmail.com>"]
 keywords = ["vkteams", "bot", "api", "automation", "mcp"]
 categories = ["api-bindings", "command-line-utilities", "web-programming"]
@@ -17,22 +17,26 @@ name = "vkteams-bot-cli"
 path = "src/main.rs"
 
 [dependencies]
-clap = { version = "4.5", features = [
-    "derive",
-    'std',
-    'color',
-    'usage',
-    'suggestions',
-    'cargo',
-] }
+clap = { version = "4.5", features = ["derive", "std", "color", "usage"] }
 clap_complete = { version = "4.5", optional = true }
-vkteams-bot = { version = "0.10", path = "../vkteams-bot", features = [
+vkteams-bot = { version = "0.11", path = "../vkteams-bot", features = [
     "longpoll",
     "otlp",
+    "storage-full",
 ] }
+base64 = "0.22"
 once_cell = "1"
 tracing = "0.1"
-tokio = { version = "1", features = ["full", "io-util"] }
+tokio = { version = "1", features = [
+    "rt-multi-thread",
+    "macros",
+    "fs",
+    "net",
+    "time",
+    "process",
+    "signal",
+    "io-util",
+] }
 reqwest = { version = "0.12", features = ["json", "stream"] }
 serde_json = "1"
 colored = "3"
@@ -48,11 +52,30 @@ uuid = { version = "1.0", features = ["v4"] }
 async-trait = "0.1"
 tempfile = "3.8"
 dashmap = "6.0"
-notify = "8.0"
+tabled = "0.20"
+# notify = "8.0"
+
+# Database dependencies (optional features)
+sqlx = { version = "0.8", features = [
+    "runtime-tokio-rustls",
+    "postgres",
+    "uuid",
+    "chrono",
+    "json",
+], optional = true }
+pgvector = { version = "0.4", features = ["sqlx"], optional = true }
+
+# AI/Embeddings (optional)
+openai-api-rs = { version = "6", optional = true }
 
 [features]
 default = ["completion"]
 completion = ["dep:clap_complete"]
+database = ["dep:sqlx"]
+vector-search = ["dep:pgvector", "database"]
+ai-embeddings = ["dep:openai-api-rs"]
+storage = ["database", "vector-search"]
+full = ["storage", "ai-embeddings", "completion"]
 
 [dev-dependencies]
 dotenvy = "0.15"
@@ -64,6 +87,9 @@ predicates = "3.1.3"
 tokio-test = "0.4.4"
 proptest = "1.7"
 criterion = { version = "0.6", features = ["html_reports", "async_tokio"] }
+testcontainers = "0.24"
+testcontainers-modules = { version = "0.12", features = ["postgres"] }
+serial_test = "3"
 
 [[bench]]
 name = "cli_performance"

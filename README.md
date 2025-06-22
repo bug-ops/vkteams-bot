@@ -9,13 +9,14 @@
 [![License](https://img.shields.io/crates/l/vkteams-bot)](LICENSE)
 
 > **The modern, high-performance VK Teams Bot API toolkit for Rust** 🦀  
-> Complete ecosystem: Client library + CLI tools + MCP server for AI integration
+> Complete ecosystem: Client library + CLI tools + MCP server + Storage infrastructure
 
 ## ✨ Why?
 
 - **🚀 Fast**: Rust performance with zero-cost abstractions
-- **🛠️ Complete Toolkit**: Library, CLI, and MCP server in one ecosystem  
+- **🛠️ Complete Toolkit**: Library, CLI, MCP server, and storage in one ecosystem  
 - **🤖 AI-Ready**: Native Model Context Protocol (MCP) support for LLM integration
+- **💾 Smart Storage**: PostgreSQL + Vector search for semantic message analysis
 - **⚡ Developer-First**: Intuitive CLI with auto-completion and colored output
 - **🏢 Enterprise-Grade**: Memory-safe, concurrent, production-ready
 - **📦 Modular**: Use only what you need - each component works independently
@@ -27,7 +28,7 @@
 ```bash
 cargo install vkteams-bot-cli
 
-# Set your credentials
+# Set your credentials (or use config file)
 export VKTEAMS_BOT_API_TOKEN="your_token_here"
 export VKTEAMS_BOT_API_URL="your_api_url"
 
@@ -39,7 +40,7 @@ vkteams-bot-cli send-text -u user123 -m "Hello from Rust! 🦀"
 
 ```toml
 [dependencies]
-vkteams-bot = "0.9"
+vkteams-bot = "0.11"
 tokio = { version = "1.0", features = ["full"] }
 ```
 
@@ -63,12 +64,40 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## 🔧 Complete Ecosystem
 
-| Component | Description | Crate |
-|-----------|-------------|-------|
-| 📚 **Core Library** | High-performance async VK Teams Bot API client | [`vkteams-bot`](https://crates.io/crates/vkteams-bot) |
-| 🖥️ **CLI Tool** | Feature-complete command-line interface | [`vkteams-bot-cli`](https://crates.io/crates/vkteams-bot-cli) |
-| 🤖 **MCP Server** | AI/LLM integration via Model Context Protocol | [`vkteams-bot-mcp`](https://crates.io/crates/vkteams-bot-mcp) |
+| Component | Description | Version |
+|-----------|-------------|---------|
+| 📚 **Core Library** | High-performance async VK Teams Bot API client | [`vkteams-bot`](https://crates.io/crates/vkteams-bot) v0.11 |
+| 🖥️ **CLI Tool** | Feature-complete command-line interface with storage | [`vkteams-bot-cli`](https://crates.io/crates/vkteams-bot-cli) v0.7.0 |
+| 🤖 **MCP Server** | AI/LLM integration via Model Context Protocol | [`vkteams-bot-mcp`](https://crates.io/crates/vkteams-bot-mcp) v0.3.0 |
 | ⚙️ **Macros** | Development productivity macros | [`vkteams-bot-macros`](https://crates.io/crates/vkteams-bot-macros) |
+
+## 🆕 Storage & AI Features
+
+### 💾 Storage Infrastructure
+
+- **PostgreSQL Integration**: Full event and message history storage
+- **Vector Search**: Semantic search using pgvector extension
+- **AI Embeddings**: OpenAI and Ollama support for text embeddings
+- **Smart Search**: Full-text and semantic similarity search
+
+### 🤖 MCP Integration
+
+- **30+ AI Tools**: Messages, files, chats, storage operations
+- **Context Management**: Automatic conversation context retrieval
+- **CLI-as-Backend**: Unified architecture for consistency
+
+### 🐳 Docker Support
+
+```bash
+# Start all services
+docker-compose up -d
+
+# Start only essential services
+docker-compose --profile relational-database up -d
+
+# Add vector search
+docker-compose --profile vector-search up -d
+```
 
 ## 🎯 Use Cases
 
@@ -76,6 +105,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 - **🤖 AI-Powered Assistants**: LLM integration with Claude, ChatGPT via MCP
 - **⚡ DevOps Integration**: CI/CD notifications, monitoring alerts, deployment status
 - **📊 Business Intelligence**: Data reporting, analytics dashboards, scheduled reports
+- **🔍 Knowledge Management**: Semantic search across chat history
 - **🔧 Internal Tools**: Custom workflows, approval processes, team coordination
 
 ## 🚀 CLI Highlights
@@ -87,11 +117,14 @@ vkteams-bot-cli get-events -l true | grep "ALARM"
 # Batch file operations
 find ./reports -name "*.pdf" | xargs -I {} vkteams-bot-cli send-file -u team_lead -p {}
 
-# Pipeline integration
-echo "Deployment successful! ✅" | vkteams-bot-cli send-text -u devops_chat
+# Semantic search in message history
+vkteams-bot-cli storage search-semantic "deployment issues last week"
 
-# File management
-vkteams-bot-cli get-file -f file123 -p ./downloads/report.pdf
+# Get conversation context for AI
+vkteams-bot-cli storage get-context -c chat123 --limit 50
+
+# Storage statistics
+vkteams-bot-cli storage stats
 ```
 
 ## 🤖 AI Integration (MCP)
@@ -106,14 +139,44 @@ Integrate VK Teams bots directly with AI assistants:
       "command": "vkteams-bot-mcp",
       "env": {
         "VKTEAMS_BOT_API_TOKEN": "your_token",
-        "VKTEAMS_BOT_API_URL": "your_api_url"
+        "VKTEAMS_BOT_API_URL": "your_api_url",
+        "DATABASE_URL": "postgresql://localhost/vkteams"
       }
     }
   }
 }
 ```
 
-Now Claude can send messages, manage files, and interact with your VK Teams directly!
+Now Claude can:
+
+- Send messages and manage files
+- Search chat history semantically
+- Get conversation context
+- Execute complex workflows
+
+## ⚙️ Configuration
+
+Create `.config/shared-config.toml`:
+
+```toml
+[api]
+token = "your_bot_token"
+url = "https://api.vk.com"
+
+[storage]
+[storage.database]
+url = "postgresql://localhost/vkteams"
+auto_migrate = true
+
+[storage.embedding]
+provider = "ollama"  # or "openai"
+model = "nomic-embed-text"
+endpoint = "http://localhost:11434"
+
+[mcp]
+enable_storage_tools = true
+enable_file_tools = true
+```
 
 ## 🛠️ Development
 
@@ -123,11 +186,14 @@ git clone https://github.com/bug-ops/vkteams-bot
 cd vkteams-bot
 cargo build --release
 
-# Run tests
-cargo test
+# Run tests with coverage
+cargo llvm-cov nextest report
 
 # Check documentation
 cargo doc --open
+
+# Run with Docker
+docker-compose up -d
 ```
 
 ## 📖 Documentation

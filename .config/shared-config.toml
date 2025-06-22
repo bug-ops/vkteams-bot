@@ -1,0 +1,56 @@
+# Unified Configuration for VKTeams Bot CLI and MCP Server
+# This file is used by both CLI and MCP components
+
+[api]
+# VK Teams Bot API configuration
+token = "your_bot_token"
+url = "https://api.vk.com"
+timeout = 30
+max_retries = 3
+
+[storage]
+# Database configuration
+[storage.database]
+url = "postgresql://localhost/vkteams"
+max_connections = 20
+auto_migrate = true
+
+# Vector search configuration (if enabled)
+[storage.embedding]
+provider = "ollama"  # or "openai"
+model = "nomic-embed-text"
+endpoint = "http://localhost:11434"
+
+[mcp]
+# MCP Server specific configuration
+chat_id = "default_chat_id"
+cli_path = "/usr/local/bin/vkteams-bot-cli"  # optional, will auto-detect
+enable_storage_tools = true
+enable_file_tools = true
+
+[cli]
+# CLI specific configuration
+[cli.files]
+download_dir = "./downloads"
+upload_dir = "./uploads"
+max_file_size = 104857600  # 100MB
+
+[cli.logging]
+level = "info"
+format = "pretty"  # pretty, json, full
+
+[cli.ui]
+show_progress = true
+colored_output = true
+
+[network]
+# Shared network configuration
+retries = 3
+request_timeout_secs = 30
+connect_timeout_secs = 10
+
+[otlp]
+# OpenTelemetry configuration (optional)
+instance_id = "bot"
+deployment_environment_name = "production"
+# exporter_endpoint = "http://localhost:4317"
