@@ -4,20 +4,21 @@
 //! bridge instead of direct library calls. This ensures single source of truth
 //! for all business logic in the CLI.
 
-use crate::cli_bridge::BridgeError;
+use crate::errors::BridgeError;
 use crate::types::Server;
 use rmcp::tool_box;
 use rmcp::{
     ServerHandler,
-    model::{CallToolResult, Content, ErrorData, ServerCapabilities, ServerInfo},
+    model::{CallToolResult, Content, ErrorData, ErrorCode, ServerCapabilities, ServerInfo},
     tool,
 };
 use serde_json::Value;
 use std::result::Result;
+use tracing::{error, warn};
 
 pub type MCPResult = Result<CallToolResult, ErrorData>;
 
-/// Convert CLI bridge result to MCP result
+/// Convert CLI bridge result to MCP result with enhanced error handling
 #[allow(dead_code)]
 fn convert_bridge_result(result: Result<Value, BridgeError>) -> MCPResult {
     match result {
@@ -28,11 +29,49 @@ fn convert_bridge_result(result: Result<Value, BridgeError>) -> MCPResult {
                     .unwrap_or_else(|_| "{}".to_string())
             )]))
         }
-        Err(e) => Err(ErrorData {
-            code: rmcp::model::ErrorCode(-1),
-            message: format!("CLI command failed: {}", e).into(),
-            data: None,
-        }),
+        Err(e) => {
+            // Map error types to appropriate error codes
+            let (code, message, data) = match &e {
+                BridgeError::RateLimit(msg) => {
+                    warn!("Rate limit error: {}", msg);
+                    (-429, format!("Rate limit exceeded: {}", msg), None)
+                },
+                BridgeError::Timeout(duration) => {
+                    error!("Command timed out after {:?}", duration);
+                    (-504, format!("Command timed out after {:?}", duration), None)
+                },
+                BridgeError::CliReturnedError(info) => {
+                    error!("CLI returned error: {:?}", info);
+                    let code = match info.code.as_deref() {
+                        Some("NOT_FOUND") => -404,
+                        Some("UNAUTHORIZED") => -401,
+                        Some("FORBIDDEN") => -403,
+                        Some("INVALID_INPUT") => -400,
+                        Some("RATE_LIMIT") => -429,
+                        _ => -500,
+                    };
+                    (code, info.message.clone(), info.details.clone())
+                },
+                BridgeError::CliNotFound(path) => {
+                    error!("CLI not found at: {}", path);
+                    (-503, format!("Service unavailable: CLI not found at {}", path), None)
+                },
+                BridgeError::InvalidResponse(err) => {
+                    error!("Invalid JSON response: {}", err);
+                    (-502, format!("Invalid response from CLI: {}", err), None)
+                },
+                _ => {
+                    error!("CLI bridge error: {}", e);
+                    (-500, format!("Internal error: {}", e), None)
+                }
+            };
+            
+            Err(ErrorData {
+                code: ErrorCode(code),
+                message: message.into(),
+                data,
+            })
+        }
     }
 }
 
@@ -90,6 +129,7 @@ impl Server {
         #[schemars(description = "Reply to message ID (optional)")]
         reply_msg_id: Option<String>,
     ) -> MCPResult {
+        
         let result = self.cli.send_text(
             &text,
             chat_id.as_deref(),
@@ -112,6 +152,7 @@ impl Server {
         #[schemars(description = "Caption for the file (optional)")]
         caption: Option<String>,
     ) -> MCPResult {
+        
         let result = self.cli.send_file(
             &file_path,
             chat_id.as_deref(),
@@ -152,6 +193,7 @@ impl Server {
         #[schemars(description = "Chat ID (optional, uses default if not provided)")]
         chat_id: Option<String>,
     ) -> MCPResult {
+        
         let result = self.cli.edit_message(
             &message_id,
             &new_text,

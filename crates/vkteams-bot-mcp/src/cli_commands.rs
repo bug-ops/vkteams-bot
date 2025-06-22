@@ -4,7 +4,8 @@
 //! that the MCP server needs to call. All methods return structured
 //! JSON responses from the CLI.
 
-use crate::cli_bridge::{BridgeError, CliBridge};
+use crate::cli_bridge::CliBridge;
+use crate::errors::BridgeError;
 use serde_json::Value;
 
 impl CliBridge {

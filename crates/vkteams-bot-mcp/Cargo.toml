@@ -42,3 +42,5 @@ vkteams-bot = { version = "0.11", path = "../vkteams-bot", default-features = fa
 base64 = "0.22"
 which = "8.0"
 tracing = "0.1"
+regex = "1"
+once_cell = "1"
