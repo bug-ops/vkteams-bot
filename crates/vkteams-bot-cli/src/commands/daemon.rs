@@ -1,7 +1,7 @@
 //! Daemon commands for automatic chat listening and event processing
 
 use clap::Subcommand;
-use crate::errors::prelude::Result as CliResult;
+use crate::errors::{prelude::Result as CliResult, CliError};
 use crate::commands::{Command, OutputFormat, CommandResult};
 use async_trait::async_trait;
 use vkteams_bot::prelude::{Bot, ResponseEventsGet};
@@ -346,29 +346,78 @@ async fn check_daemon_status() -> CliResult<()> {
 }
 
 /// Get daemon status with detailed information
-async fn get_daemon_status(_pid_file: Option<&str>) -> CliResult<serde_json::Value> {
-    // For now, return a mock status
-    // TODO: Implement actual status checking when PID file management is ready
+async fn get_daemon_status(pid_file: Option<&str>) -> CliResult<serde_json::Value> {
+    use std::path::PathBuf;
+    use chrono::{DateTime, Utc};
     
-    // Check if we can access the process stats (this is a placeholder)
-    let is_running = false; // Would check actual PID file and process
+    // Determine PID file path
+    let pid_file_path = if let Some(path) = pid_file {
+        PathBuf::from(path)
+    } else {
+        // Use default location
+        let mut data_dir = dirs::data_dir()
+            .ok_or_else(|| CliError::Config("Cannot determine data directory".to_string()))?;
+        data_dir.push("vkteams-bot");
+        data_dir.push("daemon.pid");
+        data_dir
+    };
+    
+    // Check if PID file exists
+    if !pid_file_path.exists() {
+        return Ok(serde_json::json!({
+            "status": "not_running",
+            "reason": "No PID file found",
+            "pid_file": pid_file_path
+        }));
+    }
+    
+    // Read PID file content
+    let pid_content = tokio::fs::read_to_string(&pid_file_path)
+        .await
+        .map_err(|e| CliError::FileError(format!("Failed to read PID file: {}", e)))?;
+    
+    let lines: Vec<&str> = pid_content.trim().split('\n').collect();
+    if lines.len() < 2 {
+        return Ok(serde_json::json!({
+            "status": "error",
+            "reason": "Invalid PID file format",
+            "pid_file": pid_file_path
+        }));
+    }
+    
+    let pid: u32 = lines[0].parse()
+        .map_err(|_| CliError::InputError("Invalid PID in file".to_string()))?;
+    
+    let started_at = DateTime::parse_from_rfc3339(lines[1])
+        .map_err(|_| CliError::InputError("Invalid timestamp in PID file".to_string()))?
+        .with_timezone(&Utc);
+    
+    // Check if process is actually running
+    let is_running = is_process_running(pid);
     
     if is_running {
+        // Calculate uptime
+        let uptime = Utc::now().signed_duration_since(started_at);
+        let uptime_str = format_duration(uptime);
+        
+        // Try to get memory usage (platform specific)
+        let memory_usage = get_process_memory_usage(pid).unwrap_or_else(|| "unknown".to_string());
+        
         Ok(serde_json::json!({
             "status": "running",
-            "pid": 12345,
-            "uptime": "2h 30m",
-            "events_processed": 1250,
-            "events_saved": 1200,
-            "events_failed": 50,
-            "last_activity": chrono::Utc::now().to_rfc3339(),
-            "memory_usage_mb": 45.2,
-            "cpu_usage_percent": 1.5
+            "pid": pid,
+            "started_at": started_at.to_rfc3339(),
+            "uptime": uptime_str,
+            "memory_usage": memory_usage,
+            "pid_file": pid_file_path
         }))
     } else {
         Ok(serde_json::json!({
-            "status": "not_running",
-            "message": "Daemon is not currently running"
+            "status": "stale",
+            "reason": "PID file exists but process is not running",
+            "pid": pid,
+            "started_at": started_at.to_rfc3339(),
+            "pid_file": pid_file_path
         }))
     }
 }
@@ -393,6 +442,111 @@ async fn setup_shutdown_signal() {
     {
         let _ = signal::ctrl_c().await;
         debug!("Received Ctrl+C");
+    }
+}
+
+/// Check if a process with given PID is running
+fn is_process_running(pid: u32) -> bool {
+    #[cfg(unix)]
+    {
+        use std::process::Command;
+        // On Unix systems, use kill with signal 0 to check if process exists
+        match Command::new("kill").args(["-0", &pid.to_string()]).output() {
+            Ok(output) => output.status.success(),
+            Err(_) => false,
+        }
+    }
+    
+    #[cfg(windows)]
+    {
+        use std::process::Command;
+        // On Windows, use tasklist to check if process exists
+        match Command::new("tasklist")
+            .args(["/FI", &format!("PID eq {}", pid), "/FO", "CSV"])
+            .output() 
+        {
+            Ok(output) => {
+                let output_str = String::from_utf8_lossy(&output.stdout);
+                output_str.lines().count() > 1 // More than just header
+            },
+            Err(_) => false,
+        }
+    }
+    
+    #[cfg(not(any(unix, windows)))]
+    {
+        false // For other platforms, assume not running
+    }
+}
+
+/// Format duration for human-readable display
+fn format_duration(duration: chrono::Duration) -> String {
+    let seconds = duration.num_seconds();
+    let minutes = seconds / 60;
+    let hours = minutes / 60;
+    let days = hours / 24;
+    
+    if days > 0 {
+        format!("{}d {}h {}m", days, hours % 24, minutes % 60)
+    } else if hours > 0 {
+        format!("{}h {}m", hours, minutes % 60)
+    } else if minutes > 0 {
+        format!("{}m", minutes)
+    } else {
+        format!("{}s", seconds)
+    }
+}
+
+/// Get memory usage of a process (platform specific)
+fn get_process_memory_usage(pid: u32) -> Option<String> {
+    #[cfg(unix)]
+    {
+        use std::process::Command;
+        match Command::new("ps")
+            .args(["-p", &pid.to_string(), "-o", "rss="])
+            .output() 
+        {
+            Ok(output) => {
+                let rss_str = String::from_utf8_lossy(&output.stdout);
+                if let Ok(rss_kb) = rss_str.trim().parse::<u64>() {
+                    let rss_mb = rss_kb / 1024;
+                    Some(format!("{}MB", rss_mb))
+                } else {
+                    None
+                }
+            },
+            Err(_) => None,
+        }
+    }
+    
+    #[cfg(windows)]
+    {
+        use std::process::Command;
+        match Command::new("tasklist")
+            .args(["/FI", &format!("PID eq {}", pid), "/FO", "CSV", "/NH"])
+            .output() 
+        {
+            Ok(output) => {
+                let output_str = String::from_utf8_lossy(&output.stdout);
+                // Parse CSV output to extract memory usage
+                if let Some(line) = output_str.lines().next() {
+                    let fields: Vec<&str> = line.split(',').collect();
+                    if fields.len() > 4 {
+                        // Memory usage is typically in field 4 or 5
+                        if let Some(mem_field) = fields.get(4) {
+                            return Some(mem_field.trim_matches('"').to_string());
+                        }
+                    }
+                }
+                None
+            },
+            Err(_) => None,
+        }
+    }
+    
+    #[cfg(not(any(unix, windows)))]
+    {
+        None
     }
 }
 

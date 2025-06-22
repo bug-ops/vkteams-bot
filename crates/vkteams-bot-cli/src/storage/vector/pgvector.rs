@@ -6,12 +6,49 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use pgvector::Vector;
 use sqlx::{PgPool, Row};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::time::Instant;
+
+/// Performance metrics for query tracking
+#[derive(Debug)]
+struct QueryMetrics {
+    total_queries: AtomicUsize,
+    total_query_time_ms: AtomicU64,
+}
+
+impl Default for QueryMetrics {
+    fn default() -> Self {
+        Self {
+            total_queries: AtomicUsize::new(0),
+            total_query_time_ms: AtomicU64::new(0),
+        }
+    }
+}
+
+impl QueryMetrics {
+    fn record_query(&self, duration_ms: u64) {
+        self.total_queries.fetch_add(1, Ordering::Relaxed);
+        self.total_query_time_ms.fetch_add(duration_ms, Ordering::Relaxed);
+    }
+    
+    fn get_avg_query_time_ms(&self) -> f64 {
+        let total_queries = self.total_queries.load(Ordering::Relaxed);
+        if total_queries == 0 {
+            0.0
+        } else {
+            let total_time = self.total_query_time_ms.load(Ordering::Relaxed);
+            total_time as f64 / total_queries as f64
+        }
+    }
+}
 
 /// PostgreSQL + pgvector store implementation
 #[derive(Debug, Clone)]
 pub struct PgVectorStore {
     pool: PgPool,
     collection_name: String,
+    metrics: Arc<QueryMetrics>,
 }
 
 impl PgVectorStore {
@@ -53,7 +90,11 @@ impl PgVectorStore {
         .await
         .map_err(|e| StorageError::Configuration(e.to_string()))?;
         
-        Ok(Self { pool, collection_name })
+        Ok(Self { 
+            pool, 
+            collection_name,
+            metrics: Arc::new(QueryMetrics::default()),
+        })
     }
 }
 
@@ -114,6 +155,8 @@ impl VectorStore for PgVectorStore {
     }
     
     async fn search_similar(&self, query: SearchQuery) -> StorageResult<Vec<SearchResult>> {
+        let start_time = Instant::now();
+        
         let mut sql = format!(
             r#"
             SELECT id, content, metadata, 
@@ -163,6 +206,10 @@ impl VectorStore for PgVectorStore {
                 distance: row.get("distance"),
             })
             .collect();
+        
+        // Record query metrics
+        let duration = start_time.elapsed();
+        self.metrics.record_query(duration.as_millis() as u64);
         
         Ok(results)
     }
@@ -223,14 +270,26 @@ impl VectorStore for PgVectorStore {
     }
     
     async fn get_stats(&self) -> StorageResult<VectorStoreStats> {
+        // Get table and index statistics in one query
         let row = sqlx::query(&format!(
             r#"
+            WITH table_stats AS (
+                SELECT 
+                    COUNT(*) as total_documents,
+                    pg_total_relation_size('{}') as storage_size_bytes
+                FROM {}
+            ),
+            index_stats AS (
+                SELECT 
+                    COALESCE(pg_relation_size('{}_embedding_idx'), 0) as index_size_bytes
+            )
             SELECT 
-                COUNT(*) as total_documents,
-                pg_total_relation_size('{}') as storage_size_bytes
-            FROM {}
+                table_stats.total_documents,
+                table_stats.storage_size_bytes,
+                index_stats.index_size_bytes
+            FROM table_stats, index_stats
             "#,
-            self.collection_name, self.collection_name
+            self.collection_name, self.collection_name, self.collection_name
         ))
         .fetch_one(&self.pool)
         .await
@@ -239,8 +298,8 @@ impl VectorStore for PgVectorStore {
         Ok(VectorStoreStats {
             total_documents: row.get::<i64, _>("total_documents") as u64,
             storage_size_bytes: row.get::<i64, _>("storage_size_bytes") as u64,
-            index_size_bytes: None, // TODO: calculate index size
-            avg_query_time_ms: 0.0, // TODO: collect metrics
+            index_size_bytes: Some(row.get::<i64, _>("index_size_bytes") as u64),
+            avg_query_time_ms: self.metrics.get_avg_query_time_ms(),
             provider: "pgvector".to_string(),
         })
     }
