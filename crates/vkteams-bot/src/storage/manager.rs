@@ -841,4 +841,434 @@ mod tests {
             assert_eq!(timestamp.timestamp(), timestamp_value as i64);
         }
     }
+
+    #[test]
+    fn test_event_type_to_string_all_variants() {
+        let manager = MockStorageManager;
+        
+        // Create test data for all event types
+        let test_cases = vec![
+            (
+                EventType::NewMessage(Box::new(create_test_new_message_payload())),
+                "newMessage"
+            ),
+            (
+                EventType::EditedMessage(Box::new(create_test_edited_message_payload())),
+                "editedMessage"
+            ),
+            (
+                EventType::DeleteMessage(Box::new(create_test_delete_message_payload())),
+                "deleteMessage"
+            ),
+            (
+                EventType::PinnedMessage(Box::new(create_test_pinned_message_payload())),
+                "pinnedMessage"
+            ),
+            (
+                EventType::UnpinnedMessage(Box::new(create_test_unpinned_message_payload())),
+                "unpinnedMessage"
+            ),
+            (
+                EventType::NewChatMembers(Box::new(create_test_new_chat_members_payload())),
+                "newChatMembers"
+            ),
+            (
+                EventType::LeftChatMembers(Box::new(create_test_left_chat_members_payload())),
+                "leftChatMembers"
+            ),
+            (
+                EventType::CallbackQuery(Box::new(create_test_callback_query_payload())),
+                "callbackQuery"
+            ),
+            (
+                EventType::None,
+                "unknown"
+            ),
+        ];
+
+        for (event_type, expected_string) in test_cases {
+            let result = manager.event_type_to_string(&event_type);
+            assert_eq!(result, expected_string);
+        }
+    }
+
+    #[test]
+    fn test_detect_mentions() {
+        let manager = MockStorageManager;
+        
+        let test_cases = vec![
+            ("Hello @user123", (true, vec!["user123".to_string()])),
+            ("No mentions here", (false, vec![])),
+            ("@first and @second user", (true, vec!["first".to_string(), "second".to_string()])),
+            ("Email at domain.com is not a mention", (false, vec![])),
+            ("@user_with_underscore", (true, vec!["user_with_underscore".to_string()])),
+            ("", (false, vec![])),
+        ];
+
+        for (input, (expected_has_mentions, expected_mentions)) in test_cases {
+            let (has_mentions, mentions) = manager.detect_mentions(input);
+            assert_eq!(has_mentions, expected_has_mentions);
+            assert_eq!(mentions, expected_mentions);
+        }
+    }
+
+    #[test]
+    fn test_extract_file_attachments() {
+        let manager = MockStorageManager;
+        
+        // Test with empty parts
+        let empty_parts = vec![];
+        let result = manager.extract_file_attachments(&empty_parts);
+        assert!(result.is_none());
+
+        // Test with simplified parts - create a basic file structure
+        let file_parts = vec![
+            MessageParts {
+                part_type: MessagePartsType::File(Box::new(MessagePartsPayloadFile {
+                    file_id: FileId("file123".to_string()),
+                    file_type: "application/pdf".to_string(),
+                    caption: "document.pdf".to_string(),
+                    format: MessageFormat::default(),
+                })),
+            }
+        ];
+        let result = manager.extract_file_attachments(&file_parts);
+        assert!(result.is_some());
+        let attachments = result.unwrap();
+        assert_eq!(attachments["file_id"], "file123");
+        assert_eq!(attachments["file_name"], "document.pdf");
+
+        // Test with non-file parts
+        let text_parts = vec![
+            MessageParts {
+                part_type: MessagePartsType::Mention(MessagePartsPayloadMention {
+                    user_id: From {
+                        user_id: UserId("user123".to_string()),
+                        first_name: "User".to_string(),
+                        last_name: None,
+                    },
+                }),
+            }
+        ];
+        let result = manager.extract_file_attachments(&text_parts);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_extract_formatted_text() {
+        let manager = MockStorageManager;
+        
+        // Test with format present
+        let payload_with_format = EventPayloadNewMessage {
+            msg_id: MsgId("test_msg".to_string()),
+            text: "Test message".to_string(),
+            chat: create_test_chat(),
+            from: create_test_from(),
+            format: Some(MessageFormat {
+                bold: Some(vec![MessageFormatStruct {
+                    offset: 0,
+                    length: 4,
+                }]),
+                italic: None,
+                underline: None,
+                strikethrough: None,
+                link: None,
+                ordered_list: None,
+                quote: None,
+                mention: None,
+                inline_code: None,
+                pre: None,
+            }),
+            parts: vec![],
+            timestamp: Timestamp(1700000000),
+        };
+        
+        let result = manager.extract_formatted_text(&payload_with_format);
+        assert!(result.is_some());
+        let formatted = result.unwrap();
+        assert!(formatted.contains("bold"));
+
+        // Test with no format
+        let payload_without_format = EventPayloadNewMessage {
+            msg_id: MsgId("test_msg".to_string()),
+            text: "Test message".to_string(),
+            chat: create_test_chat(),
+            from: create_test_from(),
+            format: None,
+            parts: vec![],
+            timestamp: Timestamp(1700000000),
+        };
+        
+        let result = manager.extract_formatted_text(&payload_without_format);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_extract_formatted_text_edited() {
+        let manager = MockStorageManager;
+        
+        // Test with format present
+        let payload_with_format = EventPayloadEditedMessage {
+            msg_id: MsgId("test_msg".to_string()),
+            text: "Edited message".to_string(),
+            chat: create_test_chat(),
+            from: create_test_from(),
+            format: Some(MessageFormat {
+                bold: None,
+                italic: Some(vec![MessageFormatStruct {
+                    offset: 0,
+                    length: 6,
+                }]),
+                underline: None,
+                strikethrough: None,
+                link: None,
+                ordered_list: None,
+                quote: None,
+                mention: None,
+                inline_code: None,
+                pre: None,
+            }),
+            timestamp: Timestamp(1700000000),
+            edited_timestamp: Timestamp(1700000001),
+        };
+        
+        let result = manager.extract_formatted_text_edited(&payload_with_format);
+        assert!(result.is_some());
+        let formatted = result.unwrap();
+        assert!(formatted.contains("italic"));
+
+        // Test with no format
+        let payload_without_format = EventPayloadEditedMessage {
+            msg_id: MsgId("test_msg".to_string()),
+            text: "Edited message".to_string(),
+            chat: create_test_chat(),
+            from: create_test_from(),
+            format: None,
+            timestamp: Timestamp(1700000000),
+            edited_timestamp: Timestamp(1700000001),
+        };
+        
+        let result = manager.extract_formatted_text_edited(&payload_without_format);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_extract_text_content() {
+        let manager = MockStorageManager;
+        
+        // Test NewMessage with text
+        let new_msg_event = EventMessage {
+            event_id: 123,
+            event_type: EventType::NewMessage(Box::new(create_test_new_message_payload())),
+        };
+        let result = manager.extract_text_content(&new_msg_event);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), "Test message");
+
+        // Test EditedMessage with text
+        let edited_msg_event = EventMessage {
+            event_id: 123,
+            event_type: EventType::EditedMessage(Box::new(create_test_edited_message_payload())),
+        };
+        let result = manager.extract_text_content(&edited_msg_event);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), "Edited message");
+
+        // Test NewMessage with empty text
+        let mut empty_payload = create_test_new_message_payload();
+        empty_payload.text = "".to_string();
+        let empty_event = EventMessage {
+            event_id: 123,
+            event_type: EventType::NewMessage(Box::new(empty_payload)),
+        };
+        let result = manager.extract_text_content(&empty_event);
+        assert!(result.is_none());
+
+        // Test non-message event
+        let other_event = EventMessage {
+            event_id: 123,
+            event_type: EventType::NewChatMembers(Box::new(create_test_new_chat_members_payload())),
+        };
+        let result = manager.extract_text_content(&other_event);
+        assert!(result.is_none());
+    }
+
+    #[test] 
+    fn test_storage_config_default() {
+        // Test that StorageConfig Default implementation works
+        let config = StorageConfig::default();
+        assert!(config.database.auto_migrate);
+        assert_eq!(config.database.url, "postgresql://localhost/vkteams_bot");
+    }
+
+    // Helper functions for test data creation
+    fn create_test_new_message_payload() -> EventPayloadNewMessage {
+        EventPayloadNewMessage {
+            msg_id: MsgId("test_msg".to_string()),
+            text: "Test message".to_string(),
+            chat: create_test_chat(),
+            from: create_test_from(),
+            format: None,
+            parts: vec![],
+            timestamp: Timestamp(1700000000),
+        }
+    }
+
+    fn create_test_edited_message_payload() -> EventPayloadEditedMessage {
+        EventPayloadEditedMessage {
+            msg_id: MsgId("test_msg".to_string()),
+            text: "Edited message".to_string(),
+            chat: create_test_chat(),
+            from: create_test_from(),
+            format: None,
+            timestamp: Timestamp(1700000000),
+            edited_timestamp: Timestamp(1700000001),
+        }
+    }
+
+    fn create_test_delete_message_payload() -> EventPayloadDeleteMessage {
+        EventPayloadDeleteMessage {
+            msg_id: MsgId("test_msg".to_string()),
+            chat: create_test_chat(),
+            timestamp: Timestamp(1700000000),
+        }
+    }
+
+    fn create_test_pinned_message_payload() -> EventPayloadPinnedMessage {
+        EventPayloadPinnedMessage {
+            msg_id: MsgId("pinned_msg_123".to_string()),
+            chat: create_test_chat(),
+            from: create_test_from(),
+            text: "Test pinned message".to_string(),
+            format: None,
+            parts: vec![],
+            timestamp: Timestamp(1700000000),
+        }
+    }
+
+    fn create_test_unpinned_message_payload() -> EventPayloadUnpinnedMessage {
+        EventPayloadUnpinnedMessage {
+            msg_id: MsgId("test_msg".to_string()),
+            chat: create_test_chat(),
+            timestamp: Timestamp(1700000000),
+        }
+    }
+
+    fn create_test_new_chat_members_payload() -> EventPayloadNewChatMembers {
+        EventPayloadNewChatMembers {
+            chat: create_test_chat(),
+            new_members: vec![create_test_from()],
+            added_by: create_test_from(),
+        }
+    }
+
+    fn create_test_left_chat_members_payload() -> EventPayloadLeftChatMembers {
+        EventPayloadLeftChatMembers {
+            chat: create_test_chat(),
+            left_members: vec![create_test_from()],
+            removed_by: Some(create_test_from()),
+        }
+    }
+
+    fn create_test_callback_query_payload() -> EventPayloadCallbackQuery {
+        EventPayloadCallbackQuery {
+            query_id: QueryId("test_query".to_string()),
+            from: create_test_from(),
+            chat: create_test_chat(),
+            message: create_test_new_message_payload(),
+            callback_data: "test_data".to_string(),
+        }
+    }
+
+    fn create_test_chat() -> Chat {
+        Chat {
+            chat_id: ChatId("test_chat".into()),
+            chat_type: "group".to_string(),
+            title: Some("Test Chat".to_string()),
+        }
+    }
+
+    fn create_test_from() -> From {
+        From {
+            user_id: UserId("test_user".to_string()),
+            first_name: "Test".to_string(),
+            last_name: Some("User".to_string()),
+        }
+    }
+
+    impl MockStorageManager {
+        fn event_type_to_string(&self, event_type: &crate::api::types::EventType) -> String {
+            match event_type {
+                crate::api::types::EventType::NewMessage(_) => "newMessage".to_string(),
+                crate::api::types::EventType::EditedMessage(_) => "editedMessage".to_string(),
+                crate::api::types::EventType::DeleteMessage(_) => "deleteMessage".to_string(),
+                crate::api::types::EventType::PinnedMessage(_) => "pinnedMessage".to_string(),
+                crate::api::types::EventType::UnpinnedMessage(_) => "unpinnedMessage".to_string(),
+                crate::api::types::EventType::NewChatMembers(_) => "newChatMembers".to_string(),
+                crate::api::types::EventType::LeftChatMembers(_) => "leftChatMembers".to_string(),
+                crate::api::types::EventType::CallbackQuery(_) => "callbackQuery".to_string(),
+                crate::api::types::EventType::None => "unknown".to_string(),
+            }
+        }
+
+        fn detect_mentions(&self, text: &str) -> (bool, Vec<String>) {
+            use regex::Regex;
+            let mention_regex = Regex::new(r"@(\w+)").unwrap();
+            let mentions: Vec<String> = mention_regex
+                .captures_iter(text)
+                .map(|cap| cap[1].to_string())
+                .collect();
+            
+            (!mentions.is_empty(), mentions)
+        }
+
+        fn extract_file_attachments(&self, parts: &[MessageParts]) -> Option<serde_json::Value> {
+            for part in parts {
+                if let MessagePartsType::File(file_payload) = &part.part_type {
+                    return Some(serde_json::json!({
+                        "file_id": file_payload.file_id.0,
+                        "file_name": &file_payload.caption,
+                        "file_type": &file_payload.file_type
+                    }));
+                }
+            }
+            None
+        }
+
+        fn extract_formatted_text(&self, payload: &EventPayloadNewMessage) -> Option<String> {
+            if let Some(format) = &payload.format {
+                serde_json::to_string(format).ok()
+            } else {
+                None
+            }
+        }
+
+        fn extract_formatted_text_edited(&self, payload: &EventPayloadEditedMessage) -> Option<String> {
+            if let Some(format) = &payload.format {
+                serde_json::to_string(format).ok()
+            } else {
+                None
+            }
+        }
+
+        fn extract_text_content(&self, event: &EventMessage) -> Option<String> {
+            match &event.event_type {
+                crate::api::types::EventType::NewMessage(payload) => {
+                    if payload.text.is_empty() {
+                        None
+                    } else {
+                        Some(payload.text.clone())
+                    }
+                }
+                crate::api::types::EventType::EditedMessage(payload) => {
+                    if payload.text.is_empty() {
+                        None
+                    } else {
+                        Some(payload.text.clone())
+                    }
+                }
+                _ => None,
+            }
+        }
+    }
 }

@@ -417,7 +417,7 @@ pub mod processing {
             ProviderSettings::OpenAI { max_tokens_per_batch } => {
                 // Estimate ~4 characters per token
                 let est_tokens_per_text = (avg_length / 4.0).ceil() as usize;
-                (max_tokens_per_batch / est_tokens_per_text).max(1).min(100)
+                (max_tokens_per_batch / est_tokens_per_text).clamp(1, 100)
             },
             ProviderSettings::Ollama { max_concurrent_requests } => {
                 // For Ollama, limit based on concurrent requests
