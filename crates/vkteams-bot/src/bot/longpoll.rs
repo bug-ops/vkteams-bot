@@ -499,7 +499,12 @@ impl ZeroCopyEventStream {
 
     /// Push events efficiently by moving data
     pub fn push_events(&mut self, mut new_events: Vec<EventMessage>) {
-        // Ensure we don't exceed capacity
+        // If new events exceed capacity, take only the last capacity events
+        if new_events.len() > self.capacity {
+            new_events.drain(..new_events.len() - self.capacity);
+        }
+
+        // Ensure we don't exceed capacity by removing old events
         while self.events.len() + new_events.len() > self.capacity {
             self.events.pop_front();
         }
@@ -797,6 +802,12 @@ mod tests {
 
         stream.push_events(events.events.clone());
         assert_eq!(stream.len(), 2); // Should be capped at capacity
+        
+        // Verify we get the last 2 events (most recent)
+        let remaining_events = stream.peek_events(2);
+        assert_eq!(remaining_events.len(), 2);
+        assert_eq!(remaining_events[0].event_id, 3); // Last 2 events should be 3 and 4
+        assert_eq!(remaining_events[1].event_id, 4);
     }
 
     #[test]
