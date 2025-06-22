@@ -280,16 +280,38 @@ async fn execute_scheduler_action(_bot: &Bot, action: &SchedulerAction) -> CliRe
             println!("✅ Scheduler daemon stopped successfully");
         }
         SchedulerAction::Status => {
-            let tasks = scheduler.list_tasks().await;
-            let enabled_count = tasks.iter().filter(|t| t.enabled).count();
-            let total_count = tasks.len();
-
+            let daemon_status = scheduler.get_daemon_status().await;
+            
             println!("📊 Scheduler Status:");
-            println!("  Total tasks: {}", total_count);
-            println!("  Enabled tasks: {}", enabled_count.to_string().green());
+            
+            // Display daemon running status
+            match &daemon_status.status {
+                crate::scheduler::DaemonStatus::NotRunning => {
+                    println!("  Daemon: {} (Not running)", "⏹️ Stopped".red());
+                }
+                crate::scheduler::DaemonStatus::Running { pid, started_at } => {
+                    println!("  Daemon: {} (PID: {}, Started: {})", 
+                        "🟢 Running".green(), 
+                        pid, 
+                        started_at.format("%Y-%m-%d %H:%M:%S UTC"));
+                }
+                crate::scheduler::DaemonStatus::Stale { pid, started_at } => {
+                    println!("  Daemon: {} (Stale PID: {}, Started: {})", 
+                        "⚠️ Stale".yellow(), 
+                        pid, 
+                        started_at.format("%Y-%m-%d %H:%M:%S UTC"));
+                }
+                crate::scheduler::DaemonStatus::Unknown(msg) => {
+                    println!("  Daemon: {} ({})", "❓ Unknown".yellow(), msg);
+                }
+            }
+            
+            println!("  PID file: {:?}", daemon_status.pid_file_path);
+            println!("  Total tasks: {}", daemon_status.total_tasks);
+            println!("  Enabled tasks: {}", daemon_status.enabled_tasks.to_string().green());
             println!(
                 "  Disabled tasks: {}",
-                (total_count - enabled_count).to_string().yellow()
+                (daemon_status.total_tasks - daemon_status.enabled_tasks).to_string().yellow()
             );
         }
         SchedulerAction::List => {
