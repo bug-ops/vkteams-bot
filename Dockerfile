@@ -55,7 +55,6 @@ RUN groupadd -g ${APP_GID} ${APP_USER} && \
 # Create application directories
 RUN mkdir -p config data logs downloads uploads data/pids && \
     chown -R ${APP_USER}:${APP_USER} . && \
-    chown -R ${APP_USER}:${APP_USER} ${BINARY_PATH} && \
     chown -R ${APP_USER}:${APP_USER} /home/${APP_USER}
 
 # Copy the binary from builder stage
