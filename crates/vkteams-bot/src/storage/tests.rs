@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod storage_tests {
     use crate::storage::StorageConfig;
-    use crate::storage::config::{DatabaseConfig, StorageSettings};
+    use crate::storage::config::{DatabaseConfig, SslConfig, StorageSettings};
 
     #[test]
     fn test_storage_config_default() {
@@ -23,6 +23,7 @@ mod storage_tests {
                 max_connections: 10,
                 connection_timeout: 15,
                 auto_migrate: false,
+                ssl: SslConfig::default(),
             },
             #[cfg(feature = "vector-search")]
             vector: None,

@@ -32,6 +32,14 @@ max_connections = 20
 connection_timeout = 30
 auto_migrate = true
 
+# SSL/TLS configuration (optional)
+[storage.database.ssl]
+enabled = false  # Enable SSL/TLS for database connections
+mode = "prefer"  # Options: disable, prefer, require, verify-ca, verify-full
+# root_cert = "/path/to/ca-cert.pem"  # Path to root certificate
+# client_cert = "/path/to/client-cert.pem"  # Path to client certificate
+# client_key = "/path/to/client-key.pem"  # Path to client key
+
 [storage.settings]
 event_retention_days = 365
 cleanup_interval_hours = 24

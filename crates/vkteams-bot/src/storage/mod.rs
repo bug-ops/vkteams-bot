@@ -65,6 +65,8 @@ pub mod embedding;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod ssl_tests;
 
 #[cfg(feature = "storage")]
 pub use config::StorageConfig;

@@ -31,6 +31,7 @@ mod tests {
                 max_connections: 5,
                 connection_timeout: 10,
                 auto_migrate: true,
+                ssl: Default::default(),
             },
             #[cfg(feature = "vector-search")]
             vector: None, // Disable vector search for CI tests since pgvector extension may not be available
@@ -351,6 +352,7 @@ mod tests {
                 max_connections: 5,
                 connection_timeout: 10,
                 auto_migrate: true,
+                ssl: Default::default(),
             },
             #[cfg(feature = "vector-search")]
             vector: None,

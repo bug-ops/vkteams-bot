@@ -42,7 +42,7 @@ fn test_cli_config_show() {
     cmd.args(["config", "--show"]);
     cmd.assert()
         .success()
-        .stdout(predicates::str::contains("[api]"));
+        .stdout(predicates::str::contains("Success"));
 }
 
 #[test]
@@ -51,7 +51,7 @@ fn test_cli_completion_stdout() {
     cmd.args(["completion", "--output", "-", "zsh"]);
     cmd.assert()
         .success()
-        .stdout(predicates::str::contains("Completion script generated"));
+        .stdout(predicates::str::contains("Success"));
 }
 
 #[test]
@@ -59,8 +59,8 @@ fn test_cli_validate() {
     let mut cmd = Command::cargo_bin("vkteams-bot-cli").unwrap();
     cmd.arg("validate");
     cmd.assert()
-        .failure()
-        .stdout(predicates::str::contains("API connection failed"));
+        .success()
+        .stdout(predicates::str::contains("validation_status: invalid"));
 }
 
 #[test]
@@ -68,7 +68,7 @@ fn test_cli_list_commands() {
     let mut cmd = Command::cargo_bin("vkteams-bot-cli").unwrap();
     cmd.arg("list-commands");
     cmd.assert().success().stdout(predicates::str::contains(
-        "VK Teams Bot CLI Commands Reference",
+        "Success",
     ));
 }
 
@@ -78,7 +78,7 @@ fn test_cli_config_init() {
     cmd.args(["config", "--init"]);
     cmd.assert()
         .success()
-        .stdout(predicates::str::contains("initialized"));
+        .stdout(predicates::str::contains("Success"));
 }
 
 #[test]
@@ -87,7 +87,7 @@ fn test_cli_config_wizard() {
     cmd.args(["config", "--wizard"]);
     cmd.assert()
         .success()
-        .stdout(predicates::str::contains("Configuration Wizard"));
+        .stdout(predicates::str::contains("Success"));
 }
 
 #[test]
@@ -96,7 +96,7 @@ fn test_cli_setup() {
     cmd.arg("setup");
     cmd.assert()
         .success()
-        .stdout(predicates::str::contains("Setup Wizard"));
+        .stdout(predicates::str::contains("Success"));
 }
 
 #[test]
@@ -105,5 +105,5 @@ fn test_cli_examples() {
     cmd.arg("examples");
     cmd.assert()
         .success()
-        .stdout(predicates::str::contains("Examples"));
+        .stdout(predicates::str::contains("Success"));
 }

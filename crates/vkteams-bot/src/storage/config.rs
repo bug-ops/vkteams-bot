@@ -37,6 +37,31 @@ pub struct DatabaseConfig {
     /// Auto-run migrations on startup
     #[serde(default = "default_auto_migrate")]
     pub auto_migrate: bool,
+
+    /// SSL/TLS configuration
+    #[serde(default)]
+    pub ssl: SslConfig,
+}
+
+/// SSL/TLS configuration for database connections
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SslConfig {
+    /// Enable SSL/TLS for database connections
+    #[serde(default = "default_ssl_enabled")]
+    pub enabled: bool,
+
+    /// SSL mode: disable, prefer, require, verify-ca, verify-full
+    #[serde(default = "default_ssl_mode")]
+    pub mode: String,
+
+    /// Path to root certificate file
+    pub root_cert: Option<String>,
+
+    /// Path to client certificate file
+    pub client_cert: Option<String>,
+
+    /// Path to client key file
+    pub client_key: Option<String>,
 }
 
 /// Vector storage configuration
@@ -197,6 +222,26 @@ fn default_max_memory_events() -> usize {
     10000
 }
 
+fn default_ssl_enabled() -> bool {
+    false
+}
+
+fn default_ssl_mode() -> String {
+    "prefer".to_string()
+}
+
+impl Default for SslConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_ssl_enabled(),
+            mode: default_ssl_mode(),
+            root_cert: None,
+            client_cert: None,
+            client_key: None,
+        }
+    }
+}
+
 impl Default for StorageConfig {
     fn default() -> Self {
         Self {
@@ -205,6 +250,7 @@ impl Default for StorageConfig {
                 max_connections: default_max_connections(),
                 connection_timeout: default_connection_timeout(),
                 auto_migrate: default_auto_migrate(),
+                ssl: SslConfig::default(),
             },
             #[cfg(feature = "vector-search")]
             vector: Some(VectorConfig {

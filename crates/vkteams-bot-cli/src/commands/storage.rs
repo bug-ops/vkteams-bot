@@ -175,6 +175,7 @@ impl StorageCommands {
                 max_connections: 20,
                 connection_timeout: 30,
                 auto_migrate: true,
+                ssl: Default::default(),
             },
             settings: StorageSettings {
                 event_retention_days: 365,

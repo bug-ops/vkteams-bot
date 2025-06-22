@@ -7,7 +7,7 @@ use std::process::Command;
 #[ignore] // Requires configured bot token
 fn test_json_output_diagnostic_health_check() {
     let output = Command::new("cargo")
-        .args(&["run", "--", "--output", "json", "health-check"])
+        .args(["run", "--", "--output", "json", "health-check"])
         .output()
         .expect("Failed to execute command");
 
@@ -25,7 +25,7 @@ fn test_json_output_diagnostic_health_check() {
 #[ignore] // Requires configured bot token
 fn test_json_output_scheduler_list() {
     let output = Command::new("cargo")
-        .args(&["run", "--", "--output", "json", "scheduler", "list"])
+        .args(["run", "--", "--output", "json", "scheduler", "list"])
         .output()
         .expect("Failed to execute command");
 
@@ -42,7 +42,7 @@ fn test_json_output_scheduler_list() {
 #[test]
 fn test_json_output_config_examples() {
     let output = Command::new("cargo")
-        .args(&["run", "--", "--output", "json", "examples"])
+        .args(["run", "--", "--output", "json", "examples"])
         .output()
         .expect("Failed to execute command");
 
@@ -60,12 +60,12 @@ fn test_json_output_config_examples() {
 #[test]
 fn test_json_output_pretty_format_default() {
     let output_pretty = Command::new("cargo")
-        .args(&["run", "--", "examples"])
+        .args(["run", "--", "examples"])
         .output()
         .expect("Failed to execute command");
 
     let output_json = Command::new("cargo")
-        .args(&["run", "--", "--output", "json", "examples"])
+        .args(["run", "--", "--output", "json", "examples"])
         .output()
         .expect("Failed to execute command");
 

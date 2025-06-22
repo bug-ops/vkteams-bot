@@ -1,11 +1,13 @@
 //! Vector storage implementations for similarity search
 
 use crate::storage::{StorageError, StorageResult};
+use crate::storage::config::SslConfig;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sqlx::{PgPool, Row};
+use sqlx::{postgres::{PgConnectOptions, PgPoolOptions, PgSslMode}, PgPool, Row};
+use std::str::FromStr;
 use std::time::Instant;
 
 /// Vector document for storage
@@ -132,9 +134,23 @@ impl PgVectorStore {
         dimensions: usize,
         ivfflat_lists: u32,
     ) -> StorageResult<Self> {
-        let pool = PgPool::connect(database_url)
-            .await
-            .map_err(|e| StorageError::Query(e.to_string()))?;
+        Self::new_with_ssl(database_url, collection_name, dimensions, ivfflat_lists, &SslConfig::default()).await
+    }
+
+    pub async fn new_with_ssl(
+        database_url: &str,
+        collection_name: String,
+        dimensions: usize,
+        ivfflat_lists: u32,
+        ssl_config: &SslConfig,
+    ) -> StorageResult<Self> {
+        let pool = if ssl_config.enabled {
+            Self::create_pool_with_ssl(database_url, ssl_config).await?
+        } else {
+            PgPool::connect(database_url)
+                .await
+                .map_err(|e| StorageError::Query(e.to_string()))?
+        };
 
         let store = Self {
             pool,
@@ -148,6 +164,46 @@ impl PgVectorStore {
 
         store.initialize().await?;
         Ok(store)
+    }
+
+    async fn create_pool_with_ssl(
+        database_url: &str,
+        ssl_config: &SslConfig,
+    ) -> StorageResult<PgPool> {
+        let mut options = PgConnectOptions::from_str(database_url)
+            .map_err(|e| StorageError::Connection(format!("Invalid database URL: {}", e)))?;
+
+        // Set SSL mode
+        let ssl_mode = match ssl_config.mode.as_str() {
+            "disable" => PgSslMode::Disable,
+            "prefer" => PgSslMode::Prefer,
+            "require" => PgSslMode::Require,
+            "verify-ca" => PgSslMode::VerifyCa,
+            "verify-full" => PgSslMode::VerifyFull,
+            _ => PgSslMode::Prefer,
+        };
+        options = options.ssl_mode(ssl_mode);
+
+        // Set SSL certificates if provided
+        if let Some(root_cert) = &ssl_config.root_cert {
+            options = options.ssl_root_cert(root_cert);
+        }
+
+        if let Some(client_cert) = &ssl_config.client_cert {
+            if let Some(client_key) = &ssl_config.client_key {
+                options = options
+                    .ssl_client_cert(client_cert)
+                    .ssl_client_key(client_key);
+            }
+        }
+
+        let pool = PgPoolOptions::new()
+            .max_connections(5)
+            .connect_with(options)
+            .await
+            .map_err(|e| StorageError::Connection(format!("Failed to connect with SSL: {}", e)))?;
+
+        Ok(pool)
     }
 
     async fn initialize(&self) -> StorageResult<()> {
@@ -571,10 +627,35 @@ pub async fn create_vector_store(
     dimensions: usize,
     ivfflat_lists: u32,
 ) -> StorageResult<Box<dyn VectorStore>> {
+    create_vector_store_with_ssl(
+        provider,
+        connection_url,
+        collection_name,
+        dimensions,
+        ivfflat_lists,
+        &SslConfig::default(),
+    ).await
+}
+
+/// Create vector store instance with SSL configuration
+pub async fn create_vector_store_with_ssl(
+    provider: &str,
+    connection_url: &str,
+    collection_name: Option<String>,
+    dimensions: usize,
+    ivfflat_lists: u32,
+    ssl_config: &SslConfig,
+) -> StorageResult<Box<dyn VectorStore>> {
     match provider {
         "pgvector" => {
             let collection = collection_name.unwrap_or_else(|| "vector_documents".to_string());
-            let store = PgVectorStore::new(connection_url, collection, dimensions, ivfflat_lists).await?;
+            let store = PgVectorStore::new_with_ssl(
+                connection_url, 
+                collection, 
+                dimensions, 
+                ivfflat_lists,
+                ssl_config
+            ).await?;
             Ok(Box::new(store))
         }
         _ => Err(StorageError::Configuration(format!(

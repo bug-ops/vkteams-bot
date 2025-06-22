@@ -13,7 +13,7 @@ use crate::storage::simple::SimpleRelationalStore;
 
 #[cfg(feature = "vector-search")]
 use crate::storage::vector::{
-    SearchQuery, SearchResult, VectorDocument, VectorStore, create_vector_store,
+    SearchQuery, SearchResult, VectorDocument, VectorStore, create_vector_store_with_ssl,
 };
 
 #[cfg(feature = "ai-embeddings")]
@@ -63,12 +63,13 @@ impl StorageManager {
         #[cfg(feature = "vector-search")]
         let vector = {
             if let Some(vector_config) = &config.vector {
-                let store = create_vector_store(
+                let store = create_vector_store_with_ssl(
                     &vector_config.provider,
                     &vector_config.connection_url,
                     Some(vector_config.collection_name.clone()),
                     vector_config.dimensions,
                     vector_config.ivfflat_lists,
+                    &config.database.ssl,
                 )
                 .await?;
                 Some(Arc::new(store))
