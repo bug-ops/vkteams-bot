@@ -118,6 +118,7 @@ pub struct PgVectorStore {
     pool: PgPool,
     collection_name: String,
     dimensions: usize,
+    ivfflat_lists: u32,
     // Performance tracking
     query_count: std::sync::atomic::AtomicI64,
     failed_query_count: std::sync::atomic::AtomicI64,
@@ -129,6 +130,7 @@ impl PgVectorStore {
         database_url: &str,
         collection_name: String,
         dimensions: usize,
+        ivfflat_lists: u32,
     ) -> StorageResult<Self> {
         let pool = PgPool::connect(database_url)
             .await
@@ -138,6 +140,7 @@ impl PgVectorStore {
             pool,
             collection_name,
             dimensions,
+            ivfflat_lists,
             query_count: std::sync::atomic::AtomicI64::new(0),
             failed_query_count: std::sync::atomic::AtomicI64::new(0),
             total_query_time_ms: std::sync::atomic::AtomicU64::new(0),
@@ -175,8 +178,8 @@ impl PgVectorStore {
 
         // Create index for vector similarity search
         let index_query = format!(
-            "CREATE INDEX IF NOT EXISTS {}_embedding_idx ON {} USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100)",
-            self.collection_name, self.collection_name
+            "CREATE INDEX IF NOT EXISTS {}_embedding_idx ON {} USING ivfflat (embedding vector_cosine_ops) WITH (lists = {})",
+            self.collection_name, self.collection_name, self.ivfflat_lists
         );
 
         sqlx::query(&index_query)
@@ -286,6 +289,8 @@ impl VectorStore for PgVectorStore {
             let mut bind_count = 1;
 
             // Add score threshold filter
+            // Convert similarity threshold to distance threshold
+            // similarity = 1 - distance, so distance = 1 - similarity
             if let Some(_threshold) = query.score_threshold {
                 bind_count += 1;
                 sql.push_str(&format!(" AND embedding <=> $1 < ${}", bind_count));
@@ -302,7 +307,9 @@ impl VectorStore for PgVectorStore {
             let mut sqlx_query = sqlx::query(&sql).bind(&query.embedding);
 
             if let Some(threshold) = query.score_threshold {
-                sqlx_query = sqlx_query.bind(threshold);
+                // Convert similarity threshold to distance threshold
+                let distance_threshold = 1.0 - threshold;
+                sqlx_query = sqlx_query.bind(distance_threshold);
             }
 
             if let Some(metadata) = query.metadata_filter {
@@ -561,11 +568,13 @@ pub async fn create_vector_store(
     provider: &str,
     connection_url: &str,
     collection_name: Option<String>,
+    dimensions: usize,
+    ivfflat_lists: u32,
 ) -> StorageResult<Box<dyn VectorStore>> {
     match provider {
         "pgvector" => {
             let collection = collection_name.unwrap_or_else(|| "vector_documents".to_string());
-            let store = PgVectorStore::new(connection_url, collection, 1536).await?;
+            let store = PgVectorStore::new(connection_url, collection, dimensions, ivfflat_lists).await?;
             Ok(Box::new(store))
         }
         _ => Err(StorageError::Configuration(format!(

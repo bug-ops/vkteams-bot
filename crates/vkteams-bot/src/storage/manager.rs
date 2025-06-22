@@ -39,6 +39,16 @@ impl StorageManager {
     pub async fn initialize(&self) -> StorageResult<()> {
         self.relational.initialize().await
     }
+
+    /// Get embedding dimensions from configuration
+    #[cfg(feature = "vector-search")]
+    pub fn get_embedding_dimensions(&self) -> usize {
+        if let Some(ref vector_config) = self.config.vector {
+            vector_config.dimensions
+        } else {
+            1536 // default dimensions
+        }
+    }
     /// Create new storage manager from configuration
     pub async fn new(config: &StorageConfig) -> StorageResult<Self> {
         #[cfg(feature = "storage")]
@@ -57,6 +67,8 @@ impl StorageManager {
                     &vector_config.provider,
                     &vector_config.connection_url,
                     Some(vector_config.collection_name.clone()),
+                    vector_config.dimensions,
+                    vector_config.ivfflat_lists,
                 )
                 .await?;
                 Some(Arc::new(store))

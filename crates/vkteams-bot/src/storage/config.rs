@@ -140,7 +140,7 @@ fn default_vector_provider() -> String {
 }
 #[cfg(feature = "vector-search")]
 fn default_collection_name() -> String {
-    "vkteams_embeddings".to_string()
+    "embeddings".to_string()
 }
 #[cfg(feature = "vector-search")]
 fn default_dimensions() -> usize {

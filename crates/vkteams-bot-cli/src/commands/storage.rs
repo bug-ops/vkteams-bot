@@ -555,11 +555,14 @@ impl StorageCommands {
                     let metadata =
                         serde_json::to_value(metadata_map).unwrap_or(serde_json::Value::Null);
 
+                    // Get dimensions from storage configuration
+                    let dimensions = storage.get_embedding_dimensions();
+                    
                     let document = VectorDocument {
                         id: context_id.clone(),
                         content: summary.clone(),
                         metadata,
-                        embedding: pgvector::Vector::from(vec![0.0; 768]), // Placeholder embedding
+                        embedding: pgvector::Vector::from(vec![0.0; dimensions]), // Placeholder embedding with correct dimensions
                         created_at: chrono::Utc::now(),
                     };
 

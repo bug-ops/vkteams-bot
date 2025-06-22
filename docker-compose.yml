@@ -119,10 +119,8 @@ services:
     depends_on:
       postgres-vector:
         condition: service_healthy
-        required: true
       ollama:
         condition: service_healthy
-        required: false
     restart: unless-stopped
     command: ["vkteams-bot-cli", "daemon", "start", "--foreground", "--auto-save"]
     healthcheck:
@@ -177,10 +175,8 @@ services:
     depends_on:
       postgres-vector:
         condition: service_healthy
-        required: false
       vkteams-daemon:
         condition: service_healthy
-        required: false
     restart: unless-stopped
     stdin_open: true  # For MCP stdio transport
     tty: true
