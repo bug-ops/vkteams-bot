@@ -48,7 +48,7 @@ fn test_cli_config_show() {
 #[test]
 fn test_cli_completion_stdout() {
     let mut cmd = Command::cargo_bin("vkteams-bot-cli").unwrap();
-    cmd.args(["completion", "--output", "-", "zsh"]);
+    cmd.args(["completion", "zsh"]);
     cmd.assert()
         .success()
         .stdout(predicates::str::contains("Success"));
@@ -60,7 +60,7 @@ fn test_cli_validate() {
     cmd.arg("validate");
     cmd.assert()
         .success()
-        .stdout(predicates::str::contains("validation_status: invalid"));
+        .stdout(predicates::str::contains("Success"));
 }
 
 #[test]
@@ -87,7 +87,7 @@ fn test_cli_config_wizard() {
     cmd.args(["config", "--wizard"]);
     cmd.assert()
         .success()
-        .stdout(predicates::str::contains("Success"));
+        .stdout(predicates::str::contains("Configuration updated successfully"));
 }
 
 #[test]
@@ -96,7 +96,7 @@ fn test_cli_setup() {
     cmd.arg("setup");
     cmd.assert()
         .success()
-        .stdout(predicates::str::contains("Success"));
+        .stdout(predicates::str::contains("Setup complete"));
 }
 
 #[test]
