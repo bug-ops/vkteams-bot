@@ -716,4 +716,266 @@ mod tests {
             _ => panic!("Expected ContextAction::Create"),
         }
     }
+
+    #[test]
+    fn test_database_action_variants() {
+        // Test DatabaseAction variants
+        let init_action = DatabaseAction::Init;
+        let stats_action = DatabaseAction::Stats {
+            chat_id: Some("test_chat".to_string()),
+            since: Some("2023-01-01".to_string()),
+        };
+        let cleanup_action = DatabaseAction::Cleanup {
+            older_than_days: 30,
+        };
+        let vector_metrics_action = DatabaseAction::VectorMetrics;
+        let vector_maintenance_action = DatabaseAction::VectorMaintenance;
+
+        match init_action {
+            DatabaseAction::Init => {}
+            _ => panic!("Expected DatabaseAction::Init"),
+        }
+
+        match stats_action {
+            DatabaseAction::Stats { .. } => {}
+            _ => panic!("Expected DatabaseAction::Stats"),
+        }
+
+        match cleanup_action {
+            DatabaseAction::Cleanup { older_than_days } => {
+                assert_eq!(older_than_days, 30);
+            }
+            _ => panic!("Expected DatabaseAction::Cleanup"),
+        }
+
+        match vector_metrics_action {
+            DatabaseAction::VectorMetrics => {}
+            _ => panic!("Expected DatabaseAction::VectorMetrics"),
+        }
+
+        match vector_maintenance_action {
+            DatabaseAction::VectorMaintenance => {}
+            _ => panic!("Expected DatabaseAction::VectorMaintenance"),
+        }
+    }
+
+    #[test]
+    fn test_search_action_variants() {
+        // Test SearchAction variants
+        let semantic_action = SearchAction::Semantic {
+            query: "test query".to_string(),
+            chat_id: Some("test_chat".to_string()),
+            limit: 5,
+        };
+
+        let text_action = SearchAction::Text {
+            query: "search text".to_string(),
+            chat_id: None,
+            limit: 20,
+        };
+
+        let advanced_action = SearchAction::Advanced {
+            user_id: Some("user123".to_string()),
+            event_type: Some("NewMessage".to_string()),
+            since: Some("2023-01-01".to_string()),
+            until: Some("2023-12-31".to_string()),
+            limit: 50,
+        };
+
+        match semantic_action {
+            SearchAction::Semantic { query, chat_id, limit } => {
+                assert_eq!(query, "test query");
+                assert_eq!(chat_id, Some("test_chat".to_string()));
+                assert_eq!(limit, 5);
+            }
+            _ => panic!("Expected SearchAction::Semantic"),
+        }
+
+        match text_action {
+            SearchAction::Text { query, chat_id, limit } => {
+                assert_eq!(query, "search text");
+                assert_eq!(chat_id, None);
+                assert_eq!(limit, 20);
+            }
+            _ => panic!("Expected SearchAction::Text"),
+        }
+
+        match advanced_action {
+            SearchAction::Advanced { user_id, event_type, since, until, limit } => {
+                assert_eq!(user_id, Some("user123".to_string()));
+                assert_eq!(event_type, Some("NewMessage".to_string()));
+                assert_eq!(since, Some("2023-01-01".to_string()));
+                assert_eq!(until, Some("2023-12-31".to_string()));
+                assert_eq!(limit, 50);
+            }
+            _ => panic!("Expected SearchAction::Advanced"),
+        }
+    }
+
+    #[test]
+    fn test_context_type_enum_values() {
+        // Test all ContextType variants
+        let recent = ContextType::Recent;
+        let topic = ContextType::Topic;
+        let user_profile = ContextType::UserProfile;
+
+        match recent {
+            ContextType::Recent => {}
+            _ => panic!("Expected ContextType::Recent"),
+        }
+
+        match topic {
+            ContextType::Topic => {}
+            _ => panic!("Expected ContextType::Topic"),
+        }
+
+        match user_profile {
+            ContextType::UserProfile => {}
+            _ => panic!("Expected ContextType::UserProfile"),
+        }
+    }
+
+    #[test]
+    fn test_storage_commands_validation() {
+        // Test that storage commands validate correctly
+        let database_cmd = StorageCommands::Database {
+            action: DatabaseAction::Init,
+        };
+        assert!(database_cmd.validate().is_ok());
+
+        let search_cmd = StorageCommands::Search {
+            action: SearchAction::Text {
+                query: "test".to_string(),
+                chat_id: None,
+                limit: 10,
+            },
+        };
+        assert!(search_cmd.validate().is_ok());
+
+        let context_cmd = StorageCommands::Context {
+            action: ContextAction::Get {
+                chat_id: Some("test".to_string()),
+                context_type: ContextType::Recent,
+                timeframe: None,
+            },
+        };
+        assert!(context_cmd.validate().is_ok());
+    }
+
+    #[test]
+    fn test_storage_commands_debug_and_clone() {
+        let cmd = StorageCommands::Database {
+            action: DatabaseAction::Init,
+        };
+
+        // Test Debug trait
+        let debug_str = format!("{:?}", cmd);
+        assert!(debug_str.contains("Database"));
+        assert!(debug_str.contains("Init"));
+
+        // Test Clone trait
+        let cloned_cmd = cmd.clone();
+        assert_eq!(cloned_cmd.name(), cmd.name());
+    }
+
+    #[test]
+    fn test_parse_datetime_edge_cases() {
+        // Test more date format edge cases
+        assert!(parse_datetime("2023-12-31T23:59:59Z").is_ok());
+        assert!(parse_datetime("2023-01-01T00:00:00+00:00").is_ok());
+        assert!(parse_datetime("2023-06-15T12:30:45").is_ok());
+        assert!(parse_datetime("2023-02-28").is_ok());
+        assert!(parse_datetime("2024-02-29").is_ok()); // Leap year
+        
+        // Invalid formats
+        assert!(parse_datetime("").is_err());
+        assert!(parse_datetime("not-a-date").is_err());
+        assert!(parse_datetime("2023-13-01").is_err()); // Invalid month
+        assert!(parse_datetime("2023-02-30").is_err()); // Invalid day
+    }
+
+    #[tokio::test]
+    async fn test_storage_config_fallback() {
+        let storage_cmd = StorageCommands::Database {
+            action: DatabaseAction::Init,
+        };
+
+        // Test fallback configuration loading
+        let config_result = storage_cmd.load_storage_config().await;
+        assert!(config_result.is_ok());
+
+        let config = config_result.unwrap();
+        assert_eq!(config.database.max_connections, 20);
+        assert_eq!(config.database.connection_timeout, 30);
+        assert!(config.database.auto_migrate);
+        assert_eq!(config.settings.event_retention_days, 365);
+        assert_eq!(config.settings.cleanup_interval_hours, 24);
+        assert_eq!(config.settings.batch_size, 100);
+        assert_eq!(config.settings.max_memory_events, 10000);
+    }
+
+    #[test]
+    fn test_context_action_get_with_different_types() {
+        let recent_action = ContextAction::Get {
+            chat_id: Some("chat1".to_string()),
+            context_type: ContextType::Recent,
+            timeframe: Some("1d".to_string()),
+        };
+
+        let topic_action = ContextAction::Get {
+            chat_id: Some("chat2".to_string()),
+            context_type: ContextType::Topic,
+            timeframe: Some("1w".to_string()),
+        };
+
+        let user_profile_action = ContextAction::Get {
+            chat_id: Some("chat3".to_string()),
+            context_type: ContextType::UserProfile,
+            timeframe: None,
+        };
+
+        match recent_action {
+            ContextAction::Get { context_type: ContextType::Recent, .. } => {}
+            _ => panic!("Expected Recent context type"),
+        }
+
+        match topic_action {
+            ContextAction::Get { context_type: ContextType::Topic, .. } => {}
+            _ => panic!("Expected Topic context type"),
+        }
+
+        match user_profile_action {
+            ContextAction::Get { context_type: ContextType::UserProfile, .. } => {}
+            _ => panic!("Expected UserProfile context type"),
+        }
+    }
+
+    #[test]
+    fn test_storage_commands_name_variants() {
+        let database_cmd = StorageCommands::Database {
+            action: DatabaseAction::Stats {
+                chat_id: None,
+                since: None,
+            },
+        };
+        assert_eq!(database_cmd.name(), "database");
+
+        let search_cmd = StorageCommands::Search {
+            action: SearchAction::Semantic {
+                query: "test".to_string(),
+                chat_id: None,
+                limit: 10,
+            },
+        };
+        assert_eq!(search_cmd.name(), "search");
+
+        let context_cmd = StorageCommands::Context {
+            action: ContextAction::Create {
+                chat_id: "test".to_string(),
+                summary: "summary".to_string(),
+                context_type: "topic".to_string(),
+            },
+        };
+        assert_eq!(context_cmd.name(), "context");
+    }
 }
