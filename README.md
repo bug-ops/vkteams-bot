@@ -67,8 +67,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 | Component | Description | Version |
 |-----------|-------------|---------|
 | 📚 **Core Library** | High-performance async VK Teams Bot API client | [`vkteams-bot`](https://crates.io/crates/vkteams-bot) v0.11 |
-| 🖥️ **CLI Tool** | Feature-complete command-line interface with storage | [`vkteams-bot-cli`](https://crates.io/crates/vkteams-bot-cli) v0.7.0 |
-| 🤖 **MCP Server** | AI/LLM integration via Model Context Protocol | [`vkteams-bot-mcp`](https://crates.io/crates/vkteams-bot-mcp) v0.3.0 |
+| 🖥️ **CLI Tool** | Feature-complete command-line interface with storage | [`vkteams-bot-cli`](https://crates.io/crates/vkteams-bot-cli) v0.7 |
+| 🤖 **MCP Server** | AI/LLM integration via Model Context Protocol | [`vkteams-bot-mcp`](https://crates.io/crates/vkteams-bot-mcp) v0.3 |
 | ⚙️ **Macros** | Development productivity macros | [`vkteams-bot-macros`](https://crates.io/crates/vkteams-bot-macros) |
 
 ## 🆕 Storage & AI Features

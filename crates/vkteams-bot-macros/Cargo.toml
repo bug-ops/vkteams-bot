@@ -1,11 +1,12 @@
 [package]
 name = "vkteams-bot-macros"
-version = "0.2.1"
+version = "0.2.2"
 description = "VK Teams Bot Macros"
 
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+rust-version.workspace = true
 
 [lib]
 proc-macro = true
