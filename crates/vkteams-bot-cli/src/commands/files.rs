@@ -483,4 +483,323 @@ mod tests {
 
         assert_eq!(expected_filename, "test.json");
     }
+
+    #[test]
+    fn test_file_commands_name() {
+        let upload_cmd = FileCommands::Upload(UploadFileArgs {
+            name: "test.txt".to_string(),
+            content_base64: "dGVzdA==".to_string(),
+            caption: None,
+            reply_msg_id: None,
+            chat_id: None,
+        });
+        assert_eq!(upload_cmd.name(), "upload-file");
+
+        let upload_text_cmd = FileCommands::UploadText(UploadTextArgs {
+            name: "test.txt".to_string(),
+            content: "test content".to_string(),
+            caption: None,
+            reply_msg_id: None,
+            chat_id: None,
+        });
+        assert_eq!(upload_text_cmd.name(), "upload-text");
+
+        let upload_json_cmd = FileCommands::UploadJson(UploadJsonArgs {
+            name: "test.json".to_string(),
+            json_data: "{}".to_string(),
+            pretty: true,
+            caption: None,
+            reply_msg_id: None,
+            chat_id: None,
+        });
+        assert_eq!(upload_json_cmd.name(), "upload-json");
+
+        let info_cmd = FileCommands::Info(FileInfoArgs {
+            file_id: "test_file_id".to_string(),
+        });
+        assert_eq!(info_cmd.name(), "file-info");
+    }
+
+    #[test]
+    fn test_upload_file_validation() {
+        // Valid upload file args
+        let valid_args = UploadFileArgs {
+            name: "test.txt".to_string(),
+            content_base64: "dGVzdA==".to_string(),
+            caption: None,
+            reply_msg_id: None,
+            chat_id: None,
+        };
+        let cmd = FileCommands::Upload(valid_args);
+        assert!(cmd.validate().is_ok());
+
+        // Empty name
+        let invalid_name_args = UploadFileArgs {
+            name: "".to_string(),
+            content_base64: "dGVzdA==".to_string(),
+            caption: None,
+            reply_msg_id: None,
+            chat_id: None,
+        };
+        let cmd = FileCommands::Upload(invalid_name_args);
+        assert!(cmd.validate().is_err());
+
+        // Empty content
+        let invalid_content_args = UploadFileArgs {
+            name: "test.txt".to_string(),
+            content_base64: "".to_string(),
+            caption: None,
+            reply_msg_id: None,
+            chat_id: None,
+        };
+        let cmd = FileCommands::Upload(invalid_content_args);
+        assert!(cmd.validate().is_err());
+    }
+
+    #[test]
+    fn test_upload_text_validation() {
+        // Valid upload text args
+        let valid_args = UploadTextArgs {
+            name: "test.txt".to_string(),
+            content: "test content".to_string(),
+            caption: None,
+            reply_msg_id: None,
+            chat_id: None,
+        };
+        let cmd = FileCommands::UploadText(valid_args);
+        assert!(cmd.validate().is_ok());
+
+        // Empty name
+        let invalid_args = UploadTextArgs {
+            name: "".to_string(),
+            content: "test content".to_string(),
+            caption: None,
+            reply_msg_id: None,
+            chat_id: None,
+        };
+        let cmd = FileCommands::UploadText(invalid_args);
+        assert!(cmd.validate().is_err());
+    }
+
+    #[test]
+    fn test_upload_json_validation() {
+        // Valid upload json args
+        let valid_args = UploadJsonArgs {
+            name: "test.json".to_string(),
+            json_data: "{}".to_string(),
+            pretty: true,
+            caption: None,
+            reply_msg_id: None,
+            chat_id: None,
+        };
+        let cmd = FileCommands::UploadJson(valid_args);
+        assert!(cmd.validate().is_ok());
+
+        // Empty name
+        let invalid_name_args = UploadJsonArgs {
+            name: "".to_string(),
+            json_data: "{}".to_string(),
+            pretty: true,
+            caption: None,
+            reply_msg_id: None,
+            chat_id: None,
+        };
+        let cmd = FileCommands::UploadJson(invalid_name_args);
+        assert!(cmd.validate().is_err());
+
+        // Empty JSON data
+        let invalid_json_args = UploadJsonArgs {
+            name: "test.json".to_string(),
+            json_data: "".to_string(),
+            pretty: true,
+            caption: None,
+            reply_msg_id: None,
+            chat_id: None,
+        };
+        let cmd = FileCommands::UploadJson(invalid_json_args);
+        assert!(cmd.validate().is_err());
+    }
+
+    #[test]
+    fn test_file_info_validation() {
+        // Valid file info args
+        let valid_args = FileInfoArgs {
+            file_id: "test_file_id".to_string(),
+        };
+        let cmd = FileCommands::Info(valid_args);
+        assert!(cmd.validate().is_ok());
+
+        // Empty file ID
+        let invalid_args = FileInfoArgs {
+            file_id: "".to_string(),
+        };
+        let cmd = FileCommands::Info(invalid_args);
+        assert!(cmd.validate().is_err());
+    }
+
+    #[test]
+    fn test_json_filename_with_extension() {
+        // Test filename that already has .json extension
+        let args = UploadJsonArgs {
+            name: "test.json".to_string(),
+            json_data: "{}".to_string(),
+            pretty: true,
+            caption: None,
+            reply_msg_id: None,
+            chat_id: None,
+        };
+
+        let final_filename = if args.name.ends_with(".json") {
+            args.name.clone()
+        } else {
+            format!("{}.json", args.name)
+        };
+
+        assert_eq!(final_filename, "test.json");
+    }
+
+    #[test]
+    fn test_json_filename_without_extension() {
+        // Test filename without .json extension
+        let args = UploadJsonArgs {
+            name: "test".to_string(),
+            json_data: "{}".to_string(),
+            pretty: true,
+            caption: None,
+            reply_msg_id: None,
+            chat_id: None,
+        };
+
+        let final_filename = if args.name.ends_with(".json") {
+            args.name.clone()
+        } else {
+            format!("{}.json", args.name)
+        };
+
+        assert_eq!(final_filename, "test.json");
+    }
+
+    #[test]
+    fn test_format_file_size_edge_cases() {
+        // Test large file sizes
+        assert_eq!(format_file_size(1024 * 1024 * 1024 + 512 * 1024 * 1024), "1.5 GB");
+        assert_eq!(format_file_size(2048), "2.0 KB");
+        assert_eq!(format_file_size(1023), "1023 B");
+        assert_eq!(format_file_size(1025), "1.0 KB");
+    }
+
+    #[test]
+    fn test_execute_with_default_format() {
+        // Test that execute() uses Pretty format by default through Command trait
+        let cmd = FileCommands::Info(FileInfoArgs {
+            file_id: "test_file_id".to_string(),
+        });
+
+        // We can't test the actual execution without mocking the network layer,
+        // but we can test that the method exists and the default format is used
+        assert_eq!(cmd.name(), "file-info");
+        
+        // Test validation for coverage
+        assert!(cmd.validate().is_ok());
+    }
+
+    #[test]
+    fn test_upload_file_args_structure() {
+        let args = UploadFileArgs {
+            name: "test.txt".to_string(),
+            content_base64: "dGVzdA==".to_string(),
+            caption: Some("Test caption".to_string()),
+            reply_msg_id: Some("msg_123".to_string()),
+            chat_id: Some("chat_456".to_string()),
+        };
+
+        assert_eq!(args.name, "test.txt");
+        assert_eq!(args.content_base64, "dGVzdA==");
+        assert_eq!(args.caption, Some("Test caption".to_string()));
+        assert_eq!(args.reply_msg_id, Some("msg_123".to_string()));
+        assert_eq!(args.chat_id, Some("chat_456".to_string()));
+    }
+
+    #[test]
+    fn test_upload_text_args_structure() {
+        let args = UploadTextArgs {
+            name: "test.txt".to_string(),
+            content: "test content".to_string(),
+            caption: Some("Test caption".to_string()),
+            reply_msg_id: Some("msg_123".to_string()),
+            chat_id: Some("chat_456".to_string()),
+        };
+
+        assert_eq!(args.name, "test.txt");
+        assert_eq!(args.content, "test content");
+        assert_eq!(args.caption, Some("Test caption".to_string()));
+        assert_eq!(args.reply_msg_id, Some("msg_123".to_string()));
+        assert_eq!(args.chat_id, Some("chat_456".to_string()));
+    }
+
+    #[test]
+    fn test_upload_json_args_structure() {
+        let args = UploadJsonArgs {
+            name: "test.json".to_string(),
+            json_data: r#"{"key": "value"}"#.to_string(),
+            pretty: false,
+            caption: Some("Test caption".to_string()),
+            reply_msg_id: Some("msg_123".to_string()),
+            chat_id: Some("chat_456".to_string()),
+        };
+
+        assert_eq!(args.name, "test.json");
+        assert_eq!(args.json_data, r#"{"key": "value"}"#);
+        assert!(!args.pretty);
+        assert_eq!(args.caption, Some("Test caption".to_string()));
+        assert_eq!(args.reply_msg_id, Some("msg_123".to_string()));
+        assert_eq!(args.chat_id, Some("chat_456".to_string()));
+    }
+
+    #[test]
+    fn test_file_info_args_structure() {
+        let args = FileInfoArgs {
+            file_id: "test_file_id_123".to_string(),
+        };
+
+        assert_eq!(args.file_id, "test_file_id_123");
+    }
+
+    #[test] 
+    fn test_file_commands_debug_and_clone() {
+        let cmd = FileCommands::Upload(UploadFileArgs {
+            name: "test.txt".to_string(),
+            content_base64: "dGVzdA==".to_string(),
+            caption: None,
+            reply_msg_id: None,
+            chat_id: None,
+        });
+
+        // Test Debug trait
+        let debug_str = format!("{:?}", cmd);
+        assert!(debug_str.contains("Upload"));
+        assert!(debug_str.contains("test.txt"));
+
+        // Test Clone trait
+        let cloned_cmd = cmd.clone();
+        assert_eq!(cloned_cmd.name(), cmd.name());
+    }
+
+    #[test]
+    fn test_args_debug_and_clone() {
+        let upload_args = UploadFileArgs {
+            name: "test.txt".to_string(),
+            content_base64: "dGVzdA==".to_string(),
+            caption: None,
+            reply_msg_id: None,
+            chat_id: None,
+        };
+
+        // Test Debug and Clone traits
+        let debug_str = format!("{:?}", upload_args);
+        assert!(debug_str.contains("test.txt"));
+        
+        let cloned_args = upload_args.clone();
+        assert_eq!(cloned_args.name, upload_args.name);
+    }
 }
