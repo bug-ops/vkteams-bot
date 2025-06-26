@@ -92,6 +92,14 @@ impl Command for ConfigCommands {
 
     /// New method for structured output support
     async fn execute_with_output(&self, bot: &Bot, output_format: &OutputFormat) -> CliResult<()> {
+        // For interactive commands like Setup and Config wizard, use regular execute when in Pretty mode
+        let is_interactive = matches!(self, ConfigCommands::Setup) || 
+            matches!(self, ConfigCommands::Config { wizard: true, .. });
+            
+        if is_interactive && matches!(output_format, OutputFormat::Pretty) {
+            return self.execute(bot).await;
+        }
+        
         let response = match self {
             ConfigCommands::Setup => execute_setup_structured().await,
             ConfigCommands::Examples => execute_examples_structured().await,
