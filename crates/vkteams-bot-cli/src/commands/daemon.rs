@@ -183,8 +183,8 @@ impl AutoSaveEventProcessor {
 
         let start_time = Instant::now();
         let mut saved_count = 0;
-        let failed_count = 0;
-        let total_bytes = 0;
+        let mut failed_count = 0;
+        let mut total_bytes = 0;
 
         #[cfg(feature = "storage")]
         {
