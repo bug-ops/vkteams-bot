@@ -76,14 +76,8 @@ impl Server {
     fn load_config() -> UnifiedConfig {
         // Try environment variable first (highest priority)
         if let Ok(config_path) = std::env::var("VKTEAMS_BOT_CONFIG") {
-            match UnifiedConfig::load_from_file(&config_path) {
-                Ok(config) => {
-                    eprintln!("✓ Loaded config from VKTEAMS_BOT_CONFIG: {}", config_path);
-                    return config;
-                }
-                Err(e) => {
-                    eprintln!("⚠ Failed to load config from VKTEAMS_BOT_CONFIG ({}): {} - trying fallback locations", config_path, e);
-                }
+            if let Ok(config) = UnifiedConfig::load_from_file(&config_path) {
+                return config;
             }
         }
 
@@ -98,7 +92,6 @@ impl Server {
         for path in &config_paths {
             match UnifiedConfig::load_from_file(path) {
                 Ok(config) => {
-                    eprintln!("✓ Loaded config from: {}", path);
                     return config;
                 }
                 Err(_) => {
@@ -110,18 +103,11 @@ impl Server {
         // Try user config directory
         if let Some(home_dir) = dirs::home_dir() {
             let user_home_path = home_dir.join(".config/vkteams-bot/config.toml");
-            match UnifiedConfig::load_from_file(&user_home_path) {
-                Ok(config) => {
-                    eprintln!("✓ Loaded config from user directory: {}", user_home_path.display());
-                    return config;
-                }
-                Err(_) => {
-                    // Silent fallback - user config is optional
-                }
+            if let Ok(config) = UnifiedConfig::load_from_file(&user_home_path) {
+                return config;
             }
         }
 
-        eprintln!("ℹ Using default configuration (no config file found in standard locations)");
         // Fall back to default (env overrides will be applied in new/with_config)
         UnifiedConfig::default()
     }
@@ -149,7 +135,10 @@ mod tests {
                 assert!(Arc::strong_count(&bridge) >= 1);
             }
             Err(e) => {
-                println!("⚠ Expected failure in test environment without CLI binary: {}", e);
+                println!(
+                    "⚠ Expected failure in test environment without CLI binary: {}",
+                    e
+                );
                 // This is acceptable in test environment where CLI binary might not be available
                 assert!(e.to_string().contains("CLI") || e.to_string().contains("bridge"));
             }
@@ -169,11 +158,17 @@ mod tests {
         match Server::try_with_config(config.clone()) {
             Ok(server) => {
                 println!("✓ Server with config created successfully");
-                assert_eq!(server.config.mcp.chat_id, Some("config_test_chat".to_string())); // env override
+                assert_eq!(
+                    server.config.mcp.chat_id,
+                    Some("config_test_chat".to_string())
+                ); // env override
                 assert_eq!(server.config.api.url, "https://custom.api.com");
             }
             Err(e) => {
-                println!("⚠ Expected failure in test environment without CLI binary: {}", e);
+                println!(
+                    "⚠ Expected failure in test environment without CLI binary: {}",
+                    e
+                );
                 assert!(e.to_string().contains("CLI") || e.to_string().contains("not found"));
             }
         }
@@ -183,7 +178,7 @@ mod tests {
     fn test_config_loading_scenarios() {
         // Test config loading with environment variable
         let original_config = std::env::var("VKTEAMS_BOT_CONFIG").ok();
-        
+
         unsafe {
             std::env::set_var("VKTEAMS_BOT_CONFIG", "/nonexistent/config.toml");
         }
@@ -207,7 +202,7 @@ mod tests {
         if let Some(home_dir) = dirs::home_dir() {
             let user_config_path = home_dir.join(".config/vkteams-bot/config.toml");
             println!("Testing user config path: {}", user_config_path.display());
-            
+
             // This tests the path resolution logic
             let config = Server::load_config();
             assert!(!config.api.url.is_empty());
@@ -225,11 +220,11 @@ mod tests {
             Ok(server) => {
                 let bridge1 = server.bridge();
                 assert!(Arc::strong_count(&bridge1) >= 1);
-                
+
                 // Test multiple references
                 let bridge2 = server.bridge();
                 assert!(Arc::strong_count(&bridge2) >= 2);
-                
+
                 // Both should point to the same instance
                 assert!(Arc::ptr_eq(&bridge1, &bridge2));
             }
