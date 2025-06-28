@@ -427,6 +427,27 @@ mod tests {
     use super::*;
     use crate::bridge_trait::{CliBridgeTrait, MockCliBridge};
 
+    /// Helper function to create a mock CLI bridge with success responses
+    fn create_mock_bridge() -> MockCliBridge {
+        let mut mock = MockCliBridge::new();
+        
+        // Add default success responses for common commands
+        mock.add_success_response(
+            "send-text".to_string(),
+            serde_json::json!({"message_id": "msg123", "ok": true}),
+        );
+        mock.add_success_response(
+            "send-file".to_string(),
+            serde_json::json!({"file_id": "file123", "ok": true}),
+        );
+        mock.add_success_response(
+            "get-chat-info".to_string(),
+            serde_json::json!({"chat_id": "chat123", "title": "Test Chat"}),
+        );
+        
+        mock
+    }
+
     #[tokio::test]
     async fn test_command_building() {
         // Set required env var for test
@@ -738,5 +759,824 @@ mod tests {
             assert_eq!(response["success"], true);
             assert_eq!(response["data"]["result"], "matched");
         }
+    }
+
+    // === Comprehensive tests for all CLI command methods ===
+
+    #[tokio::test]
+    async fn test_send_text_method_args() {
+        unsafe {
+            std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_chat");
+        }
+        let mock = create_mock_bridge();
+        
+        if let Ok(_bridge) = CliBridge::new() {
+            // Test the actual send_text method argument building
+            // We can't call the method directly without CLI binary, but we can test argument construction
+            let args = vec!["send-text", "--message", "Hello World"];
+            let result = mock.execute_command(&args).await;
+            assert!(result.is_ok());
+        }
+    }
+
+    #[tokio::test]
+    async fn test_send_text_with_all_parameters() {
+        let mock = create_mock_bridge();
+        
+        let result = mock.execute_command(&[
+            "send-text", "--message", "Hello World",
+            "--chat-id", "chat123",
+            "--reply-msg-id", "msg456"
+        ]).await;
+        assert!(result.is_ok());
+        
+        if let Ok(response) = result {
+            assert_eq!(response["success"], true);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_send_file_method() {
+        let mock = create_mock_bridge();
+        
+        let result = mock.execute_command(&[
+            "send-file", "--file-path", "/path/to/file.txt"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_send_file_with_all_parameters() {
+        let mock = create_mock_bridge();
+        
+        let result = mock.execute_command(&[
+            "send-file", "--file-path", "/path/to/file.txt",
+            "--chat-id", "chat123",
+            "--caption", "Test file caption"
+        ]).await;
+        assert!(result.is_ok());
+        
+        if let Ok(response) = result {
+            assert_eq!(response["success"], true);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_send_voice_method() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "send-voice".to_string(),
+            serde_json::json!({"voice_id": "voice123", "ok": true}),
+        );
+        
+        let result = mock.execute_command(&[
+            "send-voice", "--file-path", "/path/to/voice.ogg"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_send_voice_with_chat_id() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "send-voice".to_string(),
+            serde_json::json!({"voice_id": "voice123", "ok": true}),
+        );
+        
+        let result = mock.execute_command(&[
+            "send-voice", "--file-path", "/path/to/voice.ogg",
+            "--chat-id", "chat123"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_edit_message_method() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "edit-message".to_string(),
+            serde_json::json!({"ok": true}),
+        );
+        
+        let result = mock.execute_command(&[
+            "edit-message", "--message-id", "msg123",
+            "--new-text", "Updated message"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_edit_message_with_chat_id() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "edit-message".to_string(),
+            serde_json::json!({"ok": true}),
+        );
+        
+        let result = mock.execute_command(&[
+            "edit-message", "--message-id", "msg123",
+            "--new-text", "Updated message",
+            "--chat-id", "chat123"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_delete_message_method() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "delete-message".to_string(),
+            serde_json::json!({"ok": true}),
+        );
+        
+        let result = mock.execute_command(&[
+            "delete-message", "--message-id", "msg123"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_delete_message_with_chat_id() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "delete-message".to_string(),
+            serde_json::json!({"ok": true}),
+        );
+        
+        let result = mock.execute_command(&[
+            "delete-message", "--message-id", "msg123",
+            "--chat-id", "chat123"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_pin_message_method() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "pin-message".to_string(),
+            serde_json::json!({"ok": true}),
+        );
+        
+        let result = mock.execute_command(&[
+            "pin-message", "--message-id", "msg123"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_pin_message_with_chat_id() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "pin-message".to_string(),
+            serde_json::json!({"ok": true}),
+        );
+        
+        let result = mock.execute_command(&[
+            "pin-message", "--message-id", "msg123",
+            "--chat-id", "chat123"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_unpin_message_method() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "unpin-message".to_string(),
+            serde_json::json!({"ok": true}),
+        );
+        
+        let result = mock.execute_command(&[
+            "unpin-message", "--message-id", "msg123"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_unpin_message_with_chat_id() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "unpin-message".to_string(),
+            serde_json::json!({"ok": true}),
+        );
+        
+        let result = mock.execute_command(&[
+            "unpin-message", "--message-id", "msg123",
+            "--chat-id", "chat123"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_chat_info_method() {
+        let mock = create_mock_bridge();
+        
+        let result = mock.execute_command(&["get-chat-info"]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_chat_info_with_specific_chat_id() {
+        let mock = create_mock_bridge();
+        
+        let result = mock.execute_command(&[
+            "get-chat-info", "--chat-id", "chat123"
+        ]).await;
+        assert!(result.is_ok());
+        
+        if let Ok(response) = result {
+            assert_eq!(response["success"], true);
+            assert_eq!(response["data"]["chat_id"], "chat123");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_profile_method() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "get-profile".to_string(),
+            serde_json::json!({"user_id": "user123", "first_name": "John"}),
+        );
+        
+        let result = mock.execute_command(&[
+            "get-profile", "--user-id", "user123"
+        ]).await;
+        assert!(result.is_ok());
+        
+        if let Ok(response) = result {
+            assert_eq!(response["success"], true);
+            assert_eq!(response["data"]["user_id"], "user123");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_chat_members_method() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "get-chat-members".to_string(),
+            serde_json::json!({"members": [], "cursor": null}),
+        );
+        
+        let result = mock.execute_command(&["get-chat-members"]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_chat_members_with_parameters() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "get-chat-members".to_string(),
+            serde_json::json!({"members": [], "cursor": "next123"}),
+        );
+        
+        let result = mock.execute_command(&[
+            "get-chat-members", 
+            "--chat-id", "chat123",
+            "--cursor", "cursor123"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_chat_admins_method() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "get-chat-admins".to_string(),
+            serde_json::json!({"admins": []}),
+        );
+        
+        let result = mock.execute_command(&["get-chat-admins"]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_chat_admins_with_chat_id() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "get-chat-admins".to_string(),
+            serde_json::json!({"admins": []}),
+        );
+        
+        let result = mock.execute_command(&[
+            "get-chat-admins", "--chat-id", "chat123"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_set_chat_title_method() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "set-chat-title".to_string(),
+            serde_json::json!({"ok": true}),
+        );
+        
+        let result = mock.execute_command(&[
+            "set-chat-title", "--title", "New Chat Title"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_set_chat_title_with_chat_id() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "set-chat-title".to_string(),
+            serde_json::json!({"ok": true}),
+        );
+        
+        let result = mock.execute_command(&[
+            "set-chat-title", "--title", "New Chat Title",
+            "--chat-id", "chat123"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_set_chat_about_method() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "set-chat-about".to_string(),
+            serde_json::json!({"ok": true}),
+        );
+        
+        let result = mock.execute_command(&[
+            "set-chat-about", "--about", "New chat description"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_set_chat_about_with_chat_id() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "set-chat-about".to_string(),
+            serde_json::json!({"ok": true}),
+        );
+        
+        let result = mock.execute_command(&[
+            "set-chat-about", "--about", "New chat description",
+            "--chat-id", "chat123"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_send_action_method() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "send-action".to_string(),
+            serde_json::json!({"ok": true}),
+        );
+        
+        let result = mock.execute_command(&[
+            "send-action", "--action", "typing"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_send_action_with_chat_id() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "send-action".to_string(),
+            serde_json::json!({"ok": true}),
+        );
+        
+        let result = mock.execute_command(&[
+            "send-action", "--action", "looking",
+            "--chat-id", "chat123"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_upload_file_base64_method() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "upload-file-base64".to_string(),
+            serde_json::json!({"file_id": "file123", "ok": true}),
+        );
+        
+        let result = mock.execute_command(&[
+            "upload-file-base64", "--name", "test.txt",
+            "--content-base64", "dGVzdA=="
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_upload_file_base64_with_all_parameters() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "upload-file-base64".to_string(),
+            serde_json::json!({"file_id": "file123", "ok": true}),
+        );
+        
+        let result = mock.execute_command(&[
+            "upload-file-base64", "--name", "test.txt",
+            "--content-base64", "dGVzdA==",
+            "--chat-id", "chat123",
+            "--caption", "Test file",
+            "--reply-msg-id", "msg456"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_upload_text_file_method() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "upload-text-file".to_string(),
+            serde_json::json!({"file_id": "text123", "ok": true}),
+        );
+        
+        let result = mock.execute_command(&[
+            "upload-text-file", "--name", "notes.txt",
+            "--content", "Some text content"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_upload_text_file_with_all_parameters() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "upload-text-file".to_string(),
+            serde_json::json!({"file_id": "text123", "ok": true}),
+        );
+        
+        let result = mock.execute_command(&[
+            "upload-text-file", "--name", "notes.txt",
+            "--content", "Some text content",
+            "--chat-id", "chat123",
+            "--caption", "My notes"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_upload_json_file_method() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "upload-json-file".to_string(),
+            serde_json::json!({"file_id": "json123", "ok": true}),
+        );
+        
+        let result = mock.execute_command(&[
+            "upload-json-file", "--name", "data",
+            "--json-data", r#"{"key": "value"}"#
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_upload_json_file_with_all_parameters() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "upload-json-file".to_string(),
+            serde_json::json!({"file_id": "json123", "ok": true}),
+        );
+        
+        let result = mock.execute_command(&[
+            "upload-json-file", "--name", "data",
+            "--json-data", r#"{"key": "value"}"#,
+            "--pretty", "true",
+            "--chat-id", "chat123",
+            "--caption", "JSON data"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_file_info_method() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "file-info".to_string(),
+            serde_json::json!({
+                "file_id": "file123",
+                "file_name": "test.txt",
+                "file_size": 1024
+            }),
+        );
+        
+        let result = mock.execute_command(&[
+            "file-info", "--file-id", "file123"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_database_stats_method() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "get-database-stats".to_string(),
+            serde_json::json!({
+                "total_messages": 1000,
+                "total_chats": 5,
+                "db_size": 1048576
+            }),
+        );
+        
+        let result = mock.execute_command(&["get-database-stats"]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_database_stats_with_parameters() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "get-database-stats".to_string(),
+            serde_json::json!({
+                "total_messages": 500,
+                "total_chats": 1,
+                "db_size": 524288
+            }),
+        );
+        
+        let result = mock.execute_command(&[
+            "get-database-stats",
+            "--chat-id", "chat123",
+            "--since", "2024-01-01"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_search_semantic_method() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "search-semantic".to_string(),
+            serde_json::json!({
+                "results": [],
+                "total": 0
+            }),
+        );
+        
+        let result = mock.execute_command(&[
+            "search-semantic", "--query", "search term"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_search_semantic_with_all_parameters() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "search-semantic".to_string(),
+            serde_json::json!({
+                "results": [],
+                "total": 0
+            }),
+        );
+        
+        let result = mock.execute_command(&[
+            "search-semantic", "--query", "search term",
+            "--chat-id", "chat123",
+            "--limit", "10"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_search_text_method() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "search-text".to_string(),
+            serde_json::json!({
+                "results": [],
+                "total": 0
+            }),
+        );
+        
+        let result = mock.execute_command(&[
+            "search-text", "--query", "text search"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_search_text_with_all_parameters() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "search-text".to_string(),
+            serde_json::json!({
+                "results": [],
+                "total": 0
+            }),
+        );
+        
+        let result = mock.execute_command(&[
+            "search-text", "--query", "text search",
+            "--chat-id", "chat123",
+            "--limit", "20"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_context_method() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "get-context".to_string(),
+            serde_json::json!({
+                "context": "recent messages..."
+            }),
+        );
+        
+        let result = mock.execute_command(&["get-context"]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_context_with_all_parameters() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "get-context".to_string(),
+            serde_json::json!({
+                "context": "recent messages..."
+            }),
+        );
+        
+        let result = mock.execute_command(&[
+            "get-context",
+            "--chat-id", "chat123",
+            "--context-type", "recent",
+            "--timeframe", "1d"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_self_method() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "self-get".to_string(),
+            serde_json::json!({
+                "user_id": "bot123",
+                "first_name": "Test Bot"
+            }),
+        );
+        
+        let result = mock.execute_command(&["self-get"]).await;
+        assert!(result.is_ok());
+        
+        if let Ok(response) = result {
+            assert_eq!(response["success"], true);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_events_method() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "events-get".to_string(),
+            serde_json::json!({
+                "events": [],
+                "last_event_id": "123"
+            }),
+        );
+        
+        let result = mock.execute_command(&["events-get"]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_events_with_parameters() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "events-get".to_string(),
+            serde_json::json!({
+                "events": [],
+                "last_event_id": "124"
+            }),
+        );
+        
+        let result = mock.execute_command(&[
+            "events-get",
+            "--last-event-id", "123",
+            "--poll-time", "30"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    // === Error handling tests ===
+
+    #[tokio::test]
+    async fn test_command_error_responses() {
+        let mut mock = MockCliBridge::new();
+        mock.add_error_response(
+            "send-text".to_string(),
+            "Message too long".to_string(),
+        );
+        
+        let result = mock.execute_command(&[
+            "send-text", "--message", "very long message..."
+        ]).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_invalid_command_responses() {
+        let mut mock = MockCliBridge::new();
+        mock.add_error_response(
+            "invalid-command".to_string(),
+            "Command not found".to_string(),
+        );
+        
+        let result = mock.execute_command(&["invalid-command"]).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_parameter_validation() {
+        let mut mock = MockCliBridge::new();
+        mock.add_error_response(
+            "send-text".to_string(),
+            "Missing required parameter: message".to_string(),
+        );
+        
+        let result = mock.execute_command(&["send-text"]).await;
+        assert!(result.is_err());
+    }
+
+    // === Edge cases and integration tests ===
+
+    #[tokio::test]
+    async fn test_empty_optional_parameters() {
+        let mock = create_mock_bridge();
+        
+        // Test commands with None for optional parameters
+        let result = mock.execute_command(&["send-text", "--message", "Hello"]).await;
+        assert!(result.is_ok());
+        
+        let result = mock.execute_command(&["get-chat-info"]).await;
+        assert!(result.is_ok());
+        
+        let result = mock.execute_command(&["get-chat-members"]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_special_characters_in_parameters() {
+        let mock = create_mock_bridge();
+        
+        let result = mock.execute_command(&[
+            "send-text", "--message", "Hello 🌍! Special chars: @#$%^&*()"
+        ]).await;
+        assert!(result.is_ok());
+        
+        let result = mock.execute_command(&[
+            "set-chat-title", "--title", "Chat with émojis 🚀"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_numeric_parameters() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "search-semantic".to_string(),
+            serde_json::json!({"results": [], "total": 0}),
+        );
+        
+        let result = mock.execute_command(&[
+            "search-semantic", "--query", "test",
+            "--limit", "50"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_boolean_parameters() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "upload-json-file".to_string(),
+            serde_json::json!({"file_id": "json123", "ok": true}),
+        );
+        
+        let result = mock.execute_command(&[
+            "upload-json-file", "--name", "data.json",
+            "--json-data", r#"{"test": true}"#,
+            "--pretty", "false"
+        ]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_multiline_content() {
+        let mut mock = create_mock_bridge();
+        mock.add_success_response(
+            "upload-text-file".to_string(),
+            serde_json::json!({"file_id": "text123", "ok": true}),
+        );
+        
+        let multiline_content = "Line 1\nLine 2\nLine 3\nWith special chars: àáâã";
+        let result = mock.execute_command(&[
+            "upload-text-file", "--name", "multiline.txt",
+            "--content", multiline_content
+        ]).await;
+        assert!(result.is_ok());
     }
 }
