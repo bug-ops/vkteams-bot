@@ -4,6 +4,7 @@ pub mod cli_commands;
 pub mod errors;
 pub mod file_utils;
 pub mod mcp_bridge_trait;
+pub mod mcp_bridge_traits;
 pub mod server;
 pub mod types;
 

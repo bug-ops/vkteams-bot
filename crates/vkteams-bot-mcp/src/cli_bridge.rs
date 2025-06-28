@@ -13,6 +13,7 @@ use tokio::process::Command;
 use tokio::time::{Duration, timeout};
 use tracing::{debug, error, warn};
 
+
 /// Bridge for executing CLI commands from MCP server
 #[derive(Debug)]
 pub struct CliBridge {
@@ -480,6 +481,193 @@ impl crate::mcp_bridge_trait::McpCliBridge for CliBridge {
     }
 }
 
+/// Implementation of domain-specific MCP bridge traits
+#[async_trait]
+impl crate::mcp_bridge_traits::McpMessaging for CliBridge {
+    async fn send_text_mcp(
+        &self,
+        text: &str,
+        chat_id: Option<&str>,
+        reply_msg_id: Option<&str>,
+    ) -> crate::server::MCPResult {
+        crate::server::convert_bridge_result(self.send_text(text, chat_id, reply_msg_id).await)
+    }
+
+    async fn send_file_mcp(
+        &self,
+        file_path: &str,
+        chat_id: Option<&str>,
+        caption: Option<&str>,
+    ) -> crate::server::MCPResult {
+        crate::server::convert_bridge_result(self.send_file(file_path, chat_id, caption).await)
+    }
+
+    async fn send_voice_mcp(&self, file_path: &str, chat_id: Option<&str>) -> crate::server::MCPResult {
+        crate::server::convert_bridge_result(self.send_voice(file_path, chat_id).await)
+    }
+
+    async fn edit_message_mcp(
+        &self,
+        message_id: &str,
+        new_text: &str,
+        chat_id: Option<&str>,
+    ) -> crate::server::MCPResult {
+        crate::server::convert_bridge_result(self.edit_message(message_id, new_text, chat_id).await)
+    }
+
+    async fn delete_message_mcp(&self, message_id: &str, chat_id: Option<&str>) -> crate::server::MCPResult {
+        crate::server::convert_bridge_result(self.delete_message(message_id, chat_id).await)
+    }
+
+    async fn pin_message_mcp(&self, message_id: &str, chat_id: Option<&str>) -> crate::server::MCPResult {
+        crate::server::convert_bridge_result(self.pin_message(message_id, chat_id).await)
+    }
+
+    async fn unpin_message_mcp(&self, message_id: &str, chat_id: Option<&str>) -> crate::server::MCPResult {
+        crate::server::convert_bridge_result(self.unpin_message(message_id, chat_id).await)
+    }
+
+    async fn send_action_mcp(&self, action: &str, chat_id: Option<&str>) -> crate::server::MCPResult {
+        crate::server::convert_bridge_result(self.send_action(action, chat_id).await)
+    }
+}
+
+#[async_trait]
+impl crate::mcp_bridge_traits::McpChatManagement for CliBridge {
+    async fn get_chat_info_mcp(&self, chat_id: Option<&str>) -> crate::server::MCPResult {
+        crate::server::convert_bridge_result(self.get_chat_info(chat_id).await)
+    }
+
+    async fn get_profile_mcp(&self, user_id: &str) -> crate::server::MCPResult {
+        crate::server::convert_bridge_result(self.get_profile(user_id).await)
+    }
+
+    async fn get_chat_members_mcp(
+        &self,
+        chat_id: Option<&str>,
+        cursor: Option<&str>,
+    ) -> crate::server::MCPResult {
+        crate::server::convert_bridge_result(self.get_chat_members(chat_id, cursor).await)
+    }
+
+    async fn get_chat_admins_mcp(&self, chat_id: Option<&str>) -> crate::server::MCPResult {
+        crate::server::convert_bridge_result(self.get_chat_admins(chat_id).await)
+    }
+
+    async fn set_chat_title_mcp(&self, title: &str, chat_id: Option<&str>) -> crate::server::MCPResult {
+        crate::server::convert_bridge_result(self.set_chat_title(title, chat_id).await)
+    }
+
+    async fn set_chat_about_mcp(&self, about: &str, chat_id: Option<&str>) -> crate::server::MCPResult {
+        crate::server::convert_bridge_result(self.set_chat_about(about, chat_id).await)
+    }
+}
+
+#[async_trait]
+impl crate::mcp_bridge_traits::McpFileOperations for CliBridge {
+    async fn upload_file_base64_mcp(
+        &self,
+        name: &str,
+        content_base64: &str,
+        chat_id: Option<&str>,
+        caption: Option<&str>,
+        reply_msg_id: Option<&str>,
+    ) -> crate::server::MCPResult {
+        crate::server::convert_bridge_result(self.upload_file_base64(name, content_base64, chat_id, caption, reply_msg_id).await)
+    }
+
+    async fn upload_text_file_mcp(
+        &self,
+        name: &str,
+        content: &str,
+        chat_id: Option<&str>,
+        caption: Option<&str>,
+    ) -> crate::server::MCPResult {
+        crate::server::convert_bridge_result(self.upload_text_file(name, content, chat_id, caption).await)
+    }
+
+    async fn upload_json_file_mcp(
+        &self,
+        name: &str,
+        json_data: &str,
+        pretty: bool,
+        chat_id: Option<&str>,
+        caption: Option<&str>,
+    ) -> crate::server::MCPResult {
+        crate::server::convert_bridge_result(self.upload_json_file(name, json_data, pretty, chat_id, caption).await)
+    }
+
+    async fn get_file_info_mcp(&self, file_id: &str) -> crate::server::MCPResult {
+        crate::server::convert_bridge_result(self.get_file_info(file_id).await)
+    }
+}
+
+#[async_trait]
+impl crate::mcp_bridge_traits::McpStorage for CliBridge {
+    async fn get_database_stats_mcp(
+        &self,
+        chat_id: Option<&str>,
+        since: Option<&str>,
+    ) -> crate::server::MCPResult {
+        crate::server::convert_bridge_result(self.get_database_stats(chat_id, since).await)
+    }
+
+    async fn search_semantic_mcp(
+        &self,
+        query: &str,
+        chat_id: Option<&str>,
+        limit: Option<usize>,
+    ) -> crate::server::MCPResult {
+        crate::server::convert_bridge_result(self.search_semantic(query, chat_id, limit).await)
+    }
+
+    async fn search_text_mcp(
+        &self,
+        query: &str,
+        chat_id: Option<&str>,
+        limit: Option<i64>,
+    ) -> crate::server::MCPResult {
+        crate::server::convert_bridge_result(self.search_text(query, chat_id, limit).await)
+    }
+
+    async fn get_context_mcp(
+        &self,
+        chat_id: Option<&str>,
+        context_type: Option<&str>,
+        timeframe: Option<&str>,
+    ) -> crate::server::MCPResult {
+        crate::server::convert_bridge_result(self.get_context(chat_id, context_type, timeframe).await)
+    }
+
+    async fn get_recent_messages_mcp(
+        &self,
+        chat_id: Option<&str>,
+        limit: Option<usize>,
+        since: Option<&str>,
+    ) -> crate::server::MCPResult {
+        crate::server::convert_bridge_result(self.get_recent_messages(chat_id, limit, since).await)
+    }
+}
+
+#[async_trait]
+impl crate::mcp_bridge_traits::McpDiagnostics for CliBridge {
+    async fn get_daemon_status_mcp(&self) -> crate::server::MCPResult {
+        crate::server::convert_bridge_result(self.get_daemon_status().await)
+    }
+
+    async fn get_self_mcp(&self) -> crate::server::MCPResult {
+        crate::server::convert_bridge_result(self.get_self().await)
+    }
+
+    async fn get_events_mcp(
+        &self,
+        last_event_id: Option<&str>,
+        poll_time: Option<u64>,
+    ) -> crate::server::MCPResult {
+        crate::server::convert_bridge_result(self.get_events(last_event_id, poll_time).await)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -728,5 +916,39 @@ mod tests {
             assert!(debug_str.contains("cli_path"));
             assert!(debug_str.contains("default_args"));
         }
+    }
+
+    // Tests for MCP bridge implementation with CliBridge
+    #[tokio::test]
+    async fn test_mcp_bridge_traits_compilation() {
+        // This test verifies that CliBridge implements all MCP traits correctly
+        // We don't test actual functionality here since it requires CLI binary
+        
+        // Create a dummy CliBridge (will fail but that's expected in test environment)
+        if let Ok(bridge) = CliBridge::new() {
+            // Test that CliBridge implements the traits (compilation test)
+            use crate::mcp_bridge_traits::*;
+            
+            let _messaging: &dyn McpMessaging = &bridge;
+            let _chat_mgmt: &dyn McpChatManagement = &bridge;
+            let _file_ops: &dyn McpFileOperations = &bridge;
+            let _storage: &dyn McpStorage = &bridge;
+            let _diagnostics: &dyn McpDiagnostics = &bridge;
+            let _combined: &dyn McpCliBridge = &bridge;
+        }
+    }
+
+    #[test]
+    fn test_mcp_bridge_traits_exist() {
+        // Test that all the MCP bridge traits are properly defined
+        use crate::mcp_bridge_traits::*;
+        
+        // This is a compilation test to ensure traits are properly exported
+        fn _accepts_messaging<T: McpMessaging>(_: T) {}
+        fn _accepts_chat_management<T: McpChatManagement>(_: T) {}
+        fn _accepts_file_operations<T: McpFileOperations>(_: T) {}
+        fn _accepts_storage<T: McpStorage>(_: T) {}
+        fn _accepts_diagnostics<T: McpDiagnostics>(_: T) {}
+        fn _accepts_combined<T: McpCliBridge>(_: T) {}
     }
 }
