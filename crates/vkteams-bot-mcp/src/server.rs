@@ -5,7 +5,7 @@
 //! for all business logic in the CLI.
 
 use crate::errors::BridgeError;
-use crate::mcp_bridge_trait::McpCliBridge;
+use crate::mcp_bridge_trait::{McpMessaging, McpChatManagement, McpFileOperations, McpStorage, McpDiagnostics};
 use crate::types::Server;
 use rmcp::tool_box;
 use rmcp::{

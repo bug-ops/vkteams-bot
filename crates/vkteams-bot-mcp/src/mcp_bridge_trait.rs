@@ -1,16 +1,17 @@
-//! MCP CLI Bridge trait for direct MCP result conversion
+//! MCP CLI Bridge traits for direct MCP result conversion
 //!
-//! This trait provides methods that return MCPResult directly,
-//! avoiding intermediate conversions and simplifying the server code.
+//! This module provides both domain-specific traits and a combined trait
+//! for CLI bridge operations that return MCPResult directly, avoiding
+//! intermediate conversions and simplifying the server code.
 
 use crate::server::MCPResult;
 use async_trait::async_trait;
 
-/// Trait for CLI bridge operations that return MCP-compatible results
-#[async_trait]
-pub trait McpCliBridge {
-    // === Messaging Commands ===
+// === Domain-specific traits ===
 
+/// Trait for messaging operations that return MCP-compatible results
+#[async_trait]
+pub trait McpMessaging {
     /// Send text message to chat
     async fn send_text_mcp(
         &self,
@@ -47,8 +48,13 @@ pub trait McpCliBridge {
     /// Unpin message from chat
     async fn unpin_message_mcp(&self, message_id: &str, chat_id: Option<&str>) -> MCPResult;
 
-    // === Chat Management Commands ===
+    /// Send chat action (typing/looking)
+    async fn send_action_mcp(&self, action: &str, chat_id: Option<&str>) -> MCPResult;
+}
 
+/// Trait for chat management operations that return MCP-compatible results
+#[async_trait]
+pub trait McpChatManagement {
     /// Get chat information
     async fn get_chat_info_mcp(&self, chat_id: Option<&str>) -> MCPResult;
 
@@ -70,12 +76,11 @@ pub trait McpCliBridge {
 
     /// Set chat description
     async fn set_chat_about_mcp(&self, about: &str, chat_id: Option<&str>) -> MCPResult;
+}
 
-    /// Send chat action (typing/looking)
-    async fn send_action_mcp(&self, action: &str, chat_id: Option<&str>) -> MCPResult;
-
-    // === File Upload Commands ===
-
+/// Trait for file operations that return MCP-compatible results
+#[async_trait]
+pub trait McpFileOperations {
     /// Upload file from base64 content
     async fn upload_file_base64_mcp(
         &self,
@@ -107,9 +112,11 @@ pub trait McpCliBridge {
 
     /// Get file information
     async fn get_file_info_mcp(&self, file_id: &str) -> MCPResult;
+}
 
-    // === Storage Commands ===
-
+/// Trait for storage and search operations that return MCP-compatible results
+#[async_trait]
+pub trait McpStorage {
     /// Get database statistics
     async fn get_database_stats_mcp(
         &self,
@@ -141,11 +148,6 @@ pub trait McpCliBridge {
         timeframe: Option<&str>,
     ) -> MCPResult;
 
-    // === Daemon Management Commands ===
-
-    /// Get daemon status and statistics
-    async fn get_daemon_status_mcp(&self) -> MCPResult;
-
     /// Get recent messages from storage
     async fn get_recent_messages_mcp(
         &self,
@@ -153,8 +155,13 @@ pub trait McpCliBridge {
         limit: Option<usize>,
         since: Option<&str>,
     ) -> MCPResult;
+}
 
-    // === Diagnostic Commands ===
+/// Trait for daemon and diagnostic operations that return MCP-compatible results
+#[async_trait]
+pub trait McpDiagnostics {
+    /// Get daemon status and statistics
+    async fn get_daemon_status_mcp(&self) -> MCPResult;
 
     /// Get bot information and status
     async fn get_self_mcp(&self) -> MCPResult;
@@ -166,3 +173,15 @@ pub trait McpCliBridge {
         poll_time: Option<u64>,
     ) -> MCPResult;
 }
+
+// === Combined trait for backward compatibility ===
+
+/// Combined trait that includes all MCP bridge functionality
+/// 
+/// This trait exists for backward compatibility and convenience.
+/// It automatically implements all domain-specific traits through trait composition.
+#[async_trait]
+pub trait McpCliBridge: McpMessaging + McpChatManagement + McpFileOperations + McpStorage + McpDiagnostics {}
+
+/// Automatic implementation of the combined trait for any type that implements all constituent traits
+impl<T> McpCliBridge for T where T: McpMessaging + McpChatManagement + McpFileOperations + McpStorage + McpDiagnostics {}
