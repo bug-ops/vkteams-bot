@@ -577,6 +577,27 @@ mod tests {
     use crate::errors::CliErrorInfo;
     use std::time::Duration;
 
+    /// Helper function to create a mock CLI bridge with common responses
+    fn create_mock_with_responses() -> MockCliBridge {
+        let mut mock = MockCliBridge::new();
+        
+        // Add common success responses
+        mock.add_success_response(
+            "self-get".to_string(),
+            serde_json::json!({"userId": "bot123", "firstName": "TestBot"}),
+        );
+        mock.add_success_response(
+            "chat-info".to_string(),
+            serde_json::json!({"chatId": "chat123", "title": "Test Chat"}),
+        );
+        mock.add_success_response(
+            "send-text".to_string(),
+            serde_json::json!({"msgId": "msg123", "ok": true}),
+        );
+        
+        mock
+    }
+
     #[test]
     fn test_convert_bridge_result_success() {
         let json_val = serde_json::json!({"success": true, "data": "test"});
@@ -798,6 +819,261 @@ mod tests {
                     code
                 );
             }
+        }
+    }
+
+    #[test]
+    fn test_server_info_structure() {
+        // Test server info generation without requiring CLI bridge
+        use rmcp::model::{ServerCapabilities, ServerInfo};
+        
+        let capabilities = ServerCapabilities::builder()
+            .enable_tools()
+            .enable_prompts()
+            .build();
+            
+        let info = ServerInfo {
+            capabilities,
+            instructions: Some(r#"VKTeams MCP Server — a server for managing a VK Teams bot via MCP (Model Context Protocol).
+        
+        This server uses CLI-as-backend architecture for unified command execution.
+        
+        Tools:
+            - Send text messages to chat (send_text)
+            - Get bot information (self_get)
+            - Get chat information (chat_info)
+            - Get file information (file_info)
+            - Get events (events_get)
+            - Send files and voice messages (send_file, send_voice)
+            - Edit, delete, pin, and unpin messages (edit_message, delete_message, pin_message, unpin_message)
+            - Get chat members and admins (get_chat_members, get_chat_admins)
+            - Set chat title and description (set_chat_title, set_chat_about)
+            - Send chat actions (typing/looking) (send_action)
+            - Enhanced file uploads (upload_file_from_base64, upload_text_as_file, upload_json_file)
+            - Storage operations (search_semantic, search_text, get_database_stats, get_context)
+            "#.into()),
+            ..Default::default()
+        };
+        
+        assert!(info.capabilities.tools.is_some());
+        assert!(info.capabilities.prompts.is_some());
+        assert!(info.instructions.is_some());
+        
+        let instructions = info.instructions.unwrap();
+        assert!(instructions.contains("VKTeams MCP Server"));
+        assert!(instructions.contains("send_text"));
+        assert!(instructions.contains("chat_info"));
+    }
+
+    // Test individual mock CLI bridge commands functionality
+    #[tokio::test]
+    async fn test_mock_messaging_commands() {
+        let mut mock = create_mock_with_responses();
+        
+        // Test send text
+        let result = mock.execute_command(&["send-text", "Hello!", "--chat-id", "chat123"]).await;
+        assert!(result.is_ok());
+        
+        // Test send file
+        mock.add_success_response(
+            "send-file".to_string(),
+            serde_json::json!({"fileId": "file123", "ok": true}),
+        );
+        let result = mock.execute_command(&["send-file", "/path/file.txt", "--chat-id", "chat123"]).await;
+        assert!(result.is_ok());
+        
+        // Test edit message
+        mock.add_success_response(
+            "edit-message".to_string(),
+            serde_json::json!({"ok": true}),
+        );
+        let result = mock.execute_command(&["edit-message", "msg123", "--new-text", "Updated"]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_mock_chat_management_commands() {
+        let mut mock = create_mock_with_responses();
+        
+        // Test chat info
+        let result = mock.execute_command(&["chat-info", "--chat-id", "chat123"]).await;
+        assert!(result.is_ok());
+        
+        // Test get chat members
+        mock.add_success_response(
+            "get-chat-members".to_string(),
+            serde_json::json!({"members": [], "cursor": null}),
+        );
+        let result = mock.execute_command(&["get-chat-members", "--chat-id", "chat123"]).await;
+        assert!(result.is_ok());
+        
+        // Test set chat title
+        mock.add_success_response(
+            "set-chat-title".to_string(),
+            serde_json::json!({"ok": true}),
+        );
+        let result = mock.execute_command(&["set-chat-title", "New Title", "--chat-id", "chat123"]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_mock_file_operations() {
+        let mut mock = create_mock_with_responses();
+        
+        // Test upload base64
+        mock.add_success_response(
+            "upload-file-base64".to_string(),
+            serde_json::json!({"fileId": "file123", "ok": true}),
+        );
+        let result = mock.execute_command(&[
+            "upload-file-base64", "test.txt",
+            "--content", "dGVzdA==", // "test" in base64
+            "--chat-id", "chat123"
+        ]).await;
+        assert!(result.is_ok());
+        
+        // Test file info
+        mock.add_success_response(
+            "file-info".to_string(),
+            serde_json::json!({"fileId": "file123", "fileName": "test.txt"}),
+        );
+        let result = mock.execute_command(&["file-info", "file123"]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_mock_storage_operations() {
+        let mut mock = create_mock_with_responses();
+        
+        // Test semantic search
+        mock.add_success_response(
+            "search-semantic".to_string(),
+            serde_json::json!({"results": [], "total": 0}),
+        );
+        let result = mock.execute_command(&[
+            "search-semantic", "query",
+            "--chat-id", "chat123",
+            "--limit", "10"
+        ]).await;
+        assert!(result.is_ok());
+        
+        // Test database stats
+        mock.add_success_response(
+            "get-database-stats".to_string(),
+            serde_json::json!({"totalMessages": 1000, "totalChats": 5}),
+        );
+        let result = mock.execute_command(&["get-database-stats", "--chat-id", "chat123"]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_mock_diagnostic_operations() {
+        let mut mock = create_mock_with_responses();
+        
+        // Test self get
+        let result = mock.execute_command(&["self-get"]).await;
+        assert!(result.is_ok());
+        
+        // Test events get
+        mock.add_success_response(
+            "events-get".to_string(),
+            serde_json::json!({"events": [], "lastEventId": "123"}),
+        );
+        let result = mock.execute_command(&["events-get", "--last-event-id", "last123"]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_mock_error_scenarios() {
+        let mut mock = MockCliBridge::new();
+        
+        // Test various error types
+        mock.add_error_response("invalid-command".to_string(), "Command not found".to_string());
+        let result = mock.execute_command(&["invalid-command"]).await;
+        assert!(result.is_err());
+        
+        // Test rate limit error handling
+        mock.add_error_response("rate-limited".to_string(), "Too many requests".to_string());
+        let result = mock.execute_command(&["rate-limited"]).await;
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_mcp_result_type_operations() {
+        // Test MCPResult type operations for better coverage
+        use crate::server::MCPResult;
+        use rmcp::model::{CallToolResult, Content, ErrorCode, ErrorData};
+        
+        // Test success case
+        let success_result: MCPResult = Ok(CallToolResult::success(vec![
+            Content::text("test content".to_string())
+        ]));
+        assert!(success_result.is_ok());
+        
+        if let Ok(result) = success_result {
+            assert!(!result.content.is_empty());
+            // Just verify that content is not empty, without pattern matching on enum variants
+            // since Content enum structure may vary between rmcp versions
+        }
+        
+        // Test error case
+        let error_result: MCPResult = Err(ErrorData {
+            code: ErrorCode(-400),
+            message: "Test error".into(),
+            data: Some(serde_json::json!({"detail": "error details"})),
+        });
+        assert!(error_result.is_err());
+        
+        if let Err(error) = error_result {
+            assert_eq!(error.code.0, -400);
+            assert_eq!(error.message, "Test error");
+            assert!(error.data.is_some());
+        }
+    }
+
+    #[test]
+    fn test_convert_bridge_result_edge_cases() {
+        // Test empty JSON object
+        let empty_json = serde_json::json!({});
+        let result = convert_bridge_result(Ok(empty_json));
+        assert!(result.is_ok());
+        
+        // Test null JSON
+        let null_json = serde_json::Value::Null;
+        let result = convert_bridge_result(Ok(null_json));
+        assert!(result.is_ok());
+        
+        // Test array JSON
+        let array_json = serde_json::json!([1, 2, 3]);
+        let result = convert_bridge_result(Ok(array_json));
+        assert!(result.is_ok());
+        
+        // Test string JSON
+        let string_json = serde_json::json!("simple string");
+        let result = convert_bridge_result(Ok(string_json));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_bridge_error_types_coverage() {
+        // Test ProcessTerminated error
+        let error = BridgeError::ProcessTerminated("Signal 9".to_string());
+        let result = convert_bridge_result(Err(error));
+        assert!(result.is_err());
+        
+        if let Err(error_data) = result {
+            assert_eq!(error_data.code.0, -500);
+            assert!(error_data.message.contains("Internal error"));
+        }
+        
+        // Test IO error
+        let error = BridgeError::Io("Connection failed".to_string());
+        let result = convert_bridge_result(Err(error));
+        assert!(result.is_err());
+        
+        if let Err(error_data) = result {
+            assert_eq!(error_data.code.0, -500);
+            assert!(error_data.message.contains("Internal error"));
         }
     }
 }
