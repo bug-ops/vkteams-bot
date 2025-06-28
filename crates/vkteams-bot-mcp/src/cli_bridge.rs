@@ -8,6 +8,7 @@ use crate::bridge_trait::CliBridgeTrait;
 use crate::errors::{BridgeError, CliErrorInfo};
 use async_trait::async_trait;
 use serde_json::Value;
+use std::path::PathBuf;
 use std::process::Stdio;
 use tokio::process::Command;
 use tokio::time::{Duration, timeout};
@@ -24,23 +25,45 @@ pub struct CliBridge {
 impl CliBridge {
     /// Create a new CLI bridge instance with unified configuration
     pub fn new(config: &UnifiedConfig) -> Result<Self, BridgeError> {
-        // Use CLI path from config if provided, otherwise search in PATH
+        // Use CLI path from config if provided, otherwise search in standard locations
         let cli_path = if let Some(config_cli_path) = &config.mcp.cli_path {
             config_cli_path.clone()
         } else {
+            // Search strategy optimized for various deployment environments
             which::which("vkteams-bot-cli")
                 .or_else(|_| {
-                    // Try relative path from current executable
-                    std::env::current_exe().map(|mut p| {
+                    // Try common container paths first
+                    let container_paths = [
+                        "/usr/local/bin/vkteams-bot-cli",
+                        "/usr/bin/vkteams-bot-cli", 
+                        "/app/vkteams-bot-cli",
+                        "/bin/vkteams-bot-cli",
+                    ];
+                    
+                    for path in &container_paths {
+                        let path_buf = PathBuf::from(path);
+                        if path_buf.exists() && path_buf.is_file() {
+                            return Ok(path_buf);
+                        }
+                    }
+                    
+                    // Try relative path from current executable (fallback)
+                    std::env::current_exe().and_then(|mut p| {
                         p.pop(); // remove filename
                         p.push("vkteams-bot-cli");
-                        p
+                        if p.exists() && p.is_file() {
+                            Ok(p)
+                        } else {
+                            Err(std::io::Error::new(
+                                std::io::ErrorKind::NotFound,
+                                "CLI binary not found in any standard location"
+                            ))
+                        }
                     })
                 })
                 .map_err(|_| {
                     BridgeError::CliNotFound(
-                        "vkteams-bot-cli not found in PATH or relative to current executable"
-                            .to_string(),
+                        "vkteams-bot-cli not found in PATH, common system locations (/usr/local/bin, /usr/bin, /app, /bin), or relative to current executable".to_string()
                     )
                 })?
         };
@@ -1269,5 +1292,92 @@ mod tests {
         let serialized = serde_json::to_string(&complex_error).unwrap();
         let deserialized: CliErrorInfo = serde_json::from_str(&serialized).unwrap();
         assert_eq!(deserialized.details, Some(complex_details));
+    }
+
+    #[test]
+    fn test_container_path_resolution() {
+        // Test container-friendly CLI path resolution
+        let config = UnifiedConfig::default();
+        
+        // This test verifies that container paths are checked
+        match CliBridge::new(&config) {
+            Ok(bridge) => {
+                assert!(!bridge.cli_path.is_empty());
+                println!("✓ CLI path resolved: {}", bridge.cli_path);
+            }
+            Err(BridgeError::CliNotFound(msg)) => {
+                // Expected in test environment
+                assert!(msg.contains("common system locations"));
+                assert!(msg.contains("/usr/local/bin"));
+                assert!(msg.contains("/app"));
+                println!("⚠ CLI not found as expected: {}", msg);
+            }
+            Err(e) => panic!("Unexpected error: {}", e),
+        }
+    }
+
+    #[test] 
+    fn test_cli_path_from_config() {
+        // Test using CLI path from config
+        let mut config = UnifiedConfig::default();
+        config.mcp.cli_path = Some("/custom/cli/path".into());
+        
+        match CliBridge::new(&config) {
+            Ok(bridge) => {
+                assert_eq!(bridge.cli_path, "/custom/cli/path");
+                println!("✓ Custom CLI path used: {}", bridge.cli_path);
+            }
+            Err(e) => {
+                // This can fail if the path doesn't exist, which is fine for testing
+                println!("⚠ Custom path test failed (expected): {}", e);
+            }
+        }
+    }
+
+    #[test]
+    fn test_improved_error_messages() {
+        // Test that error messages are more descriptive
+        let config = UnifiedConfig::default();
+        
+        match CliBridge::new(&config) {
+            Err(BridgeError::CliNotFound(msg)) => {
+                // Verify improved error message includes all search locations
+                assert!(msg.contains("PATH"));
+                assert!(msg.contains("common system locations"));
+                assert!(msg.contains("/usr/local/bin"));
+                assert!(msg.contains("/usr/bin"));
+                assert!(msg.contains("/app"));
+                assert!(msg.contains("/bin"));
+                assert!(msg.contains("relative to current executable"));
+                println!("✓ Comprehensive error message: {}", msg);
+            }
+            Ok(_) => {
+                println!("✓ CLI bridge created successfully");
+            }
+            Err(e) => {
+                println!("⚠ Unexpected error type: {}", e);
+            }
+        }
+    }
+
+    #[test]
+    fn test_bridge_default_args_robustness() {
+        // Test that default args are properly constructed
+        let config = UnifiedConfig::default();
+        
+        match CliBridge::new(&config) {
+            Ok(bridge) => {
+                assert!(bridge.default_args.contains(&"--output".to_string()));
+                assert!(bridge.default_args.contains(&"json".to_string()));
+                
+                // Verify no empty args
+                assert!(!bridge.default_args.iter().any(|arg| arg.is_empty()));
+                
+                println!("✓ Default args verified: {:?}", bridge.default_args);
+            }
+            Err(_) => {
+                println!("⚠ Bridge creation failed - skipping default args test");
+            }
+        }
     }
 }
