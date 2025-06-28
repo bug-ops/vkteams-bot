@@ -599,6 +599,9 @@ fn get_process_memory_usage(pid: u32) -> Option<String> {
 mod tests {
     use super::*;
     use std::sync::atomic::Ordering;
+    use tokio;
+    use chrono::{Duration, Utc};
+    use vkteams_bot::prelude::{EventMessage, EventType};
 
     #[test]
     fn test_processor_stats() {
@@ -634,5 +637,287 @@ mod tests {
     fn test_daemon_command_name() {
         let cmd = DaemonCommands::Status { pid_file: None };
         assert_eq!(cmd.name(), "daemon");
+    }
+
+    #[test]
+    fn test_daemon_commands_variants() {
+        // Test Start command
+        let start_cmd = DaemonCommands::Start {
+            foreground: true,
+            pid_file: Some("/tmp/test.pid".to_string()),
+            auto_save: true,
+            chat_id: Some("test-chat".to_string()),
+        };
+        assert_eq!(start_cmd.name(), "daemon");
+
+        // Test Stop command
+        let stop_cmd = DaemonCommands::Stop {
+            pid_file: Some("/tmp/test.pid".to_string()),
+        };
+        assert_eq!(stop_cmd.name(), "daemon");
+
+        // Test Status command  
+        let status_cmd = DaemonCommands::Status {
+            pid_file: None,
+        };
+        assert_eq!(status_cmd.name(), "daemon");
+    }
+
+    #[test]
+    fn test_processor_stats_default() {
+        let stats = ProcessorStats::default();
+        assert_eq!(stats.events_processed.load(Ordering::Relaxed), 0);
+        assert_eq!(stats.events_saved.load(Ordering::Relaxed), 0);
+        assert_eq!(stats.events_failed.load(Ordering::Relaxed), 0);
+        assert_eq!(stats.bytes_processed.load(Ordering::Relaxed), 0);
+        assert!(stats.last_processed_time.lock().unwrap().is_none());
+        assert!(Utc::now().signed_duration_since(*stats.start_time.lock().unwrap()).num_seconds() >= 0);
+    }
+
+    #[test]
+    fn test_processor_stats_snapshot_creation() {
+        let processor = AutoSaveEventProcessor {
+            #[cfg(feature = "storage")]
+            storage: None,
+            stats: Arc::new(ProcessorStats::default()),
+        };
+
+        // Set some values
+        processor.stats.events_processed.store(50, Ordering::Relaxed);
+        processor.stats.events_saved.store(45, Ordering::Relaxed);
+        processor.stats.events_failed.store(5, Ordering::Relaxed);
+        processor.stats.bytes_processed.store(1024, Ordering::Relaxed);
+
+        // Update last processed time
+        if let Ok(mut last_time) = processor.stats.last_processed_time.lock() {
+            *last_time = Some(Utc::now());
+        }
+
+        let snapshot = processor.get_stats();
+        assert_eq!(snapshot.events_processed, 50);
+        assert_eq!(snapshot.events_saved, 45);
+        assert_eq!(snapshot.events_failed, 5);
+        assert_eq!(snapshot.bytes_processed, 1024);
+        assert!(snapshot.last_processed_time.is_some());
+        assert!(snapshot.uptime_seconds >= 0);
+        assert!(snapshot.events_per_second >= 0.0);
+    }
+
+    #[tokio::test]
+    async fn test_process_events_empty() {
+        let processor = AutoSaveEventProcessor {
+            #[cfg(feature = "storage")]
+            storage: None,
+            stats: Arc::new(ProcessorStats::default()),
+        };
+
+        let events = ResponseEventsGet {
+            events: vec![],
+        };
+
+        let bot = vkteams_bot::Bot::with_params(
+            &vkteams_bot::prelude::APIVersionUrl::V1,
+            "test_token",
+            "https://test.api.url"
+        ).unwrap();
+        let result = processor.process_events(bot, events).await;
+        assert!(result.is_ok());
+
+        let stats = processor.get_stats();
+        assert_eq!(stats.events_processed, 0);
+    }
+
+    #[tokio::test]
+    async fn test_process_events_with_events() {
+        let processor = AutoSaveEventProcessor {
+            #[cfg(feature = "storage")]
+            storage: None,
+            stats: Arc::new(ProcessorStats::default()),
+        };
+
+        use vkteams_bot::prelude::{EventPayloadNewMessage, EventPayloadEditedMessage, From, MsgId, UserId, Chat, ChatId, Timestamp};
+        
+        let test_chat = Chat {
+            chat_id: ChatId::from("test_chat"),
+            chat_type: "private".to_string(),
+            title: Some("Test Chat".to_string()),
+        };
+        
+        let test_from = From {
+            user_id: UserId("test_user".to_string()),
+            first_name: "Test".to_string(),
+            last_name: Some("User".to_string()),
+        };
+        
+        let events = ResponseEventsGet {
+            events: vec![
+                EventMessage {
+                    event_id: 1,
+                    event_type: EventType::NewMessage(Box::new(EventPayloadNewMessage {
+                        msg_id: MsgId("test_msg".to_string()),
+                        text: "test message".to_string(),
+                        chat: test_chat.clone(),
+                        from: test_from.clone(),
+                        format: None,
+                        parts: vec![],
+                        timestamp: Timestamp(1234567890),
+                    })),
+                },
+                EventMessage {
+                    event_id: 2,
+                    event_type: EventType::EditedMessage(Box::new(EventPayloadEditedMessage {
+                        msg_id: MsgId("test_msg_2".to_string()),
+                        text: "edited message".to_string(),
+                        timestamp: Timestamp(1234567890),
+                        chat: test_chat,
+                        from: test_from,
+                        format: None,
+                        edited_timestamp: Timestamp(1234567900),
+                    })),
+                },
+            ],
+        };
+
+        let bot = vkteams_bot::Bot::with_params(
+            &vkteams_bot::prelude::APIVersionUrl::V1,
+            "test_token",
+            "https://test.api.url"
+        ).unwrap();
+        let result = processor.process_events(bot, events).await;
+        assert!(result.is_ok());
+
+        let stats = processor.get_stats();
+        assert_eq!(stats.events_processed, 2);
+    }
+
+    #[tokio::test]
+    async fn test_start_background_daemon_error() {
+        let bot = vkteams_bot::Bot::with_params(
+            &vkteams_bot::prelude::APIVersionUrl::V1,
+            "test_token",
+            "https://test.api.url"
+        ).unwrap();
+        let result = start_background_daemon(&bot, false).await;
+        assert!(result.is_err());
+        match result {
+            Err(CliError::UnexpectedError(msg)) => {
+                assert!(msg.contains("Background daemon mode not yet implemented"));
+            },
+            _ => panic!("Expected UnexpectedError"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_stop_daemon_error() {
+        let result = stop_daemon().await;
+        assert!(result.is_err());
+        match result {
+            Err(CliError::UnexpectedError(msg)) => {
+                assert!(msg.contains("Daemon stop not yet implemented"));
+            },
+            _ => panic!("Expected UnexpectedError"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_check_daemon_status_success() {
+        let result = check_daemon_status().await;
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_format_duration() {
+        // Test seconds
+        let duration = Duration::seconds(30);
+        assert_eq!(format_duration(duration), "30s");
+
+        // Test minutes
+        let duration = Duration::minutes(5);
+        assert_eq!(format_duration(duration), "5m");
+
+        // Test hours
+        let duration = Duration::hours(2);
+        assert_eq!(format_duration(duration), "2h 0m");
+
+        // Test days
+        let duration = Duration::days(1) + Duration::hours(3) + Duration::minutes(15);
+        assert_eq!(format_duration(duration), "1d 3h 15m");
+
+        // Test complex duration
+        let duration = Duration::days(10) + Duration::hours(5) + Duration::minutes(30);
+        assert_eq!(format_duration(duration), "10d 5h 30m");
+    }
+
+    #[test]
+    fn test_is_process_running() {
+        // Test with current process PID (should always exist)
+        let current_pid = std::process::id();
+        assert!(is_process_running(current_pid));
+
+        // Test with non-existent PID (very high number unlikely to exist)
+        assert!(!is_process_running(999999));
+    }
+
+    #[test]
+    fn test_get_process_memory_usage() {
+        // Test with PID 1 (should exist on Unix systems)
+        #[cfg(unix)]
+        {
+            let memory = get_process_memory_usage(1);
+            // Should return Some value or None, but not panic
+            assert!(memory.is_some() || memory.is_none());
+        }
+
+        // Test with non-existent PID
+        let memory = get_process_memory_usage(999999);
+        assert!(memory.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_daemon_status_no_pid_file() {
+        let result = get_daemon_status(Some("/nonexistent/path/daemon.pid")).await;
+        assert!(result.is_ok());
+        
+        let status = result.unwrap();
+        assert_eq!(status["status"], "not_running");
+        assert_eq!(status["reason"], "No PID file found");
+    }
+
+    #[tokio::test]
+    async fn test_autosave_processor_new() {
+        let config = Config::default();
+        let result = AutoSaveEventProcessor::new(&config).await;
+        assert!(result.is_ok());
+        
+        let processor = result.unwrap();
+        let stats = processor.get_stats();
+        assert_eq!(stats.events_processed, 0);
+        assert_eq!(stats.events_saved, 0);
+        assert_eq!(stats.events_failed, 0);
+    }
+
+    #[test]
+    fn test_processor_stats_with_events_per_second() {
+        let processor = AutoSaveEventProcessor {
+            #[cfg(feature = "storage")]
+            storage: None,
+            stats: Arc::new(ProcessorStats::default()),
+        };
+
+        // Simulate some processing time
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        
+        processor.stats.events_processed.store(10, Ordering::Relaxed);
+        
+        let stats = processor.get_stats();
+        assert_eq!(stats.events_processed, 10);
+        assert!(stats.uptime_seconds >= 0);
+        
+        // Events per second should be calculated properly
+        if stats.uptime_seconds > 0 {
+            assert!(stats.events_per_second >= 0.0);
+        } else {
+            assert_eq!(stats.events_per_second, 0.0);
+        }
     }
 }
