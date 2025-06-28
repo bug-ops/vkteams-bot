@@ -4585,10 +4585,11 @@ dependencies = [
 
 [[package]]
 name = "vkteams-bot-mcp"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
+ "dirs",
  "once_cell",
  "regex",
  "rmcp",
