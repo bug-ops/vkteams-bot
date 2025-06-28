@@ -17,6 +17,7 @@ categories = [
 ]
 license.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 
 [[bin]]
 name = "vkteams-bot-mcp"

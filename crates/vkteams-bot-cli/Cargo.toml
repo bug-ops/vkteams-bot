@@ -11,6 +11,7 @@ documentation = "https://docs.rs/vkteams-bot"
 repository = "https://github.com/bug-ops/vkteams-bot/tree/master/crates/vkteams-bot-cli"
 license.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 
 [[bin]]
 name = "vkteams-bot-cli"

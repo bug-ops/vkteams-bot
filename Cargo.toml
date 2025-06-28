@@ -5,6 +5,7 @@ resolver = "2"
 [workspace.package]
 license = "MIT OR Apache-2.0"
 edition = "2024"
+rust-version = "1.88"
 keywords = ["vkteams", "bot", "api", "chatbot", "automation", "mcp"]
 categories = ["api-bindings", "command-line-utilities", "web-programming"]
 description = "High-performance VK Teams Bot API toolkit with CLI and MCP server support"
@@ -15,11 +16,11 @@ documentation = "https://docs.rs/vkteams-bot"
 
 # Optimize release profile for minimal binary size
 [profile.release]
-opt-level = "z"          # Optimize for size
-lto = true               # Enable Link Time Optimization
-codegen-units = 1        # Single codegen unit for better optimization
-strip = true             # Strip symbols from binary
-panic = "abort"          # Smaller panic handler
+opt-level = "z"   # Optimize for size
+lto = true        # Enable Link Time Optimization
+codegen-units = 1 # Single codegen unit for better optimization
+strip = true      # Strip symbols from binary
+panic = "abort"   # Smaller panic handler
 
 # Even more aggressive size optimization profile
 [profile.release-min]
@@ -29,4 +30,4 @@ lto = "fat"             # More aggressive LTO
 codegen-units = 1
 strip = true
 panic = "abort"
-overflow-checks = false  # Disable overflow checks for smaller code
+overflow-checks = false # Disable overflow checks for smaller code
