@@ -68,9 +68,10 @@ impl Server {
             "/etc/vkteams-bot/config.toml",
             "~/.config/vkteams-bot/config.toml",
         ];
-
+        print!("Trying to load config from standard locations...");
         for path in &config_paths {
             if let Ok(config) = UnifiedConfig::load_from_file(path) {
+                println!("Loaded config from {}", path);
                 return config;
             }
         }

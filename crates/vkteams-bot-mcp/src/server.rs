@@ -5,6 +5,7 @@
 //! for all business logic in the CLI.
 
 use crate::errors::BridgeError;
+use crate::mcp_bridge_trait::McpCliBridge;
 use crate::types::Server;
 use rmcp::tool_box;
 use rmcp::{
@@ -19,8 +20,9 @@ use tracing::{error, warn};
 pub type MCPResult = Result<CallToolResult, ErrorData>;
 
 /// Convert CLI bridge result to MCP result with enhanced error handling
-#[allow(dead_code)]
-fn convert_bridge_result(result: Result<Value, BridgeError>) -> MCPResult {
+/// This function is used internally by McpCliBridge implementation
+#[inline]
+pub(crate) fn convert_bridge_result(result: Result<Value, BridgeError>) -> MCPResult {
     match result {
         Ok(json_response) => {
             // CLI already returns structured JSON, just pass it through
@@ -82,6 +84,7 @@ fn convert_bridge_result(result: Result<Value, BridgeError>) -> MCPResult {
     }
 }
 
+
 impl ServerHandler for Server {
     fn get_info(&self) -> ServerInfo {
         let capabilities = ServerCapabilities::builder()
@@ -135,12 +138,9 @@ impl Server {
         #[schemars(description = "Reply to message ID (optional)")]
         reply_msg_id: Option<String>,
     ) -> MCPResult {
-        let result = self
-            .cli
-            .send_text(&text, chat_id.as_deref(), reply_msg_id.as_deref())
-            .await;
-
-        convert_bridge_result(result)
+        self.cli
+            .send_text_mcp(&text, chat_id.as_deref(), reply_msg_id.as_deref())
+            .await
     }
 
     #[tool(description = "Send file to chat")]
@@ -156,12 +156,9 @@ impl Server {
         #[schemars(description = "Caption for the file (optional)")]
         caption: Option<String>,
     ) -> MCPResult {
-        let result = self
-            .cli
-            .send_file(&file_path, chat_id.as_deref(), caption.as_deref())
-            .await;
-
-        convert_bridge_result(result)
+        self.cli
+            .send_file_mcp(&file_path, chat_id.as_deref(), caption.as_deref())
+            .await
     }
 
     #[tool(description = "Send voice message to chat")]
@@ -174,9 +171,7 @@ impl Server {
         #[schemars(description = "Chat ID (optional, uses default if not provided)")]
         chat_id: Option<String>,
     ) -> MCPResult {
-        let result = self.cli.send_voice(&file_path, chat_id.as_deref()).await;
-
-        convert_bridge_result(result)
+        self.cli.send_voice_mcp(&file_path, chat_id.as_deref()).await
     }
 
     #[tool(description = "Edit existing message")]
@@ -192,12 +187,9 @@ impl Server {
         #[schemars(description = "Chat ID (optional, uses default if not provided)")]
         chat_id: Option<String>,
     ) -> MCPResult {
-        let result = self
-            .cli
-            .edit_message(&message_id, &new_text, chat_id.as_deref())
-            .await;
-
-        convert_bridge_result(result)
+        self.cli
+            .edit_message_mcp(&message_id, &new_text, chat_id.as_deref())
+            .await
     }
 
     #[tool(description = "Delete message from chat")]
@@ -210,12 +202,9 @@ impl Server {
         #[schemars(description = "Chat ID (optional, uses default if not provided)")]
         chat_id: Option<String>,
     ) -> MCPResult {
-        let result = self
-            .cli
-            .delete_message(&message_id, chat_id.as_deref())
-            .await;
-
-        convert_bridge_result(result)
+        self.cli
+            .delete_message_mcp(&message_id, chat_id.as_deref())
+            .await
     }
 
     #[tool(description = "Pin message in chat")]
@@ -228,9 +217,7 @@ impl Server {
         #[schemars(description = "Chat ID (optional, uses default if not provided)")]
         chat_id: Option<String>,
     ) -> MCPResult {
-        let result = self.cli.pin_message(&message_id, chat_id.as_deref()).await;
-
-        convert_bridge_result(result)
+        self.cli.pin_message_mcp(&message_id, chat_id.as_deref()).await
     }
 
     #[tool(description = "Unpin message from chat")]
@@ -243,12 +230,9 @@ impl Server {
         #[schemars(description = "Chat ID (optional, uses default if not provided)")]
         chat_id: Option<String>,
     ) -> MCPResult {
-        let result = self
-            .cli
-            .unpin_message(&message_id, chat_id.as_deref())
-            .await;
-
-        convert_bridge_result(result)
+        self.cli
+            .unpin_message_mcp(&message_id, chat_id.as_deref())
+            .await
     }
 
     // === Chat Management Commands ===
@@ -260,8 +244,7 @@ impl Server {
         #[schemars(description = "Chat ID (optional, uses default if not provided)")]
         chat_id: Option<String>,
     ) -> MCPResult {
-        let result = self.cli.get_chat_info(chat_id.as_deref()).await;
-        convert_bridge_result(result)
+        self.cli.get_chat_info_mcp(chat_id.as_deref()).await
     }
 
     #[tool(description = "Get user profile information")]
@@ -271,8 +254,7 @@ impl Server {
         #[schemars(description = "User ID to get profile for")]
         user_id: String,
     ) -> MCPResult {
-        let result = self.cli.get_profile(&user_id).await;
-        convert_bridge_result(result)
+        self.cli.get_profile_mcp(&user_id).await
     }
 
     #[tool(description = "Get chat members")]
@@ -285,11 +267,9 @@ impl Server {
         #[schemars(description = "Cursor for pagination (optional)")]
         cursor: Option<String>,
     ) -> MCPResult {
-        let result = self
-            .cli
-            .get_chat_members(chat_id.as_deref(), cursor.as_deref())
-            .await;
-        convert_bridge_result(result)
+        self.cli
+            .get_chat_members_mcp(chat_id.as_deref(), cursor.as_deref())
+            .await
     }
 
     #[tool(description = "Get chat administrators")]
@@ -299,8 +279,7 @@ impl Server {
         #[schemars(description = "Chat ID (optional, uses default if not provided)")]
         chat_id: Option<String>,
     ) -> MCPResult {
-        let result = self.cli.get_chat_admins(chat_id.as_deref()).await;
-        convert_bridge_result(result)
+        self.cli.get_chat_admins_mcp(chat_id.as_deref()).await
     }
 
     #[tool(description = "Set chat title")]
@@ -313,8 +292,7 @@ impl Server {
         #[schemars(description = "Chat ID (optional, uses default if not provided)")]
         chat_id: Option<String>,
     ) -> MCPResult {
-        let result = self.cli.set_chat_title(&title, chat_id.as_deref()).await;
-        convert_bridge_result(result)
+        self.cli.set_chat_title_mcp(&title, chat_id.as_deref()).await
     }
 
     #[tool(description = "Set chat description")]
@@ -327,8 +305,7 @@ impl Server {
         #[schemars(description = "Chat ID (optional, uses default if not provided)")]
         chat_id: Option<String>,
     ) -> MCPResult {
-        let result = self.cli.set_chat_about(&about, chat_id.as_deref()).await;
-        convert_bridge_result(result)
+        self.cli.set_chat_about_mcp(&about, chat_id.as_deref()).await
     }
 
     #[tool(description = "Send typing or looking action to chat")]
@@ -341,8 +318,7 @@ impl Server {
         #[schemars(description = "Chat ID (optional, uses default if not provided)")]
         chat_id: Option<String>,
     ) -> MCPResult {
-        let result = self.cli.send_action(&action, chat_id.as_deref()).await;
-        convert_bridge_result(result)
+        self.cli.send_action_mcp(&action, chat_id.as_deref()).await
     }
 
     // === File Upload Commands ===
@@ -366,17 +342,15 @@ impl Server {
         #[schemars(description = "Reply to message ID (optional)")]
         reply_msg_id: Option<String>,
     ) -> MCPResult {
-        let result = self
-            .cli
-            .upload_file_base64(
+        self.cli
+            .upload_file_base64_mcp(
                 &file_name,
                 &base64_content,
                 chat_id.as_deref(),
                 caption.as_deref(),
                 reply_msg_id.as_deref(),
             )
-            .await;
-        convert_bridge_result(result)
+            .await
     }
 
     #[tool(description = "Upload text content as file")]
@@ -395,11 +369,9 @@ impl Server {
         #[schemars(description = "Caption for the file (optional)")]
         caption: Option<String>,
     ) -> MCPResult {
-        let result = self
-            .cli
-            .upload_text_file(&file_name, &content, chat_id.as_deref(), caption.as_deref())
-            .await;
-        convert_bridge_result(result)
+        self.cli
+            .upload_text_file_mcp(&file_name, &content, chat_id.as_deref(), caption.as_deref())
+            .await
     }
 
     #[tool(description = "Upload JSON data as file")]
@@ -421,17 +393,15 @@ impl Server {
         #[schemars(description = "Caption for the file (optional)")]
         caption: Option<String>,
     ) -> MCPResult {
-        let result = self
-            .cli
-            .upload_json_file(
+        self.cli
+            .upload_json_file_mcp(
                 &file_name,
                 &json_data,
                 pretty.unwrap_or(true),
                 chat_id.as_deref(),
                 caption.as_deref(),
             )
-            .await;
-        convert_bridge_result(result)
+            .await
     }
 
     #[tool(description = "Get file information")]
@@ -441,8 +411,7 @@ impl Server {
         #[schemars(description = "File ID to get information about")]
         file_id: String,
     ) -> MCPResult {
-        let result = self.cli.get_file_info(&file_id).await;
-        convert_bridge_result(result)
+        self.cli.get_file_info_mcp(&file_id).await
     }
 
     // === Storage Commands ===
@@ -460,11 +429,9 @@ impl Server {
         #[schemars(description = "Maximum number of results (default: 10)")]
         limit: Option<usize>,
     ) -> MCPResult {
-        let result = self
-            .cli
-            .search_semantic(&query, chat_id.as_deref(), limit)
-            .await;
-        convert_bridge_result(result)
+        self.cli
+            .search_semantic_mcp(&query, chat_id.as_deref(), limit)
+            .await
     }
 
     #[tool(description = "Search messages using text search")]
@@ -480,11 +447,9 @@ impl Server {
         #[schemars(description = "Maximum number of results (default: 10)")]
         limit: Option<i64>,
     ) -> MCPResult {
-        let result = self
-            .cli
-            .search_text(&query, chat_id.as_deref(), limit)
-            .await;
-        convert_bridge_result(result)
+        self.cli
+            .search_text_mcp(&query, chat_id.as_deref(), limit)
+            .await
     }
 
     #[tool(description = "Get database statistics")]
@@ -499,11 +464,9 @@ impl Server {
         #[schemars(description = "Date since when to count (optional)")]
         since: Option<String>,
     ) -> MCPResult {
-        let result = self
-            .cli
-            .get_database_stats(chat_id.as_deref(), since.as_deref())
-            .await;
-        convert_bridge_result(result)
+        self.cli
+            .get_database_stats_mcp(chat_id.as_deref(), since.as_deref())
+            .await
     }
 
     #[tool(description = "Get conversation context")]
@@ -521,23 +484,20 @@ impl Server {
         #[schemars(description = "Timeframe for context (optional)")]
         timeframe: Option<String>,
     ) -> MCPResult {
-        let result = self
-            .cli
-            .get_context(
+        self.cli
+            .get_context_mcp(
                 chat_id.as_deref(),
                 context_type.as_deref(),
                 timeframe.as_deref(),
             )
-            .await;
-        convert_bridge_result(result)
+            .await
     }
 
     // === Daemon Management Commands ===
 
     #[tool(description = "Get daemon status and statistics")]
     async fn daemon_status(&self) -> MCPResult {
-        let result = self.cli.get_daemon_status().await;
-        convert_bridge_result(result)
+        self.cli.get_daemon_status_mcp().await
     }
 
     #[tool(description = "Get recent messages from storage")]
@@ -553,19 +513,16 @@ impl Server {
         #[schemars(description = "Get messages since this timestamp (ISO 8601 format)")]
         since: Option<String>,
     ) -> MCPResult {
-        let result = self
-            .cli
-            .get_recent_messages(chat_id.as_deref(), limit, since.as_deref())
-            .await;
-        convert_bridge_result(result)
+        self.cli
+            .get_recent_messages_mcp(chat_id.as_deref(), limit, since.as_deref())
+            .await
     }
 
     // === Diagnostic Commands ===
 
     #[tool(description = "Get information about the bot")]
     async fn self_get(&self) -> MCPResult {
-        let result = self.cli.get_self().await;
-        convert_bridge_result(result)
+        self.cli.get_self_mcp().await
     }
 
     #[tool(description = "Get events from the bot")]
@@ -578,11 +535,9 @@ impl Server {
         #[schemars(description = "Poll time in seconds (optional)")]
         poll_time: Option<u64>,
     ) -> MCPResult {
-        let result = self
-            .cli
-            .get_events(last_event_id.as_deref(), poll_time)
-            .await;
-        convert_bridge_result(result)
+        self.cli
+            .get_events_mcp(last_event_id.as_deref(), poll_time)
+            .await
     }
 
     tool_box!(Server {
