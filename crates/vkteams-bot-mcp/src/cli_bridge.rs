@@ -710,24 +710,26 @@ mod tests {
 
     #[test]
     fn test_config_path_handling() {
-        unsafe {
-            std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_chat");
-            std::env::set_var("VKTEAMS_BOT_CONFIG", "/path/to/config.toml");
+        // Test with config that has cli_path specified
+        let mut config = UnifiedConfig::default();
+        config.mcp.cli_path = Some("/custom/path/to/cli".to_string().into());
+
+        if let Ok(bridge) = CliBridge::new(&config) {
+            // Check that custom CLI path is used
+            assert_eq!(bridge.cli_path, "/custom/path/to/cli");
+            // Default args should still contain basic args but no config path
+            assert!(bridge.default_args.contains(&"--output".to_string()));
+            assert!(bridge.default_args.contains(&"json".to_string()));
+            // Config path should not be in default args anymore since we refactored
+            assert!(!bridge.default_args.contains(&"--config".to_string()));
         }
 
+        // Test without cli_path - should fallback to PATH search
         let config = UnifiedConfig::default();
         if let Ok(bridge) = CliBridge::new(&config) {
-            // Check that config path is included in default args
-            assert!(bridge.default_args.contains(&"--config".to_string()));
-            assert!(
-                bridge
-                    .default_args
-                    .contains(&"/path/to/config.toml".to_string())
-            );
-        }
-
-        unsafe {
-            std::env::remove_var("VKTEAMS_BOT_CONFIG");
+            assert!(!bridge.cli_path.is_empty());
+            assert!(bridge.default_args.contains(&"--output".to_string()));
+            assert!(bridge.default_args.contains(&"json".to_string()));
         }
     }
 
@@ -1115,22 +1117,33 @@ mod tests {
             std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_chat");
         }
 
-        // Test without config
+        // Ensure clean state
+        let original_config = std::env::var("VKTEAMS_BOT_CONFIG").ok();
+
+        // Force clean state for this test
         unsafe {
             std::env::remove_var("VKTEAMS_BOT_CONFIG");
         }
+        
+        // Wait a bit for environment change to propagate
+        std::thread::sleep(std::time::Duration::from_millis(10));
 
         let config = UnifiedConfig::default();
         if let Ok(bridge) = CliBridge::new(&config) {
             assert!(bridge.default_args.contains(&"--output".to_string()));
             assert!(bridge.default_args.contains(&"json".to_string()));
-            assert!(!bridge.default_args.contains(&"--config".to_string()));
+            assert!(!bridge.default_args.contains(&"--config".to_string()),
+                   "Bridge should not contain --config when VKTEAMS_BOT_CONFIG is not set. Args: {:?}", 
+                   bridge.default_args);
         }
 
         // Test with config
         unsafe {
             std::env::set_var("VKTEAMS_BOT_CONFIG", "/test/config.toml");
         }
+        
+        // Wait a bit for environment change to propagate
+        std::thread::sleep(std::time::Duration::from_millis(10));
 
         let config = UnifiedConfig::default();
         if let Ok(bridge) = CliBridge::new(&config) {
@@ -1144,8 +1157,12 @@ mod tests {
             );
         }
 
+        // Restore original state
         unsafe {
-            std::env::remove_var("VKTEAMS_BOT_CONFIG");
+            match original_config {
+                Some(config) => std::env::set_var("VKTEAMS_BOT_CONFIG", config),
+                None => std::env::remove_var("VKTEAMS_BOT_CONFIG"),
+            }
         }
     }
 
