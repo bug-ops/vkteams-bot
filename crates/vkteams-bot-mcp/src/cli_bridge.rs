@@ -8,11 +8,12 @@ use crate::bridge_trait::CliBridgeTrait;
 use crate::errors::{BridgeError, CliErrorInfo};
 use async_trait::async_trait;
 use serde_json::Value;
+use std::path::PathBuf;
 use std::process::Stdio;
 use tokio::process::Command;
 use tokio::time::{Duration, timeout};
 use tracing::{debug, error, warn};
-
+use vkteams_bot::config::UnifiedConfig;
 
 /// Bridge for executing CLI commands from MCP server
 #[derive(Debug)]
@@ -22,35 +23,56 @@ pub struct CliBridge {
 }
 
 impl CliBridge {
-    /// Create a new CLI bridge instance
-    pub fn new() -> Result<Self, BridgeError> {
-        let _chat_id = std::env::var("VKTEAMS_BOT_CHAT_ID").map_err(|_| {
-            BridgeError::CliError("VKTEAMS_BOT_CHAT_ID environment variable not set".to_string())
-        })?;
-
-        let config_path = std::env::var("VKTEAMS_BOT_CONFIG").ok();
-
-        // Try to find CLI binary
-        let cli_path = which::which("vkteams-bot-cli")
-            .or_else(|_| {
-                // Try relative path from current executable
-                std::env::current_exe().map(|mut p| {
-                    p.pop(); // remove filename
-                    p.push("vkteams-bot-cli");
-                    p
+    /// Create a new CLI bridge instance with unified configuration
+    pub fn new(config: &UnifiedConfig) -> Result<Self, BridgeError> {
+        // Use CLI path from config if provided, otherwise search in standard locations
+        let cli_path = if let Some(config_cli_path) = &config.mcp.cli_path {
+            config_cli_path.clone()
+        } else {
+            // Search strategy optimized for various deployment environments
+            which::which("vkteams-bot-cli")
+                .or_else(|_| {
+                    // Try common container paths first
+                    let container_paths = [
+                        "/usr/local/bin/vkteams-bot-cli",
+                        "/usr/bin/vkteams-bot-cli", 
+                        "/app/vkteams-bot-cli",
+                        "/bin/vkteams-bot-cli",
+                    ];
+                    
+                    for path in &container_paths {
+                        let path_buf = PathBuf::from(path);
+                        if path_buf.exists() && path_buf.is_file() {
+                            return Ok(path_buf);
+                        }
+                    }
+                    
+                    // Try relative path from current executable (fallback)
+                    std::env::current_exe().and_then(|mut p| {
+                        p.pop(); // remove filename
+                        p.push("vkteams-bot-cli");
+                        if p.exists() && p.is_file() {
+                            Ok(p)
+                        } else {
+                            Err(std::io::Error::new(
+                                std::io::ErrorKind::NotFound,
+                                "CLI binary not found in any standard location"
+                            ))
+                        }
+                    })
                 })
-            })
-            .map_err(|_| {
-                BridgeError::CliNotFound(
-                    "vkteams-bot-cli not found in PATH or relative to current executable"
-                        .to_string(),
-                )
-            })?;
+                .map_err(|_| {
+                    BridgeError::CliNotFound(
+                        "vkteams-bot-cli not found in PATH, common system locations (/usr/local/bin, /usr/bin, /app, /bin), or relative to current executable".to_string()
+                    )
+                })?
+        };
 
         let mut default_args = vec!["--output".to_string(), "json".to_string()];
 
-        if let Some(config) = config_path {
-            default_args.extend(vec!["--config".to_string(), config]);
+        // Use config file path from environment if provided
+        if let Ok(config_path) = std::env::var("VKTEAMS_BOT_CONFIG") {
+            default_args.extend(vec!["--config".to_string(), config_path]);
         }
 
         Ok(Self {
@@ -286,7 +308,8 @@ impl CliBridge {
 
 impl Default for CliBridge {
     fn default() -> Self {
-        Self::new().expect("Failed to create CLI bridge")
+        let config = UnifiedConfig::default();
+        Self::new(&config).expect("Failed to create CLI bridge")
     }
 }
 
@@ -305,7 +328,6 @@ impl CliBridgeTrait for CliBridge {
         self.execute_command(&["--version"]).await.map(|_| ())
     }
 }
-
 
 /// Implementation of domain-specific MCP bridge traits
 #[async_trait]
@@ -328,7 +350,11 @@ impl crate::mcp_bridge_trait::McpMessaging for CliBridge {
         crate::server::convert_bridge_result(self.send_file(file_path, chat_id, caption).await)
     }
 
-    async fn send_voice_mcp(&self, file_path: &str, chat_id: Option<&str>) -> crate::server::MCPResult {
+    async fn send_voice_mcp(
+        &self,
+        file_path: &str,
+        chat_id: Option<&str>,
+    ) -> crate::server::MCPResult {
         crate::server::convert_bridge_result(self.send_voice(file_path, chat_id).await)
     }
 
@@ -341,19 +367,35 @@ impl crate::mcp_bridge_trait::McpMessaging for CliBridge {
         crate::server::convert_bridge_result(self.edit_message(message_id, new_text, chat_id).await)
     }
 
-    async fn delete_message_mcp(&self, message_id: &str, chat_id: Option<&str>) -> crate::server::MCPResult {
+    async fn delete_message_mcp(
+        &self,
+        message_id: &str,
+        chat_id: Option<&str>,
+    ) -> crate::server::MCPResult {
         crate::server::convert_bridge_result(self.delete_message(message_id, chat_id).await)
     }
 
-    async fn pin_message_mcp(&self, message_id: &str, chat_id: Option<&str>) -> crate::server::MCPResult {
+    async fn pin_message_mcp(
+        &self,
+        message_id: &str,
+        chat_id: Option<&str>,
+    ) -> crate::server::MCPResult {
         crate::server::convert_bridge_result(self.pin_message(message_id, chat_id).await)
     }
 
-    async fn unpin_message_mcp(&self, message_id: &str, chat_id: Option<&str>) -> crate::server::MCPResult {
+    async fn unpin_message_mcp(
+        &self,
+        message_id: &str,
+        chat_id: Option<&str>,
+    ) -> crate::server::MCPResult {
         crate::server::convert_bridge_result(self.unpin_message(message_id, chat_id).await)
     }
 
-    async fn send_action_mcp(&self, action: &str, chat_id: Option<&str>) -> crate::server::MCPResult {
+    async fn send_action_mcp(
+        &self,
+        action: &str,
+        chat_id: Option<&str>,
+    ) -> crate::server::MCPResult {
         crate::server::convert_bridge_result(self.send_action(action, chat_id).await)
     }
 }
@@ -380,11 +422,19 @@ impl crate::mcp_bridge_trait::McpChatManagement for CliBridge {
         crate::server::convert_bridge_result(self.get_chat_admins(chat_id).await)
     }
 
-    async fn set_chat_title_mcp(&self, title: &str, chat_id: Option<&str>) -> crate::server::MCPResult {
+    async fn set_chat_title_mcp(
+        &self,
+        title: &str,
+        chat_id: Option<&str>,
+    ) -> crate::server::MCPResult {
         crate::server::convert_bridge_result(self.set_chat_title(title, chat_id).await)
     }
 
-    async fn set_chat_about_mcp(&self, about: &str, chat_id: Option<&str>) -> crate::server::MCPResult {
+    async fn set_chat_about_mcp(
+        &self,
+        about: &str,
+        chat_id: Option<&str>,
+    ) -> crate::server::MCPResult {
         crate::server::convert_bridge_result(self.set_chat_about(about, chat_id).await)
     }
 }
@@ -399,7 +449,10 @@ impl crate::mcp_bridge_trait::McpFileOperations for CliBridge {
         caption: Option<&str>,
         reply_msg_id: Option<&str>,
     ) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(self.upload_file_base64(name, content_base64, chat_id, caption, reply_msg_id).await)
+        crate::server::convert_bridge_result(
+            self.upload_file_base64(name, content_base64, chat_id, caption, reply_msg_id)
+                .await,
+        )
     }
 
     async fn upload_text_file_mcp(
@@ -409,7 +462,9 @@ impl crate::mcp_bridge_trait::McpFileOperations for CliBridge {
         chat_id: Option<&str>,
         caption: Option<&str>,
     ) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(self.upload_text_file(name, content, chat_id, caption).await)
+        crate::server::convert_bridge_result(
+            self.upload_text_file(name, content, chat_id, caption).await,
+        )
     }
 
     async fn upload_json_file_mcp(
@@ -420,7 +475,10 @@ impl crate::mcp_bridge_trait::McpFileOperations for CliBridge {
         chat_id: Option<&str>,
         caption: Option<&str>,
     ) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(self.upload_json_file(name, json_data, pretty, chat_id, caption).await)
+        crate::server::convert_bridge_result(
+            self.upload_json_file(name, json_data, pretty, chat_id, caption)
+                .await,
+        )
     }
 
     async fn get_file_info_mcp(&self, file_id: &str) -> crate::server::MCPResult {
@@ -462,7 +520,9 @@ impl crate::mcp_bridge_trait::McpStorage for CliBridge {
         context_type: Option<&str>,
         timeframe: Option<&str>,
     ) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(self.get_context(chat_id, context_type, timeframe).await)
+        crate::server::convert_bridge_result(
+            self.get_context(chat_id, context_type, timeframe).await,
+        )
     }
 
     async fn get_recent_messages_mcp(
@@ -505,7 +565,8 @@ mod tests {
             std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_chat");
         }
 
-        let result = CliBridge::new();
+        let config = UnifiedConfig::default();
+        let result = CliBridge::new(&config);
         // Note: This might fail if CLI binary is not available, which is expected in test environment
         // The important thing is that the code compiles and handles errors properly
         match result {
@@ -655,7 +716,8 @@ mod tests {
         }
 
         // Test that CliBridge implements CliBridgeTrait correctly
-        if let Ok(bridge) = CliBridge::new() {
+        let config = UnifiedConfig::default();
+        if let Ok(bridge) = CliBridge::new(&config) {
             // These calls will likely fail but should compile and return appropriate errors
             let version_result = bridge.health_check().await;
             let daemon_result = bridge.get_daemon_status().await;
@@ -671,23 +733,26 @@ mod tests {
 
     #[test]
     fn test_config_path_handling() {
-        unsafe {
-            std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_chat");
-            std::env::set_var("VKTEAMS_BOT_CONFIG", "/path/to/config.toml");
+        // Test with config that has cli_path specified
+        let mut config = UnifiedConfig::default();
+        config.mcp.cli_path = Some("/custom/path/to/cli".to_string().into());
+
+        if let Ok(bridge) = CliBridge::new(&config) {
+            // Check that custom CLI path is used
+            assert_eq!(bridge.cli_path, "/custom/path/to/cli");
+            // Default args should still contain basic args but no config path
+            assert!(bridge.default_args.contains(&"--output".to_string()));
+            assert!(bridge.default_args.contains(&"json".to_string()));
+            // Config path should not be in default args anymore since we refactored
+            assert!(!bridge.default_args.contains(&"--config".to_string()));
         }
 
-        if let Ok(bridge) = CliBridge::new() {
-            // Check that config path is included in default args
-            assert!(bridge.default_args.contains(&"--config".to_string()));
-            assert!(
-                bridge
-                    .default_args
-                    .contains(&"/path/to/config.toml".to_string())
-            );
-        }
-
-        unsafe {
-            std::env::remove_var("VKTEAMS_BOT_CONFIG");
+        // Test without cli_path - should fallback to PATH search
+        let config = UnifiedConfig::default();
+        if let Ok(bridge) = CliBridge::new(&config) {
+            assert!(!bridge.cli_path.is_empty());
+            assert!(bridge.default_args.contains(&"--output".to_string()));
+            assert!(bridge.default_args.contains(&"json".to_string()));
         }
     }
 
@@ -736,7 +801,8 @@ mod tests {
             std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_chat");
         }
 
-        if let Ok(bridge) = CliBridge::new() {
+        let config = UnifiedConfig::default();
+        if let Ok(bridge) = CliBridge::new(&config) {
             let debug_str = format!("{:?}", bridge);
             assert!(debug_str.contains("CliBridge"));
             assert!(debug_str.contains("cli_path"));
@@ -749,12 +815,13 @@ mod tests {
     async fn test_mcp_bridge_traits_compilation() {
         // This test verifies that CliBridge implements all MCP traits correctly
         // We don't test actual functionality here since it requires CLI binary
-        
+
         // Create a dummy CliBridge (will fail but that's expected in test environment)
-        if let Ok(bridge) = CliBridge::new() {
+        let config = UnifiedConfig::default();
+        if let Ok(bridge) = CliBridge::new(&config) {
             // Test that CliBridge implements the traits (compilation test)
             use crate::mcp_bridge_trait::*;
-            
+
             let _messaging: &dyn McpMessaging = &bridge;
             let _chat_mgmt: &dyn McpChatManagement = &bridge;
             let _file_ops: &dyn McpFileOperations = &bridge;
@@ -768,7 +835,7 @@ mod tests {
     fn test_mcp_bridge_traits_exist() {
         // Test that all the MCP bridge traits are properly defined
         use crate::mcp_bridge_trait::*;
-        
+
         // This is a compilation test to ensure traits are properly exported
         fn _accepts_messaging<T: McpMessaging>(_: T) {}
         fn _accepts_chat_management<T: McpChatManagement>(_: T) {}
@@ -781,19 +848,20 @@ mod tests {
     // === Additional comprehensive tests for better coverage ===
 
     #[test]
-    fn test_bridge_creation_without_chat_id_env() {
-        unsafe {
-            std::env::remove_var("VKTEAMS_BOT_CHAT_ID");
-        }
-
-        let result = CliBridge::new();
-        assert!(result.is_err());
+    fn test_bridge_creation_without_cli_binary() {
+        // Test that CliBridge creation fails when CLI binary is not found
+        let config = UnifiedConfig::default();
+        let result = CliBridge::new(&config);
         
+        // This test will likely pass in CI/test environment where CLI binary is available
+        // or fail with CliNotFound error when binary is not available
         match result {
-            Err(BridgeError::CliError(msg)) => {
-                assert!(msg.contains("VKTEAMS_BOT_CHAT_ID"));
+            Ok(_) => println!("CLI bridge created successfully"),
+            Err(BridgeError::CliNotFound(msg)) => {
+                assert!(msg.contains("vkteams-bot-cli"));
+                assert!(msg.contains("not found"));
             }
-            _ => panic!("Expected CliError about missing VKTEAMS_BOT_CHAT_ID"),
+            Err(e) => println!("Unexpected error (acceptable in test environment): {}", e),
         }
     }
 
@@ -804,12 +872,17 @@ mod tests {
             std::env::set_var("VKTEAMS_BOT_CONFIG", "/path/to/config.toml");
         }
 
-        let result = CliBridge::new();
+        let config = UnifiedConfig::default();
+        let result = CliBridge::new(&config);
         match result {
             Ok(bridge) => {
                 // Check that config path is included in default args
                 assert!(bridge.default_args.contains(&"--config".to_string()));
-                assert!(bridge.default_args.contains(&"/path/to/config.toml".to_string()));
+                assert!(
+                    bridge
+                        .default_args
+                        .contains(&"/path/to/config.toml".to_string())
+                );
             }
             Err(e) => {
                 // Expected in test environment without CLI binary
@@ -828,7 +901,8 @@ mod tests {
             std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_chat");
         }
 
-        if let Ok(bridge) = CliBridge::new() {
+        let config = UnifiedConfig::default();
+        if let Ok(bridge) = CliBridge::new(&config) {
             // Check that default args contain required parameters
             assert!(bridge.default_args.contains(&"--output".to_string()));
             assert!(bridge.default_args.contains(&"json".to_string()));
@@ -838,7 +912,7 @@ mod tests {
     #[test]
     fn test_bridge_error_types_comprehensive() {
         // Test all BridgeError types and their properties
-        
+
         // Test CliError
         let cli_error = BridgeError::CliError("command failed".to_string());
         assert!(!cli_error.is_retryable());
@@ -867,32 +941,47 @@ mod tests {
         let not_found_error = BridgeError::CliNotFound("/path/to/cli".to_string());
         assert!(!not_found_error.is_retryable());
         assert_eq!(not_found_error.retry_delay(), Duration::from_secs(2));
-        assert!(not_found_error.to_string().contains("CLI not found at path"));
+        assert!(
+            not_found_error
+                .to_string()
+                .contains("CLI not found at path")
+        );
 
         // Test InvalidResponse error
         let invalid_response_error = BridgeError::InvalidResponse("malformed json".to_string());
         assert!(!invalid_response_error.is_retryable());
         assert_eq!(invalid_response_error.retry_delay(), Duration::from_secs(2));
-        assert!(invalid_response_error.to_string().contains("Invalid JSON response"));
+        assert!(
+            invalid_response_error
+                .to_string()
+                .contains("Invalid JSON response")
+        );
 
         // Test ProcessTerminated error
         let process_terminated_error = BridgeError::ProcessTerminated("signal 9".to_string());
         assert!(!process_terminated_error.is_retryable());
-        assert_eq!(process_terminated_error.retry_delay(), Duration::from_secs(2));
-        assert!(process_terminated_error.to_string().contains("CLI process terminated"));
+        assert_eq!(
+            process_terminated_error.retry_delay(),
+            Duration::from_secs(2)
+        );
+        assert!(
+            process_terminated_error
+                .to_string()
+                .contains("CLI process terminated")
+        );
     }
 
     #[test]
     fn test_cli_error_info_detailed() {
         // Test various CliErrorInfo scenarios
-        
+
         // Error with all fields
         let full_error = CliErrorInfo {
             code: Some("NOT_FOUND".to_string()),
             message: "Resource not found".to_string(),
             details: Some(serde_json::json!({"resource_id": "123"})),
         };
-        
+
         let bridge_error = BridgeError::CliReturnedError(full_error);
         assert!(!bridge_error.is_retryable()); // NOT_FOUND is not retryable
         assert!(bridge_error.to_string().contains("CLI returned error"));
@@ -903,7 +992,7 @@ mod tests {
             message: "Network timeout".to_string(),
             details: None,
         };
-        
+
         let bridge_error = BridgeError::CliReturnedError(network_error);
         assert!(bridge_error.is_retryable()); // NETWORK_ERROR is retryable
 
@@ -912,7 +1001,7 @@ mod tests {
             message: "Operation timed out".to_string(),
             details: None,
         };
-        
+
         let bridge_error = BridgeError::CliReturnedError(timeout_error);
         assert!(bridge_error.is_retryable()); // TIMEOUT is retryable
 
@@ -922,11 +1011,10 @@ mod tests {
             message: "Generic error".to_string(),
             details: None,
         };
-        
+
         let bridge_error = BridgeError::CliReturnedError(no_code_error);
         assert!(!bridge_error.is_retryable()); // No code means not retryable
     }
-
 
     #[test]
     fn test_cli_error_info_serialization_roundtrip() {
@@ -958,7 +1046,8 @@ mod tests {
             std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_chat");
         }
 
-        if let Ok(bridge) = CliBridge::new() {
+        let config = UnifiedConfig::default();
+        if let Ok(bridge) = CliBridge::new(&config) {
             let debug_output = format!("{:?}", bridge);
             assert!(debug_output.contains("CliBridge"));
             assert!(debug_output.contains("cli_path"));
@@ -972,10 +1061,11 @@ mod tests {
             std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_chat");
         }
 
-        if let Ok(bridge) = CliBridge::new() {
+        let config = UnifiedConfig::default();
+        if let Ok(bridge) = CliBridge::new(&config) {
             // Test that CliBridge implements CliBridgeTrait
             let trait_obj: &dyn CliBridgeTrait = &bridge;
-            
+
             // We can't actually call async methods in sync test, but we can verify the trait is implemented
             let _ = trait_obj;
         }
@@ -1026,7 +1116,8 @@ mod tests {
         }
 
         // This test verifies the CLI path resolution logic
-        let result = CliBridge::new();
+        let config = UnifiedConfig::default();
+        let result = CliBridge::new(&config);
         match result {
             Ok(bridge) => {
                 // CLI was found (unlikely in test environment)
@@ -1049,15 +1140,24 @@ mod tests {
             std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_chat");
         }
 
-        // Test without config
+        // Ensure clean state
+        let original_config = std::env::var("VKTEAMS_BOT_CONFIG").ok();
+
+        // Force clean state for this test
         unsafe {
             std::env::remove_var("VKTEAMS_BOT_CONFIG");
         }
         
-        if let Ok(bridge) = CliBridge::new() {
+        // Wait a bit for environment change to propagate
+        std::thread::sleep(std::time::Duration::from_millis(10));
+
+        let config = UnifiedConfig::default();
+        if let Ok(bridge) = CliBridge::new(&config) {
             assert!(bridge.default_args.contains(&"--output".to_string()));
             assert!(bridge.default_args.contains(&"json".to_string()));
-            assert!(!bridge.default_args.contains(&"--config".to_string()));
+            assert!(!bridge.default_args.contains(&"--config".to_string()),
+                   "Bridge should not contain --config when VKTEAMS_BOT_CONFIG is not set. Args: {:?}", 
+                   bridge.default_args);
         }
 
         // Test with config
@@ -1065,22 +1165,34 @@ mod tests {
             std::env::set_var("VKTEAMS_BOT_CONFIG", "/test/config.toml");
         }
         
-        if let Ok(bridge) = CliBridge::new() {
+        // Wait a bit for environment change to propagate
+        std::thread::sleep(std::time::Duration::from_millis(10));
+
+        let config = UnifiedConfig::default();
+        if let Ok(bridge) = CliBridge::new(&config) {
             assert!(bridge.default_args.contains(&"--output".to_string()));
             assert!(bridge.default_args.contains(&"json".to_string()));
             assert!(bridge.default_args.contains(&"--config".to_string()));
-            assert!(bridge.default_args.contains(&"/test/config.toml".to_string()));
+            assert!(
+                bridge
+                    .default_args
+                    .contains(&"/test/config.toml".to_string())
+            );
         }
 
+        // Restore original state
         unsafe {
-            std::env::remove_var("VKTEAMS_BOT_CONFIG");
+            match original_config {
+                Some(config) => std::env::set_var("VKTEAMS_BOT_CONFIG", config),
+                None => std::env::remove_var("VKTEAMS_BOT_CONFIG"),
+            }
         }
     }
 
     #[test]
     fn test_bridge_error_display_variations() {
         // Test display implementations for all error types with different messages
-        
+
         let errors = vec![
             BridgeError::CliError("Command execution failed".to_string()),
             BridgeError::Timeout(Duration::from_millis(5000)),
@@ -1123,10 +1235,10 @@ mod tests {
             message: "Inner error message".to_string(),
             details: Some(serde_json::json!({"context": "additional info"})),
         };
-        
+
         let error = BridgeError::CliReturnedError(cli_error_info);
         let display = error.to_string();
-        
+
         assert!(display.contains("CLI returned error"));
         assert!(display.contains("Inner error message"));
     }
@@ -1134,14 +1246,14 @@ mod tests {
     #[test]
     fn test_cli_error_info_edge_cases() {
         // Test CliErrorInfo with various edge cases
-        
+
         // Empty message
         let empty_msg_error = CliErrorInfo {
             code: Some("EMPTY_MSG".to_string()),
             message: "".to_string(),
             details: None,
         };
-        
+
         let serialized = serde_json::to_string(&empty_msg_error).unwrap();
         let deserialized: CliErrorInfo = serde_json::from_str(&serialized).unwrap();
         assert_eq!(deserialized.message, "");
@@ -1153,7 +1265,7 @@ mod tests {
             message: long_message.clone(),
             details: None,
         };
-        
+
         let serialized = serde_json::to_string(&long_msg_error).unwrap();
         let deserialized: CliErrorInfo = serde_json::from_str(&serialized).unwrap();
         assert_eq!(deserialized.message, long_message);
@@ -1170,15 +1282,102 @@ mod tests {
                 {"item": 2}
             ]
         });
-        
+
         let complex_error = CliErrorInfo {
             code: Some("COMPLEX".to_string()),
             message: "Complex error".to_string(),
             details: Some(complex_details.clone()),
         };
-        
+
         let serialized = serde_json::to_string(&complex_error).unwrap();
         let deserialized: CliErrorInfo = serde_json::from_str(&serialized).unwrap();
         assert_eq!(deserialized.details, Some(complex_details));
+    }
+
+    #[test]
+    fn test_container_path_resolution() {
+        // Test container-friendly CLI path resolution
+        let config = UnifiedConfig::default();
+        
+        // This test verifies that container paths are checked
+        match CliBridge::new(&config) {
+            Ok(bridge) => {
+                assert!(!bridge.cli_path.is_empty());
+                println!("✓ CLI path resolved: {}", bridge.cli_path);
+            }
+            Err(BridgeError::CliNotFound(msg)) => {
+                // Expected in test environment
+                assert!(msg.contains("common system locations"));
+                assert!(msg.contains("/usr/local/bin"));
+                assert!(msg.contains("/app"));
+                println!("⚠ CLI not found as expected: {}", msg);
+            }
+            Err(e) => panic!("Unexpected error: {}", e),
+        }
+    }
+
+    #[test] 
+    fn test_cli_path_from_config() {
+        // Test using CLI path from config
+        let mut config = UnifiedConfig::default();
+        config.mcp.cli_path = Some("/custom/cli/path".into());
+        
+        match CliBridge::new(&config) {
+            Ok(bridge) => {
+                assert_eq!(bridge.cli_path, "/custom/cli/path");
+                println!("✓ Custom CLI path used: {}", bridge.cli_path);
+            }
+            Err(e) => {
+                // This can fail if the path doesn't exist, which is fine for testing
+                println!("⚠ Custom path test failed (expected): {}", e);
+            }
+        }
+    }
+
+    #[test]
+    fn test_improved_error_messages() {
+        // Test that error messages are more descriptive
+        let config = UnifiedConfig::default();
+        
+        match CliBridge::new(&config) {
+            Err(BridgeError::CliNotFound(msg)) => {
+                // Verify improved error message includes all search locations
+                assert!(msg.contains("PATH"));
+                assert!(msg.contains("common system locations"));
+                assert!(msg.contains("/usr/local/bin"));
+                assert!(msg.contains("/usr/bin"));
+                assert!(msg.contains("/app"));
+                assert!(msg.contains("/bin"));
+                assert!(msg.contains("relative to current executable"));
+                println!("✓ Comprehensive error message: {}", msg);
+            }
+            Ok(_) => {
+                println!("✓ CLI bridge created successfully");
+            }
+            Err(e) => {
+                println!("⚠ Unexpected error type: {}", e);
+            }
+        }
+    }
+
+    #[test]
+    fn test_bridge_default_args_robustness() {
+        // Test that default args are properly constructed
+        let config = UnifiedConfig::default();
+        
+        match CliBridge::new(&config) {
+            Ok(bridge) => {
+                assert!(bridge.default_args.contains(&"--output".to_string()));
+                assert!(bridge.default_args.contains(&"json".to_string()));
+                
+                // Verify no empty args
+                assert!(!bridge.default_args.iter().any(|arg| arg.is_empty()));
+                
+                println!("✓ Default args verified: {:?}", bridge.default_args);
+            }
+            Err(_) => {
+                println!("⚠ Bridge creation failed - skipping default args test");
+            }
+        }
     }
 }

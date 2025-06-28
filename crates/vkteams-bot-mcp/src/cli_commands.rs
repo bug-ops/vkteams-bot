@@ -457,7 +457,8 @@ mod tests {
 
         // This test just verifies that command building works correctly
         // We can't actually execute commands in test environment
-        if let Ok(_bridge) = CliBridge::new() {
+        let config = vkteams_bot::config::UnifiedConfig::default();
+        if let Ok(_bridge) = CliBridge::new(&config) {
             // Test would need actual CLI binary to run
             println!("CLI bridge created for testing");
         }
@@ -770,7 +771,8 @@ mod tests {
         }
         let mock = create_mock_bridge();
         
-        if let Ok(_bridge) = CliBridge::new() {
+        let config = vkteams_bot::config::UnifiedConfig::default();
+        if let Ok(_bridge) = CliBridge::new(&config) {
             // Test the actual send_text method argument building
             // We can't call the method directly without CLI binary, but we can test argument construction
             let args = vec!["send-text", "--message", "Hello World"];
