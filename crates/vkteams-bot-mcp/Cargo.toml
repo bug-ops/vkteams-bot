@@ -25,7 +25,7 @@ path = "src/main.rs"
 
 [dependencies]
 thiserror = "2"
-rmcp = { version = "0.1", features = ["server", "macros", "transport-io"] }
+rmcp = { version = "0.2", features = ["server", "macros", "transport-io"] }
 tokio = { version = "1", features = [
     "rt-multi-thread",
     "macros",
@@ -35,7 +35,7 @@ tokio = { version = "1", features = [
 ] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-# schemars = "0.9"
+schemars = "0.9"
 vkteams-bot = { version = "0.11", path = "../vkteams-bot", default-features = false, features = [
     "otlp",
 ] }
