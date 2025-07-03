@@ -15,6 +15,9 @@ use tokio::time::{Duration, timeout};
 use tracing::{debug, error, warn};
 use vkteams_bot::config::UnifiedConfig;
 
+/// Default timeout for CLI commands in seconds
+const DEFAULT_CLI_TIMEOUT_SECS: u64 = 30;
+
 /// Bridge for executing CLI commands from MCP server
 #[derive(Debug)]
 pub struct CliBridge {
@@ -83,7 +86,7 @@ impl CliBridge {
 
     /// Execute a CLI command with arguments
     pub async fn execute_command(&self, command: &[&str]) -> Result<Value, BridgeError> {
-        self.execute_command_with_timeout(command, Duration::from_secs(30))
+        self.execute_command_with_timeout(command, Duration::from_secs(DEFAULT_CLI_TIMEOUT_SECS))
             .await
     }
 
@@ -146,8 +149,15 @@ impl CliBridge {
 
         // Handle empty responses
         if response_text.trim().is_empty() {
-            warn!("CLI returned empty response");
-            return Ok(serde_json::json!({"success": true, "data": null}));
+            let command_str = command.join(" ");
+            warn!("CLI returned empty response for command: {command_str}");
+            warn!("This might indicate a CLI execution issue or silent failure");
+            return Ok(serde_json::json!({
+                "success": true, 
+                "data": null,
+                "warning": "CLI returned empty response",
+                "command": command_str
+            }));
         }
 
         let response: Value = serde_json::from_str(&response_text)?;
@@ -190,7 +200,7 @@ impl CliBridge {
         command: &[&str],
         max_retries: usize,
     ) -> Result<Value, BridgeError> {
-        self.execute_command_with_retry_and_timeout(command, max_retries, Duration::from_secs(30))
+        self.execute_command_with_retry_and_timeout(command, max_retries, Duration::from_secs(DEFAULT_CLI_TIMEOUT_SECS))
             .await
     }
 

@@ -32,9 +32,15 @@ fn convert_bridge_result(result: Result<Value, BridgeError>) -> MCPResult {
     match result {
         Ok(json_response) => {
             // CLI already returns structured JSON, just pass it through
-            Ok(CallToolResult::success(vec![Content::text(
-                serde_json::to_string(&json_response).unwrap_or_else(|_| "{}".to_string()),
-            )]))
+            let json_string = match serde_json::to_string(&json_response) {
+                Ok(json) => json,
+                Err(e) => {
+                    error!("Failed to serialize JSON response: {e}");
+                    warn!("Falling back to empty JSON object for response");
+                    "{}".to_string()
+                }
+            };
+            Ok(CallToolResult::success(vec![Content::text(json_string)]))
         }
         Err(e) => {
             // Map error types to appropriate error codes
