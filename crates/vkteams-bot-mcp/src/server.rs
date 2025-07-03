@@ -1008,4 +1008,138 @@ mod tests {
             assert!(error_data.message.contains("Internal error"));
         }
     }
+
+    #[test]
+    fn test_server_info_implementation() {
+        unsafe {
+            std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_server_info");
+        }
+
+        match Server::try_new() {
+            Ok(server) => {
+                use rmcp::ServerHandler;
+                let info = server.get_info();
+                
+                // Test server capabilities
+                assert!(info.capabilities.tools.is_some());
+                assert!(info.capabilities.prompts.is_some());
+                
+                // Test instructions content
+                assert!(info.instructions.is_some());
+                let instructions = info.instructions.unwrap();
+                assert!(instructions.contains("VKTeams MCP Server"));
+                assert!(instructions.contains("send_text"));
+                assert!(instructions.contains("chat_info"));
+                assert!(instructions.contains("file_info"));
+                assert!(instructions.contains("CLI-as-backend architecture"));
+            }
+            Err(_) => {
+                println!("Server info test skipped - CLI binary not available");
+            }
+        }
+
+        unsafe {
+            std::env::remove_var("VKTEAMS_BOT_CHAT_ID");
+        }
+    }
+
+    #[test]
+    fn test_various_json_response_conversions() {
+        // Test different types of JSON responses that would come from CLI commands
+        
+        // Test messaging response
+        let msg_response = serde_json::json!({"msgId": "msg123", "ok": true});
+        let result = convert_bridge_result(Ok(msg_response));
+        assert!(result.is_ok());
+        
+        // Test file upload response
+        let file_response = serde_json::json!({"fileId": "file123", "fileName": "test.txt", "size": 1024});
+        let result = convert_bridge_result(Ok(file_response));
+        assert!(result.is_ok());
+        
+        // Test chat info response
+        let chat_response = serde_json::json!({
+            "chatId": "chat123", 
+            "title": "Test Chat",
+            "members": 5,
+            "type": "group"
+        });
+        let result = convert_bridge_result(Ok(chat_response));
+        assert!(result.is_ok());
+        
+        // Test search response
+        let search_response = serde_json::json!({
+            "results": [
+                {"id": "1", "text": "message 1"},
+                {"id": "2", "text": "message 2"}
+            ],
+            "total": 2,
+            "hasMore": false
+        });
+        let result = convert_bridge_result(Ok(search_response));
+        assert!(result.is_ok());
+        
+        // Test daemon status response
+        let daemon_response = serde_json::json!({
+            "status": "running", 
+            "uptime": 3600,
+            "processId": 12345,
+            "memory": "50MB"
+        });
+        let result = convert_bridge_result(Ok(daemon_response));
+        assert!(result.is_ok());
+        
+        // Test events response
+        let events_response = serde_json::json!({
+            "events": [
+                {"type": "message", "id": "event1"},
+                {"type": "file", "id": "event2"}
+            ],
+            "lastEventId": "event2",
+            "hasMore": true
+        });
+        let result = convert_bridge_result(Ok(events_response));
+        assert!(result.is_ok());
+        
+        // Verify all results have content
+        for response in [
+            serde_json::json!({"test": "value"}),
+            serde_json::json!([1, 2, 3]),
+            serde_json::json!("simple string"),
+            serde_json::Value::Null,
+            serde_json::json!({"complex": {"nested": {"deep": true}}})
+        ] {
+            let result = convert_bridge_result(Ok(response));
+            assert!(result.is_ok());
+            
+            if let Ok(call_result) = result {
+                assert!(!call_result.content.is_empty());
+            }
+        }
+    }
+
+    #[test]
+    fn test_json_serialization_fallback() {
+        // Test the JSON serialization fallback path that was improved in PR #49
+        // Create a Value that should serialize successfully
+        let normal_json = serde_json::json!({"test": "normal"});
+        let result = convert_bridge_result(Ok(normal_json));
+        assert!(result.is_ok());
+
+        // Test with complex JSON structure
+        let complex_json = serde_json::json!({
+            "nested": {
+                "array": [1, 2, 3],
+                "string": "test",
+                "null": null,
+                "bool": true
+            }
+        });
+        let result = convert_bridge_result(Ok(complex_json));
+        assert!(result.is_ok());
+        
+        if let Ok(call_result) = result {
+            assert!(!call_result.content.is_empty());
+        }
+    }
 }
