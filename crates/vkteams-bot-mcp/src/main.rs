@@ -5,18 +5,15 @@ pub mod errors;
 pub mod file_utils;
 pub mod mcp_bridge_trait;
 pub mod server;
-pub mod types;
 
 use rmcp::ServiceExt;
-use std::io::Error;
-use std::io::Result;
+use server::Server;
 use tokio::io::{stdin, stdout};
-use types::Server;
 use vkteams_bot::otlp::init;
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    let _guard = init().map_err(|e| Error::other(e.to_string()))?;
+async fn main() -> anyhow::Result<()> {
+    let _guard = init().map_err(|e| anyhow::anyhow!("OTLP init failed: {}", e))?;
     let server = Server::default();
     let transport = (stdin(), stdout());
     server.serve(transport).await?.waiting().await?;
@@ -39,12 +36,12 @@ mod tests {
         unsafe {
             std::env::remove_var("VKTEAMS_BOT_CHAT_ID");
         }
-        
+
         // Now Server::default should fail when chat_id is not in config
         let result = std::panic::catch_unwind(|| {
-            let _ = crate::types::Server::default();
+            let _ = crate::Server::default();
         });
-        
+
         // This test may pass or fail depending on whether CLI binary is available
         // The main purpose is to test that the code handles missing environment variables properly
         match result {

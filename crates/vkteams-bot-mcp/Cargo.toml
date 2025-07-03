@@ -25,7 +25,13 @@ path = "src/main.rs"
 
 [dependencies]
 thiserror = "2"
-rmcp = { version = "0.1", features = ["server", "macros", "transport-io"] }
+# rmcp = { version = "0.1", features = ["server", "macros", "transport-io"] }
+rmcp = { version = "0.1", git = "https://github.com/bug-ops/rust-sdk", branch = "bug-ops/feature/elicitation", features = [
+    "server",
+    "macros",
+    "transport-io",
+    "mcp_spec-2025-03-26",
+] }
 tokio = { version = "1", features = [
     "rt-multi-thread",
     "macros",
@@ -35,7 +41,7 @@ tokio = { version = "1", features = [
 ] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-# schemars = "0.9"
+schemars = "0.8"
 vkteams-bot = { version = "0.11", path = "../vkteams-bot", default-features = false, features = [
     "otlp",
 ] }
@@ -43,6 +49,5 @@ async-trait = "0.1.88"
 base64 = "0.22"
 which = "8.0"
 tracing = "0.1"
-regex = "1"
-once_cell = "1"
 dirs = "6.0"
+anyhow = "1.0"
