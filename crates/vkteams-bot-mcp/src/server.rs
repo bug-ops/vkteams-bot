@@ -480,7 +480,7 @@ impl Server {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bridge_trait::{CliBridgeTrait, MockCliBridge};
+    use crate::cli_bridge::{CliBridgeTrait, MockCliBridge};
     use crate::errors::CliErrorInfo;
     use std::time::Duration;
 
