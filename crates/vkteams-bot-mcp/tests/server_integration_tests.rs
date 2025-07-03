@@ -52,7 +52,7 @@ fn test_parameter_validation_patterns() {
         };
         
         // All our test cases should be valid JSON objects
-        assert!(is_valid, "Invalid parameters: {:?}", params);
+        assert!(is_valid, "Invalid parameters: {params:?}");
     }
 }
 
@@ -182,7 +182,7 @@ fn test_timeout_handling() {
         assert!(timeout.as_secs() < 600); // Max 10 minutes
         
         // Test timeout formatting
-        let timeout_str = format!("{:?}", timeout);
+        let timeout_str = format!("{timeout:?}");
         assert!(timeout_str.contains("s") || timeout_str.contains("ms"));
     }
 }

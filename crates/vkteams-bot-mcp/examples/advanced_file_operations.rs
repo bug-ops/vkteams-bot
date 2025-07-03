@@ -116,7 +116,7 @@ async fn demonstrate_file_patterns() -> Result<(), Box<dyn std::error::Error>> {
     ];
 
     for (desc, cmd) in file_patterns {
-        println!("📄 {}: {}", desc, cmd);
+        println!("📄 {desc}: {cmd}");
     }
 
     println!("\n💡 MCP server translates AI requests to these CLI commands automatically");
@@ -192,7 +192,7 @@ async fn demonstrate_mcp_tools() -> Result<(), Box<dyn std::error::Error>> {
         for tool in tools {
             if let Some(name) = tool["name"].as_str() {
                 if let Some(desc) = tool["description"].as_str() {
-                    println!("  • {}: {}", name, desc);
+                    println!("  • {name}: {desc}");
                 }
             }
         }

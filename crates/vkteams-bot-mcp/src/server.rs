@@ -27,6 +27,7 @@ pub type MCPResult = Result<CallToolResult, ErrorData>;
 
 /// Convert CLI bridge result to MCP result with enhanced error handling
 #[inline]
+#[allow(dead_code)] // Used in server method implementations via direct calls
 fn convert_bridge_result(result: Result<Value, BridgeError>) -> MCPResult {
     match result {
         Ok(json_response) => {
@@ -40,13 +41,13 @@ fn convert_bridge_result(result: Result<Value, BridgeError>) -> MCPResult {
             let (code, message, data) = match &e {
                 BridgeError::RateLimit(msg) => {
                     warn!("Rate limit error: {}", msg);
-                    (-429, format!("Rate limit exceeded: {}", msg), None)
+                    (-429, format!("Rate limit exceeded: {msg}"), None)
                 }
                 BridgeError::Timeout(duration) => {
                     error!("Command timed out after {:?}", duration);
                     (
                         -504,
-                        format!("Command timed out after {:?}", duration),
+                        format!("Command timed out after {duration:?}"),
                         None,
                     )
                 }
@@ -66,17 +67,17 @@ fn convert_bridge_result(result: Result<Value, BridgeError>) -> MCPResult {
                     error!("CLI not found at: {}", path);
                     (
                         -503,
-                        format!("Service unavailable: CLI not found at {}", path),
+                        format!("Service unavailable: CLI not found at {path}"),
                         None,
                     )
                 }
                 BridgeError::InvalidResponse(err) => {
                     error!("Invalid JSON response: {}", err);
-                    (-502, format!("Invalid response from CLI: {}", err), None)
+                    (-502, format!("Invalid response from CLI: {err}"), None)
                 }
                 _ => {
                     error!("CLI bridge error: {}", e);
-                    (-500, format!("Internal error: {}", e), None)
+                    (-500, format!("Internal error: {e}"), None)
                 }
             };
 
@@ -715,8 +716,7 @@ mod tests {
             if let Err(error_data) = result {
                 assert_eq!(
                     error_data.code.0, expected_code,
-                    "Failed for code: {}",
-                    code
+                    "Failed for code: {code}"
                 );
             }
         }

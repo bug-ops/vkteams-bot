@@ -22,10 +22,10 @@ fn test_timeout_duration_validation() {
     for (timeout, should_be_valid) in timeout_cases {
         // Validate timeout constraints
         let is_valid = timeout.as_millis() > 0 && timeout.as_secs() <= 600;
-        assert_eq!(is_valid, should_be_valid, "Timeout validation failed for {:?}", timeout);
+        assert_eq!(is_valid, should_be_valid, "Timeout validation failed for {timeout:?}");
         
         // Test timeout formatting
-        let timeout_str = format!("{:?}", timeout);
+        let timeout_str = format!("{timeout:?}");
         assert!(!timeout_str.is_empty());
         assert!(timeout_str.contains("s") || timeout_str.contains("ms"));
     }
@@ -50,17 +50,17 @@ fn test_cli_path_patterns() {
         assert!(!path.is_empty(), "CLI path should not be empty");
         
         // Test path contains CLI name
-        assert!(path.contains("vkteams-bot-cli"), "Path should contain CLI name: {}", path);
+        assert!(path.contains("vkteams-bot-cli"), "Path should contain CLI name: {path}");
         
         // Test path separators
         let has_separator = path.contains("/") || path.contains("\\") || !path.contains("/") && !path.contains("\\");
-        assert!(has_separator, "Path should have valid separators or be relative: {}", path);
+        assert!(has_separator, "Path should have valid separators or be relative: {path}");
         
         // Test path extension (for Windows)
         if path.contains("\\") {
             // Windows path might have .exe extension
             assert!(path.ends_with(".exe") || path.ends_with("vkteams-bot-cli"), 
-                   "Windows path should have proper ending: {}", path);
+                   "Windows path should have proper ending: {path}");
         }
     }
 }
@@ -91,7 +91,7 @@ fn test_command_argument_building() {
         let mut full_args = vec!["--output", "json"];
         full_args.extend(input_args.clone());
         
-        assert_eq!(full_args, expected_full_args, "Command building failed for {:?}", input_args);
+        assert_eq!(full_args, expected_full_args, "Command building failed for {input_args:?}");
         
         // Test argument count
         assert!(full_args.len() >= 2, "Should have at least default args");
@@ -121,12 +121,12 @@ fn test_error_code_mapping() {
         assert!(!error_code.is_empty(), "Error code should not be empty");
         assert!(error_code.is_ascii(), "Error code should be ASCII");
         assert!(error_code.chars().all(|c| c.is_ascii_uppercase() || c == '_'), 
-               "Error code should be uppercase with underscores: {}", error_code);
+               "Error code should be uppercase with underscores: {error_code}");
         
         // Test HTTP code ranges
         assert!(expected_http_code < 0, "MCP error codes should be negative");
-        assert!(expected_http_code >= -600 && expected_http_code <= -100, 
-               "HTTP code should be in valid range: {}", expected_http_code);
+        assert!((-600..=-100).contains(&expected_http_code), 
+               "HTTP code should be in valid range: {expected_http_code}");
     }
 }
 
@@ -212,13 +212,13 @@ fn test_process_termination_signals() {
         let is_error = code > 0;
         
         assert!(is_success || is_signal || is_error, 
-               "Exit code should be categorized: {} ({})", code, description);
+               "Exit code should be categorized: {code} ({description})");
         
         // Test signal detection
         if is_signal {
             let signal_num = -code;
             assert!(signal_num > 0 && signal_num <= 64, 
-                   "Signal number should be in valid range: {}", signal_num);
+                   "Signal number should be in valid range: {signal_num}");
         }
         
         // Test error classification
@@ -226,7 +226,7 @@ fn test_process_termination_signals() {
             let is_system_error = code >= 126;
             let is_user_error = code < 126;
             assert!(is_system_error || is_user_error, 
-                   "Error should be classified: {} ({})", code, description);
+                   "Error should be classified: {code} ({description})");
         }
     }
 }
@@ -252,9 +252,9 @@ fn test_environment_variable_handling() {
         // Test environment variable validation
         assert!(!var_name.is_empty(), "Environment variable name should not be empty");
         assert!(var_name.starts_with("VKTEAMS_BOT_"), 
-               "Environment variable should have proper prefix: {}", var_name);
+               "Environment variable should have proper prefix: {var_name}");
         assert!(var_name.chars().all(|c| c.is_ascii_uppercase() || c == '_'), 
-               "Environment variable should be uppercase: {}", var_name);
+               "Environment variable should be uppercase: {var_name}");
         
         if let Some(value) = var_value {
             // Test value validation
@@ -263,19 +263,19 @@ fn test_environment_variable_handling() {
             // Test specific variable constraints
             if var_name == "VKTEAMS_BOT_CONFIG" {
                 assert!(value.ends_with(".toml") || value.ends_with(".json") || !value.contains("."),
-                       "Config path should have valid extension or no extension: {}", value);
+                       "Config path should have valid extension or no extension: {value}");
             }
             
             if var_name == "VKTEAMS_BOT_LOG_LEVEL" {
                 let valid_levels = ["trace", "debug", "info", "warn", "error"];
                 assert!(valid_levels.contains(&value), 
-                       "Log level should be valid: {}", value);
+                       "Log level should be valid: {value}");
             }
             
             if var_name == "VKTEAMS_BOT_CHAT_ID" {
                 assert!(value.len() >= 3, "Chat ID should be at least 3 characters");
                 assert!(value.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'), 
-                       "Chat ID should be alphanumeric with underscores: {}", value);
+                       "Chat ID should be alphanumeric with underscores: {value}");
             }
         }
     }
@@ -319,7 +319,7 @@ fn test_command_output_parsing() {
         let parse_result = serde_json::from_str::<serde_json::Value>(output);
         
         if should_parse {
-            assert!(parse_result.is_ok(), "Should parse successfully: {}", output);
+            assert!(parse_result.is_ok(), "Should parse successfully: {output}");
             
             let parsed = parse_result.unwrap();
             
@@ -329,10 +329,10 @@ fn test_command_output_parsing() {
             let has_error = parsed.get("error").is_some();
             
             assert!(has_success || has_ok || has_error, 
-                   "Parsed JSON should have status indicator: {}", output);
+                   "Parsed JSON should have status indicator: {output}");
             
         } else {
-            assert!(parse_result.is_err(), "Should fail to parse: {}", output);
+            assert!(parse_result.is_err(), "Should fail to parse: {output}");
         }
     }
 }
@@ -372,14 +372,14 @@ fn test_config_file_path_resolution() {
         
         // Test file extension
         assert!(path.ends_with(".toml") || path.ends_with(".json") || path.ends_with(".yaml"),
-               "Config path should have valid extension: {}", path);
+               "Config path should have valid extension: {path}");
         
         // Test path components
         let has_directory = path.contains("/") || path.contains("\\");
         let is_filename_only = !has_directory;
         
         if is_filename_only {
-            assert!(path.len() < 100, "Filename should be reasonable length: {}", path);
+            assert!(path.len() < 100, "Filename should be reasonable length: {path}");
         }
         
         // Test special characters
@@ -388,7 +388,7 @@ fn test_config_file_path_resolution() {
             "/-_\\.~: ".contains(c) ||
             (cfg!(windows) && "\\:".contains(c))
         });
-        assert!(has_valid_chars, "Path should have valid characters: {}", path);
+        assert!(has_valid_chars, "Path should have valid characters: {path}");
     }
 }
 
@@ -418,10 +418,10 @@ fn test_error_retry_scenarios() {
         assert!(!error_type.is_empty(), "Error type should not be empty");
         
         if should_retry {
-            assert!(max_retries > 0, "Retryable errors should have retry count > 0: {}", error_type);
-            assert!(max_retries <= 5, "Retry count should be reasonable: {}", error_type);
+            assert!(max_retries > 0, "Retryable errors should have retry count > 0: {error_type}");
+            assert!(max_retries <= 5, "Retry count should be reasonable: {error_type}");
         } else {
-            assert_eq!(max_retries, 0, "Non-retryable errors should have 0 retries: {}", error_type);
+            assert_eq!(max_retries, 0, "Non-retryable errors should have 0 retries: {error_type}");
         }
         
         // Test retry delay calculation (exponential backoff)
@@ -474,7 +474,7 @@ fn test_concurrent_command_execution() {
             let is_db_command = command.contains("database");
             
             assert!(is_quick_command || is_slow_command || is_file_command || is_db_command,
-                   "Command should be categorized: {}", command);
+                   "Command should be categorized: {command}");
         }
     }
 }

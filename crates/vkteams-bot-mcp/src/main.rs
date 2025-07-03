@@ -23,8 +23,8 @@ async fn main() -> Result<()> {
             service.waiting().await?;
         }
         Err(e) => {
-            eprintln!("Error occurred while serving: {}", e);
-            return Err(Error::new(std::io::ErrorKind::Other, e));
+            eprintln!("Error occurred while serving: {e}");
+            return Err(Error::other(e));
         }
     }
     Ok(())

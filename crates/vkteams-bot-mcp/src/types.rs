@@ -96,13 +96,12 @@ impl Server {
         if let Ok(config_path) = std::env::var("VKTEAMS_BOT_CONFIG") {
             match UnifiedConfig::load_from_file(&config_path) {
                 Ok(config) => {
-                    eprintln!("✓ Loaded config from VKTEAMS_BOT_CONFIG: {}", config_path);
+                    eprintln!("✓ Loaded config from VKTEAMS_BOT_CONFIG: {config_path}");
                     return config;
                 }
                 Err(e) => {
                     eprintln!(
-                        "⚠ Failed to load config from VKTEAMS_BOT_CONFIG ({}): {} - trying fallback locations",
-                        config_path, e
+                        "⚠ Failed to load config from VKTEAMS_BOT_CONFIG ({config_path}): {e} - trying fallback locations"
                     );
                 }
             }
@@ -119,7 +118,7 @@ impl Server {
         for path in &config_paths {
             match UnifiedConfig::load_from_file(path) {
                 Ok(config) => {
-                    eprintln!("✓ Loaded config from: {}", path);
+                    eprintln!("✓ Loaded config from: {path}");
                     return config;
                 }
                 Err(_) => {
@@ -174,12 +173,16 @@ mod tests {
             }
             Err(e) => {
                 println!(
-                    "⚠ Expected failure in test environment without CLI binary: {}",
-                    e
+                    "⚠ Expected failure in test environment without CLI binary: {e}"
                 );
                 // This is acceptable in test environment where CLI binary might not be available
                 assert!(e.to_string().contains("CLI") || e.to_string().contains("bridge"));
             }
+        }
+
+        // Clean up environment variable for next test
+        unsafe {
+            std::env::remove_var("VKTEAMS_BOT_CHAT_ID");
         }
     }
 
@@ -204,11 +207,15 @@ mod tests {
             }
             Err(e) => {
                 println!(
-                    "⚠ Expected failure in test environment without CLI binary: {}",
-                    e
+                    "⚠ Expected failure in test environment without CLI binary: {e}"
                 );
                 assert!(e.to_string().contains("CLI") || e.to_string().contains("not found"));
             }
+        }
+
+        // Clean up environment variable
+        unsafe {
+            std::env::remove_var("VKTEAMS_BOT_CHAT_ID");
         }
     }
 
@@ -269,6 +276,11 @@ mod tests {
             Err(_) => {
                 println!("Bridge test skipped - CLI binary not available in test environment");
             }
+        }
+
+        // Clean up environment variable
+        unsafe {
+            std::env::remove_var("VKTEAMS_BOT_CHAT_ID");
         }
     }
 }

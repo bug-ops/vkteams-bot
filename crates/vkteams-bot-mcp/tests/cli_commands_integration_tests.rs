@@ -174,7 +174,7 @@ fn test_database_and_search_command_patterns() {
             assert!(full_args.contains(&"--query"));
         }
         
-        if command.contains("get-database-stats") && args.len() > 0 {
+        if command.contains("get-database-stats") && !args.is_empty() {
             assert!(full_args.contains(&"--chat-id") || full_args.contains(&"--since"));
         }
         
@@ -300,7 +300,7 @@ fn test_error_response_patterns() {
             "NOT_FOUND", "UNAUTHORIZED", "INVALID_INPUT", "RATE_LIMIT", 
             "TIMEOUT", "FILE_NOT_FOUND", "MESSAGE_NOT_FOUND", "CHAT_NOT_FOUND"
         ];
-        assert!(valid_codes.contains(&error_code), "Invalid error code: {}", error_code);
+        assert!(valid_codes.contains(&error_code), "Invalid error code: {error_code}");
         
         // Validate error messages
         let error_message = response["error"]["message"].as_str().unwrap();
@@ -335,13 +335,13 @@ fn test_parameter_validation_patterns() {
     
     for (command, required_params) in required_parameters {
         // Verify that required parameters are defined
-        assert!(!required_params.is_empty(), "Command {} should have required parameters", command);
+        assert!(!required_params.is_empty(), "Command {command} should have required parameters");
         
         for param in required_params {
             assert!(!param.is_empty(), "Parameter name should not be empty");
             assert!(!param.contains(" "), "Parameter name should not contain spaces");
             assert!(param.contains("-") || param.chars().all(|c| c.is_ascii_lowercase()), 
-                    "Parameter name should be kebab-case or lowercase: {}", param);
+                    "Parameter name should be kebab-case or lowercase: {param}");
         }
     }
     
@@ -376,10 +376,10 @@ fn test_special_character_handling() {
         
         if text.is_empty() {
             // Empty text might be invalid for some commands
-            assert!(text.len() == 0);
+            assert!(text.is_empty());
         } else {
             // Non-empty text should be handled properly
-            assert!(text.len() > 0);
+            assert!(!text.is_empty());
         }
         
         // Test text encoding
@@ -448,17 +448,17 @@ fn test_numeric_parameter_validation() {
         for value in values {
             // Test numeric parsing
             let parsed = value.parse::<i32>();
-            assert!(parsed.is_ok(), "Value {} should be a valid number for {}", value, param_name);
+            assert!(parsed.is_ok(), "Value {value} should be a valid number for {param_name}");
             
             let num = parsed.unwrap();
-            assert!(num >= 0, "Numeric value should be non-negative for {}", param_name);
+            assert!(num >= 0, "Numeric value should be non-negative for {param_name}");
             
             if param_name == "limit" {
                 assert!(num > 0 && num <= 1000, "Limit should be between 1 and 1000");
             }
             
             if param_name == "timeout" {
-                assert!(num >= 1 && num <= 600, "Timeout should be between 1 and 600 seconds");
+                assert!((1..=600).contains(&num), "Timeout should be between 1 and 600 seconds");
             }
         }
     }
@@ -479,10 +479,10 @@ fn test_boolean_flag_patterns() {
         for value in values {
             // Test boolean parsing
             let is_boolean = value == "true" || value == "false";
-            assert!(is_boolean, "Value {} should be a valid boolean for {}", value, flag_name);
+            assert!(is_boolean, "Value {value} should be a valid boolean for {flag_name}");
             
             let parsed = value.parse::<bool>();
-            assert!(parsed.is_ok(), "Value {} should parse as boolean for {}", value, flag_name);
+            assert!(parsed.is_ok(), "Value {value} should parse as boolean for {flag_name}");
         }
     }
 }

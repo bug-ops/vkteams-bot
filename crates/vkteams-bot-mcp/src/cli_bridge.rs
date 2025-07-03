@@ -347,7 +347,7 @@ mod tests {
         // The important thing is that the code compiles and handles errors properly
         match result {
             Ok(_) => println!("CLI bridge created successfully"),
-            Err(e) => println!("Expected error in test environment: {}", e),
+            Err(e) => println!("Expected error in test environment: {e}"),
         }
     }
 
@@ -579,7 +579,7 @@ mod tests {
 
         let config = UnifiedConfig::default();
         if let Ok(bridge) = CliBridge::new(&config) {
-            let debug_str = format!("{:?}", bridge);
+            let debug_str = format!("{bridge:?}");
             assert!(debug_str.contains("CliBridge"));
             assert!(debug_str.contains("cli_path"));
             assert!(debug_str.contains("default_args"));
@@ -603,7 +603,7 @@ mod tests {
                 assert!(msg.contains("vkteams-bot-cli"));
                 assert!(msg.contains("not found"));
             }
-            Err(e) => println!("Unexpected error (acceptable in test environment): {}", e),
+            Err(e) => println!("Unexpected error (acceptable in test environment): {e}"),
         }
     }
 
@@ -628,7 +628,7 @@ mod tests {
             }
             Err(e) => {
                 // Expected in test environment without CLI binary
-                println!("Expected error in test environment: {}", e);
+                println!("Expected error in test environment: {e}");
             }
         }
 
@@ -790,7 +790,7 @@ mod tests {
 
         let config = UnifiedConfig::default();
         if let Ok(bridge) = CliBridge::new(&config) {
-            let debug_output = format!("{:?}", bridge);
+            let debug_output = format!("{bridge:?}");
             assert!(debug_output.contains("CliBridge"));
             assert!(debug_output.contains("cli_path"));
             assert!(debug_output.contains("default_args"));
@@ -871,7 +871,7 @@ mod tests {
                 assert!(path.contains("not found"));
             }
             Err(e) => {
-                println!("Unexpected error (acceptable in test environment): {}", e);
+                println!("Unexpected error (acceptable in test environment): {e}");
             }
         }
     }
@@ -1052,9 +1052,9 @@ mod tests {
                 assert!(msg.contains("common system locations"));
                 assert!(msg.contains("/usr/local/bin"));
                 assert!(msg.contains("/app"));
-                println!("⚠ CLI not found as expected: {}", msg);
+                println!("⚠ CLI not found as expected: {msg}");
             }
-            Err(e) => panic!("Unexpected error: {}", e),
+            Err(e) => panic!("Unexpected error: {e}"),
         }
     }
 
@@ -1071,7 +1071,7 @@ mod tests {
             }
             Err(e) => {
                 // This can fail if the path doesn't exist, which is fine for testing
-                println!("⚠ Custom path test failed (expected): {}", e);
+                println!("⚠ Custom path test failed (expected): {e}");
             }
         }
     }
@@ -1091,13 +1091,13 @@ mod tests {
                 assert!(msg.contains("/app"));
                 assert!(msg.contains("/bin"));
                 assert!(msg.contains("relative to current executable"));
-                println!("✓ Comprehensive error message: {}", msg);
+                println!("✓ Comprehensive error message: {msg}");
             }
             Ok(_) => {
                 println!("✓ CLI bridge created successfully");
             }
             Err(e) => {
-                println!("⚠ Unexpected error type: {}", e);
+                println!("⚠ Unexpected error type: {e}");
             }
         }
     }

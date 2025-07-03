@@ -118,7 +118,7 @@ mod tests {
         let bot_err = BotError::Config("test bot error".to_string());
         let err = McpError::Bot(bot_err);
         let rmcp_err: Error = err.into();
-        let msg = format!("{}", rmcp_err);
+        let msg = format!("{rmcp_err}");
         assert!(msg.contains("test bot error"));
     }
 
@@ -127,7 +127,7 @@ mod tests {
         let serde_err = serde_json::from_str::<u32>("not_a_number").unwrap_err();
         let err = McpError::Serde(serde_err);
         let rmcp_err: Error = err.into();
-        let msg = format!("{}", rmcp_err);
+        let msg = format!("{rmcp_err}");
         assert!(msg.contains("expected ident") || msg.contains("expected"));
     }
 
@@ -136,7 +136,7 @@ mod tests {
         let rmcp_err = RmcpError::parse_error("rmcp parse error", None);
         let err = McpError::Rmcp(rmcp_err.clone());
         let rmcp_err2: Error = err.into();
-        let msg = format!("{}", rmcp_err2);
+        let msg = format!("{rmcp_err2}");
         assert!(msg.contains("rmcp parse error"));
     }
 
@@ -144,7 +144,7 @@ mod tests {
     fn test_mcp_error_other() {
         let err = McpError::Other("other error".to_string());
         let rmcp_err: Error = err.into();
-        let msg = format!("{}", rmcp_err);
+        let msg = format!("{rmcp_err}");
         assert!(msg.contains("other error"));
     }
 
@@ -153,7 +153,7 @@ mod tests {
         let bridge_err = BridgeError::RateLimit("rate limit exceeded".to_string());
         let err = McpError::Bridge(bridge_err);
         let rmcp_err: Error = err.into();
-        let msg = format!("{}", rmcp_err);
+        let msg = format!("{rmcp_err}");
         assert!(msg.contains("rate limit"));
     }
 }
