@@ -257,9 +257,10 @@ impl Server {
             reply_msg_id,
         }): Parameters<SendTextParams>,
     ) -> MCPResult {
+        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
         convert_bridge_result(
             self.cli
-                .send_text(&text, chat_id.as_deref(), reply_msg_id.as_deref())
+                .send_text(&text, target_chat_id, reply_msg_id.as_deref())
                 .await,
         )
     }
@@ -273,9 +274,10 @@ impl Server {
             caption,
         }): Parameters<SendFileParams>,
     ) -> MCPResult {
+        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
         convert_bridge_result(
             self.cli
-                .send_file(&file_path, chat_id.as_deref(), caption.as_deref())
+                .send_file(&file_path, target_chat_id, caption.as_deref())
                 .await,
         )
     }
@@ -285,7 +287,8 @@ impl Server {
         &self,
         Parameters(SendVoiceParams { file_path, chat_id }): Parameters<SendVoiceParams>,
     ) -> MCPResult {
-        convert_bridge_result(self.cli.send_voice(&file_path, chat_id.as_deref()).await)
+        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
+        convert_bridge_result(self.cli.send_voice(&file_path, target_chat_id).await)
     }
 
     #[tool(description = "Edit existing message")]
@@ -297,9 +300,10 @@ impl Server {
             chat_id,
         }): Parameters<EditMessageParams>,
     ) -> MCPResult {
+        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
         convert_bridge_result(
             self.cli
-                .edit_message(&message_id, &new_text, chat_id.as_deref())
+                .edit_message(&message_id, &new_text, target_chat_id)
                 .await,
         )
     }
@@ -312,9 +316,10 @@ impl Server {
             chat_id,
         }): Parameters<DeleteMessageParams>,
     ) -> MCPResult {
+        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
         convert_bridge_result(
             self.cli
-                .delete_message(&message_id, chat_id.as_deref())
+                .delete_message(&message_id, target_chat_id)
                 .await,
         )
     }
@@ -327,7 +332,8 @@ impl Server {
             chat_id,
         }): Parameters<PinMessageParams>,
     ) -> MCPResult {
-        convert_bridge_result(self.cli.pin_message(&message_id, chat_id.as_deref()).await)
+        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
+        convert_bridge_result(self.cli.pin_message(&message_id, target_chat_id).await)
     }
 
     #[tool(description = "Unpin message from chat")]
@@ -338,9 +344,10 @@ impl Server {
             chat_id,
         }): Parameters<UnpinMessageParams>,
     ) -> MCPResult {
+        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
         convert_bridge_result(
             self.cli
-                .unpin_message(&message_id, chat_id.as_deref())
+                .unpin_message(&message_id, target_chat_id)
                 .await,
         )
     }
@@ -352,7 +359,8 @@ impl Server {
         &self,
         Parameters(ChatInfoParams { chat_id }): Parameters<ChatInfoParams>,
     ) -> MCPResult {
-        convert_bridge_result(self.cli.get_chat_info(chat_id.as_deref()).await)
+        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
+        convert_bridge_result(self.cli.get_chat_info(target_chat_id).await)
     }
 
     #[tool(description = "Get user profile information")]
@@ -368,9 +376,10 @@ impl Server {
         &self,
         Parameters(GetChatMembersParams { chat_id, cursor }): Parameters<GetChatMembersParams>,
     ) -> MCPResult {
+        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
         convert_bridge_result(
             self.cli
-                .get_chat_members(chat_id.as_deref(), cursor.as_deref())
+                .get_chat_members(target_chat_id, cursor.as_deref())
                 .await,
         )
     }
@@ -380,7 +389,8 @@ impl Server {
         &self,
         Parameters(GetChatAdminsParams { chat_id }): Parameters<GetChatAdminsParams>,
     ) -> MCPResult {
-        convert_bridge_result(self.cli.get_chat_admins(chat_id.as_deref()).await)
+        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
+        convert_bridge_result(self.cli.get_chat_admins(target_chat_id).await)
     }
 
     #[tool(description = "Set chat title")]
@@ -388,7 +398,8 @@ impl Server {
         &self,
         Parameters(SetChatTitleParams { title, chat_id }): Parameters<SetChatTitleParams>,
     ) -> MCPResult {
-        convert_bridge_result(self.cli.set_chat_title(&title, chat_id.as_deref()).await)
+        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
+        convert_bridge_result(self.cli.set_chat_title(&title, target_chat_id).await)
     }
 
     #[tool(description = "Set chat description")]
@@ -396,7 +407,8 @@ impl Server {
         &self,
         Parameters(SetChatAboutParams { about, chat_id }): Parameters<SetChatAboutParams>,
     ) -> MCPResult {
-        convert_bridge_result(self.cli.set_chat_about(&about, chat_id.as_deref()).await)
+        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
+        convert_bridge_result(self.cli.set_chat_about(&about, target_chat_id).await)
     }
 
     #[tool(description = "Send typing or looking action to chat")]
@@ -404,7 +416,8 @@ impl Server {
         &self,
         Parameters(SendActionParams { action, chat_id }): Parameters<SendActionParams>,
     ) -> MCPResult {
-        convert_bridge_result(self.cli.send_action(&action, chat_id.as_deref()).await)
+        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
+        convert_bridge_result(self.cli.send_action(&action, target_chat_id).await)
     }
 
     // === File Upload Commands ===
@@ -420,12 +433,13 @@ impl Server {
             reply_msg_id,
         }): Parameters<UploadFileFromBase64Params>,
     ) -> MCPResult {
+        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
         convert_bridge_result(
             self.cli
                 .upload_file_base64(
                     &file_name,
                     &base64_content,
-                    chat_id.as_deref(),
+                    target_chat_id,
                     caption.as_deref(),
                     reply_msg_id.as_deref(),
                 )
@@ -443,9 +457,10 @@ impl Server {
             caption,
         }): Parameters<UploadTextAsFileParams>,
     ) -> MCPResult {
+        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
         convert_bridge_result(
             self.cli
-                .upload_text_file(&file_name, &content, chat_id.as_deref(), caption.as_deref())
+                .upload_text_file(&file_name, &content, target_chat_id, caption.as_deref())
                 .await,
         )
     }
@@ -461,13 +476,14 @@ impl Server {
             caption,
         }): Parameters<UploadJsonFileParams>,
     ) -> MCPResult {
+        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
         convert_bridge_result(
             self.cli
                 .upload_json_file(
                     &file_name,
                     &json_data,
                     pretty.unwrap_or(true),
-                    chat_id.as_deref(),
+                    target_chat_id,
                     caption.as_deref(),
                 )
                 .await,
@@ -493,9 +509,10 @@ impl Server {
             limit,
         }): Parameters<SearchSemanticParams>,
     ) -> MCPResult {
+        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
         convert_bridge_result(
             self.cli
-                .search_semantic(&query, chat_id.as_deref(), limit)
+                .search_semantic(&query, target_chat_id, limit)
                 .await,
         )
     }
@@ -509,9 +526,10 @@ impl Server {
             limit,
         }): Parameters<SearchTextParams>,
     ) -> MCPResult {
+        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
         convert_bridge_result(
             self.cli
-                .search_text(&query, chat_id.as_deref(), limit)
+                .search_text(&query, target_chat_id, limit)
                 .await,
         )
     }
@@ -521,9 +539,10 @@ impl Server {
         &self,
         Parameters(GetDatabaseStatsParams { chat_id, since }): Parameters<GetDatabaseStatsParams>,
     ) -> MCPResult {
+        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
         convert_bridge_result(
             self.cli
-                .get_database_stats(chat_id.as_deref(), since.as_deref())
+                .get_database_stats(target_chat_id, since.as_deref())
                 .await,
         )
     }
@@ -537,10 +556,11 @@ impl Server {
             timeframe,
         }): Parameters<GetContextParams>,
     ) -> MCPResult {
+        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
         convert_bridge_result(
             self.cli
                 .get_context(
-                    chat_id.as_deref(),
+                    target_chat_id,
                     context_type.as_deref(),
                     timeframe.as_deref(),
                 )
@@ -564,9 +584,10 @@ impl Server {
             since,
         }): Parameters<GetRecentMessagesParams>,
     ) -> MCPResult {
+        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
         convert_bridge_result(
             self.cli
-                .get_recent_messages(chat_id.as_deref(), limit, since.as_deref())
+                .get_recent_messages(target_chat_id, limit, since.as_deref())
                 .await,
         )
     }
@@ -1156,6 +1177,27 @@ mod tests {
         unsafe {
             std::env::remove_var("VKTEAMS_BOT_CHAT_ID");
         }
+    }
+
+    #[test]
+    fn test_chat_id_fallback_logic() {
+        // Test that target_chat_id uses config fallback when chat_id is None
+        let config_chat_id = Some("config_chat_123".to_string());
+        let param_chat_id: Option<String> = None;
+        
+        let target_chat_id = param_chat_id.as_deref().or(config_chat_id.as_deref());
+        assert_eq!(target_chat_id, Some("config_chat_123"));
+        
+        // Test that parameter chat_id takes precedence over config
+        let param_chat_id = Some("param_chat_456".to_string());
+        let target_chat_id = param_chat_id.as_deref().or(config_chat_id.as_deref());
+        assert_eq!(target_chat_id, Some("param_chat_456"));
+        
+        // Test when both are None
+        let param_chat_id: Option<String> = None;
+        let config_chat_id: Option<String> = None;
+        let target_chat_id = param_chat_id.as_deref().or(config_chat_id.as_deref());
+        assert_eq!(target_chat_id, None);
     }
 
     #[test]
