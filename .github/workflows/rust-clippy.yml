@@ -32,17 +32,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - uses: actions/cache@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
+          toolchain: 1.88.0
+          cache: true
+          cache-workspaces: true
+          cache-key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
+          components: rustfmt clippy
       - name: Install required cargo
         run: cargo install clippy-sarif sarif-fmt
 
