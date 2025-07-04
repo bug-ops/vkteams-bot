@@ -28,4 +28,4 @@ jobs:
         cache-key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
         components: llvm-tools-preview
     - name: Build
-      run: cargo build --verbose
+      run: cargo build --verbose --all-features
