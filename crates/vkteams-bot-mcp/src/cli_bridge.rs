@@ -297,17 +297,17 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["database", "recent"];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
         let limit_str;
-        if let Some(limit) = limit {
+        if let Some(limit) = limit.filter(|&l| l > 0) {
             limit_str = limit.to_string();
             args.extend(&["--limit", &limit_str]);
         }
 
-        if let Some(since) = since {
+        if let Some(since) = since.filter(|s| !s.trim().is_empty()) {
             args.extend(&["--since", since]);
         }
 
@@ -636,21 +636,29 @@ mod tests {
                     "2024-01-01",
                 ],
             ),
+            // Test validation cases - empty strings and zero values should be filtered out
+            (Some(""), None, None, vec!["database", "recent"]),
+            (Some("   "), None, None, vec!["database", "recent"]),
+            (None, Some(0), None, vec!["database", "recent"]),
+            (None, None, Some(""), vec!["database", "recent"]),
+            (None, None, Some("   "), vec!["database", "recent"]),
+            (Some(""), Some(0), Some(""), vec!["database", "recent"]),
         ];
 
         for (chat_id, limit, since, expected_args) in args_test_cases {
             let mut args = vec!["database", "recent"];
 
-            if let Some(chat_id) = chat_id {
+            if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
                 args.extend(&["--chat-id", chat_id]);
             }
 
-            let limit_str = limit.map(|l| l.to_string());
-            if let Some(ref limit_str) = limit_str {
-                args.extend(&["--limit", limit_str]);
+            let limit_str;
+            if let Some(limit) = limit.filter(|&l| l > 0) {
+                limit_str = limit.to_string();
+                args.extend(&["--limit", &limit_str]);
             }
 
-            if let Some(since) = since {
+            if let Some(since) = since.filter(|s| !s.trim().is_empty()) {
                 args.extend(&["--since", since]);
             }
 

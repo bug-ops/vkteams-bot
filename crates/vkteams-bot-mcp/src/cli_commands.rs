@@ -20,11 +20,11 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["send-text", "--message", text];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
-        if let Some(reply_id) = reply_msg_id {
+        if let Some(reply_id) = reply_msg_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--reply-msg-id", reply_id]);
         }
 
@@ -40,11 +40,11 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["send-file", "--file-path", file_path];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
-        if let Some(caption) = caption {
+        if let Some(caption) = caption.filter(|c| !c.trim().is_empty()) {
             args.extend(&["--caption", caption]);
         }
 
@@ -59,7 +59,7 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["send-voice", "--file-path", file_path];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
@@ -81,7 +81,7 @@ impl CliBridge {
             new_text,
         ];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
@@ -96,7 +96,7 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["delete-message", "--message-id", message_id];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
@@ -111,7 +111,7 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["pin-message", "--message-id", message_id];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
@@ -126,7 +126,7 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["unpin-message", "--message-id", message_id];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
@@ -139,7 +139,7 @@ impl CliBridge {
     pub async fn get_chat_info(&self, chat_id: Option<&str>) -> Result<Value, BridgeError> {
         let mut args = vec!["get-chat-info"];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
@@ -160,11 +160,11 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["get-chat-members"];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
-        if let Some(cursor) = cursor {
+        if let Some(cursor) = cursor.filter(|c| !c.trim().is_empty()) {
             args.extend(&["--cursor", cursor]);
         }
 
@@ -175,7 +175,7 @@ impl CliBridge {
     pub async fn get_chat_admins(&self, chat_id: Option<&str>) -> Result<Value, BridgeError> {
         let mut args = vec!["get-chat-admins"];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
@@ -190,7 +190,7 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["set-chat-title", "--title", title];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
@@ -205,7 +205,7 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["set-chat-about", "--about", about];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
@@ -220,7 +220,7 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["send-action", "--action", action];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
@@ -240,15 +240,15 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["upload", "--name", name, "--content-base64", content_base64];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
-        if let Some(caption) = caption {
+        if let Some(caption) = caption.filter(|c| !c.trim().is_empty()) {
             args.extend(&["--caption", caption]);
         }
 
-        if let Some(reply_id) = reply_msg_id {
+        if let Some(reply_id) = reply_msg_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--reply-msg-id", reply_id]);
         }
 
@@ -265,11 +265,11 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["upload-text", "--name", name, "--content", content];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
-        if let Some(caption) = caption {
+        if let Some(caption) = caption.filter(|c| !c.trim().is_empty()) {
             args.extend(&["--caption", caption]);
         }
 
@@ -291,11 +291,11 @@ impl CliBridge {
             args.push("--pretty");
         }
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
-        if let Some(caption) = caption {
+        if let Some(caption) = caption.filter(|c| !c.trim().is_empty()) {
             args.extend(&["--caption", caption]);
         }
 
@@ -317,11 +317,11 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["database", "stats"];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
-        if let Some(since) = since {
+        if let Some(since) = since.filter(|s| !s.trim().is_empty()) {
             args.extend(&["--since", since]);
         }
 
@@ -335,15 +335,16 @@ impl CliBridge {
         chat_id: Option<&str>,
         limit: Option<usize>,
     ) -> Result<Value, BridgeError> {
-        let limit_str = limit.map(|l| l.to_string());
         let mut args = vec!["search", "semantic", query];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
-        if let Some(ref limit_str) = limit_str {
-            args.extend(&["--limit", limit_str]);
+        let limit_str;
+        if let Some(limit) = limit.filter(|&l| l > 0) {
+            limit_str = limit.to_string();
+            args.extend(&["--limit", &limit_str]);
         }
 
         self.execute_command(&args).await
@@ -356,15 +357,16 @@ impl CliBridge {
         chat_id: Option<&str>,
         limit: Option<i64>,
     ) -> Result<Value, BridgeError> {
-        let limit_str = limit.map(|l| l.to_string());
         let mut args = vec!["search", "text", query];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
-        if let Some(ref limit_str) = limit_str {
-            args.extend(&["--limit", limit_str]);
+        let limit_str;
+        if let Some(limit) = limit.filter(|&l| l > 0) {
+            limit_str = limit.to_string();
+            args.extend(&["--limit", &limit_str]);
         }
 
         self.execute_command(&args).await
@@ -379,15 +381,15 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["context", "get"];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
-        if let Some(context_type) = context_type {
+        if let Some(context_type) = context_type.filter(|ct| !ct.trim().is_empty()) {
             args.extend(&["--context-type", context_type]);
         }
 
-        if let Some(timeframe) = timeframe {
+        if let Some(timeframe) = timeframe.filter(|tf| !tf.trim().is_empty()) {
             args.extend(&["--timeframe", timeframe]);
         }
 
@@ -407,15 +409,16 @@ impl CliBridge {
         last_event_id: Option<&str>,
         poll_time: Option<u64>,
     ) -> Result<Value, BridgeError> {
-        let poll_time_str = poll_time.map(|p| p.to_string());
         let mut args = vec!["get-events"];
 
-        if let Some(event_id) = last_event_id {
+        if let Some(event_id) = last_event_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--last-event-id", event_id]);
         }
 
-        if let Some(ref poll_time_str) = poll_time_str {
-            args.extend(&["--poll-time", poll_time_str]);
+        let poll_time_str;
+        if let Some(poll_time) = poll_time.filter(|&p| p > 0) {
+            poll_time_str = poll_time.to_string();
+            args.extend(&["--poll-time", &poll_time_str]);
         }
 
         self.execute_command(&args).await
