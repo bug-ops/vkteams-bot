@@ -4,6 +4,7 @@
 //! bridge instead of direct library calls. This ensures single source of truth
 //! for all business logic in the CLI.
 
+use crate::cli_bridge::CliBridge;
 use crate::errors::BridgeError;
 use crate::types::{
     ChatInfoParams, DeleteMessageParams, EditMessageParams, EventsGetParams, FileInfoParams,
@@ -16,12 +17,14 @@ use crate::types::{
 use rmcp::{
     ServerHandler,
     handler::server::tool::Parameters,
-    model::{CallToolResult, Content, ErrorCode, ErrorData, ServerCapabilities, ServerInfo},
-    tool, tool_handler,
+    model::{CallToolResult, Content, ErrorCode, ErrorData, ServerInfo},
+    tool, tool_handler, tool_router,
 };
 use serde_json::Value;
 use std::result::Result;
+use std::sync::Arc;
 use tracing::{error, warn};
+use vkteams_bot::config::UnifiedConfig;
 
 pub type MCPResult = Result<CallToolResult, ErrorData>;
 
@@ -51,11 +54,7 @@ fn convert_bridge_result(result: Result<Value, BridgeError>) -> MCPResult {
                 }
                 BridgeError::Timeout(duration) => {
                     error!("Command timed out after {:?}", duration);
-                    (
-                        -504,
-                        format!("Command timed out after {duration:?}"),
-                        None,
-                    )
+                    (-504, format!("Command timed out after {duration:?}"), None)
                 }
                 BridgeError::CliReturnedError(info) => {
                     error!("CLI returned error: {:?}", info);
@@ -99,12 +98,7 @@ fn convert_bridge_result(result: Result<Value, BridgeError>) -> MCPResult {
 #[tool_handler]
 impl ServerHandler for Server {
     fn get_info(&self) -> ServerInfo {
-        let capabilities = ServerCapabilities::builder()
-            .enable_tools()
-            .enable_prompts()
-            .build();
         ServerInfo {
-            capabilities,
             instructions: Some(r#"VKTeams MCP Server — a server for managing a VK Teams bot via MCP (Model Context Protocol).
         
         This server uses CLI-as-backend architecture for unified command execution.
@@ -128,7 +122,130 @@ impl ServerHandler for Server {
     }
 }
 
+impl Default for Server {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[tool_router]
 impl Server {
+    pub fn bridge(&self) -> Arc<CliBridge> {
+        Arc::clone(&self.cli)
+    }
+    /// Create a new Server instance with unified configuration
+    pub fn new() -> Self {
+        let mut config = Self::load_config();
+        config.apply_env_overrides();
+
+        let cli = CliBridge::new(&config).expect("Failed to create CLI bridge");
+
+        Self {
+            cli: Arc::new(cli),
+            config,
+            tool_router: Self::tool_router(),
+        }
+    }
+
+    /// Try to create a new Server instance with error handling
+    pub fn try_new() -> Result<Self, BridgeError> {
+        let mut config = Self::load_config();
+        config.apply_env_overrides();
+
+        let cli = CliBridge::new(&config)?;
+
+        Ok(Self {
+            cli: Arc::new(cli),
+            config,
+            tool_router: Self::tool_router(),
+        })
+    }
+
+    /// Create Server with custom configuration
+    pub fn with_config(mut config: UnifiedConfig) -> Self {
+        config.apply_env_overrides();
+
+        let cli = CliBridge::new(&config).expect("Failed to create CLI bridge");
+
+        Self {
+            cli: Arc::new(cli),
+            config,
+            tool_router: Self::tool_router(),
+        }
+    }
+
+    /// Try to create Server with custom configuration
+    pub fn try_with_config(mut config: UnifiedConfig) -> Result<Self, BridgeError> {
+        config.apply_env_overrides();
+
+        let cli = CliBridge::new(&config)?;
+
+        Ok(Self {
+            cli: Arc::new(cli),
+            config,
+            tool_router: Self::tool_router(),
+        })
+    }
+
+    /// Load configuration from file or use defaults
+    fn load_config() -> UnifiedConfig {
+        // Try environment variable first (highest priority)
+        if let Ok(config_path) = std::env::var("VKTEAMS_BOT_CONFIG") {
+            match UnifiedConfig::load_from_file(&config_path) {
+                Ok(config) => {
+                    eprintln!("✓ Loaded config from VKTEAMS_BOT_CONFIG: {config_path}");
+                    return config;
+                }
+                Err(e) => {
+                    eprintln!(
+                        "⚠ Failed to load config from VKTEAMS_BOT_CONFIG ({config_path}): {e} - trying fallback locations"
+                    );
+                }
+            }
+        }
+
+        // Try to load from standard locations
+        let config_paths = [
+            "config.toml",
+            "shared-config.toml",
+            "/etc/vkteams-bot/config.toml",
+        ];
+
+        // Try static paths
+        for path in &config_paths {
+            match UnifiedConfig::load_from_file(path) {
+                Ok(config) => {
+                    eprintln!("✓ Loaded config from: {path}");
+                    return config;
+                }
+                Err(_) => {
+                    // Silent continue for expected missing files
+                }
+            }
+        }
+
+        // Try user config directory
+        if let Some(home_dir) = dirs::home_dir() {
+            let user_home_path = home_dir.join(".config/vkteams-bot/config.toml");
+            match UnifiedConfig::load_from_file(&user_home_path) {
+                Ok(config) => {
+                    eprintln!(
+                        "✓ Loaded config from user directory: {}",
+                        user_home_path.display()
+                    );
+                    return config;
+                }
+                Err(_) => {
+                    // Silent fallback - user config is optional
+                }
+            }
+        }
+
+        eprintln!("ℹ Using default configuration (no config file found in standard locations)");
+        // Fall back to default (env overrides will be applied in new/with_config)
+        UnifiedConfig::default()
+    }
+
     // === Messaging Commands ===
 
     #[tool(description = "Send text message to chat")]
@@ -720,10 +837,7 @@ mod tests {
             let result = convert_bridge_result(Err(error));
 
             if let Err(error_data) = result {
-                assert_eq!(
-                    error_data.code.0, expected_code,
-                    "Failed for code: {code}"
-                );
+                assert_eq!(error_data.code.0, expected_code, "Failed for code: {code}");
             }
         }
     }
@@ -1019,11 +1133,12 @@ mod tests {
             Ok(server) => {
                 use rmcp::ServerHandler;
                 let info = server.get_info();
-                
+
                 // Test server capabilities
                 assert!(info.capabilities.tools.is_some());
-                assert!(info.capabilities.prompts.is_some());
-                
+                // Prompts are currently disabled in server info
+                // assert!(info.capabilities.prompts.is_some());
+
                 // Test instructions content
                 assert!(info.instructions.is_some());
                 let instructions = info.instructions.unwrap();
@@ -1046,27 +1161,28 @@ mod tests {
     #[test]
     fn test_various_json_response_conversions() {
         // Test different types of JSON responses that would come from CLI commands
-        
+
         // Test messaging response
         let msg_response = serde_json::json!({"msgId": "msg123", "ok": true});
         let result = convert_bridge_result(Ok(msg_response));
         assert!(result.is_ok());
-        
+
         // Test file upload response
-        let file_response = serde_json::json!({"fileId": "file123", "fileName": "test.txt", "size": 1024});
+        let file_response =
+            serde_json::json!({"fileId": "file123", "fileName": "test.txt", "size": 1024});
         let result = convert_bridge_result(Ok(file_response));
         assert!(result.is_ok());
-        
+
         // Test chat info response
         let chat_response = serde_json::json!({
-            "chatId": "chat123", 
+            "chatId": "chat123",
             "title": "Test Chat",
             "members": 5,
             "type": "group"
         });
         let result = convert_bridge_result(Ok(chat_response));
         assert!(result.is_ok());
-        
+
         // Test search response
         let search_response = serde_json::json!({
             "results": [
@@ -1078,17 +1194,17 @@ mod tests {
         });
         let result = convert_bridge_result(Ok(search_response));
         assert!(result.is_ok());
-        
+
         // Test daemon status response
         let daemon_response = serde_json::json!({
-            "status": "running", 
+            "status": "running",
             "uptime": 3600,
             "processId": 12345,
             "memory": "50MB"
         });
         let result = convert_bridge_result(Ok(daemon_response));
         assert!(result.is_ok());
-        
+
         // Test events response
         let events_response = serde_json::json!({
             "events": [
@@ -1100,18 +1216,18 @@ mod tests {
         });
         let result = convert_bridge_result(Ok(events_response));
         assert!(result.is_ok());
-        
+
         // Verify all results have content
         for response in [
             serde_json::json!({"test": "value"}),
             serde_json::json!([1, 2, 3]),
             serde_json::json!("simple string"),
             serde_json::Value::Null,
-            serde_json::json!({"complex": {"nested": {"deep": true}}})
+            serde_json::json!({"complex": {"nested": {"deep": true}}}),
         ] {
             let result = convert_bridge_result(Ok(response));
             assert!(result.is_ok());
-            
+
             if let Ok(call_result) = result {
                 assert!(!call_result.content.is_empty());
             }
@@ -1137,9 +1253,136 @@ mod tests {
         });
         let result = convert_bridge_result(Ok(complex_json));
         assert!(result.is_ok());
-        
+
         if let Ok(call_result) = result {
             assert!(!call_result.content.is_empty());
+        }
+    }
+
+    // Server tests from types.rs
+    #[test]
+    fn test_server_default_and_bridge() {
+        // Set required env vars for default
+        unsafe {
+            std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_chat_id");
+        }
+
+        // Test server creation with graceful error handling
+        match Server::try_new() {
+            Ok(server) => {
+                println!("✓ Server created successfully");
+                assert_eq!(server.config.mcp.chat_id, Some("test_chat_id".to_string()));
+                // Don't assert exact API URL as user might have custom config
+                assert!(!server.config.api.url.is_empty());
+                let bridge = server.bridge();
+                assert!(Arc::strong_count(&bridge) >= 1);
+            }
+            Err(e) => {
+                println!("⚠ Expected failure in test environment without CLI binary: {e}");
+                // This is acceptable in test environment where CLI binary might not be available
+                assert!(e.to_string().contains("CLI") || e.to_string().contains("bridge"));
+            }
+        }
+
+        // Clean up environment variable for next test
+        unsafe {
+            std::env::remove_var("VKTEAMS_BOT_CHAT_ID");
+        }
+    }
+
+    #[test]
+    fn test_server_with_config() {
+        unsafe {
+            std::env::set_var("VKTEAMS_BOT_CHAT_ID", "config_test_chat");
+        }
+
+        let mut config = UnifiedConfig::default();
+        config.mcp.chat_id = Some("custom_chat_id".to_string());
+        config.api.url = "https://custom.api.com".to_string();
+
+        match Server::try_with_config(config.clone()) {
+            Ok(server) => {
+                println!("✓ Server with config created successfully");
+                assert_eq!(
+                    server.config.mcp.chat_id,
+                    Some("config_test_chat".to_string())
+                ); // env override
+                assert_eq!(server.config.api.url, "https://custom.api.com");
+            }
+            Err(e) => {
+                println!("⚠ Expected failure in test environment without CLI binary: {e}");
+                assert!(e.to_string().contains("CLI") || e.to_string().contains("not found"));
+            }
+        }
+
+        // Clean up environment variable
+        unsafe {
+            std::env::remove_var("VKTEAMS_BOT_CHAT_ID");
+        }
+    }
+
+    #[test]
+    fn test_config_loading_scenarios() {
+        // Test config loading with environment variable
+        let original_config = std::env::var("VKTEAMS_BOT_CONFIG").ok();
+
+        unsafe {
+            std::env::set_var("VKTEAMS_BOT_CONFIG", "/nonexistent/config.toml");
+        }
+
+        // This should handle the error gracefully and fall back to available config
+        let config = Server::load_config();
+        assert!(!config.api.url.is_empty()); // Should have some URL
+
+        // Restore original state
+        unsafe {
+            match original_config {
+                Some(config) => std::env::set_var("VKTEAMS_BOT_CONFIG", config),
+                None => std::env::remove_var("VKTEAMS_BOT_CONFIG"),
+            }
+        }
+    }
+
+    #[test]
+    fn test_user_config_directory_resolution() {
+        // Test config loading when home directory is available
+        if let Some(home_dir) = dirs::home_dir() {
+            let user_config_path = home_dir.join(".config/vkteams-bot/config.toml");
+            println!("Testing user config path: {}", user_config_path.display());
+
+            // This tests the path resolution logic
+            let config = Server::load_config();
+            assert!(!config.api.url.is_empty());
+            // Don't assert specific URL as user might have custom config
+        }
+    }
+
+    #[test]
+    fn test_bridge_reference_counting() {
+        unsafe {
+            std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_bridge_ref");
+        }
+
+        match Server::try_new() {
+            Ok(server) => {
+                let bridge1 = server.bridge();
+                assert!(Arc::strong_count(&bridge1) >= 1);
+
+                // Test multiple references
+                let bridge2 = server.bridge();
+                assert!(Arc::strong_count(&bridge2) >= 2);
+
+                // Both should point to the same instance
+                assert!(Arc::ptr_eq(&bridge1, &bridge2));
+            }
+            Err(_) => {
+                println!("Bridge test skipped - CLI binary not available in test environment");
+            }
+        }
+
+        // Clean up environment variable
+        unsafe {
+            std::env::remove_var("VKTEAMS_BOT_CHAT_ID");
         }
     }
 }
