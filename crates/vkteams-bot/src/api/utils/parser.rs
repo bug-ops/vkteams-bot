@@ -46,7 +46,7 @@ impl MessageTextParser {
                 )),
                 None => Ok(format!("<pre>{}</pre>", self.replace_chars(text))),
             },
-            MessageTextFormat::Mention(chat_id) => Ok(format!("<a>@[{}]</a>", chat_id)),
+            MessageTextFormat::Mention(chat_id) => Ok(format!("<a>@[{chat_id}]</a>")),
             MessageTextFormat::Strikethrough(text) => {
                 Ok(format!("<s>{}</s>", self.replace_chars(text)))
             }
@@ -63,7 +63,7 @@ impl MessageTextParser {
                 for item in list {
                     result.push_str(&format!("<li>{}</li>", self.replace_chars(item)));
                 }
-                Ok(format!("<ol>{}</ol>", result))
+                Ok(format!("<ol>{result}</ol>"))
             }
             MessageTextFormat::UnOrderedList(list) => {
                 let estimated_size = list.iter().map(|s| s.len() + 10).sum();
@@ -71,7 +71,7 @@ impl MessageTextParser {
                 for item in list {
                     result.push_str(&format!("<li>{}</li>", self.replace_chars(item)));
                 }
-                Ok(format!("<ul>{}</ul>", result))
+                Ok(format!("<ul>{result}</ul>"))
             }
             MessageTextFormat::None => Err(BotError::Validation(
                 "MessageTextFormat::None is not supported".to_string(),

@@ -77,21 +77,21 @@ pub enum BotError {
 impl fmt::Display for BotError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            BotError::Api(e) => write!(f, "API Error: {}", e),
-            BotError::Network(e) => write!(f, "Network Error: {}", e),
+            BotError::Api(e) => write!(f, "API Error: {e}"),
+            BotError::Network(e) => write!(f, "Network Error: {e}"),
             #[cfg(feature = "grpc")]
             BotError::Grpc(e) => write!(f, "gRPC Error: {}", e),
-            BotError::Serialization(e) => write!(f, "Serialization Error: {}", e),
-            BotError::Url(e) => write!(f, "URL Error: {}", e),
-            BotError::Io(e) => write!(f, "IO Error: {}", e),
+            BotError::Serialization(e) => write!(f, "Serialization Error: {e}"),
+            BotError::Url(e) => write!(f, "URL Error: {e}"),
+            BotError::Io(e) => write!(f, "IO Error: {e}"),
             #[cfg(feature = "templates")]
             BotError::Template(e) => write!(f, "Template Error: {}", e),
-            BotError::Config(e) => write!(f, "Config Error: {}", e),
-            BotError::Validation(e) => write!(f, "Validation Error: {}", e),
-            BotError::UrlParams(e) => write!(f, "URL Parameters Error: {}", e),
-            BotError::System(e) => write!(f, "System Error: {}", e),
-            BotError::Environment(e) => write!(f, "Environment Error: {}", e),
-            BotError::Otlp(e) => write!(f, "Otlp Error: {}", e),
+            BotError::Config(e) => write!(f, "Config Error: {e}"),
+            BotError::Validation(e) => write!(f, "Validation Error: {e}"),
+            BotError::UrlParams(e) => write!(f, "URL Parameters Error: {e}"),
+            BotError::System(e) => write!(f, "System Error: {e}"),
+            BotError::Environment(e) => write!(f, "Environment Error: {e}"),
+            BotError::Otlp(e) => write!(f, "Otlp Error: {e}"),
         }
     }
 }

@@ -253,15 +253,14 @@ fn validate_response(status: &StatusCode) -> Result<()> {
         Ok(())
     } else if status.is_server_error() {
         warn!("Server error: {}", status);
-        Err(BotError::System(format!("Server error: HTTP {}", status)))
+        Err(BotError::System(format!("Server error: HTTP {status}")))
     } else if status.is_client_error() {
         error!("Client error: {}", status);
-        Err(BotError::Validation(format!("HTTP error: {}", status)))
+        Err(BotError::Validation(format!("HTTP error: {status}")))
     } else {
         warn!("Unexpected status code: {}", status);
         Err(BotError::System(format!(
-            "Unexpected HTTP status code: {}",
-            status
+            "Unexpected HTTP status code: {status}"
         )))
     }
 }
@@ -423,14 +422,14 @@ pub async fn shutdown_signal() {
     let ctrl_c = async {
         signal::ctrl_c()
             .await
-            .map_err(|e| BotError::System(format!("Failed to set up Ctrl+C handler: {}", e)))
+            .map_err(|e| BotError::System(format!("Failed to set up Ctrl+C handler: {e}")))
             .unwrap_or_else(|e| panic!("{}", e));
     };
 
     #[cfg(unix)]
     let terminate = async {
         signal::unix::signal(signal::unix::SignalKind::terminate())
-            .map_err(|e| BotError::System(format!("Failed to set up signal handler: {}", e)))
+            .map_err(|e| BotError::System(format!("Failed to set up signal handler: {e}")))
             .unwrap_or_else(|e| panic!("{}", e))
             .recv()
             .await;
@@ -918,15 +917,13 @@ fn validate_file_path(path: &str) -> Result<()> {
         // For absolute paths, ensure they exist and are readable
         if !path_obj.exists() {
             return Err(BotError::Validation(format!(
-                "File does not exist: {}",
-                path
+                "File does not exist: {path}"
             )));
         }
 
         if !path_obj.is_file() {
             return Err(BotError::Validation(format!(
-                "Path is not a file: {}",
-                path
+                "Path is not a file: {path}"
             )));
         }
     }
@@ -970,8 +967,7 @@ fn validate_filename(filename: &str) -> Result<()> {
     for &forbidden_char in FORBIDDEN_CHARS {
         if filename.contains(forbidden_char) {
             return Err(BotError::Validation(format!(
-                "Filename contains forbidden character: '{}'",
-                forbidden_char
+                "Filename contains forbidden character: '{forbidden_char}'"
             )));
         }
     }
@@ -987,8 +983,7 @@ fn validate_filename(filename: &str) -> Result<()> {
 
     if RESERVED_NAMES.contains(&name_without_ext) {
         return Err(BotError::Validation(format!(
-            "Filename uses reserved name: {}",
-            filename
+            "Filename uses reserved name: {filename}"
         )));
     }
 
@@ -1106,19 +1101,18 @@ pub async fn validate_file_path_async(path: &str) -> Result<()> {
         // For absolute paths, ensure they exist and are readable using async operations
         let metadata = tokio::fs::metadata(path)
             .await
-            .map_err(|e| BotError::Validation(format!("File does not exist: {} ({})", path, e)))?;
+            .map_err(|e| BotError::Validation(format!("File does not exist: {path} ({e})")))?;
 
         if !metadata.is_file() {
             return Err(BotError::Validation(format!(
-                "Path is not a file: {}",
-                path
+                "Path is not a file: {path}"
             )));
         }
 
         // Check if file is readable by attempting to get canonicalized path
         let _canonical = tokio::fs::canonicalize(path)
             .await
-            .map_err(|e| BotError::Validation(format!("Cannot access file: {} ({})", path, e)))?;
+            .map_err(|e| BotError::Validation(format!("Cannot access file: {path} ({e})")))?;
     }
 
     // Additional checks for maximum path length (varies by OS)
