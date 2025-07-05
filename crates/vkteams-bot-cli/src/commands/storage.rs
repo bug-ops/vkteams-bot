@@ -143,12 +143,12 @@ impl StorageCommands {
         // Try to load storage configuration
         let config = match self.load_storage_config().await {
             Ok(config) => config,
-            Err(e) => return Err(format!("Failed to load storage configuration: {}", e)),
+            Err(e) => return Err(format!("Failed to load storage configuration: {e}")),
         };
 
         match StorageManager::new(&config).await {
             Ok(storage) => Ok(storage),
-            Err(e) => Err(format!("Failed to initialize storage manager: {}", e)),
+            Err(e) => Err(format!("Failed to initialize storage manager: {e}")),
         }
     }
 
@@ -214,7 +214,7 @@ impl StorageCommands {
                 }
                 Err(e) => CliResponse::error(
                     "database-init",
-                    format!("Failed to initialize database: {}", e),
+                    format!("Failed to initialize database: {e}"),
                 ),
             },
             DatabaseAction::Stats {
@@ -236,7 +236,7 @@ impl StorageCommands {
                     CliResponse::success("database-stats", data)
                 }
                 Err(e) => {
-                    CliResponse::error("database-stats", format!("Failed to get stats: {}", e))
+                    CliResponse::error("database-stats", format!("Failed to get stats: {e}"))
                 }
             },
             DatabaseAction::Cleanup { older_than_days } => {
@@ -249,7 +249,7 @@ impl StorageCommands {
                         CliResponse::success("database-cleanup", data)
                     }
                     Err(e) => {
-                        CliResponse::error("database-cleanup", format!("Failed to cleanup: {}", e))
+                        CliResponse::error("database-cleanup", format!("Failed to cleanup: {e}"))
                     }
                 }
             }
@@ -293,7 +293,7 @@ impl StorageCommands {
                         ),
                         Err(e) => CliResponse::error(
                             "database-vector-metrics",
-                            format!("Failed to get vector metrics: {}", e),
+                            format!("Failed to get vector metrics: {e}"),
                         ),
                     }
                 }
@@ -319,7 +319,7 @@ impl StorageCommands {
                         }
                         Err(e) => CliResponse::error(
                             "database-vector-maintenance",
-                            format!("Failed to perform maintenance: {}", e),
+                            format!("Failed to perform maintenance: {e}"),
                         ),
                     }
                 }
@@ -374,7 +374,7 @@ impl StorageCommands {
                         }
                         Err(e) => CliResponse::error(
                             "search-semantic",
-                            format!("Semantic search failed: {}", e),
+                            format!("Semantic search failed: {e}"),
                         ),
                     }
                 }
@@ -408,7 +408,7 @@ impl StorageCommands {
                         });
                         CliResponse::success("search-text", data)
                     }
-                    Err(e) => CliResponse::error("search-text", format!("Search failed: {}", e)),
+                    Err(e) => CliResponse::error("search-text", format!("Search failed: {e}")),
                 }
             }
             SearchAction::Advanced {
@@ -475,7 +475,7 @@ impl StorageCommands {
                     }
                     Err(e) => CliResponse::error(
                         "search-advanced",
-                        format!("Advanced search failed: {}", e),
+                        format!("Advanced search failed: {e}"),
                     ),
                 }
             }
@@ -521,7 +521,7 @@ impl StorageCommands {
                         CliResponse::success("context-get", data)
                     }
                     Err(e) => {
-                        CliResponse::error("context-get", format!("Failed to get context: {}", e))
+                        CliResponse::error("context-get", format!("Failed to get context: {e}"))
                     }
                 }
             }
@@ -546,7 +546,7 @@ impl StorageCommands {
                     );
                     metadata_map.insert(
                         "context_type".to_string(),
-                        serde_json::Value::String(format!("{:?}", context_type)),
+                        serde_json::Value::String(format!("{context_type:?}")),
                     );
                     metadata_map.insert(
                         "created_at".to_string(),
@@ -558,7 +558,7 @@ impl StorageCommands {
 
                     // Get dimensions from storage configuration
                     let dimensions = storage.get_embedding_dimensions();
-                    
+
                     let document = VectorDocument {
                         id: context_id.clone(),
                         content: summary.clone(),
@@ -581,7 +581,7 @@ impl StorageCommands {
                         }
                         Err(e) => CliResponse::error(
                             "context-create",
-                            format!("Failed to create context: {}", e),
+                            format!("Failed to create context: {e}"),
                         ),
                     }
                 }
@@ -783,7 +783,11 @@ mod tests {
         };
 
         match semantic_action {
-            SearchAction::Semantic { query, chat_id, limit } => {
+            SearchAction::Semantic {
+                query,
+                chat_id,
+                limit,
+            } => {
                 assert_eq!(query, "test query");
                 assert_eq!(chat_id, Some("test_chat".to_string()));
                 assert_eq!(limit, 5);
@@ -792,7 +796,11 @@ mod tests {
         }
 
         match text_action {
-            SearchAction::Text { query, chat_id, limit } => {
+            SearchAction::Text {
+                query,
+                chat_id,
+                limit,
+            } => {
                 assert_eq!(query, "search text");
                 assert_eq!(chat_id, None);
                 assert_eq!(limit, 20);
@@ -801,7 +809,13 @@ mod tests {
         }
 
         match advanced_action {
-            SearchAction::Advanced { user_id, event_type, since, until, limit } => {
+            SearchAction::Advanced {
+                user_id,
+                event_type,
+                since,
+                until,
+                limit,
+            } => {
                 assert_eq!(user_id, Some("user123".to_string()));
                 assert_eq!(event_type, Some("NewMessage".to_string()));
                 assert_eq!(since, Some("2023-01-01".to_string()));
@@ -869,7 +883,7 @@ mod tests {
         };
 
         // Test Debug trait
-        let debug_str = format!("{:?}", cmd);
+        let debug_str = format!("{cmd:?}");
         assert!(debug_str.contains("Database"));
         assert!(debug_str.contains("Init"));
 
@@ -886,7 +900,7 @@ mod tests {
         assert!(parse_datetime("2023-06-15T12:30:45").is_ok());
         assert!(parse_datetime("2023-02-28").is_ok());
         assert!(parse_datetime("2024-02-29").is_ok()); // Leap year
-        
+
         // Invalid formats
         assert!(parse_datetime("").is_err());
         assert!(parse_datetime("not-a-date").is_err());
@@ -935,17 +949,26 @@ mod tests {
         };
 
         match recent_action {
-            ContextAction::Get { context_type: ContextType::Recent, .. } => {}
+            ContextAction::Get {
+                context_type: ContextType::Recent,
+                ..
+            } => {}
             _ => panic!("Expected Recent context type"),
         }
 
         match topic_action {
-            ContextAction::Get { context_type: ContextType::Topic, .. } => {}
+            ContextAction::Get {
+                context_type: ContextType::Topic,
+                ..
+            } => {}
             _ => panic!("Expected Topic context type"),
         }
 
         match user_profile_action {
-            ContextAction::Get { context_type: ContextType::UserProfile, .. } => {}
+            ContextAction::Get {
+                context_type: ContextType::UserProfile,
+                ..
+            } => {}
             _ => panic!("Expected UserProfile context type"),
         }
     }

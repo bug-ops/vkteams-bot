@@ -86,9 +86,9 @@ impl OutputFormatter {
         match format {
             OutputFormat::Json => {
                 let json = serde_json::to_string_pretty(response).map_err(|e| {
-                    CliError::UnexpectedError(format!("JSON serialization error: {}", e))
+                    CliError::UnexpectedError(format!("JSON serialization error: {e}"))
                 })?;
-                println!("{}", json);
+                println!("{json}");
             }
             OutputFormat::Pretty => {
                 Self::print_pretty(response)?;
@@ -114,7 +114,7 @@ impl OutputFormatter {
 
             if let Some(data) = &response.data {
                 let data_json = serde_json::to_value(data).map_err(|e| {
-                    CliError::UnexpectedError(format!("JSON serialization error: {}", e))
+                    CliError::UnexpectedError(format!("JSON serialization error: {e}"))
                 })?;
 
                 match data_json {
@@ -164,7 +164,7 @@ impl OutputFormatter {
         if response.success {
             if let Some(data) = &response.data {
                 let data_json = serde_json::to_value(data).map_err(|e| {
-                    CliError::UnexpectedError(format!("JSON serialization error: {}", e))
+                    CliError::UnexpectedError(format!("JSON serialization error: {e}"))
                 })?;
 
                 Self::print_table_data(&data_json)?;
@@ -175,7 +175,7 @@ impl OutputFormatter {
                     value: "Success".to_string(),
                 }];
                 let table = Table::new(rows);
-                println!("{}", table);
+                println!("{table}");
             }
         } else {
             // Error case
@@ -192,7 +192,7 @@ impl OutputFormatter {
             }
 
             let table = Table::new(rows);
-            println!("{}", table);
+            println!("{table}");
         }
 
         // Add metadata
@@ -212,7 +212,7 @@ impl OutputFormatter {
 
         println!();
         let metadata_table = Table::new(metadata_rows);
-        println!("{}", metadata_table);
+        println!("{metadata_table}");
 
         Ok(())
     }
@@ -235,7 +235,7 @@ impl OutputFormatter {
                 }
 
                 let table = Table::new(rows);
-                println!("{}", table);
+                println!("{table}");
             }
             serde_json::Value::Array(arr) => {
                 if arr.is_empty() {
@@ -259,7 +259,7 @@ impl OutputFormatter {
                             .collect();
 
                         let table = Table::new(rows);
-                        println!("{}", table);
+                        println!("{table}");
                     }
                 }
             }
@@ -270,7 +270,7 @@ impl OutputFormatter {
                     value: Self::format_table_value(data),
                 }];
                 let table = Table::new(rows);
-                println!("{}", table);
+                println!("{table}");
             }
         }
 
@@ -319,7 +319,7 @@ impl OutputFormatter {
         // Convert to table using the raw data approach
         if !table_data.is_empty() {
             let table = Table::from_iter(table_data);
-            println!("{}", table);
+            println!("{table}");
         }
 
         Ok(())

@@ -151,7 +151,7 @@ fn bench_lockfree_cache(c: &mut Criterion) {
     // Pre-populate cache with some entries
     rt.block_on(async {
         for i in 0..10 {
-            let key = format!("config_{}", i);
+            let key = format!("config_{i}");
             cache
                 .get_or_load(&key, || async { Ok(Config::default()) })
                 .await
@@ -179,7 +179,7 @@ fn bench_lockfree_cache(c: &mut Criterion) {
         let mut counter = 1000;
         b.iter(|| {
             counter += 1;
-            let key = format!("new_config_{}", counter);
+            let key = format!("new_config_{counter}");
             rt.block_on(async {
                 black_box(
                     cache

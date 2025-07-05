@@ -13,7 +13,7 @@ fn bench_command_execution(c: &mut Criterion) {
             let message = black_box("Hello, world!");
 
             let is_valid = !chat_id.is_empty() && !message.is_empty();
-            let formatted_message = format!("[CLI] {}", message);
+            let formatted_message = format!("[CLI] {message}");
 
             black_box((is_valid, formatted_message))
         });
@@ -43,7 +43,7 @@ fn bench_command_execution(c: &mut Criterion) {
             let is_valid = !file_path.is_empty() && file_path.starts_with('/');
 
             // Simulate file metadata reading
-            let metadata = format!("File: {}, Size: unknown", file_path);
+            let metadata = format!("File: {file_path}, Size: unknown");
 
             black_box((is_valid, metadata))
         });
@@ -191,7 +191,7 @@ fn bench_scheduler_operations(c: &mut Criterion) {
             |b, &task_count| {
                 let tasks: Vec<MockScheduledTask> = (0..task_count)
                     .map(|i| MockScheduledTask {
-                        id: format!("task_{}", i),
+                        id: format!("task_{i}"),
                         task_type: "send_message".to_string(),
                         schedule: "0 0 * * *".to_string(),
                         enabled: i % 2 == 0, // Every other task enabled
@@ -255,7 +255,7 @@ fn bench_output_formatting(c: &mut Criterion) {
     // Test different output formats
     let test_data = serde_json::json!({
         "chat_id": "123456789",
-        "messages": (0..100).map(|i| format!("Message {}", i)).collect::<Vec<_>>()
+        "messages": (0..100).map(|i| format!("Message {i}")).collect::<Vec<_>>()
     });
 
     group.bench_function("format_json", |b| {

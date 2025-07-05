@@ -183,11 +183,12 @@ impl Command for SchedulingCommands {
                 execute_task_action_structured(bot, action).await
             }
         };
-        
+
         match response {
             Ok(resp) => OutputFormatter::print(&resp, output_format),
             Err(e) => {
-                let error_response = CliResponse::<serde_json::Value>::error("scheduling-command", e.to_string());
+                let error_response =
+                    CliResponse::<serde_json::Value>::error("scheduling-command", e.to_string());
                 OutputFormatter::print(&error_response, output_format)?;
                 Err(e)
             }
@@ -427,7 +428,7 @@ async fn execute_task_action(_bot: &Bot, action: &TaskAction) -> CliResult<()> {
                     println!("  Last run: {}", last_run.format("%Y-%m-%d %H:%M:%S UTC"));
                 }
             } else {
-                return Err(CliError::InputError(format!("Task not found: {}", task_id)));
+                return Err(CliError::InputError(format!("Task not found: {task_id}")));
             }
         }
         TaskAction::Remove { task_id } => {
@@ -443,7 +444,7 @@ async fn execute_task_action(_bot: &Bot, action: &TaskAction) -> CliResult<()> {
             println!("⏸️ Task {} disabled successfully", task_id.yellow());
         }
         TaskAction::Run { task_id } => {
-            println!("🚀 Running task {} once...", task_id);
+            println!("🚀 Running task {task_id} once...");
             scheduler.run_task_once(task_id).await?;
             println!("✅ Task {} executed successfully", task_id.green());
         }
@@ -480,7 +481,7 @@ fn parse_schedule_args(
     } else if let Some(cron_expr) = cron {
         // Validate cron expression
         cron::Schedule::from_str(cron_expr)
-            .map_err(|e| CliError::InputError(format!("Invalid cron expression: {}", e)))?;
+            .map_err(|e| CliError::InputError(format!("Invalid cron expression: {e}")))?;
         Ok(ScheduleType::Cron(cron_expr.clone()))
     } else if let Some(interval_secs) = interval {
         if *interval_secs == 0 {
@@ -612,8 +613,7 @@ fn validate_file_path_arg(file_path: &str) -> CliResult<()> {
     }
     if !std::path::Path::new(file_path).exists() {
         return Err(CliError::InputError(format!(
-            "File does not exist: {}",
-            file_path
+            "File does not exist: {file_path}"
         )));
     }
     Ok(())
@@ -628,8 +628,7 @@ fn validate_voice_file_path(file_path: &str) -> CliResult<()> {
         let ext = extension.to_string_lossy().to_lowercase();
         if !["ogg", "mp3", "wav", "m4a", "aac"].contains(&ext.as_str()) {
             return Err(CliError::InputError(format!(
-                "Unsupported voice file format: {}. Supported: ogg, mp3, wav, m4a, aac",
-                ext
+                "Unsupported voice file format: {ext}. Supported: ogg, mp3, wav, m4a, aac"
             )));
         }
     } else {
@@ -775,15 +774,20 @@ async fn execute_schedule_structured(
         }
     };
 
-    let task_id = scheduler.add_task(task_type.clone(), schedule.clone(), max_runs).await?;
-    
-    Ok(CliResponse::success("schedule", json!({
-        "task_id": task_id,
-        "task_type": task_type.description(),
-        "schedule": schedule.description(),
-        "max_runs": max_runs.map_or("unlimited".to_string(), |m| m.to_string()),
-        "message": format!("Task scheduled successfully with ID: {}", task_id)
-    })))
+    let task_id = scheduler
+        .add_task(task_type.clone(), schedule.clone(), max_runs)
+        .await?;
+
+    Ok(CliResponse::success(
+        "schedule",
+        json!({
+            "task_id": task_id,
+            "task_type": task_type.description(),
+            "schedule": schedule.description(),
+            "max_runs": max_runs.map_or("unlimited".to_string(), |m| m.to_string()),
+            "message": format!("Task scheduled successfully with ID: {}", task_id)
+        }),
+    ))
 }
 
 async fn execute_scheduler_action_structured(
@@ -802,31 +806,37 @@ async fn execute_scheduler_action_structured(
     match action {
         SchedulerAction::Start => {
             scheduler.run_scheduler().await?;
-            Ok(CliResponse::success("scheduler-start", json!({
-                "action": "start",
-                "message": "Scheduler daemon started successfully"
-            })))
+            Ok(CliResponse::success(
+                "scheduler-start",
+                json!({
+                    "action": "start",
+                    "message": "Scheduler daemon started successfully"
+                }),
+            ))
         }
         SchedulerAction::Stop => {
             stop_scheduler_daemon().await?;
-            Ok(CliResponse::success("scheduler-stop", json!({
-                "action": "stop",
-                "message": "Scheduler daemon stopped successfully"
-            })))
+            Ok(CliResponse::success(
+                "scheduler-stop",
+                json!({
+                    "action": "stop",
+                    "message": "Scheduler daemon stopped successfully"
+                }),
+            ))
         }
         SchedulerAction::Status => {
             let daemon_status = scheduler.get_daemon_status().await;
-            
+
             let status_str = match &daemon_status.status {
                 crate::scheduler::DaemonStatus::NotRunning => "stopped",
                 crate::scheduler::DaemonStatus::Running { .. } => "running",
                 crate::scheduler::DaemonStatus::Stale { .. } => "stale",
                 crate::scheduler::DaemonStatus::Unknown(_) => "unknown",
             };
-            
+
             let daemon_info = match &daemon_status.status {
-                crate::scheduler::DaemonStatus::Running { pid, started_at } |
-                crate::scheduler::DaemonStatus::Stale { pid, started_at } => {
+                crate::scheduler::DaemonStatus::Running { pid, started_at }
+                | crate::scheduler::DaemonStatus::Stale { pid, started_at } => {
                     json!({
                         "pid": pid,
                         "started_at": started_at.format("%Y-%m-%d %H:%M:%S UTC").to_string()
@@ -835,18 +845,21 @@ async fn execute_scheduler_action_structured(
                 _ => json!(null),
             };
 
-            Ok(CliResponse::success("scheduler-status", json!({
-                "daemon_status": status_str,
-                "daemon_info": daemon_info,
-                "pid_file_path": daemon_status.pid_file_path.to_string_lossy(),
-                "total_tasks": daemon_status.total_tasks,
-                "enabled_tasks": daemon_status.enabled_tasks,
-                "disabled_tasks": daemon_status.total_tasks - daemon_status.enabled_tasks
-            })))
+            Ok(CliResponse::success(
+                "scheduler-status",
+                json!({
+                    "daemon_status": status_str,
+                    "daemon_info": daemon_info,
+                    "pid_file_path": daemon_status.pid_file_path.to_string_lossy(),
+                    "total_tasks": daemon_status.total_tasks,
+                    "enabled_tasks": daemon_status.enabled_tasks,
+                    "disabled_tasks": daemon_status.total_tasks - daemon_status.enabled_tasks
+                }),
+            ))
         }
         SchedulerAction::List => {
             let tasks = scheduler.list_tasks().await;
-            
+
             let tasks_json: Vec<serde_json::Value> = tasks.into_iter().map(|task| {
                 json!({
                     "id": task.id,
@@ -861,10 +874,13 @@ async fn execute_scheduler_action_structured(
                 })
             }).collect();
 
-            Ok(CliResponse::success("scheduler-list", json!({
-                "tasks": tasks_json,
-                "total": tasks_json.len()
-            })))
+            Ok(CliResponse::success(
+                "scheduler-list",
+                json!({
+                    "tasks": tasks_json,
+                    "total": tasks_json.len()
+                }),
+            ))
         }
     }
 }
@@ -885,54 +901,69 @@ async fn execute_task_action_structured(
     match action {
         TaskAction::Show { task_id } => {
             if let Some(task) = scheduler.get_task(task_id).await {
-                Ok(CliResponse::success("task-show", json!({
-                    "task": {
-                        "id": task.id,
-                        "type": task.task_type.description(),
-                        "schedule": task.schedule.description(),
-                        "enabled": task.enabled,
-                        "created_at": task.created_at.format("%Y-%m-%d %H:%M:%S UTC").to_string(),
-                        "run_count": task.run_count,
-                        "max_runs": task.max_runs.map_or("unlimited".to_string(), |m| m.to_string()),
-                        "next_run": task.next_run.format("%Y-%m-%d %H:%M:%S UTC").to_string(),
-                        "last_run": task.last_run.map(|lr| lr.format("%Y-%m-%d %H:%M:%S UTC").to_string())
-                    }
-                })))
+                Ok(CliResponse::success(
+                    "task-show",
+                    json!({
+                        "task": {
+                            "id": task.id,
+                            "type": task.task_type.description(),
+                            "schedule": task.schedule.description(),
+                            "enabled": task.enabled,
+                            "created_at": task.created_at.format("%Y-%m-%d %H:%M:%S UTC").to_string(),
+                            "run_count": task.run_count,
+                            "max_runs": task.max_runs.map_or("unlimited".to_string(), |m| m.to_string()),
+                            "next_run": task.next_run.format("%Y-%m-%d %H:%M:%S UTC").to_string(),
+                            "last_run": task.last_run.map(|lr| lr.format("%Y-%m-%d %H:%M:%S UTC").to_string())
+                        }
+                    }),
+                ))
             } else {
-                Err(CliError::InputError(format!("Task not found: {}", task_id)))
+                Err(CliError::InputError(format!("Task not found: {task_id}")))
             }
         }
         TaskAction::Remove { task_id } => {
             scheduler.remove_task(task_id).await?;
-            Ok(CliResponse::success("task-remove", json!({
-                "action": "remove",
-                "task_id": task_id,
-                "message": format!("Task {} removed successfully", task_id)
-            })))
+            Ok(CliResponse::success(
+                "task-remove",
+                json!({
+                    "action": "remove",
+                    "task_id": task_id,
+                    "message": format!("Task {} removed successfully", task_id)
+                }),
+            ))
         }
         TaskAction::Enable { task_id } => {
             scheduler.enable_task(task_id).await?;
-            Ok(CliResponse::success("task-enable", json!({
-                "action": "enable",
-                "task_id": task_id,
-                "message": format!("Task {} enabled successfully", task_id)
-            })))
+            Ok(CliResponse::success(
+                "task-enable",
+                json!({
+                    "action": "enable",
+                    "task_id": task_id,
+                    "message": format!("Task {} enabled successfully", task_id)
+                }),
+            ))
         }
         TaskAction::Disable { task_id } => {
             scheduler.disable_task(task_id).await?;
-            Ok(CliResponse::success("task-disable", json!({
-                "action": "disable",
-                "task_id": task_id,
-                "message": format!("Task {} disabled successfully", task_id)
-            })))
+            Ok(CliResponse::success(
+                "task-disable",
+                json!({
+                    "action": "disable",
+                    "task_id": task_id,
+                    "message": format!("Task {} disabled successfully", task_id)
+                }),
+            ))
         }
         TaskAction::Run { task_id } => {
             scheduler.run_task_once(task_id).await?;
-            Ok(CliResponse::success("task-run", json!({
-                "action": "run",
-                "task_id": task_id,
-                "message": format!("Task {} executed successfully", task_id)
-            })))
+            Ok(CliResponse::success(
+                "task-run",
+                json!({
+                    "action": "run",
+                    "task_id": task_id,
+                    "message": format!("Task {} executed successfully", task_id)
+                }),
+            ))
         }
     }
 }
@@ -947,7 +978,7 @@ async fn stop_scheduler_daemon() -> CliResult<()> {
 
     // Write stop signal
     fs::write(&stop_file, "stop")
-        .map_err(|e| CliError::FileError(format!("Failed to create stop signal file: {}", e)))?;
+        .map_err(|e| CliError::FileError(format!("Failed to create stop signal file: {e}")))?;
 
     // Wait for daemon to acknowledge stop signal (max 30 seconds)
     let mut attempts = 0;
@@ -985,19 +1016,19 @@ mod tests {
             env::set_var("VKTEAMS_BOT_API_TOKEN", "dummy_token");
             env::set_var("VKTEAMS_BOT_API_URL", "https://dummy.api.com");
 
-            // Create a unique temporary directory for tests using thread ID and timestamp  
+            // Create a unique temporary directory for tests using thread ID and timestamp
             let thread_id = std::thread::current().id();
             let timestamp = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
                 .as_nanos();
             let temp_dir = std::env::temp_dir()
-                .join(format!("vkteams_bot_test_{:?}_{}", thread_id, timestamp));
+                .join(format!("vkteams_bot_test_{thread_id:?}_{timestamp}"));
             std::fs::create_dir_all(&temp_dir).ok();
             env::set_var("HOME", temp_dir.to_string_lossy().to_string());
         }
     }
-    
+
     /// Helper to set environment variables and return a unique temporary directory
     #[allow(dead_code)]
     fn setup_test_env() -> tempfile::TempDir {
@@ -1069,21 +1100,21 @@ mod tests {
     async fn test_execute_schedule_success() {
         use crate::scheduler::Scheduler;
         use tempfile::tempdir;
-        
+
         set_env_vars();
-        
+
         // Create isolated test environment
         let temp_dir = tempdir().unwrap();
         let mut scheduler = Scheduler::new(Some(temp_dir.path().to_path_buf()))
             .await
             .unwrap();
-        
+
         // Set up bot for scheduler
         let token = std::env::var("VKTEAMS_BOT_API_TOKEN").unwrap();
         let url = std::env::var("VKTEAMS_BOT_API_URL").unwrap();
         let scheduler_bot = Bot::with_params(&APIVersionUrl::V1, &token, &url).unwrap();
         scheduler.set_bot(scheduler_bot);
-        
+
         // Test direct scheduler usage instead of using the command
         let task_id = scheduler
             .add_task(
@@ -1091,12 +1122,16 @@ mod tests {
                     chat_id: "12345@chat".to_string(),
                     message: "hello".to_string(),
                 },
-                ScheduleType::Once(chrono::DateTime::parse_from_rfc3339("2030-01-01T00:00:00Z").unwrap().with_timezone(&Utc)),
+                ScheduleType::Once(
+                    chrono::DateTime::parse_from_rfc3339("2030-01-01T00:00:00Z")
+                        .unwrap()
+                        .with_timezone(&Utc),
+                ),
                 Some(1),
             )
             .await
             .unwrap();
-        
+
         // Verify task was added successfully
         assert!(!task_id.is_empty());
         let tasks = scheduler.list_tasks().await;
@@ -1272,7 +1307,7 @@ mod tests {
     #[tokio::test]
     async fn test_stop_scheduler_daemon_no_running_daemon() {
         use std::fs;
-        use tokio::time::{timeout, Duration};
+        use tokio::time::{Duration, timeout};
 
         // Clean up any existing stop signal file first
         let temp_dir = std::env::temp_dir();
@@ -1282,7 +1317,7 @@ mod tests {
         // Test stop command when no daemon is running with a shorter timeout
         // Should timeout and return error
         let result = timeout(Duration::from_secs(5), stop_scheduler_daemon()).await;
-        
+
         // The timeout should occur before completion
         match result {
             Err(_) => {
@@ -1310,21 +1345,21 @@ mod tests {
     async fn test_execute_schedule_structured_json_output() {
         use crate::scheduler::Scheduler;
         use tempfile::tempdir;
-        
+
         set_env_vars();
-        
+
         // Create isolated test environment
         let temp_dir = tempdir().unwrap();
         let mut scheduler = Scheduler::new(Some(temp_dir.path().to_path_buf()))
             .await
             .unwrap();
-        
+
         // Set up bot for scheduler
         let token = std::env::var("VKTEAMS_BOT_API_TOKEN").unwrap();
         let url = std::env::var("VKTEAMS_BOT_API_URL").unwrap();
         let scheduler_bot = Bot::with_params(&APIVersionUrl::V1, &token, &url).unwrap();
         scheduler.set_bot(scheduler_bot);
-        
+
         // Test direct scheduler usage instead of execute_schedule_structured
         let task_id = scheduler
             .add_task(
@@ -1332,12 +1367,16 @@ mod tests {
                     chat_id: "test_chat".to_string(),
                     message: "test message".to_string(),
                 },
-                ScheduleType::Once(chrono::DateTime::parse_from_rfc3339("2030-01-01T00:00:00Z").unwrap().with_timezone(&Utc)),
+                ScheduleType::Once(
+                    chrono::DateTime::parse_from_rfc3339("2030-01-01T00:00:00Z")
+                        .unwrap()
+                        .with_timezone(&Utc),
+                ),
                 Some(1),
             )
             .await
             .unwrap();
-        
+
         // Verify task was added successfully
         assert!(!task_id.is_empty());
         let tasks = scheduler.list_tasks().await;
@@ -1391,14 +1430,14 @@ mod tests {
     #[test]
     fn test_execute_with_output_method() {
         use crate::commands::OutputFormat;
-        
+
         let cmd = SchedulingCommands::Scheduler {
             action: SchedulerAction::List,
         };
         let bot = dummy_bot();
         let rt = Runtime::new().unwrap();
         set_env_vars();
-        
+
         // Test that execute_with_output method exists and works
         let result = rt.block_on(cmd.execute_with_output(&bot, &OutputFormat::Json));
         assert!(result.is_ok());

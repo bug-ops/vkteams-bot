@@ -25,8 +25,7 @@ pub trait Validator<T> {
 pub fn validate_not_empty(value: &str, field_name: &str) -> CliResult<()> {
     if value.trim().is_empty() {
         return Err(CliError::InputError(format!(
-            "{} cannot be empty",
-            field_name
+            "{field_name} cannot be empty"
         )));
     }
     Ok(())
@@ -37,14 +36,12 @@ pub fn validate_length(value: &str, field_name: &str, min: usize, max: usize) ->
     let len = value.len();
     if len < min {
         return Err(CliError::InputError(format!(
-            "{} too short (min {} characters, got {})",
-            field_name, min, len
+            "{field_name} too short (min {min} characters, got {len})"
         )));
     }
     if len > max {
         return Err(CliError::InputError(format!(
-            "{} too long (max {} characters, got {})",
-            field_name, max, len
+            "{field_name} too long (max {max} characters, got {len})"
         )));
     }
     Ok(())
@@ -57,8 +54,7 @@ where
 {
     if value < min || value > max {
         return Err(CliError::InputError(format!(
-            "{} must be between {} and {} (got {})",
-            field_name, min, max, value
+            "{field_name} must be between {min} and {max} (got {value})"
         )));
     }
     Ok(())

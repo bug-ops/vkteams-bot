@@ -44,14 +44,14 @@ colors = true
     assert_eq!(config.api.timeout, 30);
     assert_eq!(config.logging.level, "info");
 
-    println!("Async config loading took: {:?}", async_duration);
+    println!("Async config loading took: {async_duration:?}");
 
     // Test that async loading is faster than sync loading (due to non-blocking I/O)
     let start = Instant::now();
     let _sync_config = Config::from_path(&config_path)?;
     let sync_duration = start.elapsed();
 
-    println!("Sync config loading took: {:?}", sync_duration);
+    println!("Sync config loading took: {sync_duration:?}");
 
     // In most cases, async should be comparable or faster
     assert!(async_duration <= sync_duration + Duration::from_millis(50));
@@ -95,8 +95,7 @@ timeout = 60
     assert!(cached_load_duration < Duration::from_millis(10));
 
     println!(
-        "First load: {:?}, Cached load: {:?}",
-        first_load_duration, cached_load_duration
+        "First load: {first_load_duration:?}, Cached load: {cached_load_duration:?}"
     );
 
     Ok(())
@@ -136,8 +135,7 @@ async fn test_lockfree_cache_concurrent_access() -> CliResult<()> {
     }
 
     println!(
-        "50 concurrent cache operations took: {:?}",
-        concurrent_duration
+        "50 concurrent cache operations took: {concurrent_duration:?}"
     );
 
     // Should complete much faster than 50 * 5ms = 250ms due to caching
@@ -184,8 +182,7 @@ async fn test_async_save_load_roundtrip() -> CliResult<()> {
     );
 
     println!(
-        "Async save: {:?}, Async load: {:?}",
-        save_duration, load_duration
+        "Async save: {save_duration:?}, Async load: {load_duration:?}"
     );
 
     // Both operations should be reasonably fast
@@ -244,7 +241,7 @@ max_file_size = 209715200
     assert!(merged.logging.colors); // From base
     assert_eq!(merged.files.max_file_size, 209715200); // From override
 
-    println!("Config merging took: {:?}", merge_duration);
+    println!("Config merging took: {merge_duration:?}");
 
     // Merging should be very fast (microseconds)
     assert!(merge_duration < Duration::from_millis(1));
@@ -286,8 +283,7 @@ async fn test_parallel_config_loading() -> CliResult<()> {
     assert_eq!(merged_config.logging.level, "debug");
 
     println!(
-        "Parallel loading of 3 configs took: {:?}",
-        parallel_load_duration
+        "Parallel loading of 3 configs took: {parallel_load_duration:?}"
     );
 
     // Parallel loading should be faster than sequential
@@ -338,9 +334,9 @@ level = "info"
     }
     let cached_total = start.elapsed();
 
-    println!("Sync {} operations: {:?}", NUM_OPERATIONS, sync_total);
-    println!("Async {} operations: {:?}", NUM_OPERATIONS, async_total);
-    println!("Cached {} operations: {:?}", NUM_OPERATIONS, cached_total);
+    println!("Sync {NUM_OPERATIONS} operations: {sync_total:?}");
+    println!("Async {NUM_OPERATIONS} operations: {async_total:?}");
+    println!("Cached {NUM_OPERATIONS} operations: {cached_total:?}");
 
     // Cached operations should be significantly faster
     assert!(cached_total < sync_total);
@@ -348,7 +344,7 @@ level = "info"
 
     // Report performance improvements
     let cache_speedup = sync_total.as_nanos() as f64 / cached_total.as_nanos() as f64;
-    println!("Cache speedup: {:.2}x", cache_speedup);
+    println!("Cache speedup: {cache_speedup:.2}x");
 
     assert!(cache_speedup > 2.0); // At least 2x speedup expected
 

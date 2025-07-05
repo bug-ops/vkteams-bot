@@ -268,9 +268,9 @@ pub fn get_unique_filename(base_path: &Path) -> PathBuf {
 
     for i in 1..1000 {
         let new_filename = if extension.is_empty() {
-            format!("{}_{}", stem, i)
+            format!("{stem}_{i}")
         } else {
-            format!("{}_{}.{}", stem, i, extension)
+            format!("{stem}_{i}.{extension}")
         };
 
         let new_path = parent.join(new_filename);

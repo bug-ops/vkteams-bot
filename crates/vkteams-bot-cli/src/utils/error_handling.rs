@@ -19,7 +19,7 @@ use vkteams_bot::error::BotError;
 /// * A CliError with appropriate error type and message
 pub fn handle_api_error(error: BotError, context: Option<&str>) -> CliError {
     let error_msg = if let Some(ctx) = context {
-        format!("{}: {}", ctx, error)
+        format!("{ctx}: {error}")
     } else {
         error.to_string()
     };

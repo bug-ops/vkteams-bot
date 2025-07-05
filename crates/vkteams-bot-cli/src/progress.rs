@@ -13,7 +13,7 @@ pub fn create_download_progress_bar(total_size: u64, file_name: &str) -> Option<
 
     let pb = ProgressBar::new(total_size);
     pb.set_style(create_progress_style("⬇️ "));
-    pb.set_message(format!("Downloading {}", file_name));
+    pb.set_message(format!("Downloading {file_name}"));
     pb.enable_steady_tick(Duration::from_millis(cfg.progress_refresh_rate));
     Some(pb)
 }
@@ -33,7 +33,7 @@ pub fn create_upload_progress_bar(total_size: u64, file_path: &str) -> Option<Pr
 
     let pb = ProgressBar::new(total_size);
     pb.set_style(create_progress_style("⬆️ "));
-    pb.set_message(format!("Uploading {}", file_name));
+    pb.set_message(format!("Uploading {file_name}"));
     pb.enable_steady_tick(Duration::from_millis(cfg.progress_refresh_rate));
     Some(pb)
 }
@@ -68,7 +68,7 @@ fn create_progress_style(prefix: &str) -> ProgressStyle {
         }),
     }
     .with_key("prefix", move |_: &ProgressState, w: &mut dyn Write| {
-        write!(w, "{}", prefix_owned).unwrap()
+        write!(w, "{prefix_owned}").unwrap()
     })
 }
 

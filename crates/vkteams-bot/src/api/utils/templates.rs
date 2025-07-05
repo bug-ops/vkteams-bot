@@ -92,7 +92,7 @@ mod tests {
         let err = parser2.parse_tmpl().unwrap_err();
         match err {
             BotError::Template(_) => (),
-            _ => panic!("Expected BotError::Template, got {:?}", err),
+            _ => panic!("Expected BotError::Template, got {err:?}"),
         }
     }
 }

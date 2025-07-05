@@ -725,7 +725,7 @@ mod tests {
             assert!(result.is_err());
             match result.unwrap_err() {
                 BotError::Validation(msg) => assert!(msg.contains("reserved name")),
-                _ => panic!("Expected Validation error for {}", name),
+                _ => panic!("Expected Validation error for {name}"),
             }
         }
     }
@@ -736,7 +736,7 @@ mod tests {
 
         for name in valid_names.iter() {
             let result = validate_filename(name);
-            assert!(result.is_ok(), "Filename {} should be valid", name);
+            assert!(result.is_ok(), "Filename {name} should be valid");
         }
     }
 
@@ -782,8 +782,7 @@ mod tests {
         for code in success_codes.iter() {
             assert!(
                 validate_response(code).is_ok(),
-                "Status code {:?} should be valid",
-                code
+                "Status code {code:?} should be valid"
             );
         }
     }
@@ -800,10 +799,10 @@ mod tests {
 
         for code in client_error_codes.iter() {
             let result = validate_response(code);
-            assert!(result.is_err(), "Status code {:?} should be error", code);
+            assert!(result.is_err(), "Status code {code:?} should be error");
             match result.unwrap_err() {
                 BotError::Validation(_) => {} // Expected
-                _ => panic!("Expected Validation error for code {:?}", code),
+                _ => panic!("Expected Validation error for code {code:?}"),
             }
         }
     }
@@ -820,10 +819,10 @@ mod tests {
 
         for code in server_error_codes.iter() {
             let result = validate_response(code);
-            assert!(result.is_err(), "Status code {:?} should be error", code);
+            assert!(result.is_err(), "Status code {code:?} should be error");
             match result.unwrap_err() {
                 BotError::System(_) => {} // Expected
-                _ => panic!("Expected System error for code {:?}", code),
+                _ => panic!("Expected System error for code {code:?}"),
             }
         }
     }
@@ -840,7 +839,7 @@ mod tests {
     #[test]
     fn test_connection_pool_debug() {
         let pool = ConnectionPool::new(reqwest::Client::new(), 2, Duration::from_millis(100));
-        let debug_str = format!("{:?}", pool);
+        let debug_str = format!("{pool:?}");
         assert!(debug_str.contains("ConnectionPool"));
     }
 
@@ -916,15 +915,11 @@ fn validate_file_path(path: &str) -> Result<()> {
     if path_obj.is_absolute() {
         // For absolute paths, ensure they exist and are readable
         if !path_obj.exists() {
-            return Err(BotError::Validation(format!(
-                "File does not exist: {path}"
-            )));
+            return Err(BotError::Validation(format!("File does not exist: {path}")));
         }
 
         if !path_obj.is_file() {
-            return Err(BotError::Validation(format!(
-                "Path is not a file: {path}"
-            )));
+            return Err(BotError::Validation(format!("Path is not a file: {path}")));
         }
     }
 
@@ -1104,9 +1099,7 @@ pub async fn validate_file_path_async(path: &str) -> Result<()> {
             .map_err(|e| BotError::Validation(format!("File does not exist: {path} ({e})")))?;
 
         if !metadata.is_file() {
-            return Err(BotError::Validation(format!(
-                "Path is not a file: {path}"
-            )));
+            return Err(BotError::Validation(format!("Path is not a file: {path}")));
         }
 
         // Check if file is readable by attempting to get canonicalized path

@@ -226,7 +226,7 @@ impl Scheduler {
             info!("Removed task: {}", task_id);
             Ok(())
         } else {
-            Err(CliError::InputError(format!("Task not found: {}", task_id)))
+            Err(CliError::InputError(format!("Task not found: {task_id}")))
         }
     }
 
@@ -262,7 +262,7 @@ impl Scheduler {
             info!("Enabled task: {}", task_id);
             Ok(())
         } else {
-            Err(CliError::InputError(format!("Task not found: {}", task_id)))
+            Err(CliError::InputError(format!("Task not found: {task_id}")))
         }
     }
 
@@ -288,7 +288,7 @@ impl Scheduler {
             info!("Disabled task: {}", task_id);
             Ok(())
         } else {
-            Err(CliError::InputError(format!("Task not found: {}", task_id)))
+            Err(CliError::InputError(format!("Task not found: {task_id}")))
         }
     }
 
@@ -386,7 +386,7 @@ impl Scheduler {
         };
 
         if !task_exists {
-            return Err(CliError::InputError(format!("Task not found: {}", task_id)));
+            return Err(CliError::InputError(format!("Task not found: {task_id}")));
         }
 
         self.execute_task(task_id).await
@@ -415,7 +415,7 @@ impl Scheduler {
 
             let result = tokio::time::timeout(timeout, self.execute_task(&task_id))
                 .await
-                .map_err(|_| CliError::InputError(format!("Task {} execution timeout", task_id)))?;
+                .map_err(|_| CliError::InputError(format!("Task {task_id} execution timeout")))?;
 
             if let Err(e) = result {
                 error!("Task execution failed: {}", e);
@@ -432,7 +432,7 @@ impl Scheduler {
         };
 
         let task =
-            task.ok_or_else(|| CliError::InputError(format!("Task not found: {}", task_id)))?;
+            task.ok_or_else(|| CliError::InputError(format!("Task not found: {task_id}")))?;
 
         let bot = self.bot.as_ref().unwrap();
 
@@ -481,7 +481,7 @@ impl Scheduler {
                 let chat_action = match action.as_str() {
                     "typing" => ChatActions::Typing,
                     "looking" => ChatActions::Looking,
-                    _ => return Err(CliError::InputError(format!("Unknown action: {}", action))),
+                    _ => return Err(CliError::InputError(format!("Unknown action: {action}"))),
                 };
                 let request = RequestChatsSendAction::new((
                     ChatId::from_borrowed_str(chat_id.as_str()),
@@ -644,7 +644,7 @@ impl Scheduler {
 
         tokio::fs::write(&self.pid_file, pid_content)
             .await
-            .map_err(|e| CliError::FileError(format!("Failed to create PID file: {}", e)))?;
+            .map_err(|e| CliError::FileError(format!("Failed to create PID file: {e}")))?;
 
         info!("Created PID file at: {:?} with PID: {}", self.pid_file, pid);
         Ok(())
@@ -936,15 +936,15 @@ impl Scheduler {
 impl TaskType {
     pub fn description(&self) -> String {
         match self {
-            TaskType::SendText { chat_id, .. } => format!("Send text to {}", chat_id),
+            TaskType::SendText { chat_id, .. } => format!("Send text to {chat_id}"),
             TaskType::SendFile { chat_id, file_path } => {
-                format!("Send file {} to {}", file_path, chat_id)
+                format!("Send file {file_path} to {chat_id}")
             }
             TaskType::SendVoice { chat_id, file_path } => {
-                format!("Send voice {} to {}", file_path, chat_id)
+                format!("Send voice {file_path} to {chat_id}")
             }
             TaskType::SendAction { chat_id, action } => {
-                format!("Send {} action to {}", action, chat_id)
+                format!("Send {action} action to {chat_id}")
             }
         }
     }
@@ -954,7 +954,7 @@ impl ScheduleType {
     pub fn description(&self) -> String {
         match self {
             ScheduleType::Once(time) => format!("Once at {}", time.format("%Y-%m-%d %H:%M:%S UTC")),
-            ScheduleType::Cron(expr) => format!("Cron: {}", expr),
+            ScheduleType::Cron(expr) => format!("Cron: {expr}"),
             ScheduleType::Interval {
                 duration_seconds,
                 start_time,

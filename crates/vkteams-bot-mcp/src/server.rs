@@ -317,11 +317,7 @@ impl Server {
         }): Parameters<DeleteMessageParams>,
     ) -> MCPResult {
         let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
-        convert_bridge_result(
-            self.cli
-                .delete_message(&message_id, target_chat_id)
-                .await,
-        )
+        convert_bridge_result(self.cli.delete_message(&message_id, target_chat_id).await)
     }
 
     #[tool(description = "Pin message in chat")]
@@ -345,11 +341,7 @@ impl Server {
         }): Parameters<UnpinMessageParams>,
     ) -> MCPResult {
         let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
-        convert_bridge_result(
-            self.cli
-                .unpin_message(&message_id, target_chat_id)
-                .await,
-        )
+        convert_bridge_result(self.cli.unpin_message(&message_id, target_chat_id).await)
     }
 
     // === Chat Management Commands ===
@@ -527,11 +519,7 @@ impl Server {
         }): Parameters<SearchTextParams>,
     ) -> MCPResult {
         let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
-        convert_bridge_result(
-            self.cli
-                .search_text(&query, target_chat_id, limit)
-                .await,
-        )
+        convert_bridge_result(self.cli.search_text(&query, target_chat_id, limit).await)
     }
 
     #[tool(description = "Get database statistics")]
@@ -1184,15 +1172,15 @@ mod tests {
         // Test that target_chat_id uses config fallback when chat_id is None
         let config_chat_id = Some("config_chat_123".to_string());
         let param_chat_id: Option<String> = None;
-        
+
         let target_chat_id = param_chat_id.as_deref().or(config_chat_id.as_deref());
         assert_eq!(target_chat_id, Some("config_chat_123"));
-        
+
         // Test that parameter chat_id takes precedence over config
         let param_chat_id = Some("param_chat_456".to_string());
         let target_chat_id = param_chat_id.as_deref().or(config_chat_id.as_deref());
         assert_eq!(target_chat_id, Some("param_chat_456"));
-        
+
         // Test when both are None
         let param_chat_id: Option<String> = None;
         let config_chat_id: Option<String> = None;

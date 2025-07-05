@@ -86,7 +86,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             eprintln!(
                 "{} {}",
                 emoji::CROSS,
-                format!("Failed to load configuration: {}", err).red()
+                format!("Failed to load configuration: {err}").red()
             );
             exit(exit_codes::CONFIG);
         }
@@ -98,7 +98,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             eprintln!(
                 "{} {}",
                 emoji::CROSS,
-                format!("Failed to save configuration: {}", err).red()
+                format!("Failed to save configuration: {err}").red()
             );
             exit(exit_codes::CONFIG);
         }
@@ -116,7 +116,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         eprintln!(
             "{} {}",
             emoji::CROSS,
-            format!("Validation error: {}", err).red()
+            format!("Validation error: {err}").red()
         );
         exit(exit_codes::USAGE_ERROR);
     }
@@ -127,7 +127,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             debug!("Command executed successfully");
         }
         Err(err) => {
-            eprintln!("{} {}", emoji::CROSS, format!("Error: {}", err).red());
+            eprintln!("{} {}", emoji::CROSS, format!("Error: {err}").red());
             exit(err.exit_code());
         }
     }

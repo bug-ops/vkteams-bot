@@ -45,8 +45,8 @@ fn benchmark_scheduler_task_management(c: &mut Criterion) {
                             scheduler
                                 .add_task(
                                     TaskType::SendText {
-                                        chat_id: format!("chat_{}", i),
-                                        message: format!("message_{}", i),
+                                        chat_id: format!("chat_{i}"),
+                                        message: format!("message_{i}"),
                                     },
                                     ScheduleType::Once(
                                         Utc::now() + ChronoDuration::minutes(i as i64),
@@ -72,8 +72,8 @@ fn benchmark_scheduler_task_management(c: &mut Criterion) {
                 scheduler
                     .add_task(
                         TaskType::SendText {
-                            chat_id: format!("chat_{}", i),
-                            message: format!("message_{}", i),
+                            chat_id: format!("chat_{i}"),
+                            message: format!("message_{i}"),
                         },
                         ScheduleType::Once(Utc::now() + ChronoDuration::minutes(i as i64)),
                         None,
@@ -112,8 +112,8 @@ fn benchmark_scheduler_async_operations(c: &mut Criterion) {
                     scheduler
                         .add_task(
                             TaskType::SendText {
-                                chat_id: format!("persistent_chat_{}", i),
-                                message: format!("persistent_message_{}", i),
+                                chat_id: format!("persistent_chat_{i}"),
+                                message: format!("persistent_message_{i}"),
                             },
                             ScheduleType::Once(Utc::now() + ChronoDuration::hours(i as i64)),
                             None,
@@ -140,8 +140,8 @@ fn benchmark_scheduler_async_operations(c: &mut Criterion) {
                 let task_id = scheduler
                     .add_task(
                         TaskType::SendText {
-                            chat_id: format!("concurrent_chat_{}", i),
-                            message: format!("concurrent_message_{}", i),
+                            chat_id: format!("concurrent_chat_{i}"),
+                            message: format!("concurrent_message_{i}"),
                         },
                         ScheduleType::Once(Utc::now() + ChronoDuration::minutes(i as i64)),
                         None,
@@ -187,8 +187,8 @@ fn benchmark_scheduler_queue_operations(c: &mut Criterion) {
                 scheduler
                     .add_task(
                         TaskType::SendText {
-                            chat_id: format!("queue_chat_{}", i),
-                            message: format!("queue_message_{}", i),
+                            chat_id: format!("queue_chat_{i}"),
+                            message: format!("queue_message_{i}"),
                         },
                         ScheduleType::Once(Utc::now() + ChronoDuration::minutes(i as i64)),
                         None,
@@ -216,8 +216,8 @@ fn benchmark_scheduler_queue_operations(c: &mut Criterion) {
                 scheduler
                     .add_task(
                         TaskType::SendText {
-                            chat_id: format!("ready_chat_{}", i),
-                            message: format!("ready_message_{}", i),
+                            chat_id: format!("ready_chat_{i}"),
+                            message: format!("ready_message_{i}"),
                         },
                         ScheduleType::Once(Utc::now() - ChronoDuration::minutes(i as i64)), // Past due
                         None,
@@ -252,8 +252,8 @@ fn benchmark_scheduler_event_driven_features(c: &mut Criterion) {
                 scheduler
                     .add_task(
                         TaskType::SendText {
-                            chat_id: format!("wakeup_chat_{}", i),
-                            message: format!("wakeup_message_{}", i),
+                            chat_id: format!("wakeup_chat_{i}"),
+                            message: format!("wakeup_message_{i}"),
                         },
                         ScheduleType::Once(Utc::now() + ChronoDuration::minutes(i as i64)),
                         None,

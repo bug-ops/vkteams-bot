@@ -801,7 +801,7 @@ mod tests {
 
         stream.push_events(events.events.clone());
         assert_eq!(stream.len(), 2); // Should be capped at capacity
-        
+
         // Verify we get the last 2 events (most recent)
         let remaining_events = stream.peek_events(2);
         assert_eq!(remaining_events.len(), 2);

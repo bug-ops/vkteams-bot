@@ -93,7 +93,7 @@ fn benchmark_chat_id_usage_in_map(c: &mut Criterion) {
             let mut map = HashMap::new();
             for i in 0..100 {
                 // Every ChatId creation requires heap allocation (старое поведение)
-                let chat_id = ChatId::from(format!("unique_chat_{}", i));
+                let chat_id = ChatId::from(format!("unique_chat_{i}"));
                 map.insert(black_box(chat_id), black_box(i));
             }
             black_box(map)

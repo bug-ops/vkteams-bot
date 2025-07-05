@@ -56,7 +56,7 @@ mod tests {
         let err = res.unwrap_err();
         match err {
             crate::error::BotError::Validation(msg) => assert!(msg.contains("not implemented")),
-            _ => panic!("Unexpected error type: {:?}", err),
+            _ => panic!("Unexpected error type: {err:?}"),
         }
     }
 
@@ -70,7 +70,7 @@ mod tests {
         let err = res.unwrap_err();
         match err {
             crate::error::BotError::Validation(msg) => assert!(msg.contains("not implemented")),
-            _ => panic!("Unexpected error type: {:?}", err),
+            _ => panic!("Unexpected error type: {err:?}"),
         }
     }
 
@@ -83,7 +83,7 @@ mod tests {
         let err = res.unwrap_err();
         match err {
             crate::error::BotError::Validation(msg) => assert!(msg.contains("not implemented")),
-            _ => panic!("Unexpected error type: {:?}", err),
+            _ => panic!("Unexpected error type: {err:?}"),
         }
     }
 

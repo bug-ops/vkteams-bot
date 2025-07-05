@@ -54,7 +54,7 @@ async fn test_concurrent_access_different_chats() {
     for i in 0..10 {
         let limiter = limiter.clone();
         let success_count = success_count.clone();
-        let chat_id = ChatId::from(format!("chat_{}", i));
+        let chat_id = ChatId::from(format!("chat_{i}"));
 
         let handle = tokio::spawn(async move {
             let mut local_success = 0;
@@ -80,7 +80,7 @@ async fn test_concurrent_access_different_chats() {
     let total_success = success_count.load(Ordering::Relaxed);
 
     // Each chat should get its own rate limit allowance
-    println!("Total success across all chats: {}", total_success);
+    println!("Total success across all chats: {total_success}");
     assert!(
         total_success > 100,
         "Different chats should each get rate limit allowance"
@@ -98,7 +98,7 @@ async fn test_concurrent_access_different_chats() {
         bucket_count <= 10,
         "Should not have more buckets than chats"
     );
-    println!("Active buckets: {}", bucket_count);
+    println!("Active buckets: {bucket_count}");
 }
 
 #[tokio::test]
@@ -232,7 +232,7 @@ async fn test_token_refill_behavior() {
     let can_request_after_wait = limiter.check_rate_limit(&chat_id).await;
 
     // The exact behavior depends on implementation, but it should handle time-based refill
-    println!("Can request after wait: {}", can_request_after_wait);
+    println!("Can request after wait: {can_request_after_wait}");
 
     // Verify tokens are available (through querying)
     let available_tokens = limiter.get_available_tokens(&chat_id).await;
@@ -245,7 +245,7 @@ async fn test_memory_management() {
 
     // Create many buckets
     for i in 0..1000 {
-        let chat_id = ChatId::from(format!("temp_chat_{}", i));
+        let chat_id = ChatId::from(format!("temp_chat_{i}"));
         limiter.check_rate_limit(&chat_id).await;
     }
 
@@ -257,15 +257,14 @@ async fn test_memory_management() {
 
     // Trigger cleanup by creating more buckets
     for i in 1000..1100 {
-        let chat_id = ChatId::from(format!("trigger_chat_{}", i));
+        let chat_id = ChatId::from(format!("trigger_chat_{i}"));
         limiter.check_rate_limit(&chat_id).await;
     }
 
     // Cleanup should have occurred (exact count depends on implementation)
     let final_bucket_count = limiter.active_bucket_count();
     println!(
-        "Initial: {}, Final: {}",
-        initial_bucket_count, final_bucket_count
+        "Initial: {initial_bucket_count}, Final: {final_bucket_count}"
     );
 
     // The cleanup should have had some effect
@@ -305,8 +304,7 @@ async fn test_priority_based_rate_limiting() {
 
     // The exact behavior depends on implementation
     println!(
-        "Low priority: {}, High priority: {}",
-        low_priority_allowed, high_priority_allowed
+        "Low priority: {low_priority_allowed}, High priority: {high_priority_allowed}"
     );
 }
 
@@ -314,7 +312,7 @@ async fn test_priority_based_rate_limiting() {
 async fn test_performance_under_load() {
     let limiter = Arc::new(RateLimiter::new());
     let chat_ids: Vec<ChatId> = (0..100)
-        .map(|i| ChatId::from(format!("perf_chat_{}", i)))
+        .map(|i| ChatId::from(format!("perf_chat_{i}")))
         .collect();
 
     let start_time = Instant::now();
@@ -349,8 +347,7 @@ async fn test_performance_under_load() {
     let requests_per_second = total as f64 / duration.as_secs_f64();
 
     println!(
-        "Processed {} requests in {:?} ({:.0} req/sec)",
-        total, duration, requests_per_second
+        "Processed {total} requests in {duration:?} ({requests_per_second:.0} req/sec)"
     );
 
     // Should handle high throughput efficiently
@@ -371,7 +368,7 @@ async fn test_graceful_shutdown() {
 
     // Create some buckets
     for i in 0..10 {
-        let chat_id = ChatId::from(format!("shutdown_chat_{}", i));
+        let chat_id = ChatId::from(format!("shutdown_chat_{i}"));
         limiter.check_rate_limit(&chat_id).await;
     }
 

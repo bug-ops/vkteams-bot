@@ -661,7 +661,7 @@ mod tests {
     #[test]
     fn test_chat_id_display() {
         let id = ChatId::from("test_id");
-        assert_eq!(format!("{}", id), "test_id");
+        assert_eq!(format!("{id}"), "test_id");
     }
 
     #[test]
@@ -708,9 +708,9 @@ mod tests {
         let f = MultipartName::FilePath("file.txt".to_string());
         let i = MultipartName::ImagePath("img.png".to_string());
         let n = MultipartName::None;
-        assert_eq!(format!("{}", f), "file");
-        assert_eq!(format!("{}", i), "image");
-        assert_eq!(format!("{}", n), "");
+        assert_eq!(format!("{f}"), "file");
+        assert_eq!(format!("{i}"), "image");
+        assert_eq!(format!("{n}"), "");
     }
 
     #[test]
@@ -722,7 +722,7 @@ mod tests {
     #[test]
     fn test_userid_display() {
         let id = UserId("u123".to_string());
-        assert_eq!(format!("{}", id), "u123");
+        assert_eq!(format!("{id}"), "u123");
     }
 
     #[test]

@@ -86,7 +86,7 @@ async fn demo_background_refill(rate_limiter: Arc<RateLimiter>) -> Result<()> {
             break;
         } // Safety limit
     }
-    println!("   Consumed {} tokens", consumed);
+    println!("   Consumed {consumed} tokens");
 
     // Show that we're rate limited
     let allowed = rate_limiter.check_rate_limit(&chat_id).await;
@@ -122,7 +122,7 @@ async fn demo_concurrent_performance(rate_limiter: Arc<RateLimiter>) -> Result<(
 
     for thread_id in 0..10 {
         let rate_limiter_clone = Arc::clone(&rate_limiter);
-        let chat_id_clone = ChatId::from(format!("perf_test_{}", thread_id));
+        let chat_id_clone = ChatId::from(format!("perf_test_{thread_id}"));
 
         let handle = tokio::spawn(async move {
             let mut successes = 0;
@@ -194,11 +194,10 @@ async fn demo_rate_limiting(rate_limiter: Arc<RateLimiter>) -> Result<()> {
             results.push('\n');
         }
     }
-    println!("{}", results);
+    println!("{results}");
 
     println!(
-        "   Results: {} allowed, {} denied",
-        allowed_count, denied_count
+        "   Results: {allowed_count} allowed, {denied_count} denied"
     );
     println!("   Rate limiting successfully protected against burst!");
 

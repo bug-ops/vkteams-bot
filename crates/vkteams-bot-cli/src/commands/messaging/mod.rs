@@ -219,7 +219,7 @@ async fn execute_send_text_structured(
         match RequestMessagesSendText::new(ChatId::from_borrowed_str(chat_id)).set_text(parser) {
             Ok(req) => req,
             Err(e) => {
-                return CliResponse::error("send-text", format!("Failed to create message: {}", e));
+                return CliResponse::error("send-text", format!("Failed to create message: {e}"));
             }
         };
 
@@ -233,7 +233,7 @@ async fn execute_send_text_structured(
             });
             CliResponse::success("send-text", data)
         }
-        Err(e) => CliResponse::error("send-text", format!("Failed to send message: {}", e)),
+        Err(e) => CliResponse::error("send-text", format!("Failed to send message: {e}")),
     }
 }
 
@@ -254,7 +254,7 @@ async fn execute_send_file_structured(
             });
             CliResponse::success("send-file", data)
         }
-        Err(e) => CliResponse::error("send-file", format!("Failed to send file: {}", e)),
+        Err(e) => CliResponse::error("send-file", format!("Failed to send file: {e}")),
     }
 }
 
@@ -275,7 +275,7 @@ async fn execute_send_voice_structured(
             });
             CliResponse::success("send-voice", data)
         }
-        Err(e) => CliResponse::error("send-voice", format!("Failed to send voice: {}", e)),
+        Err(e) => CliResponse::error("send-voice", format!("Failed to send voice: {e}")),
     }
 }
 
@@ -298,7 +298,7 @@ async fn execute_edit_message_structured(
         Err(e) => {
             return CliResponse::error(
                 "edit-message",
-                format!("Failed to set message text: {}", e),
+                format!("Failed to set message text: {e}"),
             );
         }
     };
@@ -313,7 +313,7 @@ async fn execute_edit_message_structured(
             });
             CliResponse::success("edit-message", data)
         }
-        Err(e) => CliResponse::error("edit-message", format!("Failed to edit message: {}", e)),
+        Err(e) => CliResponse::error("edit-message", format!("Failed to edit message: {e}")),
     }
 }
 
@@ -342,7 +342,7 @@ async fn execute_delete_message_structured(
             });
             CliResponse::success("delete-message", data)
         }
-        Err(e) => CliResponse::error("delete-message", format!("Failed to delete message: {}", e)),
+        Err(e) => CliResponse::error("delete-message", format!("Failed to delete message: {e}")),
     }
 }
 
@@ -368,7 +368,7 @@ async fn execute_pin_message_structured(
             });
             CliResponse::success("pin-message", data)
         }
-        Err(e) => CliResponse::error("pin-message", format!("Failed to pin message: {}", e)),
+        Err(e) => CliResponse::error("pin-message", format!("Failed to pin message: {e}")),
     }
 }
 
@@ -397,7 +397,7 @@ async fn execute_unpin_message_structured(
             });
             CliResponse::success("unpin-message", data)
         }
-        Err(e) => CliResponse::error("unpin-message", format!("Failed to unpin message: {}", e)),
+        Err(e) => CliResponse::error("unpin-message", format!("Failed to unpin message: {e}")),
     }
 }
 

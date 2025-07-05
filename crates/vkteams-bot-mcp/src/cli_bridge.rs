@@ -41,15 +41,13 @@ impl CliBridge {
                         "/app/vkteams-bot-cli",
                         "/bin/vkteams-bot-cli",
                     ];
-                    
                     for path in &container_paths {
                         let path_buf = PathBuf::from(path);
                         if path_buf.exists() && path_buf.is_file() {
                             return Ok(path_buf);
                         }
                     }
-                    
-                    // Try relative path from current executable (fallback)
+// Try relative path from current executable (fallback)
                     std::env::current_exe().and_then(|mut p| {
                         p.pop(); // remove filename
                         p.push("vkteams-bot-cli");
@@ -152,7 +150,7 @@ impl CliBridge {
             warn!("CLI returned empty response for command: {command_str}");
             warn!("This might indicate a CLI execution issue or silent failure");
             return Ok(serde_json::json!({
-                "success": true, 
+                "success": true,
                 "data": null,
                 "warning": "CLI returned empty response",
                 "command": command_str
@@ -199,8 +197,12 @@ impl CliBridge {
         command: &[&str],
         max_retries: usize,
     ) -> Result<Value, BridgeError> {
-        self.execute_command_with_retry_and_timeout(command, max_retries, Duration::from_secs(DEFAULT_CLI_TIMEOUT_SECS))
-            .await
+        self.execute_command_with_retry_and_timeout(
+            command,
+            max_retries,
+            Duration::from_secs(DEFAULT_CLI_TIMEOUT_SECS),
+        )
+        .await
     }
 
     /// Execute command with retry logic and custom timeout
@@ -313,7 +315,6 @@ impl CliBridge {
 
         self.execute_command(&args).await
     }
-
 }
 
 impl Default for CliBridge {
@@ -767,7 +768,6 @@ mod tests {
         }
     }
 
-
     // === Additional comprehensive tests for better coverage ===
 
     #[test]
@@ -775,7 +775,7 @@ mod tests {
         // Test that CliBridge creation fails when CLI binary is not found
         let config = UnifiedConfig::default();
         let result = CliBridge::new(&config);
-        
+
         // This test will likely pass in CI/test environment where CLI binary is available
         // or fail with CliNotFound error when binary is not available
         match result {
@@ -1070,7 +1070,7 @@ mod tests {
         unsafe {
             std::env::remove_var("VKTEAMS_BOT_CONFIG");
         }
-        
+
         // Wait a bit for environment change to propagate
         std::thread::sleep(std::time::Duration::from_millis(10));
 
@@ -1078,16 +1078,18 @@ mod tests {
         if let Ok(bridge) = CliBridge::new(&config) {
             assert!(bridge.default_args.contains(&"--output".to_string()));
             assert!(bridge.default_args.contains(&"json".to_string()));
-            assert!(!bridge.default_args.contains(&"--config".to_string()),
-                   "Bridge should not contain --config when VKTEAMS_BOT_CONFIG is not set. Args: {:?}", 
-                   bridge.default_args);
+            assert!(
+                !bridge.default_args.contains(&"--config".to_string()),
+                "Bridge should not contain --config when VKTEAMS_BOT_CONFIG is not set. Args: {:?}",
+                bridge.default_args
+            );
         }
 
         // Test with config
         unsafe {
             std::env::set_var("VKTEAMS_BOT_CONFIG", "/test/config.toml");
         }
-        
+
         // Wait a bit for environment change to propagate
         std::thread::sleep(std::time::Duration::from_millis(10));
 
@@ -1221,7 +1223,7 @@ mod tests {
     fn test_container_path_resolution() {
         // Test container-friendly CLI path resolution
         let config = UnifiedConfig::default();
-        
+
         // This test verifies that container paths are checked
         match CliBridge::new(&config) {
             Ok(bridge) => {
@@ -1239,12 +1241,12 @@ mod tests {
         }
     }
 
-    #[test] 
+    #[test]
     fn test_cli_path_from_config() {
         // Test using CLI path from config
         let mut config = UnifiedConfig::default();
         config.mcp.cli_path = Some("/custom/cli/path".into());
-        
+
         match CliBridge::new(&config) {
             Ok(bridge) => {
                 assert_eq!(bridge.cli_path, "/custom/cli/path");
@@ -1261,7 +1263,7 @@ mod tests {
     fn test_improved_error_messages() {
         // Test that error messages are more descriptive
         let config = UnifiedConfig::default();
-        
+
         match CliBridge::new(&config) {
             Err(BridgeError::CliNotFound(msg)) => {
                 // Verify improved error message includes all search locations
@@ -1287,15 +1289,15 @@ mod tests {
     fn test_bridge_default_args_robustness() {
         // Test that default args are properly constructed
         let config = UnifiedConfig::default();
-        
+
         match CliBridge::new(&config) {
             Ok(bridge) => {
                 assert!(bridge.default_args.contains(&"--output".to_string()));
                 assert!(bridge.default_args.contains(&"json".to_string()));
-                
+
                 // Verify no empty args
                 assert!(!bridge.default_args.iter().any(|arg| arg.is_empty()));
-                
+
                 println!("✓ Default args verified: {:?}", bridge.default_args);
             }
             Err(_) => {

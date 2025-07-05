@@ -1,4 +1,4 @@
-name: Rust
+name: Rust Test & Coverage
 
 on:
   push:
@@ -29,7 +29,7 @@ jobs:
     - uses: taiki-e/install-action@nextest
     
     - name: Run tests with coverage
-      run: cargo llvm-cov nextest -p ${{ matrix.crate }} -v --all-targets --profile ci --all-features --lcov --output-path lcov.info
+      run: cargo llvm-cov nextest --package ${{ matrix.crate }} --verbose --all-targets --profile ci --all-features --lcov --output-path lcov.info
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5

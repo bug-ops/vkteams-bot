@@ -93,13 +93,13 @@ impl Command for ConfigCommands {
     /// New method for structured output support
     async fn execute_with_output(&self, bot: &Bot, output_format: &OutputFormat) -> CliResult<()> {
         // For interactive commands like Setup and Config wizard, use regular execute when in Pretty mode
-        let is_interactive = matches!(self, ConfigCommands::Setup) || 
-            matches!(self, ConfigCommands::Config { wizard: true, .. });
-            
+        let is_interactive = matches!(self, ConfigCommands::Setup)
+            || matches!(self, ConfigCommands::Config { wizard: true, .. });
+
         if is_interactive && matches!(output_format, OutputFormat::Pretty) {
             return self.execute(bot).await;
         }
-        
+
         let response = match self {
             ConfigCommands::Setup => execute_setup_structured().await,
             ConfigCommands::Examples => execute_examples_structured().await,
@@ -249,7 +249,7 @@ async fn execute_completion(
             default_dir
         } else {
             std::env::current_dir().map_err(|e| {
-                CliError::FileError(format!("Failed to get current directory: {}", e))
+                CliError::FileError(format!("Failed to get current directory: {e}"))
             })?
         };
 
@@ -273,35 +273,35 @@ async fn execute_completion(
 async fn execute_setup_with_result() -> CommandResult {
     match execute_setup().await {
         Ok(()) => CommandResult::success_with_message("Setup completed successfully"),
-        Err(e) => CommandResult::error(format!("Setup failed: {}", e)),
+        Err(e) => CommandResult::error(format!("Setup failed: {e}")),
     }
 }
 
 async fn execute_examples_with_result() -> CommandResult {
     match execute_examples().await {
         Ok(()) => CommandResult::success(),
-        Err(e) => CommandResult::error(format!("Failed to show examples: {}", e)),
+        Err(e) => CommandResult::error(format!("Failed to show examples: {e}")),
     }
 }
 
 async fn execute_list_commands_with_result() -> CommandResult {
     match execute_list_commands().await {
         Ok(()) => CommandResult::success(),
-        Err(e) => CommandResult::error(format!("Failed to list commands: {}", e)),
+        Err(e) => CommandResult::error(format!("Failed to list commands: {e}")),
     }
 }
 
 async fn execute_validate_with_result(bot: &Bot) -> CommandResult {
     match execute_validate(bot).await {
         Ok(()) => CommandResult::success_with_message("Validation completed successfully"),
-        Err(e) => CommandResult::error(format!("Validation failed: {}", e)),
+        Err(e) => CommandResult::error(format!("Validation failed: {e}")),
     }
 }
 
 async fn execute_config_with_result(show: bool, init: bool, wizard: bool) -> CommandResult {
     match execute_config(show, init, wizard).await {
         Ok(()) => CommandResult::success_with_message("Configuration operation completed"),
-        Err(e) => CommandResult::error(format!("Configuration operation failed: {}", e)),
+        Err(e) => CommandResult::error(format!("Configuration operation failed: {e}")),
     }
 }
 
@@ -313,7 +313,7 @@ async fn execute_completion_with_result(
 ) -> CommandResult {
     match execute_completion(shell, output, install, all).await {
         Ok(()) => CommandResult::success_with_message("Completion operation completed"),
-        Err(e) => CommandResult::error(format!("Completion operation failed: {}", e)),
+        Err(e) => CommandResult::error(format!("Completion operation failed: {e}")),
     }
 }
 
@@ -585,7 +585,7 @@ async fn execute_list_commands() -> CliResult<()> {
     }
 
     for (category, cmds) in categories {
-        println!("{}", format!("{}:", category).bold().green());
+        println!("{}", format!("{category}:").bold().green());
         for (cmd, desc) in cmds {
             println!("  {:<20} {}", cmd.cyan(), desc);
         }
@@ -699,7 +699,7 @@ async fn execute_config(show: bool, init: bool, wizard: bool) -> CliResult<()> {
         // Update API URL
         if let Ok(current_config) = Config::from_file() {
             if let Some(current_url) = &current_config.api.url {
-                println!("Current API URL: {}", current_url);
+                println!("Current API URL: {current_url}");
             }
         }
         print!("Enter new API URL (or press Enter to keep current): ");
@@ -868,7 +868,7 @@ async fn execute_list_commands_structured() -> CliResponse<serde_json::Value> {
 
 async fn execute_validate_structured(bot: &Bot) -> CliResponse<serde_json::Value> {
     let mut validation_results = Vec::new();
-    
+
     // Test 1: Configuration file
     let config_result = match Config::from_file() {
         Ok(config) => {
@@ -879,7 +879,7 @@ async fn execute_validate_structured(bot: &Bot) -> CliResponse<serde_json::Value
             if config.api.url.is_none() {
                 issues.push("Missing API URL");
             }
-            
+
             json!({
                 "test": "Configuration File",
                 "status": if issues.is_empty() { "pass" } else { "fail" },
@@ -932,9 +932,9 @@ async fn execute_validate_structured(bot: &Bot) -> CliResponse<serde_json::Value
         "variables": env_status
     }));
 
-    let all_passed = validation_results.iter().all(|r| {
-        r.get("status").and_then(|s| s.as_str()) != Some("fail")
-    });
+    let all_passed = validation_results
+        .iter()
+        .all(|r| r.get("status").and_then(|s| s.as_str()) != Some("fail"));
 
     CliResponse::success(
         "validate",
@@ -969,7 +969,7 @@ async fn execute_config_structured(
                     .first()
                     .map(|p| p.display().to_string())
                     .unwrap_or_else(|| "unknown".to_string());
-                
+
                 CliResponse::success(
                     "config",
                     json!({
@@ -979,7 +979,7 @@ async fn execute_config_structured(
                     }),
                 )
             }
-            Err(e) => CliResponse::error("config", format!("Failed to initialize config: {}", e)),
+            Err(e) => CliResponse::error("config", format!("Failed to initialize config: {e}")),
         }
     } else if show {
         match Config::from_file() {
@@ -993,7 +993,7 @@ async fn execute_config_structured(
                     }),
                 )
             }
-            Err(e) => CliResponse::error("config", format!("Failed to load config: {}", e)),
+            Err(e) => CliResponse::error("config", format!("Failed to load config: {e}")),
         }
     } else {
         CliResponse::success(

@@ -46,7 +46,7 @@ pub async fn download_files(bot: &Bot, file_id: FileId) -> Result<()> {
 }
 // Save file to the disk
 pub async fn file_save(file_name: &str, file_data: Vec<u8>) -> Result<()> {
-    let file_path = format!("tests/{}", file_name);
+    let file_path = format!("tests/{file_name}");
     tokio::fs::write(file_path.to_owned(), file_data).await?;
     Ok(())
 }
