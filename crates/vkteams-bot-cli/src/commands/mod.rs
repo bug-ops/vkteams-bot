@@ -124,8 +124,7 @@ impl CommandResult {
                     if let Some(data) = &self.data {
                         let json_str = serde_json::to_string_pretty(data).map_err(|e| {
                             crate::errors::prelude::CliError::UnexpectedError(format!(
-                                "Failed to serialize data: {}",
-                                e
+                                "Failed to serialize data: {e}"
                             ))
                         })?;
                         println!("{}", json_str.green());
@@ -137,11 +136,10 @@ impl CommandResult {
             OutputFormat::Json => {
                 let json_output = serde_json::to_string_pretty(self).map_err(|e| {
                     crate::errors::prelude::CliError::UnexpectedError(format!(
-                        "Failed to serialize result: {}",
-                        e
+                        "Failed to serialize result: {e}"
                     ))
                 })?;
-                println!("{}", json_output);
+                println!("{json_output}");
             }
             OutputFormat::Table => {
                 // For table format, fall back to pretty format for now
@@ -151,7 +149,7 @@ impl CommandResult {
                 // No output in quiet mode unless it's an error
                 if !self.success {
                     if let Some(message) = &self.message {
-                        eprintln!("{}", message);
+                        eprintln!("{message}");
                     }
                 }
             }

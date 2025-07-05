@@ -2,7 +2,7 @@
 //!
 //! These tests focus on covering functionality that improves test coverage.
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 #[test]
 fn test_json_parsing_complex() {
@@ -21,12 +21,12 @@ fn test_json_parsing_complex() {
             "version": "1.0.0"
         }
     });
-    
+
     // Test JSON serialization/deserialization
     let serialized = serde_json::to_string(&complex_json).unwrap();
     let deserialized: Value = serde_json::from_str(&serialized).unwrap();
     assert_eq!(deserialized, complex_json);
-    
+
     // Test accessing nested values
     assert_eq!(deserialized["data"]["nested"]["array"][1], 2);
     assert_eq!(deserialized["data"]["special_chars"], "测试 🔥 unicode");
@@ -43,20 +43,20 @@ fn test_parameter_validation_patterns() {
         json!({"message_id": "msg_123", "new_text": "Updated"}),
         json!({}), // Empty parameters
     ];
-    
+
     for params in test_cases {
         // Simulate parameter validation logic
         let is_valid = match params.as_object() {
             Some(obj) => !obj.is_empty() || params == json!({}),
             None => false,
         };
-        
+
         // All our test cases should be valid JSON objects
-        assert!(is_valid, "Invalid parameters: {:?}", params);
+        assert!(is_valid, "Invalid parameters: {params:?}");
     }
 }
 
-#[test] 
+#[test]
 fn test_error_handling_scenarios() {
     // Test various error scenarios that might occur
     let error_scenarios = vec![
@@ -66,7 +66,7 @@ fn test_error_handling_scenarios() {
         ("RATE_LIMIT", "Too many requests"),
         ("TIMEOUT", "Operation timed out"),
     ];
-    
+
     for (error_code, error_message) in error_scenarios {
         // Simulate error response structure
         let error_response = json!({
@@ -76,7 +76,7 @@ fn test_error_handling_scenarios() {
                 "message": error_message
             }
         });
-        
+
         assert_eq!(error_response["success"], false);
         assert_eq!(error_response["error"]["code"], error_code);
         assert_eq!(error_response["error"]["message"], error_message);
@@ -126,12 +126,12 @@ fn test_response_structure_validation() {
             }
         }),
     ];
-    
+
     for response in response_templates {
         // Validate structure
         assert_eq!(response["success"], true);
         assert!(response["data"].is_object());
-        
+
         // Test serialization round-trip
         let serialized = serde_json::to_string(&response).unwrap();
         let deserialized: Value = serde_json::from_str(&serialized).unwrap();
@@ -144,20 +144,23 @@ fn test_command_argument_building() {
     // Test building command arguments for different scenarios
     let test_scenarios = vec![
         ("send-text", vec!["Hello World", "--chat-id", "123"]),
-        ("send-file", vec!["/path/to/file.txt", "--caption", "Test file"]),
+        (
+            "send-file",
+            vec!["/path/to/file.txt", "--caption", "Test file"],
+        ),
         ("database", vec!["recent", "--limit", "50"]),
         ("daemon", vec!["status"]),
         ("upload", vec!["base64", "--name", "test.txt"]),
     ];
-    
+
     for (command, args) in test_scenarios {
         // Simulate command building
         let mut full_command = vec![command];
         full_command.extend(args);
-        
+
         assert!(!full_command.is_empty());
         assert_eq!(full_command[0], command);
-        
+
         // Test joining arguments
         let command_string = full_command.join(" ");
         assert!(command_string.contains(command));
@@ -167,22 +170,22 @@ fn test_command_argument_building() {
 #[test]
 fn test_timeout_handling() {
     use std::time::Duration;
-    
+
     // Test timeout duration handling
     let timeout_scenarios = vec![
-        Duration::from_secs(30),   // Default timeout
-        Duration::from_secs(60),   // Extended timeout
-        Duration::from_secs(5),    // Short timeout
+        Duration::from_secs(30),    // Default timeout
+        Duration::from_secs(60),    // Extended timeout
+        Duration::from_secs(5),     // Short timeout
         Duration::from_millis(500), // Very short timeout
     ];
-    
+
     for timeout in timeout_scenarios {
         // Simulate timeout validation
         assert!(timeout.as_millis() > 0);
         assert!(timeout.as_secs() < 600); // Max 10 minutes
-        
+
         // Test timeout formatting
-        let timeout_str = format!("{:?}", timeout);
+        let timeout_str = format!("{timeout:?}");
         assert!(timeout_str.contains("s") || timeout_str.contains("ms"));
     }
 }
@@ -211,11 +214,11 @@ fn test_configuration_scenarios() {
             }
         }),
     ];
-    
+
     for config in config_scenarios {
         // Validate configuration structure
         assert!(config.is_object());
-        
+
         // Test accessing nested configuration
         if let Some(mcp) = config.get("mcp") {
             if let Some(chat_id) = mcp.get("chat_id") {
@@ -223,7 +226,7 @@ fn test_configuration_scenarios() {
                 assert!(!chat_id.as_str().unwrap().is_empty());
             }
         }
-        
+
         if let Some(api) = config.get("api") {
             if let Some(url) = api.get("url") {
                 assert!(url.is_string());

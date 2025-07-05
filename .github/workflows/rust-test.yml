@@ -1,4 +1,4 @@
-name: Rust
+name: Rust Test & Coverage
 
 on:
   push:
@@ -18,24 +18,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - uses: actions/cache@v4
+    - uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
-        path: |
-          ~/.cargo/bin/
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
-          target/
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-    
-    - uses: dtolnay/rust-toolchain@stable
-      with:
+        toolchain: 1.88.0
+        cache: true
+        cache-workspaces: true
+        cache-key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
         components: llvm-tools-preview
     - uses: taiki-e/install-action@cargo-llvm-cov
     - uses: taiki-e/install-action@nextest
     
     - name: Run tests with coverage
-      run: cargo llvm-cov nextest -p ${{ matrix.crate }} -v --all-targets --profile ci --all-features --lcov --output-path lcov.info
+      run: cargo llvm-cov nextest --package ${{ matrix.crate }} --verbose --all-targets --profile ci --all-features --lcov --output-path lcov.info
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5

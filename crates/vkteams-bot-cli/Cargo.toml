@@ -1,6 +1,6 @@
 [package]
 name = "vkteams-bot-cli"
-version = "0.7.2"
+version = "0.7.3"
 authors = ["Andrei G. <k05h31@gmail.com>"]
 keywords = ["vkteams", "bot", "api", "automation", "mcp"]
 categories = ["api-bindings", "command-line-utilities", "web-programming"]
@@ -46,7 +46,7 @@ exitcode = "1"
 futures = "0.3"
 toml = "0.8"
 dirs = "6.0"
-indicatif = { version = "0.17", features = ["tokio"] }
+indicatif = { version = "0.18", features = ["tokio"] }
 chrono = { version = "0.4", features = ["serde"] }
 cron = "0.15"
 uuid = { version = "1.0", features = ["v4"] }
@@ -70,7 +70,7 @@ pgvector = { version = "0.4", features = ["sqlx"], optional = true }
 openai-api-rs = { version = "6", optional = true }
 
 [features]
-default = ["completion"]
+default = ["completion", "storage"]
 completion = ["dep:clap_complete"]
 database = ["dep:sqlx"]
 vector-search = ["dep:pgvector", "database"]
@@ -82,7 +82,7 @@ full = ["storage", "ai-embeddings", "completion"]
 dotenvy = "0.15"
 tempfile = "3.8"
 dialoguer = { version = "0.11", features = ["fuzzy-select"] }
-console = "0.15"
+console = "0.16"
 assert_cmd = "2.0.17"
 predicates = "3.1.3"
 tokio-test = "0.4.4"

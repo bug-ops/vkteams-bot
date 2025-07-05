@@ -57,7 +57,7 @@ pub fn generate_completion(shell: CompletionShell, output_path: Option<&Path>) -
     match output_path {
         Some(path) => {
             let mut file = fs::File::create(path).map_err(|e| {
-                CliError::FileError(format!("Failed to create completion file: {}", e))
+                CliError::FileError(format!("Failed to create completion file: {e}"))
             })?;
 
             generate(shell, &mut cmd, "vkteams-bot-cli", &mut file);
@@ -132,7 +132,7 @@ fn print_installation_instructions(shell: Shell, path: &Path) {
 pub fn generate_all_completions(output_dir: &Path) -> CliResult<()> {
     // Ensure output directory exists
     fs::create_dir_all(output_dir)
-        .map_err(|e| CliError::FileError(format!("Failed to create output directory: {}", e)))?;
+        .map_err(|e| CliError::FileError(format!("Failed to create output directory: {e}")))?;
 
     let shells = [
         (CompletionShell::Bash, "vkteams-bot-cli.bash"),
@@ -176,7 +176,7 @@ pub fn get_default_completion_dir() -> Option<std::path::PathBuf> {
 #[cfg(feature = "completion")]
 pub fn install_completion(shell: CompletionShell) -> CliResult<()> {
     let temp_dir = std::env::temp_dir();
-    let temp_file = temp_dir.join(format!("vkteams-bot-cli-completion-{:?}", shell));
+    let temp_file = temp_dir.join(format!("vkteams-bot-cli-completion-{shell:?}"));
 
     // Generate completion to temporary file
     generate_completion(shell, Some(&temp_file))?;
@@ -187,13 +187,13 @@ pub fn install_completion(shell: CompletionShell) -> CliResult<()> {
     // Ensure target directory exists
     if let Some(parent) = target_path.parent() {
         fs::create_dir_all(parent).map_err(|e| {
-            CliError::FileError(format!("Failed to create completion directory: {}", e))
+            CliError::FileError(format!("Failed to create completion directory: {e}"))
         })?;
     }
 
     // Copy to target location
     fs::copy(&temp_file, &target_path)
-        .map_err(|e| CliError::FileError(format!("Failed to install completion: {}", e)))?;
+        .map_err(|e| CliError::FileError(format!("Failed to install completion: {e}")))?;
 
     // Clean up temporary file
     let _ = fs::remove_file(&temp_file);

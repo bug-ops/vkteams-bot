@@ -686,7 +686,7 @@ mod tests {
     #[test]
     fn test_config_debug_format() {
         let config = UnifiedConfig::default();
-        let debug_str = format!("{:?}", config);
+        let debug_str = format!("{config:?}");
         assert!(debug_str.contains("UnifiedConfig"));
         assert!(debug_str.contains("ApiConfig"));
         assert!(debug_str.contains("NetworkConfig"));

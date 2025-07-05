@@ -21,14 +21,12 @@ pub fn validate_file_path(file_path: &str) -> CliResult<()> {
     let path = Path::new(file_path);
     if !path.exists() {
         return Err(CliError::FileError(format!(
-            "File not found: {}",
-            file_path
+            "File not found: {file_path}"
         )));
     }
     if !path.is_file() {
         return Err(CliError::FileError(format!(
-            "Path is not a file: {}",
-            file_path
+            "Path is not a file: {file_path}"
         )));
     }
 
@@ -51,8 +49,7 @@ pub fn validate_directory_path(dir_path: &str) -> CliResult<()> {
     let path = Path::new(dir_path);
     if path.exists() && !path.is_dir() {
         return Err(CliError::FileError(format!(
-            "Path exists but is not a directory: {}",
-            dir_path
+            "Path exists but is not a directory: {dir_path}"
         )));
     }
 
@@ -101,8 +98,7 @@ pub fn validate_voice_file_path(file_path: &str) -> CliResult<()> {
         match ext.as_str() {
             "ogg" | "mp3" | "wav" | "m4a" | "aac" => Ok(()),
             _ => Err(CliError::InputError(format!(
-                "Unsupported voice file format: {}. Supported formats: ogg, mp3, wav, m4a, aac",
-                ext
+                "Unsupported voice file format: {ext}. Supported formats: ogg, mp3, wav, m4a, aac"
             ))),
         }
     } else {
@@ -127,8 +123,7 @@ pub fn validate_file_size(file_path: &str, max_size: usize) -> CliResult<()> {
         let size = metadata.len() as usize;
         if size > max_size {
             return Err(CliError::FileError(format!(
-                "File size ({} bytes) exceeds maximum allowed size ({} bytes)",
-                size, max_size
+                "File size ({size} bytes) exceeds maximum allowed size ({max_size} bytes)"
             )));
         }
     }

@@ -639,8 +639,7 @@ mod tests {
         assert!(total_successes <= 100, "Should not exceed bucket capacity");
         assert!(
             total_successes >= 90,
-            "Should consume most tokens with high concurrency, got: {}",
-            total_successes
+            "Should consume most tokens with high concurrency, got: {total_successes}"
         );
     }
 
@@ -702,8 +701,7 @@ mod tests {
         // Should be very fast (less than 10ms for 1000 operations)
         assert!(
             duration.as_millis() < 100, // More lenient for CI environments
-            "Atomic operations should be very fast: {:?}",
-            duration
+            "Atomic operations should be very fast: {duration:?}"
         );
     }
 
@@ -731,7 +729,7 @@ mod ratelimiter_tests {
     use tokio::time::{Duration, sleep};
 
     fn chat_id(n: u64) -> ChatId {
-        ChatId::from(format!("chat_{}", n))
+        ChatId::from(format!("chat_{n}"))
     }
 
     #[tokio::test]

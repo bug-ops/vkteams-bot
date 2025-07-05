@@ -128,7 +128,7 @@ fn bench_string_operations(c: &mut Criterion) {
     for (i, message) in sample_messages.iter().enumerate() {
         group.bench_with_input(BenchmarkId::new("format_message", i), message, |b, msg| {
             b.iter(|| {
-                let formatted = black_box(format!("[CLI] {}", msg));
+                let formatted = black_box(format!("[CLI] {msg}"));
                 black_box(formatted)
             });
         });
@@ -194,12 +194,12 @@ fn bench_batch_operations(c: &mut Criterion) {
             BenchmarkId::new("process_messages", size),
             size,
             |b, &size| {
-                let messages: Vec<String> = (0..size).map(|i| format!("Message {}", i)).collect();
+                let messages: Vec<String> = (0..size).map(|i| format!("Message {i}")).collect();
 
                 b.iter(|| {
                     let processed: Vec<_> = messages
                         .iter()
-                        .map(|msg| black_box(format!("[PROCESSED] {}", msg)))
+                        .map(|msg| black_box(format!("[PROCESSED] {msg}")))
                         .collect();
                     black_box(processed)
                 });

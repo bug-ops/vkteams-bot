@@ -287,7 +287,7 @@ mod tests {
         assert!(result.is_err());
 
         if let Err(e) = result {
-            let error_msg = format!("{}", e);
+            let error_msg = format!("{e}");
             assert!(error_msg.contains("OTLP exporter endpoint not configured"));
         }
     }
@@ -301,7 +301,7 @@ mod tests {
         assert!(result.is_err());
 
         if let Err(e) = result {
-            let error_msg = format!("{}", e);
+            let error_msg = format!("{e}");
             assert!(error_msg.contains("OTLP exporter endpoint not configured"));
         }
     }
@@ -344,7 +344,7 @@ mod tests {
             }
             Err(e) => {
                 // Error in filter creation - this is expected with invalid directives
-                let error_msg = format!("{}", e);
+                let error_msg = format!("{e}");
                 assert!(!error_msg.is_empty());
             }
         }
@@ -524,7 +524,7 @@ mod tests {
             Ok(filter) => {
                 // Filter should be created successfully
                 // We can't easily test the internal state, but we know it compiled correctly
-                let _filter_string = format!("{:?}", filter);
+                let _filter_string = format!("{filter:?}");
             }
             Err(e) => {
                 // If error occurs, it should be related to filter parsing
@@ -542,7 +542,7 @@ mod tests {
         match result {
             Ok(filter) => {
                 // Filter should be created successfully
-                let _filter_string = format!("{:?}", filter);
+                let _filter_string = format!("{filter:?}");
             }
             Err(e) => {
                 // If error occurs, it should be related to filter parsing
@@ -579,8 +579,8 @@ mod tests {
         assert!(metrics_error.to_string().contains("endpoint"));
 
         // Errors should be convertible to string
-        let traces_str = format!("{:?}", traces_error);
-        let metrics_str = format!("{:?}", metrics_error);
+        let traces_str = format!("{traces_error:?}");
+        let metrics_str = format!("{metrics_error:?}");
 
         assert!(!traces_str.is_empty());
         assert!(!metrics_str.is_empty());

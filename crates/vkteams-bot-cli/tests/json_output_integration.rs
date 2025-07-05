@@ -11,11 +11,15 @@ fn test_json_output_diagnostic_health_check() {
         .output()
         .expect("Failed to execute command");
 
-    assert!(output.status.success(), "Command failed with stderr: {}", String::from_utf8_lossy(&output.stderr));
-    
+    assert!(
+        output.status.success(),
+        "Command failed with stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
     let stdout = String::from_utf8_lossy(&output.stdout);
     let json: Value = serde_json::from_str(&stdout).expect("Failed to parse JSON output");
-    
+
     assert!(json["success"].is_boolean());
     assert!(json["command"].is_string());
     assert!(json["timestamp"].is_string());
@@ -29,11 +33,15 @@ fn test_json_output_scheduler_list() {
         .output()
         .expect("Failed to execute command");
 
-    assert!(output.status.success(), "Command failed with stderr: {}", String::from_utf8_lossy(&output.stderr));
-    
+    assert!(
+        output.status.success(),
+        "Command failed with stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
     let stdout = String::from_utf8_lossy(&output.stdout);
     let json: Value = serde_json::from_str(&stdout).expect("Failed to parse JSON output");
-    
+
     assert!(json["success"].is_boolean());
     assert!(json["data"]["tasks"].is_array());
     assert!(json["data"]["total"].is_number());
@@ -47,11 +55,15 @@ fn test_json_output_config_examples() {
         .expect("Failed to execute command");
 
     // This command doesn't require bot token
-    assert!(output.status.success(), "Command failed with stderr: {}", String::from_utf8_lossy(&output.stderr));
-    
+    assert!(
+        output.status.success(),
+        "Command failed with stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
     let stdout = String::from_utf8_lossy(&output.stdout);
     let json: Value = serde_json::from_str(&stdout).expect("Failed to parse JSON output");
-    
+
     assert!(json["success"].is_boolean());
     assert!(json["command"].is_string());
     assert!(json["data"]["examples"].is_array());
@@ -71,10 +83,10 @@ fn test_json_output_pretty_format_default() {
 
     assert!(output_pretty.status.success());
     assert!(output_json.status.success());
-    
+
     // Output should be different
     assert_ne!(output_pretty.stdout, output_json.stdout);
-    
+
     // JSON output should be parseable
     let stdout = String::from_utf8_lossy(&output_json.stdout);
     let _: Value = serde_json::from_str(&stdout).expect("Failed to parse JSON output");

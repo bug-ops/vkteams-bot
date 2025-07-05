@@ -129,19 +129,19 @@ mod tests {
         let api_err = CliError::ApiError(BotError::Api(vkteams_bot::error::ApiError {
             description: "api fail".to_string(),
         }));
-        assert!(format!("{}", api_err).contains("API Error:"));
+        assert!(format!("{api_err}").contains("API Error:"));
         assert_eq!(api_err.exit_code(), exitcode::UNAVAILABLE);
 
         let file_err = CliError::FileError("file fail".to_string());
-        assert!(format!("{}", file_err).contains("File Error:"));
+        assert!(format!("{file_err}").contains("File Error:"));
         assert_eq!(file_err.exit_code(), exitcode::IOERR);
 
         let input_err = CliError::InputError("bad arg".to_string());
-        assert!(format!("{}", input_err).contains("Input Error:"));
+        assert!(format!("{input_err}").contains("Input Error:"));
         assert_eq!(input_err.exit_code(), exitcode::USAGE);
 
         let unexp_err = CliError::UnexpectedError("boom".to_string());
-        assert!(format!("{}", unexp_err).contains("Unexpected Error:"));
+        assert!(format!("{unexp_err}").contains("Unexpected Error:"));
         assert_eq!(unexp_err.exit_code(), exitcode::SOFTWARE);
     }
 

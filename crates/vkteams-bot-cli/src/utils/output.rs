@@ -37,7 +37,7 @@ where
     T: serde::Serialize,
 {
     let json_str = serde_json::to_string_pretty(result)
-        .map_err(|e| CliError::UnexpectedError(format!("Failed to serialize response: {}", e)))?;
+        .map_err(|e| CliError::UnexpectedError(format!("Failed to serialize response: {e}")))?;
 
     println!("{}", json_str.green());
     Ok(())
@@ -49,9 +49,9 @@ where
     T: serde::Serialize,
 {
     let json_str = serde_json::to_string(result)
-        .map_err(|e| CliError::UnexpectedError(format!("Failed to serialize response: {}", e)))?;
+        .map_err(|e| CliError::UnexpectedError(format!("Failed to serialize response: {e}")))?;
 
-    println!("{}", json_str);
+    println!("{json_str}");
     Ok(())
 }
 
@@ -65,7 +65,7 @@ where
 
     // Convert to JSON first for processing
     let json_value = serde_json::to_value(result)
-        .map_err(|e| CliError::UnexpectedError(format!("Failed to serialize for table: {}", e)))?;
+        .map_err(|e| CliError::UnexpectedError(format!("Failed to serialize for table: {e}")))?;
 
     #[derive(Tabled)]
     struct TableRow {
@@ -90,7 +90,7 @@ where
                 .collect();
 
             let table = Table::new(rows);
-            println!("{}", table);
+            println!("{table}");
         }
         serde_json::Value::Array(arr) => {
             if arr.is_empty() {
@@ -114,7 +114,7 @@ where
                         .collect();
 
                     let table = Table::new(rows);
-                    println!("{}", table);
+                    println!("{table}");
                 }
             }
         }
@@ -125,7 +125,7 @@ where
                 value: format_table_value(&json_value),
             }];
             let table = Table::new(rows);
-            println!("{}", table);
+            println!("{table}");
         }
     }
 
@@ -178,7 +178,7 @@ fn print_array_as_table(arr: &[serde_json::Value]) -> CliResult<()> {
     if !table_data.is_empty() {
         use tabled::Table;
         let table = Table::from_iter(table_data);
-        println!("{}", table);
+        println!("{table}");
     }
 
     Ok(())
@@ -228,7 +228,7 @@ pub fn print_success_message(message: &str, format: &OutputFormat) {
                 "success": true,
                 "message": message
             });
-            println!("{}", json);
+            println!("{json}");
         }
         OutputFormat::Table => println!("{} {}", emoji::CHECK, message),
         OutputFormat::Quiet => {} // No output in quiet mode
@@ -244,7 +244,7 @@ pub fn print_error_message(message: &str, format: &OutputFormat) {
                 "success": false,
                 "error": message
             });
-            eprintln!("{}", json);
+            eprintln!("{json}");
         }
         OutputFormat::Table => eprintln!("{} {}", emoji::CROSS, message),
         OutputFormat::Quiet => {} // No output in quiet mode
@@ -259,7 +259,7 @@ pub fn print_warning_message(message: &str, format: &OutputFormat) {
             let json = serde_json::json!({
                 "warning": message
             });
-            println!("{}", json);
+            println!("{json}");
         }
         OutputFormat::Table => println!("{} {}", emoji::WARNING, message),
         OutputFormat::Quiet => {} // No output in quiet mode
@@ -274,7 +274,7 @@ pub fn print_info_message(message: &str, format: &OutputFormat) {
             let json = serde_json::json!({
                 "info": message
             });
-            println!("{}", json);
+            println!("{json}");
         }
         OutputFormat::Table => println!("{} {}", emoji::INFO, message),
         OutputFormat::Quiet => {} // No output in quiet mode
@@ -303,7 +303,7 @@ where
             println!(
                 "{}",
                 serde_json::to_string_pretty(&json).map_err(|e| CliError::UnexpectedError(
-                    format!("Failed to serialize list: {}", e)
+                    format!("Failed to serialize list: {e}")
                 ))?
             );
         }
@@ -319,7 +319,7 @@ where
             }
 
             if !title.is_empty() {
-                println!("{}", title);
+                println!("{title}");
                 println!("{}", "=".repeat(title.len()));
             }
 
@@ -333,7 +333,7 @@ where
                 .collect();
 
             let table = Table::new(rows);
-            println!("{}", table);
+            println!("{table}");
         }
         OutputFormat::Quiet => {} // No output in quiet mode
     }
@@ -363,7 +363,7 @@ pub fn print_key_value_pairs(
             println!(
                 "{}",
                 serde_json::to_string_pretty(&json).map_err(|e| CliError::UnexpectedError(
-                    format!("Failed to serialize key-value pairs: {}", e)
+                    format!("Failed to serialize key-value pairs: {e}")
                 ))?
             );
         }
@@ -380,7 +380,7 @@ pub fn print_key_value_pairs(
             }
 
             if !title.is_empty() {
-                println!("{}", title);
+                println!("{title}");
                 println!("{}", "=".repeat(title.len()));
             }
 
@@ -394,7 +394,7 @@ pub fn print_key_value_pairs(
                 .collect();
 
             let table = Table::new(rows);
-            println!("{}", table);
+            println!("{table}");
         }
         OutputFormat::Quiet => {} // No output in quiet mode
     }
@@ -409,7 +409,7 @@ pub fn print_progress_message(message: &str, format: &OutputFormat) {
             let json = serde_json::json!({
                 "progress": message
             });
-            println!("{}", json);
+            println!("{json}");
         }
         OutputFormat::Table | OutputFormat::Quiet => {} // No progress output in these modes
     }
@@ -425,7 +425,7 @@ pub fn print_section_header(title: &str, format: &OutputFormat) {
         }
         OutputFormat::Table => {
             println!();
-            println!("{}", title);
+            println!("{title}");
             println!("{}", "=".repeat(title.len()));
         }
         OutputFormat::Json | OutputFormat::Quiet => {} // No headers in JSON or quiet mode
@@ -453,7 +453,7 @@ pub fn print_statistics(
             println!(
                 "{}",
                 serde_json::to_string_pretty(&json).map_err(|e| CliError::UnexpectedError(
-                    format!("Failed to serialize statistics: {}", e)
+                    format!("Failed to serialize statistics: {e}")
                 ))?
             );
         }
@@ -469,7 +469,7 @@ pub fn print_statistics(
                 value: u64,
             }
 
-            println!("{}", title);
+            println!("{title}");
             println!("{}", "=".repeat(title.len()));
 
             // Sort keys for consistent output
@@ -482,7 +482,7 @@ pub fn print_statistics(
                 .collect();
 
             let table = Table::new(rows);
-            println!("{}", table);
+            println!("{table}");
         }
         OutputFormat::Quiet => {} // No output in quiet mode
     }

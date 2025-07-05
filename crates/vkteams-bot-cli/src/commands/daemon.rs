@@ -85,7 +85,7 @@ impl Command for DaemonCommands {
             DaemonCommands::Status { pid_file } => {
                 match get_daemon_status(pid_file.as_deref()).await {
                     Ok(status) => CommandResult::success_with_data(status),
-                    Err(e) => CommandResult::error(format!("Failed to get daemon status: {}", e)),
+                    Err(e) => CommandResult::error(format!("Failed to get daemon status: {e}")),
                 }
             }
         };
@@ -417,7 +417,7 @@ async fn get_daemon_status(pid_file: Option<&str>) -> CliResult<serde_json::Valu
     // Read PID file content
     let pid_content = tokio::fs::read_to_string(&pid_file_path)
         .await
-        .map_err(|e| CliError::FileError(format!("Failed to read PID file: {}", e)))?;
+        .map_err(|e| CliError::FileError(format!("Failed to read PID file: {e}")))?;
 
     let lines: Vec<&str> = pid_content.trim().split('\n').collect();
     if lines.len() < 2 {
@@ -536,9 +536,9 @@ fn format_duration(duration: chrono::Duration) -> String {
     } else if hours > 0 {
         format!("{}h {}m", hours, minutes % 60)
     } else if minutes > 0 {
-        format!("{}m", minutes)
+        format!("{minutes}m")
     } else {
-        format!("{}s", seconds)
+        format!("{seconds}s")
     }
 }
 
@@ -555,7 +555,7 @@ fn get_process_memory_usage(pid: u32) -> Option<String> {
                 let rss_str = String::from_utf8_lossy(&output.stdout);
                 if let Ok(rss_kb) = rss_str.trim().parse::<u64>() {
                     let rss_mb = rss_kb / 1024;
-                    Some(format!("{}MB", rss_mb))
+                    Some(format!("{rss_mb}MB"))
                 } else {
                     None
                 }
@@ -598,9 +598,9 @@ fn get_process_memory_usage(pid: u32) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::{Duration, Utc};
     use std::sync::atomic::Ordering;
     use tokio;
-    use chrono::{Duration, Utc};
     use vkteams_bot::prelude::{EventMessage, EventType};
 
     #[test]
@@ -656,10 +656,8 @@ mod tests {
         };
         assert_eq!(stop_cmd.name(), "daemon");
 
-        // Test Status command  
-        let status_cmd = DaemonCommands::Status {
-            pid_file: None,
-        };
+        // Test Status command
+        let status_cmd = DaemonCommands::Status { pid_file: None };
         assert_eq!(status_cmd.name(), "daemon");
     }
 
@@ -671,7 +669,12 @@ mod tests {
         assert_eq!(stats.events_failed.load(Ordering::Relaxed), 0);
         assert_eq!(stats.bytes_processed.load(Ordering::Relaxed), 0);
         assert!(stats.last_processed_time.lock().unwrap().is_none());
-        assert!(Utc::now().signed_duration_since(*stats.start_time.lock().unwrap()).num_seconds() >= 0);
+        assert!(
+            Utc::now()
+                .signed_duration_since(*stats.start_time.lock().unwrap())
+                .num_seconds()
+                >= 0
+        );
     }
 
     #[test]
@@ -683,10 +686,16 @@ mod tests {
         };
 
         // Set some values
-        processor.stats.events_processed.store(50, Ordering::Relaxed);
+        processor
+            .stats
+            .events_processed
+            .store(50, Ordering::Relaxed);
         processor.stats.events_saved.store(45, Ordering::Relaxed);
         processor.stats.events_failed.store(5, Ordering::Relaxed);
-        processor.stats.bytes_processed.store(1024, Ordering::Relaxed);
+        processor
+            .stats
+            .bytes_processed
+            .store(1024, Ordering::Relaxed);
 
         // Update last processed time
         if let Ok(mut last_time) = processor.stats.last_processed_time.lock() {
@@ -711,15 +720,14 @@ mod tests {
             stats: Arc::new(ProcessorStats::default()),
         };
 
-        let events = ResponseEventsGet {
-            events: vec![],
-        };
+        let events = ResponseEventsGet { events: vec![] };
 
         let bot = vkteams_bot::Bot::with_params(
             &vkteams_bot::prelude::APIVersionUrl::V1,
             "test_token",
-            "https://test.api.url"
-        ).unwrap();
+            "https://test.api.url",
+        )
+        .unwrap();
         let result = processor.process_events(bot, events).await;
         assert!(result.is_ok());
 
@@ -735,20 +743,23 @@ mod tests {
             stats: Arc::new(ProcessorStats::default()),
         };
 
-        use vkteams_bot::prelude::{EventPayloadNewMessage, EventPayloadEditedMessage, From, MsgId, UserId, Chat, ChatId, Timestamp};
-        
+        use vkteams_bot::prelude::{
+            Chat, ChatId, EventPayloadEditedMessage, EventPayloadNewMessage, From, MsgId,
+            Timestamp, UserId,
+        };
+
         let test_chat = Chat {
             chat_id: ChatId::from("test_chat"),
             chat_type: "private".to_string(),
             title: Some("Test Chat".to_string()),
         };
-        
+
         let test_from = From {
             user_id: UserId("test_user".to_string()),
             first_name: "Test".to_string(),
             last_name: Some("User".to_string()),
         };
-        
+
         let events = ResponseEventsGet {
             events: vec![
                 EventMessage {
@@ -781,8 +792,9 @@ mod tests {
         let bot = vkteams_bot::Bot::with_params(
             &vkteams_bot::prelude::APIVersionUrl::V1,
             "test_token",
-            "https://test.api.url"
-        ).unwrap();
+            "https://test.api.url",
+        )
+        .unwrap();
         let result = processor.process_events(bot, events).await;
         assert!(result.is_ok());
 
@@ -795,14 +807,15 @@ mod tests {
         let bot = vkteams_bot::Bot::with_params(
             &vkteams_bot::prelude::APIVersionUrl::V1,
             "test_token",
-            "https://test.api.url"
-        ).unwrap();
+            "https://test.api.url",
+        )
+        .unwrap();
         let result = start_background_daemon(&bot, false).await;
         assert!(result.is_err());
         match result {
             Err(CliError::UnexpectedError(msg)) => {
                 assert!(msg.contains("Background daemon mode not yet implemented"));
-            },
+            }
             _ => panic!("Expected UnexpectedError"),
         }
     }
@@ -814,7 +827,7 @@ mod tests {
         match result {
             Err(CliError::UnexpectedError(msg)) => {
                 assert!(msg.contains("Daemon stop not yet implemented"));
-            },
+            }
             _ => panic!("Expected UnexpectedError"),
         }
     }
@@ -877,7 +890,7 @@ mod tests {
     async fn test_get_daemon_status_no_pid_file() {
         let result = get_daemon_status(Some("/nonexistent/path/daemon.pid")).await;
         assert!(result.is_ok());
-        
+
         let status = result.unwrap();
         assert_eq!(status["status"], "not_running");
         assert_eq!(status["reason"], "No PID file found");
@@ -888,7 +901,7 @@ mod tests {
         let config = Config::default();
         let result = AutoSaveEventProcessor::new(&config).await;
         assert!(result.is_ok());
-        
+
         let processor = result.unwrap();
         let stats = processor.get_stats();
         assert_eq!(stats.events_processed, 0);
@@ -906,13 +919,16 @@ mod tests {
 
         // Simulate some processing time
         std::thread::sleep(std::time::Duration::from_millis(100));
-        
-        processor.stats.events_processed.store(10, Ordering::Relaxed);
-        
+
+        processor
+            .stats
+            .events_processed
+            .store(10, Ordering::Relaxed);
+
         let stats = processor.get_stats();
         assert_eq!(stats.events_processed, 10);
         assert!(stats.uptime_seconds >= 0);
-        
+
         // Events per second should be calculated properly
         if stats.uptime_seconds > 0 {
             assert!(stats.events_per_second >= 0.0);

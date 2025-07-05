@@ -49,8 +49,7 @@ async fn test_parallel_event_processing_performance() {
     let batches = total_events / batch_size;
 
     println!(
-        "Testing parallel processing of {} events in {} batches",
-        total_events, batches
+        "Testing parallel processing of {total_events} events in {batches} batches"
     );
 
     // Create a counter for this test
@@ -81,8 +80,7 @@ async fn test_parallel_event_processing_performance() {
     let processed_count = counter.load(Ordering::SeqCst);
 
     println!(
-        "Parallel processing: {} events in {:?}",
-        processed_count, parallel_duration
+        "Parallel processing: {processed_count} events in {parallel_duration:?}"
     );
     assert_eq!(processed_count, total_events);
 
@@ -101,8 +99,7 @@ async fn test_parallel_event_processing_performance() {
     let sequential_processed = sequential_counter.load(Ordering::SeqCst);
 
     println!(
-        "Sequential processing: {} events in {:?}",
-        sequential_processed, sequential_duration
+        "Sequential processing: {sequential_processed} events in {sequential_duration:?}"
     );
     assert_eq!(sequential_processed, total_events);
 
@@ -133,7 +130,7 @@ async fn test_large_batch_processing() {
         .unwrap();
     let duration = start_time.elapsed();
 
-    println!("Processed 1000 events in {:?}", duration);
+    println!("Processed 1000 events in {duration:?}");
     assert_eq!(counter.load(Ordering::SeqCst), 1000);
 
     // Should complete within reasonable time (adjust based on test environment)
@@ -215,8 +212,7 @@ async fn test_concurrent_bot_operations() {
     let duration = start_time.elapsed();
 
     println!(
-        "Completed {} concurrent operations in {:?}",
-        num_concurrent, duration
+        "Completed {num_concurrent} concurrent operations in {duration:?}"
     );
 
     // Verify all tasks completed
@@ -253,9 +249,9 @@ fn test_event_creation_performance() {
     let large_duration = start.elapsed();
 
     println!("Event creation times:");
-    println!("  10 events: {:?}", small_duration);
-    println!("  100 events: {:?}", medium_duration);
-    println!("  1000 events: {:?}", large_duration);
+    println!("  10 events: {small_duration:?}");
+    println!("  100 events: {medium_duration:?}");
+    println!("  1000 events: {large_duration:?}");
 
     assert_eq!(small_events.events.len(), 10);
     assert_eq!(medium_events.events.len(), 100);

@@ -289,7 +289,7 @@ async fn execute_network_test(bot: &Bot) -> CliResult<()> {
     let endpoints = vec![("Bot Info", RequestSelfGet::new(()))];
 
     for (name, request) in endpoints {
-        print!("Testing {}: ", name);
+        print!("Testing {name}: ");
         let start = std::time::Instant::now();
 
         match bot.send_api_request(request).await {
@@ -339,7 +339,7 @@ async fn execute_system_info() -> CliResult<()> {
                 if var.contains("TOKEN") {
                     println!("  {}: {}***", var, &value[..8.min(value.len())]);
                 } else {
-                    println!("  {}: {}", var, value);
+                    println!("  {var}: {value}");
                 }
             }
             Err(_) => println!("  {}: {}", var, "Not set".dimmed()),
@@ -399,7 +399,7 @@ async fn execute_rate_limit_test(bot: &Bot, requests: u32, delay_ms: u64) -> Cli
 
     println!();
     println!("{}", "Rate Limit Test Results:".bold().green());
-    println!("  Total requests: {}", requests);
+    println!("  Total requests: {requests}");
     println!("  Successful: {}", successful.to_string().green());
     println!("  Failed: {}", failed.to_string().red());
     println!(
@@ -428,7 +428,7 @@ where
     if let Ok(json_str) = serde_json::to_string_pretty(&result) {
         println!("{}", json_str.green());
     } else {
-        println!("Event: {:?}", result);
+        println!("Event: {result:?}");
     }
 
     Ok(())
@@ -438,10 +438,7 @@ where
 
 // Structured output versions
 
-async fn execute_get_self_structured(
-    bot: &Bot,
-    detailed: bool,
-) -> CliResponse<serde_json::Value> {
+async fn execute_get_self_structured(bot: &Bot, detailed: bool) -> CliResponse<serde_json::Value> {
     debug!("Getting bot information (structured)");
 
     let request = RequestSelfGet::new(());
@@ -461,14 +458,11 @@ async fn execute_get_self_structured(
             };
             CliResponse::success("get-self", data)
         }
-        Err(e) => CliResponse::error("get-self", format!("Failed to get bot info: {}", e)),
+        Err(e) => CliResponse::error("get-self", format!("Failed to get bot info: {e}")),
     }
 }
 
-async fn execute_get_events_structured(
-    bot: &Bot,
-    listen: bool,
-) -> CliResponse<serde_json::Value> {
+async fn execute_get_events_structured(bot: &Bot, listen: bool) -> CliResponse<serde_json::Value> {
     debug!("Getting events, listen mode: {}", listen);
 
     if listen {
@@ -492,7 +486,7 @@ async fn execute_get_events_structured(
                 let data = serde_json::to_value(&result).unwrap_or(json!({}));
                 CliResponse::success("get-events", data)
             }
-            Err(e) => CliResponse::error("get-events", format!("Failed to get events: {}", e)),
+            Err(e) => CliResponse::error("get-events", format!("Failed to get events: {e}")),
         }
     }
 }
@@ -514,7 +508,7 @@ async fn execute_get_file_structured(
             });
             CliResponse::success("get-file", data)
         }
-        Err(e) => CliResponse::error("get-file", format!("Failed to download file: {}", e)),
+        Err(e) => CliResponse::error("get-file", format!("Failed to download file: {e}")),
     }
 }
 

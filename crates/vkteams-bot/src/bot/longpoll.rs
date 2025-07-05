@@ -346,7 +346,7 @@ impl ParallelEventProcessor {
 
                 async move {
                     let _permit = semaphore.acquire().await.map_err(|e| {
-                        BotError::System(format!("Failed to acquire semaphore: {}", e))
+                        BotError::System(format!("Failed to acquire semaphore: {e}"))
                     })?;
 
                     trace!(
@@ -378,8 +378,7 @@ impl ParallelEventProcessor {
         for (idx, result) in results.into_iter().enumerate() {
             if let Err(e) = result {
                 return Err(BotError::System(format!(
-                    "Batch {} processing failed: {}",
-                    idx, e
+                    "Batch {idx} processing failed: {e}"
                 )));
             }
         }
@@ -802,7 +801,7 @@ mod tests {
 
         stream.push_events(events.events.clone());
         assert_eq!(stream.len(), 2); // Should be capped at capacity
-        
+
         // Verify we get the last 2 events (most recent)
         let remaining_events = stream.peek_events(2);
         assert_eq!(remaining_events.len(), 2);

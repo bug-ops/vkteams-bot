@@ -506,7 +506,7 @@ mod tests {
             model: "text-embedding-ada-002".to_string(),
         };
 
-        let debug_str = format!("{:?}", openai_config);
+        let debug_str = format!("{openai_config:?}");
         assert!(debug_str.contains("OpenAI"));
         assert!(debug_str.contains("test_key"));
 
@@ -517,7 +517,7 @@ mod tests {
             dimensions: Some(768),
         };
 
-        let debug_str = format!("{:?}", ollama_config);
+        let debug_str = format!("{ollama_config:?}");
         assert!(debug_str.contains("Ollama"));
         assert!(debug_str.contains("localhost"));
     }

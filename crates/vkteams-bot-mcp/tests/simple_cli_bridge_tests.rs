@@ -18,13 +18,13 @@ pub enum MockBridgeError {
 impl std::fmt::Display for MockBridgeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            MockBridgeError::CliError(msg) => write!(f, "CLI execution failed: {}", msg),
-            MockBridgeError::CliNotFound(path) => write!(f, "CLI not found at path: {}", path),
+            MockBridgeError::CliError(msg) => write!(f, "CLI execution failed: {msg}"),
+            MockBridgeError::CliNotFound(path) => write!(f, "CLI not found at path: {path}"),
             MockBridgeError::InvalidResponse(msg) => {
-                write!(f, "Invalid JSON response from CLI: {}", msg)
+                write!(f, "Invalid JSON response from CLI: {msg}")
             }
-            MockBridgeError::CliReturnedError(msg) => write!(f, "CLI returned error: {}", msg),
-            MockBridgeError::Io(msg) => write!(f, "IO error: {}", msg),
+            MockBridgeError::CliReturnedError(msg) => write!(f, "CLI returned error: {msg}"),
+            MockBridgeError::Io(msg) => write!(f, "IO error: {msg}"),
         }
     }
 }
@@ -213,7 +213,7 @@ fn test_execute_command_unknown() {
         MockBridgeError::CliError(_) => {
             // Expected for unknown command
         }
-        e => panic!("Unexpected error type: {:?}", e),
+        e => panic!("Unexpected error type: {e:?}"),
     }
 }
 
@@ -321,7 +321,7 @@ fn test_error_response_parsing() {
         MockBridgeError::CliError(msg) => {
             assert_eq!(msg, "Unknown command");
         }
-        e => panic!("Unexpected error type: {:?}", e),
+        e => panic!("Unexpected error type: {e:?}"),
     }
 }
 
@@ -345,10 +345,7 @@ fn test_recent_messages_parameter_handling() {
         let result = bridge.mock_get_recent_messages(chat_id, limit, since);
         assert!(
             result.is_ok(),
-            "Failed with params: {:?}, {:?}, {:?}",
-            chat_id,
-            limit,
-            since
+            "Failed with params: {chat_id:?}, {limit:?}, {since:?}"
         );
     }
 }
@@ -372,7 +369,7 @@ fn test_bridge_structure() {
 #[test]
 fn test_error_chain() {
     let base_error = MockBridgeError::CliError("Base error".to_string());
-    let error_string = format!("{}", base_error);
+    let error_string = format!("{base_error}");
     assert!(error_string.contains("CLI execution failed"));
     assert!(error_string.contains("Base error"));
 }

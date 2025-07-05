@@ -64,7 +64,7 @@ async fn demonstrate_semantic_search() -> Result<(), Box<dyn std::error::Error>>
     ];
 
     for (query, description) in search_examples {
-        println!("  🔎 '{}': {}", query, description);
+        println!("  🔎 '{query}': {description}");
     }
 
     println!("\n💡 Search combines:");
@@ -97,7 +97,7 @@ async fn demonstrate_cli_usage() -> Result<(), Box<dyn std::error::Error>> {
     ];
 
     for (cmd, desc) in cli_commands {
-        println!("  $ vkteams-bot-cli {:<30} # {}", cmd, desc);
+        println!("  $ vkteams-bot-cli {cmd:<30} # {desc}");
     }
 
     println!("\n🔄 Event processing workflow:");

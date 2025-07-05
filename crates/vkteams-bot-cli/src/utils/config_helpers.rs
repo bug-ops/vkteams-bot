@@ -402,7 +402,7 @@ pub fn create_default_config_dirs() -> CliResult<()> {
     if let Some(home_dir) = dirs::home_dir() {
         let config_dir = home_dir.join(crate::constants::config::DEFAULT_CONFIG_DIR);
         std::fs::create_dir_all(&config_dir).map_err(|e| {
-            CliError::FileError(format!("Failed to create config directory: {}", e))
+            CliError::FileError(format!("Failed to create config directory: {e}"))
         })?;
     }
     Ok(())
@@ -441,7 +441,7 @@ mod tests {
         // Invalid config should fail
         assert!(
             validate_config(&config)
-                .map_err(|e| eprintln!("{}", e))
+                .map_err(|e| eprintln!("{e}"))
                 .is_err()
         );
 
@@ -450,7 +450,7 @@ mod tests {
         config.api.url = Some("https://example.com".to_string());
         assert!(
             validate_config(&config)
-                .map_err(|e| eprintln!("{}", e))
+                .map_err(|e| eprintln!("{e}"))
                 .is_ok()
         );
 
@@ -458,7 +458,7 @@ mod tests {
         config.api.url = Some("invalid-url".to_string());
         assert!(
             validate_config(&config)
-                .map_err(|e| eprintln!("{}", e))
+                .map_err(|e| eprintln!("{e}"))
                 .is_err()
         );
     }

@@ -110,7 +110,7 @@ where
     T: WebhookState + FromRef<AppState<T>> + Default + 'static,
 {
     let tcp_port = std::env::var(DEFAULT_TCP_PORT)
-        .map_err(|e| BotError::Config(format!("Failed to get port: {}", e)))
+        .map_err(|e| BotError::Config(format!("Failed to get port: {e}")))
         .unwrap_or_else(|e| panic!("{}", e));
 
     let listener = tokio::net::TcpListener::bind(format!("[::]:{tcp_port}")).await?;

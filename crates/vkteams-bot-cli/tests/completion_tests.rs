@@ -81,16 +81,14 @@ fn test_generate_all_completions() {
         let file_path = temp_dir.path().join(filename);
         assert!(
             file_path.exists(),
-            "Runtime completion file {} should exist",
-            filename
+            "Runtime completion file {filename} should exist"
         );
 
         let content = fs::read_to_string(&file_path)
-            .unwrap_or_else(|_| panic!("Failed to read {}", filename));
+            .unwrap_or_else(|_| panic!("Failed to read {filename}"));
         assert!(
             !content.is_empty(),
-            "Runtime completion file {} should not be empty",
-            filename
+            "Runtime completion file {filename} should not be empty"
         );
     }
 }
@@ -167,8 +165,7 @@ fn test_completion_content_quality() {
     for command in &commands {
         assert!(
             bash_content.contains(command),
-            "Completion should reference command: {}",
-            command
+            "Completion should reference command: {command}"
         );
     }
 }
@@ -360,8 +357,7 @@ fn test_completion_commands_coverage() {
     for command in &expected_commands {
         assert!(
             content.contains(command),
-            "Completion should cover command: {}",
-            command
+            "Completion should cover command: {command}"
         );
     }
 }

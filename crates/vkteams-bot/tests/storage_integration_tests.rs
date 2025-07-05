@@ -52,8 +52,7 @@ mod tests {
         let container = setup_postgres_container().await;
         let host_port = container.get_host_port_ipv4(5432).await.unwrap();
         let database_url = format!(
-            "postgresql://postgres:postgres@localhost:{}/postgres",
-            host_port
+            "postgresql://postgres:postgres@localhost:{host_port}/postgres"
         );
 
         let config = create_test_storage_config(database_url);
@@ -78,8 +77,7 @@ mod tests {
         let container = setup_postgres_container().await;
         let host_port = container.get_host_port_ipv4(5432).await.unwrap();
         let database_url = format!(
-            "postgresql://postgres:postgres@localhost:{}/postgres",
-            host_port
+            "postgresql://postgres:postgres@localhost:{host_port}/postgres"
         );
 
         let config = create_test_storage_config(database_url);
@@ -103,8 +101,7 @@ mod tests {
         let container = setup_postgres_container().await;
         let host_port = container.get_host_port_ipv4(5432).await.unwrap();
         let database_url = format!(
-            "postgresql://postgres:postgres@localhost:{}/postgres",
-            host_port
+            "postgresql://postgres:postgres@localhost:{host_port}/postgres"
         );
 
         let config = create_test_storage_config(database_url);
@@ -127,8 +124,7 @@ mod tests {
         let container = setup_postgres_container().await;
         let host_port = container.get_host_port_ipv4(5432).await.unwrap();
         let database_url = format!(
-            "postgresql://postgres:postgres@localhost:{}/postgres",
-            host_port
+            "postgresql://postgres:postgres@localhost:{host_port}/postgres"
         );
 
         let config = create_test_storage_config(database_url);
@@ -149,8 +145,7 @@ mod tests {
         let container = setup_postgres_container().await;
         let host_port = container.get_host_port_ipv4(5432).await.unwrap();
         let database_url = format!(
-            "postgresql://postgres:postgres@localhost:{}/postgres",
-            host_port
+            "postgresql://postgres:postgres@localhost:{host_port}/postgres"
         );
 
         let config = create_test_storage_config(database_url);
@@ -374,8 +369,7 @@ mod tests {
 
         // Test valid configuration
         let valid_database_url = format!(
-            "postgresql://postgres:postgres@localhost:{}/postgres",
-            host_port
+            "postgresql://postgres:postgres@localhost:{host_port}/postgres"
         );
         let valid_config = create_test_storage_config(valid_database_url);
 
@@ -389,8 +383,7 @@ mod tests {
         let container = setup_postgres_container().await;
         let host_port = container.get_host_port_ipv4(5432).await.unwrap();
         let database_url = format!(
-            "postgresql://postgres:postgres@localhost:{}/postgres",
-            host_port
+            "postgresql://postgres:postgres@localhost:{host_port}/postgres"
         );
 
         let config = create_test_storage_config(database_url);

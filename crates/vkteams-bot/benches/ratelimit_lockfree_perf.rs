@@ -86,7 +86,7 @@ fn bench_rate_limiter_operations(c: &mut Criterion) {
 
     let limiter = RateLimiter::new();
     let chat_ids: Vec<ChatId> = (0..100)
-        .map(|i| ChatId::from(format!("chat_{}", i)))
+        .map(|i| ChatId::from(format!("chat_{i}")))
         .collect();
 
     group.bench_function("check_rate_limit_single_chat", |b| {
@@ -131,7 +131,7 @@ fn bench_cleanup_operations(c: &mut Criterion) {
 
             // Create many buckets
             for i in 0..1000 {
-                let chat_id = ChatId::from(format!("chat_{}", i));
+                let chat_id = ChatId::from(format!("chat_{i}"));
                 limiter.check_rate_limit(&chat_id).await;
             }
 

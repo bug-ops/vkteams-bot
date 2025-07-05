@@ -39,8 +39,8 @@ async fn test_scheduler_concurrent_task_management() {
         let task_id = scheduler
             .add_task(
                 TaskType::SendText {
-                    chat_id: format!("chat_{}", i),
-                    message: format!("message_{}", i),
+                    chat_id: format!("chat_{i}"),
+                    message: format!("message_{i}"),
                 },
                 ScheduleType::Once(Utc::now() + ChronoDuration::minutes(i as i64)),
                 None,

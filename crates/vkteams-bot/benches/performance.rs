@@ -29,7 +29,7 @@ fn benchmark_message_serialization(c: &mut Criterion) {
             let chat_id = black_box("test_chat_123");
 
             // Simulate message preparation overhead
-            let prepared = format!("Sending '{}' to '{}'", message, chat_id);
+            let prepared = format!("Sending '{message}' to '{chat_id}'");
             black_box(prepared)
         })
     });

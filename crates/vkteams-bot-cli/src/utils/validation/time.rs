@@ -24,7 +24,7 @@ pub fn validate_cron_expression(cron_expr: &str) -> CliResult<()> {
     }
 
     Schedule::from_str(cron_expr)
-        .map_err(|e| CliError::InputError(format!("Invalid cron expression: {}", e)))?;
+        .map_err(|e| CliError::InputError(format!("Invalid cron expression: {e}")))?;
 
     Ok(())
 }
@@ -86,8 +86,7 @@ pub fn parse_datetime_flexible(time_str: &str) -> CliResult<DateTime<Utc>> {
     }
 
     Err(CliError::InputError(format!(
-        "Invalid time format: {}. Use YYYY-MM-DD HH:MM:SS, or relative time like '30m', '2h', '1d'",
-        time_str
+        "Invalid time format: {time_str}. Use YYYY-MM-DD HH:MM:SS, or relative time like '30m', '2h', '1d'"
     )))
 }
 
@@ -143,8 +142,7 @@ pub fn parse_relative_time(time_str: &str) -> CliResult<DateTime<Utc>> {
         "tomorrow" => Ok(now + Duration::days(1)),
         "yesterday" => Ok(now - Duration::days(1)),
         _ => Err(CliError::InputError(format!(
-            "Invalid relative time format: {}. Use formats like '30s', '5m', '2h', '1d', '1w' or 'now'",
-            time_str
+            "Invalid relative time format: {time_str}. Use formats like '30s', '5m', '2h', '1d', '1w' or 'now'"
         ))),
     }
 }
@@ -166,14 +164,12 @@ pub fn validate_duration_bounds(
 ) -> CliResult<()> {
     if duration_seconds < min_seconds {
         return Err(CliError::InputError(format!(
-            "Duration too short: {} seconds (minimum: {} seconds)",
-            duration_seconds, min_seconds
+            "Duration too short: {duration_seconds} seconds (minimum: {min_seconds} seconds)"
         )));
     }
     if duration_seconds > max_seconds {
         return Err(CliError::InputError(format!(
-            "Duration too long: {} seconds (maximum: {} seconds)",
-            duration_seconds, max_seconds
+            "Duration too long: {duration_seconds} seconds (maximum: {max_seconds} seconds)"
         )));
     }
     Ok(())

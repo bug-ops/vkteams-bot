@@ -185,7 +185,7 @@ async fn execute_get_chat_info_structured(
             });
             CliResponse::success("get-chat-info", data)
         }
-        Err(e) => CliResponse::error("get-chat-info", format!("Failed to get chat info: {}", e)),
+        Err(e) => CliResponse::error("get-chat-info", format!("Failed to get chat info: {e}")),
     }
 }
 
@@ -205,7 +205,7 @@ async fn execute_get_profile_structured(
             });
             CliResponse::success("get-profile", data)
         }
-        Err(e) => CliResponse::error("get-profile", format!("Failed to get profile: {}", e)),
+        Err(e) => CliResponse::error("get-profile", format!("Failed to get profile: {e}")),
     }
 }
 
@@ -225,7 +225,7 @@ async fn execute_get_chat_members_structured(
             Err(e) => {
                 return CliResponse::error(
                     "get-chat-members",
-                    format!("Invalid cursor value, must be a number: {}", e),
+                    format!("Invalid cursor value, must be a number: {e}"),
                 );
             }
         }
@@ -243,7 +243,7 @@ async fn execute_get_chat_members_structured(
         }
         Err(e) => CliResponse::error(
             "get-chat-members",
-            format!("Failed to get chat members: {}", e),
+            format!("Failed to get chat members: {e}"),
         ),
     }
 }
@@ -268,7 +268,7 @@ async fn execute_set_chat_title_structured(
             });
             CliResponse::success("set-chat-title", data)
         }
-        Err(e) => CliResponse::error("set-chat-title", format!("Failed to set chat title: {}", e)),
+        Err(e) => CliResponse::error("set-chat-title", format!("Failed to set chat title: {e}")),
     }
 }
 
@@ -295,7 +295,7 @@ async fn execute_set_chat_about_structured(
             });
             CliResponse::success("set-chat-about", data)
         }
-        Err(e) => CliResponse::error("set-chat-about", format!("Failed to set chat about: {}", e)),
+        Err(e) => CliResponse::error("set-chat-about", format!("Failed to set chat about: {e}")),
     }
 }
 
@@ -334,7 +334,7 @@ async fn execute_send_action_structured(
             });
             CliResponse::success("send-action", data)
         }
-        Err(e) => CliResponse::error("send-action", format!("Failed to send action: {}", e)),
+        Err(e) => CliResponse::error("send-action", format!("Failed to send action: {e}")),
     }
 }
 
@@ -356,7 +356,7 @@ async fn execute_get_chat_admins_structured(
         }
         Err(e) => CliResponse::error(
             "get-chat-admins",
-            format!("Failed to get chat admins: {}", e),
+            format!("Failed to get chat admins: {e}"),
         ),
     }
 }

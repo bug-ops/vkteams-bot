@@ -122,8 +122,7 @@ pub fn validate_message_content(message: &str) -> CliResult<()> {
             repeat_count += 1;
             if repeat_count > max_repeated_chars {
                 return Err(CliError::InputError(format!(
-                    "Message contains excessive character repetition (more than {} consecutive '{}')",
-                    max_repeated_chars, ch
+                    "Message contains excessive character repetition (more than {max_repeated_chars} consecutive '{ch}')"
                 )));
             }
         } else {

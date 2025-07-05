@@ -468,7 +468,7 @@ mod tests {
             "https://debug.example.com",
         )
         .unwrap();
-        let debug_str = format!("{:?}", bot);
+        let debug_str = format!("{bot:?}");
 
         assert!(debug_str.contains("Bot"));
         assert!(debug_str.contains("debug_token"));
@@ -513,11 +513,11 @@ mod tests {
 
         for invalid_url in invalid_urls.iter() {
             let result = Bot::with_params(&APIVersionUrl::V1, "token", invalid_url);
-            assert!(result.is_err(), "Should fail for URL: {}", invalid_url);
+            assert!(result.is_err(), "Should fail for URL: {invalid_url}");
 
             match result.unwrap_err() {
                 BotError::Url(_) => {} // Expected
-                _ => panic!("Expected URL error for: {}", invalid_url),
+                _ => panic!("Expected URL error for: {invalid_url}"),
             }
         }
     }

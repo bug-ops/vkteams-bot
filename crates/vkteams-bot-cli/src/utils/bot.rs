@@ -183,7 +183,7 @@ mod tests {
     #[test]
     fn test_validate_config() {
         let mut config = toml::from_str("").unwrap();
-        println!("{:?}", config);
+        println!("{config:?}");
 
         // Empty config should fail
         assert!(crate::utils::config_helpers::validate_config(&config).is_err());
@@ -196,7 +196,7 @@ mod tests {
         config.api.url = Some("https://example.com".to_string());
         assert!(
             crate::utils::config_helpers::validate_config(&config)
-                .map_err(|e| eprintln!("{}", e))
+                .map_err(|e| eprintln!("{e}"))
                 .is_ok()
         );
 

@@ -114,8 +114,7 @@ mod tests {
 
         let host_port = postgres_container.get_host_port_ipv4(5432).await.unwrap();
         let _database_url = format!(
-            "postgresql://postgres:postgres@localhost:{}/postgres",
-            host_port
+            "postgresql://postgres:postgres@localhost:{host_port}/postgres"
         );
 
         // Note: Testing environment variable handling
@@ -160,8 +159,7 @@ mod tests {
 
         let host_port = postgres_container.get_host_port_ipv4(5432).await.unwrap();
         let _database_url = format!(
-            "postgresql://postgres:postgres@localhost:{}/postgres",
-            host_port
+            "postgresql://postgres:postgres@localhost:{host_port}/postgres"
         );
 
         // Note: In production, DATABASE_URL would be set externally
@@ -257,8 +255,7 @@ mod tests {
             let validation_result = command.validate();
             assert!(
                 validation_result.is_ok(),
-                "Command validation should pass: {:?}",
-                command
+                "Command validation should pass: {command:?}"
             );
         }
     }

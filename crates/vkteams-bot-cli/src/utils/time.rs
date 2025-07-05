@@ -47,8 +47,7 @@ pub fn parse_schedule_time(time_str: &str) -> CliResult<DateTime<Utc>> {
     }
 
     Err(CliError::InputError(format!(
-        "Invalid time format: {}. Use YYYY-MM-DD HH:MM:SS, or relative time like '30m', '2h', '1d'",
-        time_str
+        "Invalid time format: {time_str}. Use YYYY-MM-DD HH:MM:SS, or relative time like '30m', '2h', '1d'"
     )))
 }
 
@@ -101,8 +100,7 @@ pub fn parse_schedule_time_compat(time_str: &str) -> CliResult<DateTime<Utc>> {
     }
 
     Err(CliError::InputError(format!(
-        "Invalid time format: {}. Use YYYY-MM-DD HH:MM:SS, or relative time like '30m', '2h', '1d'",
-        time_str
+        "Invalid time format: {time_str}. Use YYYY-MM-DD HH:MM:SS, or relative time like '30m', '2h', '1d'"
     )))
 }
 
@@ -158,8 +156,7 @@ pub fn parse_relative_time(time_str: &str) -> CliResult<DateTime<Utc>> {
         "tomorrow" => Ok(now + Duration::days(1)),
         "yesterday" => Ok(now - Duration::days(1)),
         _ => Err(CliError::InputError(format!(
-            "Invalid relative time format: {}. Use formats like '30s', '5m', '2h', '1d', '1w' or 'now'",
-            time_str
+            "Invalid relative time format: {time_str}. Use formats like '30s', '5m', '2h', '1d', '1w' or 'now'"
         ))),
     }
 }
@@ -186,16 +183,16 @@ pub fn format_duration(duration: Duration) -> String {
     let mut parts = Vec::new();
 
     if days > 0 {
-        parts.push(format!("{}d", days));
+        parts.push(format!("{days}d"));
     }
     if hours > 0 {
-        parts.push(format!("{}h", hours));
+        parts.push(format!("{hours}h"));
     }
     if minutes > 0 {
-        parts.push(format!("{}m", minutes));
+        parts.push(format!("{minutes}m"));
     }
     if seconds > 0 || parts.is_empty() {
-        parts.push(format!("{}s", seconds));
+        parts.push(format!("{seconds}s"));
     }
 
     parts.join(" ")
@@ -231,9 +228,9 @@ pub fn format_datetime_relative(dt: DateTime<Utc>) -> String {
     let formatted = format_duration(abs_diff);
 
     if diff.num_seconds() < 0 {
-        format!("{} ago", formatted)
+        format!("{formatted} ago")
     } else {
-        format!("in {}", formatted)
+        format!("in {formatted}")
     }
 }
 
@@ -251,7 +248,7 @@ pub fn get_next_cron_occurrence(
     from_time: Option<DateTime<Utc>>,
 ) -> CliResult<DateTime<Utc>> {
     let schedule = Schedule::from_str(cron_expr)
-        .map_err(|e| CliError::InputError(format!("Invalid cron expression: {}", e)))?;
+        .map_err(|e| CliError::InputError(format!("Invalid cron expression: {e}")))?;
 
     let base_time = from_time.unwrap_or_else(Utc::now);
 

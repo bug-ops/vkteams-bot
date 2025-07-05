@@ -4,7 +4,6 @@
 //! from the MCP server using subprocess calls. This approach ensures that all
 //! business logic remains in the CLI while the MCP server acts as a thin adapter.
 
-use crate::bridge_trait::CliBridgeTrait;
 use crate::errors::{BridgeError, CliErrorInfo};
 use async_trait::async_trait;
 use serde_json::Value;
@@ -14,6 +13,9 @@ use tokio::process::Command;
 use tokio::time::{Duration, timeout};
 use tracing::{debug, error, warn};
 use vkteams_bot::config::UnifiedConfig;
+
+/// Default timeout for CLI commands in seconds
+const DEFAULT_CLI_TIMEOUT_SECS: u64 = 30;
 
 /// Bridge for executing CLI commands from MCP server
 #[derive(Debug)]
@@ -39,15 +41,13 @@ impl CliBridge {
                         "/app/vkteams-bot-cli",
                         "/bin/vkteams-bot-cli",
                     ];
-                    
                     for path in &container_paths {
                         let path_buf = PathBuf::from(path);
                         if path_buf.exists() && path_buf.is_file() {
                             return Ok(path_buf);
                         }
                     }
-                    
-                    // Try relative path from current executable (fallback)
+// Try relative path from current executable (fallback)
                     std::env::current_exe().and_then(|mut p| {
                         p.pop(); // remove filename
                         p.push("vkteams-bot-cli");
@@ -83,7 +83,7 @@ impl CliBridge {
 
     /// Execute a CLI command with arguments
     pub async fn execute_command(&self, command: &[&str]) -> Result<Value, BridgeError> {
-        self.execute_command_with_timeout(command, Duration::from_secs(30))
+        self.execute_command_with_timeout(command, Duration::from_secs(DEFAULT_CLI_TIMEOUT_SECS))
             .await
     }
 
@@ -146,8 +146,15 @@ impl CliBridge {
 
         // Handle empty responses
         if response_text.trim().is_empty() {
-            warn!("CLI returned empty response");
-            return Ok(serde_json::json!({"success": true, "data": null}));
+            let command_str = command.join(" ");
+            warn!("CLI returned empty response for command: {command_str}");
+            warn!("This might indicate a CLI execution issue or silent failure");
+            return Ok(serde_json::json!({
+                "success": true,
+                "data": null,
+                "warning": "CLI returned empty response",
+                "command": command_str
+            }));
         }
 
         let response: Value = serde_json::from_str(&response_text)?;
@@ -190,8 +197,12 @@ impl CliBridge {
         command: &[&str],
         max_retries: usize,
     ) -> Result<Value, BridgeError> {
-        self.execute_command_with_retry_and_timeout(command, max_retries, Duration::from_secs(30))
-            .await
+        self.execute_command_with_retry_and_timeout(
+            command,
+            max_retries,
+            Duration::from_secs(DEFAULT_CLI_TIMEOUT_SECS),
+        )
+        .await
     }
 
     /// Execute command with retry logic and custom timeout
@@ -288,17 +299,17 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["database", "recent"];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
         let limit_str;
-        if let Some(limit) = limit {
+        if let Some(limit) = limit.filter(|&l| l > 0) {
             limit_str = limit.to_string();
             args.extend(&["--limit", &limit_str]);
         }
 
-        if let Some(since) = since {
+        if let Some(since) = since.filter(|s| !s.trim().is_empty()) {
             args.extend(&["--since", since]);
         }
 
@@ -328,235 +339,174 @@ impl CliBridgeTrait for CliBridge {
         self.execute_command(&["--version"]).await.map(|_| ())
     }
 }
-
-/// Implementation of domain-specific MCP bridge traits
+/// Trait for CLI bridge operations - enables mocking for tests
 #[async_trait]
-impl crate::mcp_bridge_trait::McpMessaging for CliBridge {
-    async fn send_text_mcp(
-        &self,
-        text: &str,
-        chat_id: Option<&str>,
-        reply_msg_id: Option<&str>,
-    ) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(self.send_text(text, chat_id, reply_msg_id).await)
-    }
+pub trait CliBridgeTrait: Send + Sync + std::fmt::Debug {
+    /// Execute a CLI command with arguments
+    async fn execute_command(&self, args: &[&str]) -> Result<Value, BridgeError>;
 
-    async fn send_file_mcp(
-        &self,
-        file_path: &str,
-        chat_id: Option<&str>,
-        caption: Option<&str>,
-    ) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(self.send_file(file_path, chat_id, caption).await)
-    }
+    /// Get daemon status
+    async fn get_daemon_status(&self) -> Result<Value, BridgeError>;
 
-    async fn send_voice_mcp(
-        &self,
-        file_path: &str,
-        chat_id: Option<&str>,
-    ) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(self.send_voice(file_path, chat_id).await)
-    }
+    /// Health check
+    async fn health_check(&self) -> Result<(), BridgeError>;
+}
 
-    async fn edit_message_mcp(
-        &self,
-        message_id: &str,
-        new_text: &str,
-        chat_id: Option<&str>,
-    ) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(self.edit_message(message_id, new_text, chat_id).await)
-    }
+/// Mock CLI bridge for testing
+#[cfg(test)]
+#[derive(Debug)]
+pub struct MockCliBridge {
+    pub responses: std::collections::HashMap<String, Result<Value, BridgeError>>,
+}
 
-    async fn delete_message_mcp(
-        &self,
-        message_id: &str,
-        chat_id: Option<&str>,
-    ) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(self.delete_message(message_id, chat_id).await)
-    }
-
-    async fn pin_message_mcp(
-        &self,
-        message_id: &str,
-        chat_id: Option<&str>,
-    ) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(self.pin_message(message_id, chat_id).await)
-    }
-
-    async fn unpin_message_mcp(
-        &self,
-        message_id: &str,
-        chat_id: Option<&str>,
-    ) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(self.unpin_message(message_id, chat_id).await)
-    }
-
-    async fn send_action_mcp(
-        &self,
-        action: &str,
-        chat_id: Option<&str>,
-    ) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(self.send_action(action, chat_id).await)
+#[cfg(test)]
+impl Default for MockCliBridge {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
-#[async_trait]
-impl crate::mcp_bridge_trait::McpChatManagement for CliBridge {
-    async fn get_chat_info_mcp(&self, chat_id: Option<&str>) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(self.get_chat_info(chat_id).await)
+#[cfg(test)]
+impl MockCliBridge {
+    pub fn new() -> Self {
+        Self {
+            responses: std::collections::HashMap::new(),
+        }
     }
 
-    async fn get_profile_mcp(&self, user_id: &str) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(self.get_profile(user_id).await)
+    pub fn add_response(&mut self, command: String, response: Result<Value, BridgeError>) {
+        self.responses.insert(command, response);
     }
 
-    async fn get_chat_members_mcp(
-        &self,
-        chat_id: Option<&str>,
-        cursor: Option<&str>,
-    ) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(self.get_chat_members(chat_id, cursor).await)
+    pub fn add_success_response(&mut self, command: String, data: Value) {
+        let command_clone = command.clone();
+        self.responses.insert(
+            command,
+            Ok(serde_json::json!({
+                "success": true,
+                "data": data,
+                "timestamp": "2024-01-01T00:00:00Z",
+                "command": command_clone
+            })),
+        );
     }
 
-    async fn get_chat_admins_mcp(&self, chat_id: Option<&str>) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(self.get_chat_admins(chat_id).await)
-    }
-
-    async fn set_chat_title_mcp(
-        &self,
-        title: &str,
-        chat_id: Option<&str>,
-    ) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(self.set_chat_title(title, chat_id).await)
-    }
-
-    async fn set_chat_about_mcp(
-        &self,
-        about: &str,
-        chat_id: Option<&str>,
-    ) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(self.set_chat_about(about, chat_id).await)
+    pub fn add_error_response(&mut self, command: String, error: String) {
+        self.responses.insert(
+            command,
+            Err(BridgeError::CliReturnedError(crate::errors::CliErrorInfo {
+                code: Some("ERROR".to_string()),
+                message: error,
+                details: None,
+            })),
+        );
     }
 }
 
+#[cfg(test)]
 #[async_trait]
-impl crate::mcp_bridge_trait::McpFileOperations for CliBridge {
-    async fn upload_file_base64_mcp(
-        &self,
-        name: &str,
-        content_base64: &str,
-        chat_id: Option<&str>,
-        caption: Option<&str>,
-        reply_msg_id: Option<&str>,
-    ) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(
-            self.upload_file_base64(name, content_base64, chat_id, caption, reply_msg_id)
-                .await,
-        )
+impl CliBridgeTrait for MockCliBridge {
+    async fn execute_command(&self, args: &[&str]) -> Result<Value, BridgeError> {
+        let command_key = args.join(" ");
+
+        // Try exact match first
+        if let Some(response) = self.responses.get(&command_key) {
+            return match response {
+                Ok(value) => Ok(value.clone()),
+                Err(err) => Err(err.clone()),
+            };
+        }
+
+        // Try partial matches for flexibility
+        for (key, response) in &self.responses {
+            if command_key.contains(key) || key.contains(&command_key) {
+                return match response {
+                    Ok(value) => Ok(value.clone()),
+                    Err(err) => Err(err.clone()),
+                };
+            }
+        }
+
+        // Default success response for unknown commands
+        Ok(serde_json::json!({
+            "success": true,
+            "data": {},
+            "timestamp": "2024-01-01T00:00:00Z",
+            "command": command_key
+        }))
     }
 
-    async fn upload_text_file_mcp(
-        &self,
-        name: &str,
-        content: &str,
-        chat_id: Option<&str>,
-        caption: Option<&str>,
-    ) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(
-            self.upload_text_file(name, content, chat_id, caption).await,
-        )
+    async fn get_daemon_status(&self) -> Result<Value, BridgeError> {
+        self.execute_command(&["daemon", "status"]).await
     }
 
-    async fn upload_json_file_mcp(
-        &self,
-        name: &str,
-        json_data: &str,
-        pretty: bool,
-        chat_id: Option<&str>,
-        caption: Option<&str>,
-    ) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(
-            self.upload_json_file(name, json_data, pretty, chat_id, caption)
-                .await,
-        )
-    }
-
-    async fn get_file_info_mcp(&self, file_id: &str) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(self.get_file_info(file_id).await)
+    async fn health_check(&self) -> Result<(), BridgeError> {
+        self.execute_command(&["--version"]).await.map(|_| ())
     }
 }
 
-#[async_trait]
-impl crate::mcp_bridge_trait::McpStorage for CliBridge {
-    async fn get_database_stats_mcp(
-        &self,
-        chat_id: Option<&str>,
-        since: Option<&str>,
-    ) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(self.get_database_stats(chat_id, since).await)
-    }
-
-    async fn search_semantic_mcp(
-        &self,
-        query: &str,
-        chat_id: Option<&str>,
-        limit: Option<usize>,
-    ) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(self.search_semantic(query, chat_id, limit).await)
-    }
-
-    async fn search_text_mcp(
-        &self,
-        query: &str,
-        chat_id: Option<&str>,
-        limit: Option<i64>,
-    ) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(self.search_text(query, chat_id, limit).await)
-    }
-
-    async fn get_context_mcp(
-        &self,
-        chat_id: Option<&str>,
-        context_type: Option<&str>,
-        timeframe: Option<&str>,
-    ) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(
-            self.get_context(chat_id, context_type, timeframe).await,
-        )
-    }
-
-    async fn get_recent_messages_mcp(
-        &self,
-        chat_id: Option<&str>,
-        limit: Option<usize>,
-        since: Option<&str>,
-    ) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(self.get_recent_messages(chat_id, limit, since).await)
-    }
-}
-
-#[async_trait]
-impl crate::mcp_bridge_trait::McpDiagnostics for CliBridge {
-    async fn get_daemon_status_mcp(&self) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(self.get_daemon_status().await)
-    }
-
-    async fn get_self_mcp(&self) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(self.get_self().await)
-    }
-
-    async fn get_events_mcp(
-        &self,
-        last_event_id: Option<&str>,
-        poll_time: Option<u64>,
-    ) -> crate::server::MCPResult {
-        crate::server::convert_bridge_result(self.get_events(last_event_id, poll_time).await)
-    }
+/// Helper function to create a command key from arguments
+pub fn make_command_key(args: &[&str]) -> String {
+    args.join(" ")
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn test_mock_bridge_success() {
+        let mut mock = MockCliBridge::new();
+        mock.add_success_response(
+            "send-text Hello".to_string(),
+            serde_json::json!({"message_id": "123"}),
+        );
+
+        let result = mock.execute_command(&["send-text", "Hello"]).await.unwrap();
+        assert_eq!(result["success"], true);
+        assert_eq!(result["data"]["message_id"], "123");
+    }
+
+    #[tokio::test]
+    async fn test_mock_bridge_error() {
+        let mut mock = MockCliBridge::new();
+        mock.add_error_response("send-text".to_string(), "Invalid message".to_string());
+
+        let result = mock.execute_command(&["send-text", "Invalid"]).await;
+        assert!(result.is_err());
+
+        match result.unwrap_err() {
+            BridgeError::CliReturnedError(info) => {
+                assert_eq!(info.message, "Invalid message");
+            }
+            _ => panic!("Expected CliReturnedError"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_mock_bridge_partial_match() {
+        let mut mock = MockCliBridge::new();
+        mock.add_success_response(
+            "send-text".to_string(),
+            serde_json::json!({"result": "sent"}),
+        );
+
+        let result = mock
+            .execute_command(&["send-text", "Hello", "World"])
+            .await
+            .unwrap();
+        assert_eq!(result["success"], true);
+        assert_eq!(result["data"]["result"], "sent");
+    }
+
+    #[tokio::test]
+    async fn test_mock_bridge_default_response() {
+        let mock = MockCliBridge::new();
+
+        let result = mock.execute_command(&["unknown", "command"]).await.unwrap();
+        assert_eq!(result["success"], true);
+        assert_eq!(result["command"], "unknown command");
+    }
 
     #[test]
     fn test_bridge_creation() {
@@ -571,7 +521,7 @@ mod tests {
         // The important thing is that the code compiles and handles errors properly
         match result {
             Ok(_) => println!("CLI bridge created successfully"),
-            Err(e) => println!("Expected error in test environment: {}", e),
+            Err(e) => println!("Expected error in test environment: {e}"),
         }
     }
 
@@ -687,21 +637,29 @@ mod tests {
                     "2024-01-01",
                 ],
             ),
+            // Test validation cases - empty strings and zero values should be filtered out
+            (Some(""), None, None, vec!["database", "recent"]),
+            (Some("   "), None, None, vec!["database", "recent"]),
+            (None, Some(0), None, vec!["database", "recent"]),
+            (None, None, Some(""), vec!["database", "recent"]),
+            (None, None, Some("   "), vec!["database", "recent"]),
+            (Some(""), Some(0), Some(""), vec!["database", "recent"]),
         ];
 
         for (chat_id, limit, since, expected_args) in args_test_cases {
             let mut args = vec!["database", "recent"];
 
-            if let Some(chat_id) = chat_id {
+            if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
                 args.extend(&["--chat-id", chat_id]);
             }
 
-            let limit_str = limit.map(|l| l.to_string());
-            if let Some(ref limit_str) = limit_str {
-                args.extend(&["--limit", limit_str]);
+            let limit_str;
+            if let Some(limit) = limit.filter(|&l| l > 0) {
+                limit_str = limit.to_string();
+                args.extend(&["--limit", &limit_str]);
             }
 
-            if let Some(since) = since {
+            if let Some(since) = since.filter(|s| !s.trim().is_empty()) {
                 args.extend(&["--since", since]);
             }
 
@@ -803,46 +761,11 @@ mod tests {
 
         let config = UnifiedConfig::default();
         if let Ok(bridge) = CliBridge::new(&config) {
-            let debug_str = format!("{:?}", bridge);
+            let debug_str = format!("{bridge:?}");
             assert!(debug_str.contains("CliBridge"));
             assert!(debug_str.contains("cli_path"));
             assert!(debug_str.contains("default_args"));
         }
-    }
-
-    // Tests for MCP bridge implementation with CliBridge
-    #[tokio::test]
-    async fn test_mcp_bridge_traits_compilation() {
-        // This test verifies that CliBridge implements all MCP traits correctly
-        // We don't test actual functionality here since it requires CLI binary
-
-        // Create a dummy CliBridge (will fail but that's expected in test environment)
-        let config = UnifiedConfig::default();
-        if let Ok(bridge) = CliBridge::new(&config) {
-            // Test that CliBridge implements the traits (compilation test)
-            use crate::mcp_bridge_trait::*;
-
-            let _messaging: &dyn McpMessaging = &bridge;
-            let _chat_mgmt: &dyn McpChatManagement = &bridge;
-            let _file_ops: &dyn McpFileOperations = &bridge;
-            let _storage: &dyn McpStorage = &bridge;
-            let _diagnostics: &dyn McpDiagnostics = &bridge;
-            let _combined: &dyn McpCliBridge = &bridge;
-        }
-    }
-
-    #[test]
-    fn test_mcp_bridge_traits_exist() {
-        // Test that all the MCP bridge traits are properly defined
-        use crate::mcp_bridge_trait::*;
-
-        // This is a compilation test to ensure traits are properly exported
-        fn _accepts_messaging<T: McpMessaging>(_: T) {}
-        fn _accepts_chat_management<T: McpChatManagement>(_: T) {}
-        fn _accepts_file_operations<T: McpFileOperations>(_: T) {}
-        fn _accepts_storage<T: McpStorage>(_: T) {}
-        fn _accepts_diagnostics<T: McpDiagnostics>(_: T) {}
-        fn _accepts_combined<T: McpCliBridge>(_: T) {}
     }
 
     // === Additional comprehensive tests for better coverage ===
@@ -852,7 +775,7 @@ mod tests {
         // Test that CliBridge creation fails when CLI binary is not found
         let config = UnifiedConfig::default();
         let result = CliBridge::new(&config);
-        
+
         // This test will likely pass in CI/test environment where CLI binary is available
         // or fail with CliNotFound error when binary is not available
         match result {
@@ -861,7 +784,7 @@ mod tests {
                 assert!(msg.contains("vkteams-bot-cli"));
                 assert!(msg.contains("not found"));
             }
-            Err(e) => println!("Unexpected error (acceptable in test environment): {}", e),
+            Err(e) => println!("Unexpected error (acceptable in test environment): {e}"),
         }
     }
 
@@ -886,7 +809,7 @@ mod tests {
             }
             Err(e) => {
                 // Expected in test environment without CLI binary
-                println!("Expected error in test environment: {}", e);
+                println!("Expected error in test environment: {e}");
             }
         }
 
@@ -1048,7 +971,7 @@ mod tests {
 
         let config = UnifiedConfig::default();
         if let Ok(bridge) = CliBridge::new(&config) {
-            let debug_output = format!("{:?}", bridge);
+            let debug_output = format!("{bridge:?}");
             assert!(debug_output.contains("CliBridge"));
             assert!(debug_output.contains("cli_path"));
             assert!(debug_output.contains("default_args"));
@@ -1129,7 +1052,7 @@ mod tests {
                 assert!(path.contains("not found"));
             }
             Err(e) => {
-                println!("Unexpected error (acceptable in test environment): {}", e);
+                println!("Unexpected error (acceptable in test environment): {e}");
             }
         }
     }
@@ -1147,7 +1070,7 @@ mod tests {
         unsafe {
             std::env::remove_var("VKTEAMS_BOT_CONFIG");
         }
-        
+
         // Wait a bit for environment change to propagate
         std::thread::sleep(std::time::Duration::from_millis(10));
 
@@ -1155,16 +1078,18 @@ mod tests {
         if let Ok(bridge) = CliBridge::new(&config) {
             assert!(bridge.default_args.contains(&"--output".to_string()));
             assert!(bridge.default_args.contains(&"json".to_string()));
-            assert!(!bridge.default_args.contains(&"--config".to_string()),
-                   "Bridge should not contain --config when VKTEAMS_BOT_CONFIG is not set. Args: {:?}", 
-                   bridge.default_args);
+            assert!(
+                !bridge.default_args.contains(&"--config".to_string()),
+                "Bridge should not contain --config when VKTEAMS_BOT_CONFIG is not set. Args: {:?}",
+                bridge.default_args
+            );
         }
 
         // Test with config
         unsafe {
             std::env::set_var("VKTEAMS_BOT_CONFIG", "/test/config.toml");
         }
-        
+
         // Wait a bit for environment change to propagate
         std::thread::sleep(std::time::Duration::from_millis(10));
 
@@ -1298,7 +1223,7 @@ mod tests {
     fn test_container_path_resolution() {
         // Test container-friendly CLI path resolution
         let config = UnifiedConfig::default();
-        
+
         // This test verifies that container paths are checked
         match CliBridge::new(&config) {
             Ok(bridge) => {
@@ -1310,18 +1235,18 @@ mod tests {
                 assert!(msg.contains("common system locations"));
                 assert!(msg.contains("/usr/local/bin"));
                 assert!(msg.contains("/app"));
-                println!("⚠ CLI not found as expected: {}", msg);
+                println!("⚠ CLI not found as expected: {msg}");
             }
-            Err(e) => panic!("Unexpected error: {}", e),
+            Err(e) => panic!("Unexpected error: {e}"),
         }
     }
 
-    #[test] 
+    #[test]
     fn test_cli_path_from_config() {
         // Test using CLI path from config
         let mut config = UnifiedConfig::default();
         config.mcp.cli_path = Some("/custom/cli/path".into());
-        
+
         match CliBridge::new(&config) {
             Ok(bridge) => {
                 assert_eq!(bridge.cli_path, "/custom/cli/path");
@@ -1329,7 +1254,7 @@ mod tests {
             }
             Err(e) => {
                 // This can fail if the path doesn't exist, which is fine for testing
-                println!("⚠ Custom path test failed (expected): {}", e);
+                println!("⚠ Custom path test failed (expected): {e}");
             }
         }
     }
@@ -1338,7 +1263,7 @@ mod tests {
     fn test_improved_error_messages() {
         // Test that error messages are more descriptive
         let config = UnifiedConfig::default();
-        
+
         match CliBridge::new(&config) {
             Err(BridgeError::CliNotFound(msg)) => {
                 // Verify improved error message includes all search locations
@@ -1349,13 +1274,13 @@ mod tests {
                 assert!(msg.contains("/app"));
                 assert!(msg.contains("/bin"));
                 assert!(msg.contains("relative to current executable"));
-                println!("✓ Comprehensive error message: {}", msg);
+                println!("✓ Comprehensive error message: {msg}");
             }
             Ok(_) => {
                 println!("✓ CLI bridge created successfully");
             }
             Err(e) => {
-                println!("⚠ Unexpected error type: {}", e);
+                println!("⚠ Unexpected error type: {e}");
             }
         }
     }
@@ -1364,15 +1289,15 @@ mod tests {
     fn test_bridge_default_args_robustness() {
         // Test that default args are properly constructed
         let config = UnifiedConfig::default();
-        
+
         match CliBridge::new(&config) {
             Ok(bridge) => {
                 assert!(bridge.default_args.contains(&"--output".to_string()));
                 assert!(bridge.default_args.contains(&"json".to_string()));
-                
+
                 // Verify no empty args
                 assert!(!bridge.default_args.iter().any(|arg| arg.is_empty()));
-                
+
                 println!("✓ Default args verified: {:?}", bridge.default_args);
             }
             Err(_) => {

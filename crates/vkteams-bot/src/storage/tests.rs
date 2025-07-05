@@ -132,19 +132,19 @@ mod storage_tests {
 
         let connection_error = StorageError::Connection("Failed to connect".to_string());
         assert_eq!(
-            format!("{}", connection_error),
+            format!("{connection_error}"),
             "Database connection error: Failed to connect"
         );
 
         let query_error = StorageError::Query("Invalid SQL".to_string());
         assert_eq!(
-            format!("{}", query_error),
+            format!("{query_error}"),
             "Database query error: Invalid SQL"
         );
 
         let config_error = StorageError::Configuration("Missing setting".to_string());
         assert_eq!(
-            format!("{}", config_error),
+            format!("{config_error}"),
             "Configuration error: Missing setting"
         );
     }

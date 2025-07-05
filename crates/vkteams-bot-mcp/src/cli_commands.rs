@@ -20,11 +20,11 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["send-text", "--message", text];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
-        if let Some(reply_id) = reply_msg_id {
+        if let Some(reply_id) = reply_msg_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--reply-msg-id", reply_id]);
         }
 
@@ -40,11 +40,11 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["send-file", "--file-path", file_path];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
-        if let Some(caption) = caption {
+        if let Some(caption) = caption.filter(|c| !c.trim().is_empty()) {
             args.extend(&["--caption", caption]);
         }
 
@@ -59,7 +59,7 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["send-voice", "--file-path", file_path];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
@@ -81,7 +81,7 @@ impl CliBridge {
             new_text,
         ];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
@@ -96,7 +96,7 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["delete-message", "--message-id", message_id];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
@@ -111,7 +111,7 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["pin-message", "--message-id", message_id];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
@@ -126,7 +126,7 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["unpin-message", "--message-id", message_id];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
@@ -139,7 +139,7 @@ impl CliBridge {
     pub async fn get_chat_info(&self, chat_id: Option<&str>) -> Result<Value, BridgeError> {
         let mut args = vec!["get-chat-info"];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
@@ -160,11 +160,11 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["get-chat-members"];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
-        if let Some(cursor) = cursor {
+        if let Some(cursor) = cursor.filter(|c| !c.trim().is_empty()) {
             args.extend(&["--cursor", cursor]);
         }
 
@@ -175,7 +175,7 @@ impl CliBridge {
     pub async fn get_chat_admins(&self, chat_id: Option<&str>) -> Result<Value, BridgeError> {
         let mut args = vec!["get-chat-admins"];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
@@ -190,7 +190,7 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["set-chat-title", "--title", title];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
@@ -205,7 +205,7 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["set-chat-about", "--about", about];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
@@ -220,7 +220,7 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["send-action", "--action", action];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
@@ -240,15 +240,15 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["upload", "--name", name, "--content-base64", content_base64];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
-        if let Some(caption) = caption {
+        if let Some(caption) = caption.filter(|c| !c.trim().is_empty()) {
             args.extend(&["--caption", caption]);
         }
 
-        if let Some(reply_id) = reply_msg_id {
+        if let Some(reply_id) = reply_msg_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--reply-msg-id", reply_id]);
         }
 
@@ -265,11 +265,11 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["upload-text", "--name", name, "--content", content];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
-        if let Some(caption) = caption {
+        if let Some(caption) = caption.filter(|c| !c.trim().is_empty()) {
             args.extend(&["--caption", caption]);
         }
 
@@ -291,11 +291,11 @@ impl CliBridge {
             args.push("--pretty");
         }
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
-        if let Some(caption) = caption {
+        if let Some(caption) = caption.filter(|c| !c.trim().is_empty()) {
             args.extend(&["--caption", caption]);
         }
 
@@ -317,11 +317,11 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["database", "stats"];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
-        if let Some(since) = since {
+        if let Some(since) = since.filter(|s| !s.trim().is_empty()) {
             args.extend(&["--since", since]);
         }
 
@@ -335,15 +335,16 @@ impl CliBridge {
         chat_id: Option<&str>,
         limit: Option<usize>,
     ) -> Result<Value, BridgeError> {
-        let limit_str = limit.map(|l| l.to_string());
         let mut args = vec!["search", "semantic", query];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
-        if let Some(ref limit_str) = limit_str {
-            args.extend(&["--limit", limit_str]);
+        let limit_str;
+        if let Some(limit) = limit.filter(|&l| l > 0) {
+            limit_str = limit.to_string();
+            args.extend(&["--limit", &limit_str]);
         }
 
         self.execute_command(&args).await
@@ -356,15 +357,16 @@ impl CliBridge {
         chat_id: Option<&str>,
         limit: Option<i64>,
     ) -> Result<Value, BridgeError> {
-        let limit_str = limit.map(|l| l.to_string());
         let mut args = vec!["search", "text", query];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
-        if let Some(ref limit_str) = limit_str {
-            args.extend(&["--limit", limit_str]);
+        let limit_str;
+        if let Some(limit) = limit.filter(|&l| l > 0) {
+            limit_str = limit.to_string();
+            args.extend(&["--limit", &limit_str]);
         }
 
         self.execute_command(&args).await
@@ -379,15 +381,15 @@ impl CliBridge {
     ) -> Result<Value, BridgeError> {
         let mut args = vec!["context", "get"];
 
-        if let Some(chat_id) = chat_id {
+        if let Some(chat_id) = chat_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--chat-id", chat_id]);
         }
 
-        if let Some(context_type) = context_type {
+        if let Some(context_type) = context_type.filter(|ct| !ct.trim().is_empty()) {
             args.extend(&["--context-type", context_type]);
         }
 
-        if let Some(timeframe) = timeframe {
+        if let Some(timeframe) = timeframe.filter(|tf| !tf.trim().is_empty()) {
             args.extend(&["--timeframe", timeframe]);
         }
 
@@ -407,15 +409,16 @@ impl CliBridge {
         last_event_id: Option<&str>,
         poll_time: Option<u64>,
     ) -> Result<Value, BridgeError> {
-        let poll_time_str = poll_time.map(|p| p.to_string());
         let mut args = vec!["get-events"];
 
-        if let Some(event_id) = last_event_id {
+        if let Some(event_id) = last_event_id.filter(|id| !id.trim().is_empty()) {
             args.extend(&["--last-event-id", event_id]);
         }
 
-        if let Some(ref poll_time_str) = poll_time_str {
-            args.extend(&["--poll-time", poll_time_str]);
+        let poll_time_str;
+        if let Some(poll_time) = poll_time.filter(|&p| p > 0) {
+            poll_time_str = poll_time.to_string();
+            args.extend(&["--poll-time", &poll_time_str]);
         }
 
         self.execute_command(&args).await
@@ -425,12 +428,12 @@ impl CliBridge {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bridge_trait::{CliBridgeTrait, MockCliBridge};
+    use crate::cli_bridge::{CliBridgeTrait, MockCliBridge};
 
     /// Helper function to create a mock CLI bridge with success responses
     fn create_mock_bridge() -> MockCliBridge {
         let mut mock = MockCliBridge::new();
-        
+
         // Add default success responses for common commands
         mock.add_success_response(
             "send-text".to_string(),
@@ -444,7 +447,7 @@ mod tests {
             "get-chat-info".to_string(),
             serde_json::json!({"chat_id": "chat123", "title": "Test Chat"}),
         );
-        
+
         mock
     }
 
@@ -770,7 +773,7 @@ mod tests {
             std::env::set_var("VKTEAMS_BOT_CHAT_ID", "test_chat");
         }
         let mock = create_mock_bridge();
-        
+
         let config = vkteams_bot::config::UnifiedConfig::default();
         if let Ok(_bridge) = CliBridge::new(&config) {
             // Test the actual send_text method argument building
@@ -784,14 +787,20 @@ mod tests {
     #[tokio::test]
     async fn test_send_text_with_all_parameters() {
         let mock = create_mock_bridge();
-        
-        let result = mock.execute_command(&[
-            "send-text", "--message", "Hello World",
-            "--chat-id", "chat123",
-            "--reply-msg-id", "msg456"
-        ]).await;
+
+        let result = mock
+            .execute_command(&[
+                "send-text",
+                "--message",
+                "Hello World",
+                "--chat-id",
+                "chat123",
+                "--reply-msg-id",
+                "msg456",
+            ])
+            .await;
         assert!(result.is_ok());
-        
+
         if let Ok(response) = result {
             assert_eq!(response["success"], true);
         }
@@ -800,24 +809,30 @@ mod tests {
     #[tokio::test]
     async fn test_send_file_method() {
         let mock = create_mock_bridge();
-        
-        let result = mock.execute_command(&[
-            "send-file", "--file-path", "/path/to/file.txt"
-        ]).await;
+
+        let result = mock
+            .execute_command(&["send-file", "--file-path", "/path/to/file.txt"])
+            .await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_send_file_with_all_parameters() {
         let mock = create_mock_bridge();
-        
-        let result = mock.execute_command(&[
-            "send-file", "--file-path", "/path/to/file.txt",
-            "--chat-id", "chat123",
-            "--caption", "Test file caption"
-        ]).await;
+
+        let result = mock
+            .execute_command(&[
+                "send-file",
+                "--file-path",
+                "/path/to/file.txt",
+                "--chat-id",
+                "chat123",
+                "--caption",
+                "Test file caption",
+            ])
+            .await;
         assert!(result.is_ok());
-        
+
         if let Ok(response) = result {
             assert_eq!(response["success"], true);
         }
@@ -830,10 +845,10 @@ mod tests {
             "send-voice".to_string(),
             serde_json::json!({"voice_id": "voice123", "ok": true}),
         );
-        
-        let result = mock.execute_command(&[
-            "send-voice", "--file-path", "/path/to/voice.ogg"
-        ]).await;
+
+        let result = mock
+            .execute_command(&["send-voice", "--file-path", "/path/to/voice.ogg"])
+            .await;
         assert!(result.is_ok());
     }
 
@@ -844,42 +859,52 @@ mod tests {
             "send-voice".to_string(),
             serde_json::json!({"voice_id": "voice123", "ok": true}),
         );
-        
-        let result = mock.execute_command(&[
-            "send-voice", "--file-path", "/path/to/voice.ogg",
-            "--chat-id", "chat123"
-        ]).await;
+
+        let result = mock
+            .execute_command(&[
+                "send-voice",
+                "--file-path",
+                "/path/to/voice.ogg",
+                "--chat-id",
+                "chat123",
+            ])
+            .await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_edit_message_method() {
         let mut mock = create_mock_bridge();
-        mock.add_success_response(
-            "edit-message".to_string(),
-            serde_json::json!({"ok": true}),
-        );
-        
-        let result = mock.execute_command(&[
-            "edit-message", "--message-id", "msg123",
-            "--new-text", "Updated message"
-        ]).await;
+        mock.add_success_response("edit-message".to_string(), serde_json::json!({"ok": true}));
+
+        let result = mock
+            .execute_command(&[
+                "edit-message",
+                "--message-id",
+                "msg123",
+                "--new-text",
+                "Updated message",
+            ])
+            .await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_edit_message_with_chat_id() {
         let mut mock = create_mock_bridge();
-        mock.add_success_response(
-            "edit-message".to_string(),
-            serde_json::json!({"ok": true}),
-        );
-        
-        let result = mock.execute_command(&[
-            "edit-message", "--message-id", "msg123",
-            "--new-text", "Updated message",
-            "--chat-id", "chat123"
-        ]).await;
+        mock.add_success_response("edit-message".to_string(), serde_json::json!({"ok": true}));
+
+        let result = mock
+            .execute_command(&[
+                "edit-message",
+                "--message-id",
+                "msg123",
+                "--new-text",
+                "Updated message",
+                "--chat-id",
+                "chat123",
+            ])
+            .await;
         assert!(result.is_ok());
     }
 
@@ -890,10 +915,10 @@ mod tests {
             "delete-message".to_string(),
             serde_json::json!({"ok": true}),
         );
-        
-        let result = mock.execute_command(&[
-            "delete-message", "--message-id", "msg123"
-        ]).await;
+
+        let result = mock
+            .execute_command(&["delete-message", "--message-id", "msg123"])
+            .await;
         assert!(result.is_ok());
     }
 
@@ -904,76 +929,79 @@ mod tests {
             "delete-message".to_string(),
             serde_json::json!({"ok": true}),
         );
-        
-        let result = mock.execute_command(&[
-            "delete-message", "--message-id", "msg123",
-            "--chat-id", "chat123"
-        ]).await;
+
+        let result = mock
+            .execute_command(&[
+                "delete-message",
+                "--message-id",
+                "msg123",
+                "--chat-id",
+                "chat123",
+            ])
+            .await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_pin_message_method() {
         let mut mock = create_mock_bridge();
-        mock.add_success_response(
-            "pin-message".to_string(),
-            serde_json::json!({"ok": true}),
-        );
-        
-        let result = mock.execute_command(&[
-            "pin-message", "--message-id", "msg123"
-        ]).await;
+        mock.add_success_response("pin-message".to_string(), serde_json::json!({"ok": true}));
+
+        let result = mock
+            .execute_command(&["pin-message", "--message-id", "msg123"])
+            .await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_pin_message_with_chat_id() {
         let mut mock = create_mock_bridge();
-        mock.add_success_response(
-            "pin-message".to_string(),
-            serde_json::json!({"ok": true}),
-        );
-        
-        let result = mock.execute_command(&[
-            "pin-message", "--message-id", "msg123",
-            "--chat-id", "chat123"
-        ]).await;
+        mock.add_success_response("pin-message".to_string(), serde_json::json!({"ok": true}));
+
+        let result = mock
+            .execute_command(&[
+                "pin-message",
+                "--message-id",
+                "msg123",
+                "--chat-id",
+                "chat123",
+            ])
+            .await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_unpin_message_method() {
         let mut mock = create_mock_bridge();
-        mock.add_success_response(
-            "unpin-message".to_string(),
-            serde_json::json!({"ok": true}),
-        );
-        
-        let result = mock.execute_command(&[
-            "unpin-message", "--message-id", "msg123"
-        ]).await;
+        mock.add_success_response("unpin-message".to_string(), serde_json::json!({"ok": true}));
+
+        let result = mock
+            .execute_command(&["unpin-message", "--message-id", "msg123"])
+            .await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_unpin_message_with_chat_id() {
         let mut mock = create_mock_bridge();
-        mock.add_success_response(
-            "unpin-message".to_string(),
-            serde_json::json!({"ok": true}),
-        );
-        
-        let result = mock.execute_command(&[
-            "unpin-message", "--message-id", "msg123",
-            "--chat-id", "chat123"
-        ]).await;
+        mock.add_success_response("unpin-message".to_string(), serde_json::json!({"ok": true}));
+
+        let result = mock
+            .execute_command(&[
+                "unpin-message",
+                "--message-id",
+                "msg123",
+                "--chat-id",
+                "chat123",
+            ])
+            .await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_get_chat_info_method() {
         let mock = create_mock_bridge();
-        
+
         let result = mock.execute_command(&["get-chat-info"]).await;
         assert!(result.is_ok());
     }
@@ -981,12 +1009,12 @@ mod tests {
     #[tokio::test]
     async fn test_get_chat_info_with_specific_chat_id() {
         let mock = create_mock_bridge();
-        
-        let result = mock.execute_command(&[
-            "get-chat-info", "--chat-id", "chat123"
-        ]).await;
+
+        let result = mock
+            .execute_command(&["get-chat-info", "--chat-id", "chat123"])
+            .await;
         assert!(result.is_ok());
-        
+
         if let Ok(response) = result {
             assert_eq!(response["success"], true);
             assert_eq!(response["data"]["chat_id"], "chat123");
@@ -1000,12 +1028,12 @@ mod tests {
             "get-profile".to_string(),
             serde_json::json!({"user_id": "user123", "first_name": "John"}),
         );
-        
-        let result = mock.execute_command(&[
-            "get-profile", "--user-id", "user123"
-        ]).await;
+
+        let result = mock
+            .execute_command(&["get-profile", "--user-id", "user123"])
+            .await;
         assert!(result.is_ok());
-        
+
         if let Ok(response) = result {
             assert_eq!(response["success"], true);
             assert_eq!(response["data"]["user_id"], "user123");
@@ -1019,7 +1047,7 @@ mod tests {
             "get-chat-members".to_string(),
             serde_json::json!({"members": [], "cursor": null}),
         );
-        
+
         let result = mock.execute_command(&["get-chat-members"]).await;
         assert!(result.is_ok());
     }
@@ -1031,12 +1059,16 @@ mod tests {
             "get-chat-members".to_string(),
             serde_json::json!({"members": [], "cursor": "next123"}),
         );
-        
-        let result = mock.execute_command(&[
-            "get-chat-members", 
-            "--chat-id", "chat123",
-            "--cursor", "cursor123"
-        ]).await;
+
+        let result = mock
+            .execute_command(&[
+                "get-chat-members",
+                "--chat-id",
+                "chat123",
+                "--cursor",
+                "cursor123",
+            ])
+            .await;
         assert!(result.is_ok());
     }
 
@@ -1047,7 +1079,7 @@ mod tests {
             "get-chat-admins".to_string(),
             serde_json::json!({"admins": []}),
         );
-        
+
         let result = mock.execute_command(&["get-chat-admins"]).await;
         assert!(result.is_ok());
     }
@@ -1059,10 +1091,10 @@ mod tests {
             "get-chat-admins".to_string(),
             serde_json::json!({"admins": []}),
         );
-        
-        let result = mock.execute_command(&[
-            "get-chat-admins", "--chat-id", "chat123"
-        ]).await;
+
+        let result = mock
+            .execute_command(&["get-chat-admins", "--chat-id", "chat123"])
+            .await;
         assert!(result.is_ok());
     }
 
@@ -1073,10 +1105,10 @@ mod tests {
             "set-chat-title".to_string(),
             serde_json::json!({"ok": true}),
         );
-        
-        let result = mock.execute_command(&[
-            "set-chat-title", "--title", "New Chat Title"
-        ]).await;
+
+        let result = mock
+            .execute_command(&["set-chat-title", "--title", "New Chat Title"])
+            .await;
         assert!(result.is_ok());
     }
 
@@ -1087,11 +1119,16 @@ mod tests {
             "set-chat-title".to_string(),
             serde_json::json!({"ok": true}),
         );
-        
-        let result = mock.execute_command(&[
-            "set-chat-title", "--title", "New Chat Title",
-            "--chat-id", "chat123"
-        ]).await;
+
+        let result = mock
+            .execute_command(&[
+                "set-chat-title",
+                "--title",
+                "New Chat Title",
+                "--chat-id",
+                "chat123",
+            ])
+            .await;
         assert!(result.is_ok());
     }
 
@@ -1102,10 +1139,10 @@ mod tests {
             "set-chat-about".to_string(),
             serde_json::json!({"ok": true}),
         );
-        
-        let result = mock.execute_command(&[
-            "set-chat-about", "--about", "New chat description"
-        ]).await;
+
+        let result = mock
+            .execute_command(&["set-chat-about", "--about", "New chat description"])
+            .await;
         assert!(result.is_ok());
     }
 
@@ -1116,40 +1153,38 @@ mod tests {
             "set-chat-about".to_string(),
             serde_json::json!({"ok": true}),
         );
-        
-        let result = mock.execute_command(&[
-            "set-chat-about", "--about", "New chat description",
-            "--chat-id", "chat123"
-        ]).await;
+
+        let result = mock
+            .execute_command(&[
+                "set-chat-about",
+                "--about",
+                "New chat description",
+                "--chat-id",
+                "chat123",
+            ])
+            .await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_send_action_method() {
         let mut mock = create_mock_bridge();
-        mock.add_success_response(
-            "send-action".to_string(),
-            serde_json::json!({"ok": true}),
-        );
-        
-        let result = mock.execute_command(&[
-            "send-action", "--action", "typing"
-        ]).await;
+        mock.add_success_response("send-action".to_string(), serde_json::json!({"ok": true}));
+
+        let result = mock
+            .execute_command(&["send-action", "--action", "typing"])
+            .await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_send_action_with_chat_id() {
         let mut mock = create_mock_bridge();
-        mock.add_success_response(
-            "send-action".to_string(),
-            serde_json::json!({"ok": true}),
-        );
-        
-        let result = mock.execute_command(&[
-            "send-action", "--action", "looking",
-            "--chat-id", "chat123"
-        ]).await;
+        mock.add_success_response("send-action".to_string(), serde_json::json!({"ok": true}));
+
+        let result = mock
+            .execute_command(&["send-action", "--action", "looking", "--chat-id", "chat123"])
+            .await;
         assert!(result.is_ok());
     }
 
@@ -1160,11 +1195,16 @@ mod tests {
             "upload-file-base64".to_string(),
             serde_json::json!({"file_id": "file123", "ok": true}),
         );
-        
-        let result = mock.execute_command(&[
-            "upload-file-base64", "--name", "test.txt",
-            "--content-base64", "dGVzdA=="
-        ]).await;
+
+        let result = mock
+            .execute_command(&[
+                "upload-file-base64",
+                "--name",
+                "test.txt",
+                "--content-base64",
+                "dGVzdA==",
+            ])
+            .await;
         assert!(result.is_ok());
     }
 
@@ -1175,14 +1215,22 @@ mod tests {
             "upload-file-base64".to_string(),
             serde_json::json!({"file_id": "file123", "ok": true}),
         );
-        
-        let result = mock.execute_command(&[
-            "upload-file-base64", "--name", "test.txt",
-            "--content-base64", "dGVzdA==",
-            "--chat-id", "chat123",
-            "--caption", "Test file",
-            "--reply-msg-id", "msg456"
-        ]).await;
+
+        let result = mock
+            .execute_command(&[
+                "upload-file-base64",
+                "--name",
+                "test.txt",
+                "--content-base64",
+                "dGVzdA==",
+                "--chat-id",
+                "chat123",
+                "--caption",
+                "Test file",
+                "--reply-msg-id",
+                "msg456",
+            ])
+            .await;
         assert!(result.is_ok());
     }
 
@@ -1193,11 +1241,16 @@ mod tests {
             "upload-text-file".to_string(),
             serde_json::json!({"file_id": "text123", "ok": true}),
         );
-        
-        let result = mock.execute_command(&[
-            "upload-text-file", "--name", "notes.txt",
-            "--content", "Some text content"
-        ]).await;
+
+        let result = mock
+            .execute_command(&[
+                "upload-text-file",
+                "--name",
+                "notes.txt",
+                "--content",
+                "Some text content",
+            ])
+            .await;
         assert!(result.is_ok());
     }
 
@@ -1208,13 +1261,20 @@ mod tests {
             "upload-text-file".to_string(),
             serde_json::json!({"file_id": "text123", "ok": true}),
         );
-        
-        let result = mock.execute_command(&[
-            "upload-text-file", "--name", "notes.txt",
-            "--content", "Some text content",
-            "--chat-id", "chat123",
-            "--caption", "My notes"
-        ]).await;
+
+        let result = mock
+            .execute_command(&[
+                "upload-text-file",
+                "--name",
+                "notes.txt",
+                "--content",
+                "Some text content",
+                "--chat-id",
+                "chat123",
+                "--caption",
+                "My notes",
+            ])
+            .await;
         assert!(result.is_ok());
     }
 
@@ -1225,11 +1285,16 @@ mod tests {
             "upload-json-file".to_string(),
             serde_json::json!({"file_id": "json123", "ok": true}),
         );
-        
-        let result = mock.execute_command(&[
-            "upload-json-file", "--name", "data",
-            "--json-data", r#"{"key": "value"}"#
-        ]).await;
+
+        let result = mock
+            .execute_command(&[
+                "upload-json-file",
+                "--name",
+                "data",
+                "--json-data",
+                r#"{"key": "value"}"#,
+            ])
+            .await;
         assert!(result.is_ok());
     }
 
@@ -1240,14 +1305,22 @@ mod tests {
             "upload-json-file".to_string(),
             serde_json::json!({"file_id": "json123", "ok": true}),
         );
-        
-        let result = mock.execute_command(&[
-            "upload-json-file", "--name", "data",
-            "--json-data", r#"{"key": "value"}"#,
-            "--pretty", "true",
-            "--chat-id", "chat123",
-            "--caption", "JSON data"
-        ]).await;
+
+        let result = mock
+            .execute_command(&[
+                "upload-json-file",
+                "--name",
+                "data",
+                "--json-data",
+                r#"{"key": "value"}"#,
+                "--pretty",
+                "true",
+                "--chat-id",
+                "chat123",
+                "--caption",
+                "JSON data",
+            ])
+            .await;
         assert!(result.is_ok());
     }
 
@@ -1262,10 +1335,10 @@ mod tests {
                 "file_size": 1024
             }),
         );
-        
-        let result = mock.execute_command(&[
-            "file-info", "--file-id", "file123"
-        ]).await;
+
+        let result = mock
+            .execute_command(&["file-info", "--file-id", "file123"])
+            .await;
         assert!(result.is_ok());
     }
 
@@ -1280,7 +1353,7 @@ mod tests {
                 "db_size": 1048576
             }),
         );
-        
+
         let result = mock.execute_command(&["get-database-stats"]).await;
         assert!(result.is_ok());
     }
@@ -1296,12 +1369,16 @@ mod tests {
                 "db_size": 524288
             }),
         );
-        
-        let result = mock.execute_command(&[
-            "get-database-stats",
-            "--chat-id", "chat123",
-            "--since", "2024-01-01"
-        ]).await;
+
+        let result = mock
+            .execute_command(&[
+                "get-database-stats",
+                "--chat-id",
+                "chat123",
+                "--since",
+                "2024-01-01",
+            ])
+            .await;
         assert!(result.is_ok());
     }
 
@@ -1315,10 +1392,10 @@ mod tests {
                 "total": 0
             }),
         );
-        
-        let result = mock.execute_command(&[
-            "search-semantic", "--query", "search term"
-        ]).await;
+
+        let result = mock
+            .execute_command(&["search-semantic", "--query", "search term"])
+            .await;
         assert!(result.is_ok());
     }
 
@@ -1332,12 +1409,18 @@ mod tests {
                 "total": 0
             }),
         );
-        
-        let result = mock.execute_command(&[
-            "search-semantic", "--query", "search term",
-            "--chat-id", "chat123",
-            "--limit", "10"
-        ]).await;
+
+        let result = mock
+            .execute_command(&[
+                "search-semantic",
+                "--query",
+                "search term",
+                "--chat-id",
+                "chat123",
+                "--limit",
+                "10",
+            ])
+            .await;
         assert!(result.is_ok());
     }
 
@@ -1351,10 +1434,10 @@ mod tests {
                 "total": 0
             }),
         );
-        
-        let result = mock.execute_command(&[
-            "search-text", "--query", "text search"
-        ]).await;
+
+        let result = mock
+            .execute_command(&["search-text", "--query", "text search"])
+            .await;
         assert!(result.is_ok());
     }
 
@@ -1368,12 +1451,18 @@ mod tests {
                 "total": 0
             }),
         );
-        
-        let result = mock.execute_command(&[
-            "search-text", "--query", "text search",
-            "--chat-id", "chat123",
-            "--limit", "20"
-        ]).await;
+
+        let result = mock
+            .execute_command(&[
+                "search-text",
+                "--query",
+                "text search",
+                "--chat-id",
+                "chat123",
+                "--limit",
+                "20",
+            ])
+            .await;
         assert!(result.is_ok());
     }
 
@@ -1386,7 +1475,7 @@ mod tests {
                 "context": "recent messages..."
             }),
         );
-        
+
         let result = mock.execute_command(&["get-context"]).await;
         assert!(result.is_ok());
     }
@@ -1400,13 +1489,18 @@ mod tests {
                 "context": "recent messages..."
             }),
         );
-        
-        let result = mock.execute_command(&[
-            "get-context",
-            "--chat-id", "chat123",
-            "--context-type", "recent",
-            "--timeframe", "1d"
-        ]).await;
+
+        let result = mock
+            .execute_command(&[
+                "get-context",
+                "--chat-id",
+                "chat123",
+                "--context-type",
+                "recent",
+                "--timeframe",
+                "1d",
+            ])
+            .await;
         assert!(result.is_ok());
     }
 
@@ -1420,10 +1514,10 @@ mod tests {
                 "first_name": "Test Bot"
             }),
         );
-        
+
         let result = mock.execute_command(&["self-get"]).await;
         assert!(result.is_ok());
-        
+
         if let Ok(response) = result {
             assert_eq!(response["success"], true);
         }
@@ -1439,7 +1533,7 @@ mod tests {
                 "last_event_id": "123"
             }),
         );
-        
+
         let result = mock.execute_command(&["events-get"]).await;
         assert!(result.is_ok());
     }
@@ -1454,12 +1548,10 @@ mod tests {
                 "last_event_id": "124"
             }),
         );
-        
-        let result = mock.execute_command(&[
-            "events-get",
-            "--last-event-id", "123",
-            "--poll-time", "30"
-        ]).await;
+
+        let result = mock
+            .execute_command(&["events-get", "--last-event-id", "123", "--poll-time", "30"])
+            .await;
         assert!(result.is_ok());
     }
 
@@ -1468,14 +1560,11 @@ mod tests {
     #[tokio::test]
     async fn test_command_error_responses() {
         let mut mock = MockCliBridge::new();
-        mock.add_error_response(
-            "send-text".to_string(),
-            "Message too long".to_string(),
-        );
-        
-        let result = mock.execute_command(&[
-            "send-text", "--message", "very long message..."
-        ]).await;
+        mock.add_error_response("send-text".to_string(), "Message too long".to_string());
+
+        let result = mock
+            .execute_command(&["send-text", "--message", "very long message..."])
+            .await;
         assert!(result.is_err());
     }
 
@@ -1486,7 +1575,7 @@ mod tests {
             "invalid-command".to_string(),
             "Command not found".to_string(),
         );
-        
+
         let result = mock.execute_command(&["invalid-command"]).await;
         assert!(result.is_err());
     }
@@ -1498,7 +1587,7 @@ mod tests {
             "send-text".to_string(),
             "Missing required parameter: message".to_string(),
         );
-        
+
         let result = mock.execute_command(&["send-text"]).await;
         assert!(result.is_err());
     }
@@ -1508,14 +1597,16 @@ mod tests {
     #[tokio::test]
     async fn test_empty_optional_parameters() {
         let mock = create_mock_bridge();
-        
+
         // Test commands with None for optional parameters
-        let result = mock.execute_command(&["send-text", "--message", "Hello"]).await;
+        let result = mock
+            .execute_command(&["send-text", "--message", "Hello"])
+            .await;
         assert!(result.is_ok());
-        
+
         let result = mock.execute_command(&["get-chat-info"]).await;
         assert!(result.is_ok());
-        
+
         let result = mock.execute_command(&["get-chat-members"]).await;
         assert!(result.is_ok());
     }
@@ -1523,15 +1614,19 @@ mod tests {
     #[tokio::test]
     async fn test_special_characters_in_parameters() {
         let mock = create_mock_bridge();
-        
-        let result = mock.execute_command(&[
-            "send-text", "--message", "Hello 🌍! Special chars: @#$%^&*()"
-        ]).await;
+
+        let result = mock
+            .execute_command(&[
+                "send-text",
+                "--message",
+                "Hello 🌍! Special chars: @#$%^&*()",
+            ])
+            .await;
         assert!(result.is_ok());
-        
-        let result = mock.execute_command(&[
-            "set-chat-title", "--title", "Chat with émojis 🚀"
-        ]).await;
+
+        let result = mock
+            .execute_command(&["set-chat-title", "--title", "Chat with émojis 🚀"])
+            .await;
         assert!(result.is_ok());
     }
 
@@ -1542,11 +1637,10 @@ mod tests {
             "search-semantic".to_string(),
             serde_json::json!({"results": [], "total": 0}),
         );
-        
-        let result = mock.execute_command(&[
-            "search-semantic", "--query", "test",
-            "--limit", "50"
-        ]).await;
+
+        let result = mock
+            .execute_command(&["search-semantic", "--query", "test", "--limit", "50"])
+            .await;
         assert!(result.is_ok());
     }
 
@@ -1557,12 +1651,18 @@ mod tests {
             "upload-json-file".to_string(),
             serde_json::json!({"file_id": "json123", "ok": true}),
         );
-        
-        let result = mock.execute_command(&[
-            "upload-json-file", "--name", "data.json",
-            "--json-data", r#"{"test": true}"#,
-            "--pretty", "false"
-        ]).await;
+
+        let result = mock
+            .execute_command(&[
+                "upload-json-file",
+                "--name",
+                "data.json",
+                "--json-data",
+                r#"{"test": true}"#,
+                "--pretty",
+                "false",
+            ])
+            .await;
         assert!(result.is_ok());
     }
 
@@ -1573,12 +1673,17 @@ mod tests {
             "upload-text-file".to_string(),
             serde_json::json!({"file_id": "text123", "ok": true}),
         );
-        
+
         let multiline_content = "Line 1\nLine 2\nLine 3\nWith special chars: àáâã";
-        let result = mock.execute_command(&[
-            "upload-text-file", "--name", "multiline.txt",
-            "--content", multiline_content
-        ]).await;
+        let result = mock
+            .execute_command(&[
+                "upload-text-file",
+                "--name",
+                "multiline.txt",
+                "--content",
+                multiline_content,
+            ])
+            .await;
         assert!(result.is_ok());
     }
 }

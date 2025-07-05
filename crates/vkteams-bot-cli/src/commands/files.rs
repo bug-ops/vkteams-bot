@@ -134,7 +134,7 @@ impl FileCommands {
         {
             Ok(content) => content,
             Err(e) => {
-                return CliResponse::error("upload-file", format!("Invalid base64 content: {}", e));
+                return CliResponse::error("upload-file", format!("Invalid base64 content: {e}"));
             }
         };
 
@@ -186,7 +186,7 @@ impl FileCommands {
                 });
                 CliResponse::success("upload-file", data)
             }
-            Err(e) => CliResponse::error("upload-file", format!("Failed to upload file: {}", e)),
+            Err(e) => CliResponse::error("upload-file", format!("Failed to upload file: {e}")),
         }
     }
 
@@ -242,7 +242,7 @@ impl FileCommands {
                 CliResponse::success("upload-text", data)
             }
             Err(e) => {
-                CliResponse::error("upload-text", format!("Failed to upload text file: {}", e))
+                CliResponse::error("upload-text", format!("Failed to upload text file: {e}"))
             }
         }
     }
@@ -256,7 +256,7 @@ impl FileCommands {
         let json_value: serde_json::Value = match serde_json::from_str(&args.json_data) {
             Ok(value) => value,
             Err(e) => {
-                return CliResponse::error("upload-json", format!("Invalid JSON data: {}", e));
+                return CliResponse::error("upload-json", format!("Invalid JSON data: {e}"));
             }
         };
 
@@ -266,7 +266,7 @@ impl FileCommands {
                 Err(e) => {
                     return CliResponse::error(
                         "upload-json",
-                        format!("Failed to format JSON: {}", e),
+                        format!("Failed to format JSON: {e}"),
                     );
                 }
             }
@@ -276,7 +276,7 @@ impl FileCommands {
                 Err(e) => {
                     return CliResponse::error(
                         "upload-json",
-                        format!("Failed to serialize JSON: {}", e),
+                        format!("Failed to serialize JSON: {e}"),
                     );
                 }
             }
@@ -332,7 +332,7 @@ impl FileCommands {
                 CliResponse::success("upload-json", data)
             }
             Err(e) => {
-                CliResponse::error("upload-json", format!("Failed to upload JSON file: {}", e))
+                CliResponse::error("upload-json", format!("Failed to upload JSON file: {e}"))
             }
         }
     }
@@ -354,7 +354,7 @@ impl FileCommands {
                 });
                 CliResponse::success("file-info", data)
             }
-            Err(e) => CliResponse::error("file-info", format!("Failed to get file info: {}", e)),
+            Err(e) => CliResponse::error("file-info", format!("Failed to get file info: {e}")),
         }
     }
 }
@@ -682,7 +682,10 @@ mod tests {
     #[test]
     fn test_format_file_size_edge_cases() {
         // Test large file sizes
-        assert_eq!(format_file_size(1024 * 1024 * 1024 + 512 * 1024 * 1024), "1.5 GB");
+        assert_eq!(
+            format_file_size(1024 * 1024 * 1024 + 512 * 1024 * 1024),
+            "1.5 GB"
+        );
         assert_eq!(format_file_size(2048), "2.0 KB");
         assert_eq!(format_file_size(1023), "1023 B");
         assert_eq!(format_file_size(1025), "1.0 KB");
@@ -698,7 +701,7 @@ mod tests {
         // We can't test the actual execution without mocking the network layer,
         // but we can test that the method exists and the default format is used
         assert_eq!(cmd.name(), "file-info");
-        
+
         // Test validation for coverage
         assert!(cmd.validate().is_ok());
     }
@@ -765,7 +768,7 @@ mod tests {
         assert_eq!(args.file_id, "test_file_id_123");
     }
 
-    #[test] 
+    #[test]
     fn test_file_commands_debug_and_clone() {
         let cmd = FileCommands::Upload(UploadFileArgs {
             name: "test.txt".to_string(),
@@ -776,7 +779,7 @@ mod tests {
         });
 
         // Test Debug trait
-        let debug_str = format!("{:?}", cmd);
+        let debug_str = format!("{cmd:?}");
         assert!(debug_str.contains("Upload"));
         assert!(debug_str.contains("test.txt"));
 
@@ -796,9 +799,9 @@ mod tests {
         };
 
         // Test Debug and Clone traits
-        let debug_str = format!("{:?}", upload_args);
+        let debug_str = format!("{upload_args:?}");
         assert!(debug_str.contains("test.txt"));
-        
+
         let cloned_args = upload_args.clone();
         assert_eq!(cloned_args.name, upload_args.name);
     }

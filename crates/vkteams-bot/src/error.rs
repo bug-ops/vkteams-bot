@@ -77,21 +77,21 @@ pub enum BotError {
 impl fmt::Display for BotError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            BotError::Api(e) => write!(f, "API Error: {}", e),
-            BotError::Network(e) => write!(f, "Network Error: {}", e),
+            BotError::Api(e) => write!(f, "API Error: {e}"),
+            BotError::Network(e) => write!(f, "Network Error: {e}"),
             #[cfg(feature = "grpc")]
-            BotError::Grpc(e) => write!(f, "gRPC Error: {}", e),
-            BotError::Serialization(e) => write!(f, "Serialization Error: {}", e),
-            BotError::Url(e) => write!(f, "URL Error: {}", e),
-            BotError::Io(e) => write!(f, "IO Error: {}", e),
+            BotError::Grpc(e) => write!(f, "gRPC Error: {e}"),
+            BotError::Serialization(e) => write!(f, "Serialization Error: {e}"),
+            BotError::Url(e) => write!(f, "URL Error: {e}"),
+            BotError::Io(e) => write!(f, "IO Error: {e}"),
             #[cfg(feature = "templates")]
-            BotError::Template(e) => write!(f, "Template Error: {}", e),
-            BotError::Config(e) => write!(f, "Config Error: {}", e),
-            BotError::Validation(e) => write!(f, "Validation Error: {}", e),
-            BotError::UrlParams(e) => write!(f, "URL Parameters Error: {}", e),
-            BotError::System(e) => write!(f, "System Error: {}", e),
-            BotError::Environment(e) => write!(f, "Environment Error: {}", e),
-            BotError::Otlp(e) => write!(f, "Otlp Error: {}", e),
+            BotError::Template(e) => write!(f, "Template Error: {e}"),
+            BotError::Config(e) => write!(f, "Config Error: {e}"),
+            BotError::Validation(e) => write!(f, "Validation Error: {e}"),
+            BotError::UrlParams(e) => write!(f, "URL Parameters Error: {e}"),
+            BotError::System(e) => write!(f, "System Error: {e}"),
+            BotError::Environment(e) => write!(f, "Environment Error: {e}"),
+            BotError::Otlp(e) => write!(f, "Otlp Error: {e}"),
         }
     }
 }
@@ -192,7 +192,7 @@ mod tests {
         let err = ApiError {
             description: "fail".to_string(),
         };
-        assert_eq!(format!("{}", err), "API Error: fail");
+        assert_eq!(format!("{err}"), "API Error: fail");
     }
 
     #[test]
@@ -200,7 +200,7 @@ mod tests {
         let err = OtlpError {
             message: "otlp fail".to_string(),
         };
-        assert_eq!(format!("{}", err), "otlp fail");
+        assert_eq!(format!("{err}"), "otlp fail");
         let from_str: OtlpError = "msg".to_string().into();
         assert_eq!(from_str.message, "msg");
         let boxed: OtlpError =
@@ -214,23 +214,23 @@ mod tests {
             description: "api".to_string(),
         };
         let err = BotError::Api(api.clone());
-        assert!(format!("{}", err).contains("API Error"));
+        assert!(format!("{err}").contains("API Error"));
         let ser = BotError::Serialization(serde_json::Error::io(std::io::Error::other("ser")));
-        assert!(format!("{}", ser).contains("Serialization Error"));
+        assert!(format!("{ser}").contains("Serialization Error"));
         let url = BotError::Url(ParseError::EmptyHost);
-        assert!(format!("{}", url).contains("URL Error"));
+        assert!(format!("{url}").contains("URL Error"));
         let ioerr = BotError::Io(std::io::Error::other("io"));
-        assert!(format!("{}", ioerr).contains("IO Error"));
+        assert!(format!("{ioerr}").contains("IO Error"));
         let conf = BotError::Config("conf".to_string());
-        assert!(format!("{}", conf).contains("Config Error"));
+        assert!(format!("{conf}").contains("Config Error"));
         let val = BotError::Validation("val".to_string());
-        assert!(format!("{}", val).contains("Validation Error"));
+        assert!(format!("{val}").contains("Validation Error"));
         let sys = BotError::System("sys".to_string());
-        assert!(format!("{}", sys).contains("System Error"));
+        assert!(format!("{sys}").contains("System Error"));
         let otlp = BotError::Otlp(OtlpError {
             message: "otlp".to_string(),
         });
-        assert!(format!("{}", otlp).contains("Otlp Error"));
+        assert!(format!("{otlp}").contains("Otlp Error"));
     }
 
     #[test]
@@ -445,12 +445,10 @@ mod tests {
         ];
 
         for (error, expected_prefix) in test_cases {
-            let display_str = format!("{}", error);
+            let display_str = format!("{error}");
             assert!(
                 display_str.contains(expected_prefix),
-                "Error '{}' should contain '{}'",
-                display_str,
-                expected_prefix
+                "Error '{display_str}' should contain '{expected_prefix}'"
             );
         }
     }
@@ -471,7 +469,7 @@ mod tests {
             _ => panic!("Expected Template error"),
         }
 
-        let display_str = format!("{}", bot_error);
+        let display_str = format!("{bot_error}");
         assert!(display_str.contains("Template Error"));
     }
 
@@ -502,15 +500,15 @@ mod tests {
         let api_error = ApiError {
             description: "Specific API failure".to_string(),
         };
-        assert!(format!("{}", api_error).contains("Specific API failure"));
+        assert!(format!("{api_error}").contains("Specific API failure"));
 
         let otlp_error = OtlpError {
             message: "OTLP connection timeout".to_string(),
         };
-        assert!(format!("{}", otlp_error).contains("OTLP connection timeout"));
+        assert!(format!("{otlp_error}").contains("OTLP connection timeout"));
 
         let config_error = BotError::Config("Missing required field".to_string());
-        assert!(format!("{}", config_error).contains("Missing required field"));
+        assert!(format!("{config_error}").contains("Missing required field"));
     }
 }
 
@@ -711,12 +709,10 @@ async fn test_all_error_types_display() {
     ];
 
     for (error, expected_prefix) in test_cases {
-        let display_str = format!("{}", error);
+        let display_str = format!("{error}");
         assert!(
             display_str.contains(expected_prefix),
-            "Error '{}' should contain '{}'",
-            display_str,
-            expected_prefix
+            "Error '{display_str}' should contain '{expected_prefix}'"
         );
     }
 }
@@ -737,7 +733,7 @@ fn test_template_error_conversion() {
         _ => panic!("Expected Template error"),
     }
 
-    let display_str = format!("{}", bot_error);
+    let display_str = format!("{bot_error}");
     assert!(display_str.contains("Template Error"));
 }
 
@@ -768,13 +764,13 @@ fn test_error_message_content() {
     let api_error = ApiError {
         description: "Specific API failure".to_string(),
     };
-    assert!(format!("{}", api_error).contains("Specific API failure"));
+    assert!(format!("{api_error}").contains("Specific API failure"));
 
     let otlp_error = OtlpError {
         message: "OTLP connection timeout".to_string(),
     };
-    assert!(format!("{}", otlp_error).contains("OTLP connection timeout"));
+    assert!(format!("{otlp_error}").contains("OTLP connection timeout"));
 
     let config_error = BotError::Config("Missing required field".to_string());
-    assert!(format!("{}", config_error).contains("Missing required field"));
+    assert!(format!("{config_error}").contains("Missing required field"));
 }

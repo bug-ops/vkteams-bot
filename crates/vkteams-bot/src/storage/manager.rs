@@ -178,7 +178,7 @@ impl StorageManager {
                 if let Some(vector_store) = &self.vector {
                     let event_timestamp = self.extract_timestamp(event).unwrap_or_else(Utc::now);
                     let vector_doc = VectorDocument {
-                        id: format!("event_{}", event_id),
+                        id: format!("event_{event_id}"),
                         content: text_content,
                         metadata: serde_json::json!({
                             "event_id": event_id,
@@ -231,7 +231,7 @@ impl StorageManager {
                                 let event_timestamp =
                                     self.extract_timestamp(event).unwrap_or_else(Utc::now);
                                 VectorDocument {
-                                    id: format!("event_{}", event_id),
+                                    id: format!("event_{event_id}"),
                                     content: text,
                                     metadata: serde_json::json!({
                                         "event_id": event_id,

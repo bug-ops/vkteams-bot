@@ -1,12 +1,15 @@
 //! Vector storage implementations for similarity search
 
-use crate::storage::{StorageError, StorageResult};
 use crate::storage::config::SslConfig;
+use crate::storage::{StorageError, StorageResult};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sqlx::{postgres::{PgConnectOptions, PgPoolOptions, PgSslMode}, PgPool, Row};
+use sqlx::{
+    PgPool, Row,
+    postgres::{PgConnectOptions, PgPoolOptions, PgSslMode},
+};
 use std::str::FromStr;
 use std::time::Instant;
 
@@ -134,7 +137,14 @@ impl PgVectorStore {
         dimensions: usize,
         ivfflat_lists: u32,
     ) -> StorageResult<Self> {
-        Self::new_with_ssl(database_url, collection_name, dimensions, ivfflat_lists, &SslConfig::default()).await
+        Self::new_with_ssl(
+            database_url,
+            collection_name,
+            dimensions,
+            ivfflat_lists,
+            &SslConfig::default(),
+        )
+        .await
     }
 
     pub async fn new_with_ssl(
@@ -171,7 +181,7 @@ impl PgVectorStore {
         ssl_config: &SslConfig,
     ) -> StorageResult<PgPool> {
         let mut options = PgConnectOptions::from_str(database_url)
-            .map_err(|e| StorageError::Connection(format!("Invalid database URL: {}", e)))?;
+            .map_err(|e| StorageError::Connection(format!("Invalid database URL: {e}")))?;
 
         // Set SSL mode
         let ssl_mode = match ssl_config.mode.as_str() {
@@ -201,7 +211,7 @@ impl PgVectorStore {
             .max_connections(5)
             .connect_with(options)
             .await
-            .map_err(|e| StorageError::Connection(format!("Failed to connect with SSL: {}", e)))?;
+            .map_err(|e| StorageError::Connection(format!("Failed to connect with SSL: {e}")))?;
 
         Ok(pool)
     }
@@ -349,13 +359,13 @@ impl VectorStore for PgVectorStore {
             // similarity = 1 - distance, so distance = 1 - similarity
             if let Some(_threshold) = query.score_threshold {
                 bind_count += 1;
-                sql.push_str(&format!(" AND embedding <=> $1 < ${}", bind_count));
+                sql.push_str(&format!(" AND embedding <=> $1 < ${bind_count}"));
             }
 
             // Add metadata filter (simplified)
             if query.metadata_filter.is_some() {
                 bind_count += 1;
-                sql.push_str(&format!(" AND metadata @> ${}", bind_count));
+                sql.push_str(&format!(" AND metadata @> ${bind_count}"));
             }
 
             sql.push_str(&format!(" ORDER BY embedding <=> $1 LIMIT {}", query.limit));
@@ -634,7 +644,8 @@ pub async fn create_vector_store(
         dimensions,
         ivfflat_lists,
         &SslConfig::default(),
-    ).await
+    )
+    .await
 }
 
 /// Create vector store instance with SSL configuration
@@ -650,17 +661,17 @@ pub async fn create_vector_store_with_ssl(
         "pgvector" => {
             let collection = collection_name.unwrap_or_else(|| "vector_documents".to_string());
             let store = PgVectorStore::new_with_ssl(
-                connection_url, 
-                collection, 
-                dimensions, 
+                connection_url,
+                collection,
+                dimensions,
                 ivfflat_lists,
-                ssl_config
-            ).await?;
+                ssl_config,
+            )
+            .await?;
             Ok(Box::new(store))
         }
         _ => Err(StorageError::Configuration(format!(
-            "Unknown vector store provider: {}",
-            provider
+            "Unknown vector store provider: {provider}"
         ))),
     }
 }

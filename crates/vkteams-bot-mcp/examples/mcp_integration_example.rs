@@ -51,10 +51,7 @@ async fn demonstrate_mcp_cli_bridge() -> Result<(), Box<dyn std::error::Error>> 
                 }
             }
             Err(e) => {
-                println!(
-                    "⚠️  Could not execute CLI (make sure vkteams-bot-cli is installed): {}",
-                    e
-                );
+                println!("⚠️  Could not execute CLI (make sure vkteams-bot-cli is installed): {e}");
             }
         }
     }
