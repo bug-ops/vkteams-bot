@@ -1,6 +1,6 @@
 [package]
 name = "vkteams-bot-mcp"
-version = "0.3.4"
+version = "0.3.5"
 authors = ["Andrei G. <k05h31@gmail.com>"]
 keywords = ["vkteams", "bot", "api", "automation", "mcp"]
 description = "High-performance VK Teams Bot API toolkit with CLI and MCP server support"
@@ -24,25 +24,23 @@ name = "vkteams-bot-mcp"
 path = "src/main.rs"
 
 [dependencies]
-thiserror = "2"
-tokio = { version = "1", features = [
+async-trait = { workspace = true }
+base64 = { workspace = true }
+dirs = { workspace = true }
+once_cell = { workspace = true }
+regex = { workspace = true }
+rmcp = { version = "0.3", features = ["server", "macros", "transport-io"] }
+schemars = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = [
     "rt-multi-thread",
     "macros",
     "net",
     "io-util",
     "time",
 ] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-schemars = "0.9"
-vkteams-bot = { version = "0.11", path = "../vkteams-bot", default-features = false, features = [
-    "otlp",
-] }
-async-trait = "0.1.88"
-base64 = "0.22"
-which = "8.0"
-tracing = "0.1"
-regex = "1"
-once_cell = "1"
-dirs = "6.0"
-rmcp = { version = "0.2", features = ["server", "macros", "transport-io"] }
+vkteams-bot = { workspace = true, features = ["otlp"] }
+which = { workspace = true }
