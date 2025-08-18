@@ -1,6 +1,6 @@
 [package]
 name = "vkteams-bot-mcp"
-version = "0.3.5"
+version = "0.3.6"
 authors = ["Andrei G. <k05h31@gmail.com>"]
 keywords = ["vkteams", "bot", "api", "automation", "mcp"]
 description = "High-performance VK Teams Bot API toolkit with CLI and MCP server support"

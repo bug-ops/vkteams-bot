@@ -4713,7 +4713,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "vkteams-bot"
-version = "0.11.3"
+version = "0.11.4"
 dependencies = [
  "async-trait",
  "axum",
@@ -4768,7 +4768,7 @@ dependencies = [
 
 [[package]]
 name = "vkteams-bot-cli"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "assert_cmd",
  "async-trait",
@@ -4811,7 +4811,7 @@ dependencies = [
 
 [[package]]
 name = "vkteams-bot-macros"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "quote",
  "syn",
@@ -4819,7 +4819,7 @@ dependencies = [
 
 [[package]]
 name = "vkteams-bot-mcp"
-version = "0.3.5"
+version = "0.3.6"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
