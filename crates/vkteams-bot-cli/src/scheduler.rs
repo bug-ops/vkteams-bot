@@ -517,11 +517,11 @@ impl Scheduler {
                 task.run_count += 1;
 
                 // Check if max runs exceeded
-                if let Some(max_runs) = task.max_runs {
-                    if task.run_count >= max_runs {
-                        info!("Task {} completed all {} runs", task_id, max_runs);
-                        task_to_remove = Some(task_id.to_string());
-                    }
+                if let Some(max_runs) = task.max_runs
+                    && task.run_count >= max_runs
+                {
+                    info!("Task {} completed all {} runs", task_id, max_runs);
+                    task_to_remove = Some(task_id.to_string());
                 }
 
                 // Calculate next run time for recurring tasks
@@ -571,10 +571,10 @@ impl Scheduler {
         for task in tasks.values() {
             if task.enabled && task.next_run <= now {
                 // Check if max runs exceeded
-                if let Some(max_runs) = task.max_runs {
-                    if task.run_count >= max_runs {
-                        continue;
-                    }
+                if let Some(max_runs) = task.max_runs
+                    && task.run_count >= max_runs
+                {
+                    continue;
                 }
                 ready_tasks.push(task.id.clone());
             }
@@ -590,10 +590,10 @@ impl Scheduler {
         let tasks = self.tasks.read().await;
         for task in tasks.values() {
             if task.enabled {
-                if let Some(max_runs) = task.max_runs {
-                    if task.run_count >= max_runs {
-                        continue;
-                    }
+                if let Some(max_runs) = task.max_runs
+                    && task.run_count >= max_runs
+                {
+                    continue;
                 }
 
                 // Calculate time until this task should run

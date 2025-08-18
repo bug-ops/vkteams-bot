@@ -113,9 +113,8 @@ mod tests {
         tokio::time::sleep(Duration::from_secs(3)).await;
 
         let host_port = postgres_container.get_host_port_ipv4(5432).await.unwrap();
-        let _database_url = format!(
-            "postgresql://postgres:postgres@localhost:{host_port}/postgres"
-        );
+        let _database_url =
+            format!("postgresql://postgres:postgres@localhost:{host_port}/postgres");
 
         // Note: Testing environment variable handling
 
@@ -158,9 +157,8 @@ mod tests {
         tokio::time::sleep(Duration::from_secs(3)).await;
 
         let host_port = postgres_container.get_host_port_ipv4(5432).await.unwrap();
-        let _database_url = format!(
-            "postgresql://postgres:postgres@localhost:{host_port}/postgres"
-        );
+        let _database_url =
+            format!("postgresql://postgres:postgres@localhost:{host_port}/postgres");
 
         // Note: In production, DATABASE_URL would be set externally
 

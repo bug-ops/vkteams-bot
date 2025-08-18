@@ -20,9 +20,7 @@ pub fn validate_file_path(file_path: &str) -> CliResult<()> {
 
     let path = Path::new(file_path);
     if !path.exists() {
-        return Err(CliError::FileError(format!(
-            "File not found: {file_path}"
-        )));
+        return Err(CliError::FileError(format!("File not found: {file_path}")));
     }
     if !path.is_file() {
         return Err(CliError::FileError(format!(

@@ -115,20 +115,19 @@ impl EmbeddingClient for OpenAIEmbeddingClient {
 
         let response_json: serde_json::Value = response.json().await?;
 
-        if let Some(data) = response_json["data"].as_array() {
-            if let Some(first_embedding) = data.first() {
-                if let Some(embedding_array) = first_embedding["embedding"].as_array() {
-                    let embedding: Result<Vec<f32>, _> = embedding_array
-                        .iter()
-                        .map(|v| {
-                            v.as_f64()
-                                .map(|f| f as f32)
-                                .ok_or("Invalid embedding value")
-                        })
-                        .collect();
-                    return Ok(embedding?);
-                }
-            }
+        if let Some(data) = response_json["data"].as_array()
+            && let Some(first_embedding) = data.first()
+            && let Some(embedding_array) = first_embedding["embedding"].as_array()
+        {
+            let embedding: Result<Vec<f32>, _> = embedding_array
+                .iter()
+                .map(|v| {
+                    v.as_f64()
+                        .map(|f| f as f32)
+                        .ok_or("Invalid embedding value")
+                })
+                .collect();
+            return Ok(embedding?);
         }
 
         Err("No embedding returned from OpenAI".into())

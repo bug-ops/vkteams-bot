@@ -147,10 +147,10 @@ impl CommandResult {
             }
             OutputFormat::Quiet => {
                 // No output in quiet mode unless it's an error
-                if !self.success {
-                    if let Some(message) = &self.message {
-                        eprintln!("{message}");
-                    }
+                if !self.success
+                    && let Some(message) = &self.message
+                {
+                    eprintln!("{message}");
                 }
             }
         }

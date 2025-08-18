@@ -83,20 +83,20 @@ pub fn parse_schedule_time_compat(time_str: &str) -> CliResult<DateTime<Utc>> {
     }
 
     // Try relative times
-    if let Some(stripped) = time_str.strip_suffix('m') {
-        if let Ok(minutes) = stripped.parse::<i64>() {
-            return Ok(Utc::now() + Duration::minutes(minutes));
-        }
+    if let Some(stripped) = time_str.strip_suffix('m')
+        && let Ok(minutes) = stripped.parse::<i64>()
+    {
+        return Ok(Utc::now() + Duration::minutes(minutes));
     }
-    if let Some(stripped) = time_str.strip_suffix('h') {
-        if let Ok(hours) = stripped.parse::<i64>() {
-            return Ok(Utc::now() + Duration::hours(hours));
-        }
+    if let Some(stripped) = time_str.strip_suffix('h')
+        && let Ok(hours) = stripped.parse::<i64>()
+    {
+        return Ok(Utc::now() + Duration::hours(hours));
     }
-    if let Some(stripped) = time_str.strip_suffix('d') {
-        if let Ok(days) = stripped.parse::<i64>() {
-            return Ok(Utc::now() + Duration::days(days));
-        }
+    if let Some(stripped) = time_str.strip_suffix('d')
+        && let Ok(days) = stripped.parse::<i64>()
+    {
+        return Ok(Utc::now() + Duration::days(days));
     }
 
     Err(CliError::InputError(format!(
@@ -124,30 +124,30 @@ pub fn parse_relative_time(time_str: &str) -> CliResult<DateTime<Utc>> {
     let now = Utc::now();
 
     // Parse relative times
-    if let Some(stripped) = time_str.strip_suffix('s') {
-        if let Ok(seconds) = stripped.parse::<i64>() {
-            return Ok(now + Duration::seconds(seconds));
-        }
+    if let Some(stripped) = time_str.strip_suffix('s')
+        && let Ok(seconds) = stripped.parse::<i64>()
+    {
+        return Ok(now + Duration::seconds(seconds));
     }
-    if let Some(stripped) = time_str.strip_suffix('m') {
-        if let Ok(minutes) = stripped.parse::<i64>() {
-            return Ok(now + Duration::minutes(minutes));
-        }
+    if let Some(stripped) = time_str.strip_suffix('m')
+        && let Ok(minutes) = stripped.parse::<i64>()
+    {
+        return Ok(now + Duration::minutes(minutes));
     }
-    if let Some(stripped) = time_str.strip_suffix('h') {
-        if let Ok(hours) = stripped.parse::<i64>() {
-            return Ok(now + Duration::hours(hours));
-        }
+    if let Some(stripped) = time_str.strip_suffix('h')
+        && let Ok(hours) = stripped.parse::<i64>()
+    {
+        return Ok(now + Duration::hours(hours));
     }
-    if let Some(stripped) = time_str.strip_suffix('d') {
-        if let Ok(days) = stripped.parse::<i64>() {
-            return Ok(now + Duration::days(days));
-        }
+    if let Some(stripped) = time_str.strip_suffix('d')
+        && let Ok(days) = stripped.parse::<i64>()
+    {
+        return Ok(now + Duration::days(days));
     }
-    if let Some(stripped) = time_str.strip_suffix('w') {
-        if let Ok(weeks) = stripped.parse::<i64>() {
-            return Ok(now + Duration::weeks(weeks));
-        }
+    if let Some(stripped) = time_str.strip_suffix('w')
+        && let Ok(weeks) = stripped.parse::<i64>()
+    {
+        return Ok(now + Duration::weeks(weeks));
     }
 
     // Special keywords

@@ -84,8 +84,8 @@ fn test_generate_all_completions() {
             "Runtime completion file {filename} should exist"
         );
 
-        let content = fs::read_to_string(&file_path)
-            .unwrap_or_else(|_| panic!("Failed to read {filename}"));
+        let content =
+            fs::read_to_string(&file_path).unwrap_or_else(|_| panic!("Failed to read {filename}"));
         assert!(
             !content.is_empty(),
             "Runtime completion file {filename} should not be empty"

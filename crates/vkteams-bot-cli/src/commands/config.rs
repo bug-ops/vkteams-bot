@@ -248,9 +248,8 @@ async fn execute_completion(
         } else if let Some(default_dir) = get_default_completion_dir() {
             default_dir
         } else {
-            std::env::current_dir().map_err(|e| {
-                CliError::FileError(format!("Failed to get current directory: {e}"))
-            })?
+            std::env::current_dir()
+                .map_err(|e| CliError::FileError(format!("Failed to get current directory: {e}")))?
         };
 
         generate_all_completions(&output_dir)?;
@@ -680,13 +679,13 @@ async fn execute_config(show: bool, init: bool, wizard: bool) -> CliResult<()> {
         let mut new_config = toml::from_str::<Config>("").unwrap();
 
         // Update API token
-        if let Ok(current_config) = Config::from_file() {
-            if let Some(current_token) = &current_config.api.token {
-                println!(
-                    "Current API token: {}***",
-                    &current_token[..8.min(current_token.len())]
-                );
-            }
+        if let Ok(current_config) = Config::from_file()
+            && let Some(current_token) = &current_config.api.token
+        {
+            println!(
+                "Current API token: {}***",
+                &current_token[..8.min(current_token.len())]
+            );
         }
         print!("Enter new API token (or press Enter to keep current): ");
         io::stdout().flush().unwrap();
@@ -697,10 +696,10 @@ async fn execute_config(show: bool, init: bool, wizard: bool) -> CliResult<()> {
         }
 
         // Update API URL
-        if let Ok(current_config) = Config::from_file() {
-            if let Some(current_url) = &current_config.api.url {
-                println!("Current API URL: {current_url}");
-            }
+        if let Ok(current_config) = Config::from_file()
+            && let Some(current_url) = &current_config.api.url
+        {
+            println!("Current API URL: {current_url}");
         }
         print!("Enter new API URL (or press Enter to keep current): ");
         io::stdout().flush().unwrap();

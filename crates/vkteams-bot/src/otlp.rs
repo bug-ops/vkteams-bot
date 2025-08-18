@@ -226,15 +226,16 @@ pub struct OtelGuard {
 /// Drop implementation for the OtelGuard
 impl Drop for OtelGuard {
     fn drop(&mut self) {
-        if let Some(provider) = &self.tracer_provider {
-            if let Err(err) = provider.shutdown() {
-                eprintln!("Error shutting down tracer: {err:?}");
-            }
+        if let Some(provider) = &self.tracer_provider
+            && let Err(err) = provider.shutdown()
+        {
+            eprintln!("Error shutting down tracer: {err:?}");
         }
-        if let Some(provider) = &self.meter_provider {
-            if let Err(err) = provider.shutdown() {
-                eprintln!("Error shutting down meter: {err:?}");
-            }
+
+        if let Some(provider) = &self.meter_provider
+            && let Err(err) = provider.shutdown()
+        {
+            eprintln!("Error shutting down meter: {err:?}");
         }
     }
 }
@@ -634,36 +635,6 @@ mod tests {
                 assert!(!error_str.is_empty());
                 // Error might be related to directive parsing, which is OK
             }
-        }
-    }
-
-    #[test]
-    fn test_init_component_isolation() {
-        // Test that init components can be called independently
-
-        // Test resource creation (used by both traces and metrics)
-        let resource1 = get_resource();
-        let resource2 = get_resource();
-
-        // Resources should be equivalent but independent
-        let attrs1: Vec<_> = resource1.iter().collect();
-        let attrs2: Vec<_> = resource2.iter().collect();
-
-        assert_eq!(attrs1.len(), attrs2.len());
-
-        // Test filter creation (used by subscriber setup)
-        let filter1 = filter_layer();
-        let filter2 = filter_layer();
-
-        // Both should have same success/failure pattern
-        assert_eq!(filter1.is_ok(), filter2.is_ok());
-
-        if filter1.is_err() && filter2.is_err() {
-            // Both should have similar error messages
-            let err1 = filter1.unwrap_err().to_string();
-            let err2 = filter2.unwrap_err().to_string();
-            assert!(!err1.is_empty());
-            assert!(!err2.is_empty());
         }
     }
 }

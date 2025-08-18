@@ -190,10 +190,10 @@ async fn demonstrate_mcp_tools() -> Result<(), Box<dyn std::error::Error>> {
     println!("✅ Available MCP file tools:");
     if let Some(tools) = mcp_tools["tools"].as_array() {
         for tool in tools {
-            if let Some(name) = tool["name"].as_str() {
-                if let Some(desc) = tool["description"].as_str() {
-                    println!("  • {name}: {desc}");
-                }
+            if let Some(name) = tool["name"].as_str()
+                && let Some(desc) = tool["description"].as_str()
+            {
+                println!("  • {name}: {desc}");
             }
         }
     }

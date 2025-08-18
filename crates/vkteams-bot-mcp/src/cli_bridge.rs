@@ -111,13 +111,13 @@ impl CliBridge {
         };
 
         // Check if process was terminated by signal
-        if let Some(code) = output.status.code() {
-            if code < 0 {
-                return Err(BridgeError::ProcessTerminated(format!(
-                    "Process terminated with signal {}",
-                    -code
-                )));
-            }
+        if let Some(code) = output.status.code()
+            && code < 0
+        {
+            return Err(BridgeError::ProcessTerminated(format!(
+                "Process terminated with signal {}",
+                -code
+            )));
         }
 
         if !output.status.success() {
@@ -160,32 +160,32 @@ impl CliBridge {
         let response: Value = serde_json::from_str(&response_text)?;
 
         // Check if CLI returned an error in the JSON response
-        if let Some(success) = response.get("success") {
-            if !success.as_bool().unwrap_or(true) {
-                let error_info = if let Some(error) = response.get("error") {
-                    CliErrorInfo {
-                        code: response
-                            .get("error_code")
-                            .and_then(|v| v.as_str())
-                            .map(|s| s.to_string()),
-                        message: error.as_str().unwrap_or("Unknown error").to_string(),
-                        details: response.get("error_details").cloned(),
-                    }
-                } else {
-                    CliErrorInfo {
-                        code: None,
-                        message: "Command failed without error details".to_string(),
-                        details: None,
-                    }
-                };
-
-                // Check for rate limiting in response
-                if error_info.code.as_deref() == Some("RATE_LIMIT") {
-                    return Err(BridgeError::RateLimit(error_info.message));
+        if let Some(success) = response.get("success")
+            && !success.as_bool().unwrap_or(true)
+        {
+            let error_info = if let Some(error) = response.get("error") {
+                CliErrorInfo {
+                    code: response
+                        .get("error_code")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    message: error.as_str().unwrap_or("Unknown error").to_string(),
+                    details: response.get("error_details").cloned(),
                 }
+            } else {
+                CliErrorInfo {
+                    code: None,
+                    message: "Command failed without error details".to_string(),
+                    details: None,
+                }
+            };
 
-                return Err(BridgeError::CliReturnedError(error_info));
+            // Check for rate limiting in response
+            if error_info.code.as_deref() == Some("RATE_LIMIT") {
+                return Err(BridgeError::RateLimit(error_info.message));
             }
+
+            return Err(BridgeError::CliReturnedError(error_info));
         }
 
         Ok(response)

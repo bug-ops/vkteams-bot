@@ -235,9 +235,7 @@ impl StorageCommands {
                     });
                     CliResponse::success("database-stats", data)
                 }
-                Err(e) => {
-                    CliResponse::error("database-stats", format!("Failed to get stats: {e}"))
-                }
+                Err(e) => CliResponse::error("database-stats", format!("Failed to get stats: {e}")),
             },
             DatabaseAction::Cleanup { older_than_days } => {
                 match storage.cleanup_old_data(*older_than_days).await {
@@ -636,10 +634,10 @@ fn parse_datetime(
     }
 
     // Try date only
-    if let Ok(date) = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
-        if let Some(datetime) = date.and_hms_opt(0, 0, 0) {
-            return Ok(chrono::Utc.from_utc_datetime(&datetime));
-        }
+    if let Ok(date) = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
+        && let Some(datetime) = date.and_hms_opt(0, 0, 0)
+    {
+        return Ok(chrono::Utc.from_utc_datetime(&datetime));
     }
 
     Err("Invalid date format")

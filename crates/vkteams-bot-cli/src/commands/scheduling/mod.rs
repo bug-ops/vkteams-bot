@@ -1022,8 +1022,8 @@ mod tests {
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
                 .as_nanos();
-            let temp_dir = std::env::temp_dir()
-                .join(format!("vkteams_bot_test_{thread_id:?}_{timestamp}"));
+            let temp_dir =
+                std::env::temp_dir().join(format!("vkteams_bot_test_{thread_id:?}_{timestamp}"));
             std::fs::create_dir_all(&temp_dir).ok();
             env::set_var("HOME", temp_dir.to_string_lossy().to_string());
         }

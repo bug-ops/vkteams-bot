@@ -296,10 +296,7 @@ async fn execute_edit_message_structured(
     {
         Ok(req) => req,
         Err(e) => {
-            return CliResponse::error(
-                "edit-message",
-                format!("Failed to set message text: {e}"),
-            );
+            return CliResponse::error("edit-message", format!("Failed to set message text: {e}"));
         }
     };
 

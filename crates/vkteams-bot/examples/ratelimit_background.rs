@@ -196,9 +196,7 @@ async fn demo_rate_limiting(rate_limiter: Arc<RateLimiter>) -> Result<()> {
     }
     println!("{results}");
 
-    println!(
-        "   Results: {allowed_count} allowed, {denied_count} denied"
-    );
+    println!("   Results: {allowed_count} allowed, {denied_count} denied");
     println!("   Rate limiting successfully protected against burst!");
 
     // Show stats
