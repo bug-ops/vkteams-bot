@@ -1,6 +1,6 @@
 [package]
 name = "vkteams-bot-macros"
-version = "0.2.3"
+version = "0.2.4"
 description = "VK Teams Bot Macros"
 
 edition.workspace = true

@@ -638,7 +638,7 @@ mod tests {
         assert!(result.is_ok());
 
         if let Ok(call_result) = result {
-            assert!(!call_result.content.is_empty());
+            assert!(!call_result.content.expect("content").is_empty());
         }
     }
 
@@ -1066,7 +1066,7 @@ mod tests {
         assert!(success_result.is_ok());
 
         if let Ok(result) = success_result {
-            assert!(!result.content.is_empty());
+            assert!(!result.content.expect("content").is_empty());
             // Just verify that content is not empty, without pattern matching on enum variants
             // since Content enum structure may vary between rmcp versions
         }
@@ -1259,7 +1259,7 @@ mod tests {
             assert!(result.is_ok());
 
             if let Ok(call_result) = result {
-                assert!(!call_result.content.is_empty());
+                assert!(!call_result.content.expect("Expected content").is_empty());
             }
         }
     }
@@ -1285,7 +1285,7 @@ mod tests {
         assert!(result.is_ok());
 
         if let Ok(call_result) = result {
-            assert!(!call_result.content.is_empty());
+            assert!(!call_result.content.expect("Expected content").is_empty());
         }
     }
 

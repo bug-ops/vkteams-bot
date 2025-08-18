@@ -94,9 +94,7 @@ timeout = 60
     assert!(cached_load_duration < first_load_duration);
     assert!(cached_load_duration < Duration::from_millis(10));
 
-    println!(
-        "First load: {first_load_duration:?}, Cached load: {cached_load_duration:?}"
-    );
+    println!("First load: {first_load_duration:?}, Cached load: {cached_load_duration:?}");
 
     Ok(())
 }
@@ -134,9 +132,7 @@ async fn test_lockfree_cache_concurrent_access() -> CliResult<()> {
         assert!(result.unwrap().is_ok());
     }
 
-    println!(
-        "50 concurrent cache operations took: {concurrent_duration:?}"
-    );
+    println!("50 concurrent cache operations took: {concurrent_duration:?}");
 
     // Should complete much faster than 50 * 5ms = 250ms due to caching
     assert!(concurrent_duration < Duration::from_millis(100));
@@ -181,9 +177,7 @@ async fn test_async_save_load_roundtrip() -> CliResult<()> {
         loaded_config.files.max_file_size
     );
 
-    println!(
-        "Async save: {save_duration:?}, Async load: {load_duration:?}"
-    );
+    println!("Async save: {save_duration:?}, Async load: {load_duration:?}");
 
     // Both operations should be reasonably fast
     assert!(save_duration < Duration::from_millis(100));
@@ -282,9 +276,7 @@ async fn test_parallel_config_loading() -> CliResult<()> {
     assert_eq!(merged_config.api.timeout, 45);
     assert_eq!(merged_config.logging.level, "debug");
 
-    println!(
-        "Parallel loading of 3 configs took: {parallel_load_duration:?}"
-    );
+    println!("Parallel loading of 3 configs took: {parallel_load_duration:?}");
 
     // Parallel loading should be faster than sequential
     // (though for small files the difference might be minimal)

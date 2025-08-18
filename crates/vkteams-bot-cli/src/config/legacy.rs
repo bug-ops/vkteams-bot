@@ -433,67 +433,57 @@ impl Config {
     /// - Returns `CliError::UnexpectedError` for unexpected errors
     pub fn from_env() -> CliResult<Self> {
         let mut config = toml::from_str::<Config>("").unwrap();
-
         // API config
         if let Ok(token) = env::var(format!("{ENV_PREFIX}BOT_API_TOKEN")) {
             config.api.token = Some(token);
         }
-
         if let Ok(url) = env::var(format!("{ENV_PREFIX}BOT_API_URL")) {
             config.api.url = Some(url);
         }
-
-        if let Ok(timeout_str) = env::var(format!("{ENV_PREFIX}TIMEOUT")) {
-            if let Ok(timeout_val) = timeout_str.parse::<u64>() {
-                config.api.timeout = timeout_val;
-            }
+        if let Ok(timeout_str) = env::var(format!("{ENV_PREFIX}TIMEOUT"))
+            && let Ok(timeout_val) = timeout_str.parse::<u64>()
+        {
+            config.api.timeout = timeout_val;
         }
-
         // File config
         if let Ok(download_dir) = env::var(format!("{ENV_PREFIX}DOWNLOAD_DIR")) {
             config.files.download_dir = Some(download_dir);
         }
-
         if let Ok(upload_dir) = env::var(format!("{ENV_PREFIX}UPLOAD_DIR")) {
             config.files.upload_dir = Some(upload_dir);
         }
-
-        if let Ok(max_file_size_str) = env::var(format!("{ENV_PREFIX}MAX_FILE_SIZE")) {
-            if let Ok(max_file_size_val) = max_file_size_str.parse::<usize>() {
-                config.files.max_file_size = max_file_size_val;
-            }
+        if let Ok(max_file_size_str) = env::var(format!("{ENV_PREFIX}MAX_FILE_SIZE"))
+            && let Ok(max_file_size_val) = max_file_size_str.parse::<usize>()
+        {
+            config.files.max_file_size = max_file_size_val;
         }
-
         // Logging config
         if let Ok(level) = env::var(format!("{ENV_PREFIX}LOG_LEVEL")) {
             config.logging.level = level;
         }
-
         if let Ok(format) = env::var(format!("{ENV_PREFIX}LOG_FORMAT")) {
             config.logging.format = format;
         }
-
-        if let Ok(colors_str) = env::var(format!("{ENV_PREFIX}LOG_COLORS")) {
-            if let Ok(colors_val) = colors_str.parse::<bool>() {
-                config.logging.colors = colors_val;
-            }
+        if let Ok(colors_str) = env::var(format!("{ENV_PREFIX}LOG_COLORS"))
+            && let Ok(colors_val) = colors_str.parse::<bool>()
+        {
+            config.logging.colors = colors_val;
         }
-
         // UI config
-        if let Ok(show_progress_str) = env::var(format!("{ENV_PREFIX}SHOW_PROGRESS")) {
-            if let Ok(show_progress_val) = show_progress_str.parse::<bool>() {
-                config.ui.show_progress = show_progress_val;
-            }
+        if let Ok(show_progress_str) = env::var(format!("{ENV_PREFIX}SHOW_PROGRESS"))
+            && let Ok(show_progress_val) = show_progress_str.parse::<bool>()
+        {
+            config.ui.show_progress = show_progress_val;
         }
 
         if let Ok(progress_style) = env::var(format!("{ENV_PREFIX}PROGRESS_STYLE")) {
             config.ui.progress_style = progress_style;
         }
 
-        if let Ok(refresh_rate_str) = env::var(format!("{ENV_PREFIX}PROGRESS_REFRESH_RATE")) {
-            if let Ok(refresh_rate_val) = refresh_rate_str.parse::<u64>() {
-                config.ui.progress_refresh_rate = refresh_rate_val;
-            }
+        if let Ok(refresh_rate_str) = env::var(format!("{ENV_PREFIX}PROGRESS_REFRESH_RATE"))
+            && let Ok(refresh_rate_val) = refresh_rate_str.parse::<u64>()
+        {
+            config.ui.progress_refresh_rate = refresh_rate_val;
         }
 
         // Proxy config
@@ -506,22 +496,21 @@ impl Config {
         }
 
         // Rate limiting config
-        if let Ok(enabled_str) = env::var(format!("{ENV_PREFIX}RATE_LIMIT_ENABLED")) {
-            if let Ok(enabled_val) = enabled_str.parse::<bool>() {
-                config.rate_limit.enabled = enabled_val;
-            }
+        if let Ok(enabled_str) = env::var(format!("{ENV_PREFIX}RATE_LIMIT_ENABLED"))
+            && let Ok(enabled_val) = enabled_str.parse::<bool>()
+        {
+            config.rate_limit.enabled = enabled_val;
+        }
+        if let Ok(limit_str) = env::var(format!("{ENV_PREFIX}RATE_LIMIT_LIMIT"))
+            && let Ok(limit_val) = limit_str.parse::<usize>()
+        {
+            config.rate_limit.limit = limit_val;
         }
 
-        if let Ok(limit_str) = env::var(format!("{ENV_PREFIX}RATE_LIMIT_LIMIT")) {
-            if let Ok(limit_val) = limit_str.parse::<usize>() {
-                config.rate_limit.limit = limit_val;
-            }
-        }
-
-        if let Ok(duration_str) = env::var(format!("{ENV_PREFIX}RATE_LIMIT_DURATION")) {
-            if let Ok(duration_val) = duration_str.parse::<u64>() {
-                config.rate_limit.duration = duration_val;
-            }
+        if let Ok(duration_str) = env::var(format!("{ENV_PREFIX}RATE_LIMIT_DURATION"))
+            && let Ok(duration_val) = duration_str.parse::<u64>()
+        {
+            config.rate_limit.duration = duration_val;
         }
 
         Ok(config)
@@ -648,10 +637,10 @@ impl AsyncConfigManager {
         // Fast path: check cache first
         {
             let cache = self.cache.read().await;
-            if let Some((config, timestamp)) = cache.as_ref() {
-                if timestamp.elapsed().unwrap_or(Duration::MAX) < self.cache_ttl {
-                    return Ok(config.clone());
-                }
+            if let Some((config, timestamp)) = cache.as_ref()
+                && timestamp.elapsed().unwrap_or(Duration::MAX) < self.cache_ttl
+            {
+                return Ok(config.clone());
             }
         }
 
@@ -809,12 +798,11 @@ impl LockFreeConfigCache {
         Fut: std::future::Future<Output = CliResult<Config>>,
     {
         // Check if we have a valid cached entry
-        if let Some(config) = self.cache.get(key) {
-            if let Some(timestamp) = self.timestamps.get(key) {
-                if timestamp.elapsed() < self.ttl {
-                    return Ok(config.clone());
-                }
-            }
+        if let Some(config) = self.cache.get(key)
+            && let Some(timestamp) = self.timestamps.get(key)
+            && timestamp.elapsed() < self.ttl
+        {
+            return Ok(config.clone());
         }
 
         // Load fresh config

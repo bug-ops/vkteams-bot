@@ -263,9 +263,7 @@ async fn test_memory_management() {
 
     // Cleanup should have occurred (exact count depends on implementation)
     let final_bucket_count = limiter.active_bucket_count();
-    println!(
-        "Initial: {initial_bucket_count}, Final: {final_bucket_count}"
-    );
+    println!("Initial: {initial_bucket_count}, Final: {final_bucket_count}");
 
     // The cleanup should have had some effect
     assert!(final_bucket_count > 0, "Should still have active buckets");
@@ -303,9 +301,7 @@ async fn test_priority_based_rate_limiting() {
     );
 
     // The exact behavior depends on implementation
-    println!(
-        "Low priority: {low_priority_allowed}, High priority: {high_priority_allowed}"
-    );
+    println!("Low priority: {low_priority_allowed}, High priority: {high_priority_allowed}");
 }
 
 #[tokio::test]
@@ -346,9 +342,7 @@ async fn test_performance_under_load() {
     let total = total_requests.load(Ordering::Relaxed);
     let requests_per_second = total as f64 / duration.as_secs_f64();
 
-    println!(
-        "Processed {total} requests in {duration:?} ({requests_per_second:.0} req/sec)"
-    );
+    println!("Processed {total} requests in {duration:?} ({requests_per_second:.0} req/sec)");
 
     // Should handle high throughput efficiently
     assert!(

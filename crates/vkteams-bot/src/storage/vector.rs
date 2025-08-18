@@ -199,12 +199,12 @@ impl PgVectorStore {
             options = options.ssl_root_cert(root_cert);
         }
 
-        if let Some(client_cert) = &ssl_config.client_cert {
-            if let Some(client_key) = &ssl_config.client_key {
-                options = options
-                    .ssl_client_cert(client_cert)
-                    .ssl_client_key(client_key);
-            }
+        if let Some(client_cert) = &ssl_config.client_cert
+            && let Some(client_key) = &ssl_config.client_key
+        {
+            options = options
+                .ssl_client_cert(client_cert)
+                .ssl_client_key(client_key);
         }
 
         let pool = PgPoolOptions::new()

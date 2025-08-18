@@ -207,12 +207,13 @@ pub fn validate_config(config: &Config) -> CliResult<()> {
     }
 
     // Validate API URL format
-    if let Some(url) = &config.api.url {
-        if !url.starts_with("http://") && !url.starts_with("https://") {
-            return Err(CliError::InputError(
-                "API URL must start with http:// or https://".to_string(),
-            ));
-        }
+    if let Some(url) = &config.api.url
+        && !url.starts_with("http://")
+        && !url.starts_with("https://")
+    {
+        return Err(CliError::InputError(
+            "API URL must start with http:// or https://".to_string(),
+        ));
     }
 
     // Validate token format (basic check)
@@ -401,9 +402,8 @@ pub fn get_existing_config_path() -> Option<PathBuf> {
 pub fn create_default_config_dirs() -> CliResult<()> {
     if let Some(home_dir) = dirs::home_dir() {
         let config_dir = home_dir.join(crate::constants::config::DEFAULT_CONFIG_DIR);
-        std::fs::create_dir_all(&config_dir).map_err(|e| {
-            CliError::FileError(format!("Failed to create config directory: {e}"))
-        })?;
+        std::fs::create_dir_all(&config_dir)
+            .map_err(|e| CliError::FileError(format!("Failed to create config directory: {e}")))?;
     }
     Ok(())
 }

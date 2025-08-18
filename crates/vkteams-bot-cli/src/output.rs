@@ -98,10 +98,10 @@ impl OutputFormatter {
             }
             OutputFormat::Quiet => {
                 // Only print errors in quiet mode
-                if !response.success {
-                    if let Some(error) = &response.error {
-                        eprintln!("{}", error.red());
-                    }
+                if !response.success
+                    && let Some(error) = &response.error
+                {
+                    eprintln!("{}", error.red());
                 }
             }
         }

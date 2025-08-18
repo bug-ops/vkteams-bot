@@ -51,9 +51,7 @@ mod tests {
     async fn test_storage_manager_initialization() {
         let container = setup_postgres_container().await;
         let host_port = container.get_host_port_ipv4(5432).await.unwrap();
-        let database_url = format!(
-            "postgresql://postgres:postgres@localhost:{host_port}/postgres"
-        );
+        let database_url = format!("postgresql://postgres:postgres@localhost:{host_port}/postgres");
 
         let config = create_test_storage_config(database_url);
         let storage_manager = StorageManager::new(&config).await;
@@ -76,9 +74,7 @@ mod tests {
     async fn test_storage_stats() {
         let container = setup_postgres_container().await;
         let host_port = container.get_host_port_ipv4(5432).await.unwrap();
-        let database_url = format!(
-            "postgresql://postgres:postgres@localhost:{host_port}/postgres"
-        );
+        let database_url = format!("postgresql://postgres:postgres@localhost:{host_port}/postgres");
 
         let config = create_test_storage_config(database_url);
         let storage_manager = StorageManager::new(&config).await.unwrap();
@@ -100,9 +96,7 @@ mod tests {
     async fn test_message_search() {
         let container = setup_postgres_container().await;
         let host_port = container.get_host_port_ipv4(5432).await.unwrap();
-        let database_url = format!(
-            "postgresql://postgres:postgres@localhost:{host_port}/postgres"
-        );
+        let database_url = format!("postgresql://postgres:postgres@localhost:{host_port}/postgres");
 
         let config = create_test_storage_config(database_url);
         let storage_manager = StorageManager::new(&config).await.unwrap();
@@ -123,9 +117,7 @@ mod tests {
     async fn test_recent_events() {
         let container = setup_postgres_container().await;
         let host_port = container.get_host_port_ipv4(5432).await.unwrap();
-        let database_url = format!(
-            "postgresql://postgres:postgres@localhost:{host_port}/postgres"
-        );
+        let database_url = format!("postgresql://postgres:postgres@localhost:{host_port}/postgres");
 
         let config = create_test_storage_config(database_url);
         let storage_manager = StorageManager::new(&config).await.unwrap();
@@ -144,9 +136,7 @@ mod tests {
     async fn test_cleanup_old_data() {
         let container = setup_postgres_container().await;
         let host_port = container.get_host_port_ipv4(5432).await.unwrap();
-        let database_url = format!(
-            "postgresql://postgres:postgres@localhost:{host_port}/postgres"
-        );
+        let database_url = format!("postgresql://postgres:postgres@localhost:{host_port}/postgres");
 
         let config = create_test_storage_config(database_url);
         let storage_manager = StorageManager::new(&config).await.unwrap();
@@ -368,9 +358,8 @@ mod tests {
         );
 
         // Test valid configuration
-        let valid_database_url = format!(
-            "postgresql://postgres:postgres@localhost:{host_port}/postgres"
-        );
+        let valid_database_url =
+            format!("postgresql://postgres:postgres@localhost:{host_port}/postgres");
         let valid_config = create_test_storage_config(valid_database_url);
 
         let storage_result = StorageManager::new(&valid_config).await;
@@ -382,9 +371,7 @@ mod tests {
     async fn test_concurrent_storage_operations() {
         let container = setup_postgres_container().await;
         let host_port = container.get_host_port_ipv4(5432).await.unwrap();
-        let database_url = format!(
-            "postgresql://postgres:postgres@localhost:{host_port}/postgres"
-        );
+        let database_url = format!("postgresql://postgres:postgres@localhost:{host_port}/postgres");
 
         let config = create_test_storage_config(database_url);
         let storage_manager = StorageManager::new(&config).await.unwrap();

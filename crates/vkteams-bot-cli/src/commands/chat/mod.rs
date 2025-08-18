@@ -354,10 +354,7 @@ async fn execute_get_chat_admins_structured(
             });
             CliResponse::success("get-chat-admins", data)
         }
-        Err(e) => CliResponse::error(
-            "get-chat-admins",
-            format!("Failed to get chat admins: {e}"),
-        ),
+        Err(e) => CliResponse::error("get-chat-admins", format!("Failed to get chat admins: {e}")),
     }
 }
 

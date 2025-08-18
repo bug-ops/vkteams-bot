@@ -48,9 +48,7 @@ async fn test_parallel_event_processing_performance() {
     let batch_size = 10;
     let batches = total_events / batch_size;
 
-    println!(
-        "Testing parallel processing of {total_events} events in {batches} batches"
-    );
+    println!("Testing parallel processing of {total_events} events in {batches} batches");
 
     // Create a counter for this test
     let counter = Arc::new(AtomicUsize::new(0));
@@ -79,9 +77,7 @@ async fn test_parallel_event_processing_performance() {
     let parallel_duration = start_time.elapsed();
     let processed_count = counter.load(Ordering::SeqCst);
 
-    println!(
-        "Parallel processing: {processed_count} events in {parallel_duration:?}"
-    );
+    println!("Parallel processing: {processed_count} events in {parallel_duration:?}");
     assert_eq!(processed_count, total_events);
 
     // Now test sequential processing for comparison
@@ -98,9 +94,7 @@ async fn test_parallel_event_processing_performance() {
     let sequential_duration = start_time.elapsed();
     let sequential_processed = sequential_counter.load(Ordering::SeqCst);
 
-    println!(
-        "Sequential processing: {sequential_processed} events in {sequential_duration:?}"
-    );
+    println!("Sequential processing: {sequential_processed} events in {sequential_duration:?}");
     assert_eq!(sequential_processed, total_events);
 
     // Parallel should be faster than sequential for our simulated workload
@@ -211,9 +205,7 @@ async fn test_concurrent_bot_operations() {
 
     let duration = start_time.elapsed();
 
-    println!(
-        "Completed {num_concurrent} concurrent operations in {duration:?}"
-    );
+    println!("Completed {num_concurrent} concurrent operations in {duration:?}");
 
     // Verify all tasks completed
     results.sort();

@@ -241,9 +241,7 @@ impl FileCommands {
                 });
                 CliResponse::success("upload-text", data)
             }
-            Err(e) => {
-                CliResponse::error("upload-text", format!("Failed to upload text file: {e}"))
-            }
+            Err(e) => CliResponse::error("upload-text", format!("Failed to upload text file: {e}")),
         }
     }
 
@@ -331,9 +329,7 @@ impl FileCommands {
                 });
                 CliResponse::success("upload-json", data)
             }
-            Err(e) => {
-                CliResponse::error("upload-json", format!("Failed to upload JSON file: {e}"))
-            }
+            Err(e) => CliResponse::error("upload-json", format!("Failed to upload JSON file: {e}")),
         }
     }
 

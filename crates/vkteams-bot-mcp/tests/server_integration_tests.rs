@@ -220,19 +220,19 @@ fn test_configuration_scenarios() {
         assert!(config.is_object());
 
         // Test accessing nested configuration
-        if let Some(mcp) = config.get("mcp") {
-            if let Some(chat_id) = mcp.get("chat_id") {
-                assert!(chat_id.is_string());
-                assert!(!chat_id.as_str().unwrap().is_empty());
-            }
+        if let Some(mcp) = config.get("mcp")
+            && let Some(chat_id) = mcp.get("chat_id")
+        {
+            assert!(chat_id.is_string());
+            assert!(!chat_id.as_str().unwrap().is_empty());
         }
 
-        if let Some(api) = config.get("api") {
-            if let Some(url) = api.get("url") {
-                assert!(url.is_string());
-                let url_str = url.as_str().unwrap();
-                assert!(url_str.starts_with("https://") || url_str.starts_with("http://"));
-            }
+        if let Some(api) = config.get("api")
+            && let Some(url) = api.get("url")
+        {
+            assert!(url.is_string());
+            let url_str = url.as_str().unwrap();
+            assert!(url_str.starts_with("https://") || url_str.starts_with("http://"));
         }
     }
 }
