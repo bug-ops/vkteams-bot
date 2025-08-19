@@ -4,7 +4,7 @@
 [![codecov](https://codecov.io/github/bug-ops/vkteams-bot/graph/badge.svg?token=XV23ZKSZRA)](https://codecov.io/github/bug-ops/vkteams-bot)
 [![Downloads](https://img.shields.io/crates/d/vkteams-bot)](https://crates.io/crates/vkteams-bot)
 [![docs.rs](https://docs.rs/vkteams-bot/badge.svg)](https://docs.rs/vkteams-bot)
-[![Build Status](https://github.com/bug-ops/vkteams-bot/workflows/Rust/badge.svg)](https://github.com/bug-ops/vkteams-bot/actions)
+[![Rust Build](https://github.com/bug-ops/vkteams-bot/actions/workflows/rust.yml/badge.svg)](https://github.com/bug-ops/vkteams-bot/actions/workflows/rust.yml)
 [![CodeQL](https://github.com/bug-ops/vkteams-bot/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/bug-ops/vkteams-bot/actions/workflows/github-code-scanning/codeql)
 [![License](https://img.shields.io/crates/l/vkteams-bot)](LICENSE)
 
@@ -68,7 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 |-----------|-------------|---------|
 | 📚 **Core Library** | High-performance async VK Teams Bot API client | [`vkteams-bot`](https://crates.io/crates/vkteams-bot) v0.11 |
 | 🖥️ **CLI Tool** | Feature-complete command-line interface with storage | [`vkteams-bot-cli`](https://crates.io/crates/vkteams-bot-cli) v0.7 |
-| 🤖 **MCP Server** | AI/LLM integration via Model Context Protocol | [`vkteams-bot-mcp`](https://crates.io/crates/vkteams-bot-mcp) v0.3 |
+| 🤖 **MCP Server** | AI/LLM integration via Model Context Protocol | [`vkteams-bot-mcp`](https://crates.io/crates/vkteams-bot-mcp) v0.4 |
 | ⚙️ **Macros** | Development productivity macros | [`vkteams-bot-macros`](https://crates.io/crates/vkteams-bot-macros) |
 
 ## 🆕 Storage & AI Features
@@ -83,6 +83,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### 🤖 MCP Integration
 
 - **30+ AI Tools**: Messages, files, chats, storage operations
+- **Interactive Setup**: Automatic chat ID elicitation - no manual configuration needed
 - **Context Management**: Automatic conversation context retrieval
 - **CLI-as-Backend**: Unified architecture for consistency
 
@@ -147,9 +148,12 @@ Integrate VK Teams bots directly with AI assistants:
 }
 ```
 
+> **Note**: Chat ID is no longer required in configuration! The MCP server automatically prompts for it when first used.
+
 Now Claude can:
 
-- Send messages and manage files
+- **Auto-configure**: Chat ID is requested interactively when first needed
+- Send messages and manage files  
 - Search chat history semantically
 - Get conversation context
 - Execute complex workflows
