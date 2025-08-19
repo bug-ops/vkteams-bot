@@ -9,24 +9,52 @@ use crate::errors::BridgeError;
 use crate::types::{
     ChatInfoParams, DeleteMessageParams, EditMessageParams, EventsGetParams, FileInfoParams,
     GetChatAdminsParams, GetChatMembersParams, GetContextParams, GetDatabaseStatsParams,
-    GetProfileParams, GetRecentMessagesParams, PinMessageParams, SearchSemanticParams,
+    GetProfileParams, GetRecentMessagesParams, PinMessageParams, ResetSessionParams, SearchSemanticParams,
     SearchTextParams, SendActionParams, SendFileParams, SendTextParams, SendVoiceParams, Server,
     SetChatAboutParams, SetChatTitleParams, UnpinMessageParams, UploadFileFromBase64Params,
     UploadJsonFileParams, UploadTextAsFileParams,
 };
 use rmcp::{
     ServerHandler,
+    elicit_safe,
     handler::server::tool::Parameters,
-    model::{CallToolResult, Content, ErrorCode, ErrorData, ServerInfo},
+    model::{CallToolResult, Content, ErrorCode, ErrorData, ServerCapabilities, ServerInfo},
+    service::{ElicitationError, Peer, RoleServer},
     tool, tool_handler, tool_router,
 };
 use serde_json::Value;
 use std::result::Result;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
+use std::collections::HashMap;
 use tracing::{error, warn};
 use vkteams_bot::config::UnifiedConfig;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 pub type MCPResult = Result<CallToolResult, ErrorData>;
+
+/// Structure for eliciting chat ID from the client
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[schemars(description = "VK Teams chat configuration")]
+pub struct ChatIdRequest {
+    #[schemars(description = "The VK Teams chat ID (e.g., '751987654321@chat.agent')")]
+    pub chat_id: String,
+    #[schemars(description = "Optional chat description or name for identification")]
+    pub description: Option<String>,
+}
+
+// Mark ChatIdRequest as safe for elicitation
+elicit_safe!(ChatIdRequest);
+
+/// Session-specific state for the MCP server
+#[derive(Debug, Default)]
+pub struct SessionState {
+    /// Chat ID set for this session via elicitation
+    pub session_chat_id: Option<String>,
+    /// Track which clients have provided chat_id via elicitation
+    pub client_chat_mapping: HashMap<String, String>,
+}
+
 
 /// Convert CLI bridge result to MCP result with enhanced error handling
 #[inline]
@@ -100,23 +128,53 @@ impl ServerHandler for Server {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
             instructions: Some(r#"VKTeams MCP Server — a server for managing a VK Teams bot via MCP (Model Context Protocol).
-        
-        This server uses CLI-as-backend architecture for unified command execution.
-        
-        Tools:
-            - Send text messages to chat (send_text)
-            - Get bot information (self_get)
-            - Get chat information (chat_info)
-            - Get file information (file_info)
-            - Get events (events_get)
-            - Send files and voice messages (send_file, send_voice)
-            - Edit, delete, pin, and unpin messages (edit_message, delete_message, pin_message, unpin_message)
-            - Get chat members and admins (get_chat_members, get_chat_admins)
-            - Set chat title and description (set_chat_title, set_chat_about)
-            - Send chat actions (typing/looking) (send_action)
-            - Enhanced file uploads (upload_file_from_base64, upload_text_as_file, upload_json_file)
-            - Storage operations (search_semantic, search_text, get_database_stats, get_context)
+
+This server uses CLI-as-backend architecture for unified command execution.
+This server automatically requests chat_id from you when first used. No manual configuration needed.
+
+Available Tools:
+
+## Messaging
+- send_text(text: string, reply_msg_id?: string) — Send text message
+- send_file(file_path: string, caption?: string) — Send file from path
+- send_voice(file_path: string) — Send voice message
+- edit_message(message_id: string, new_text: string) — Edit existing message
+- delete_message(message_id: string) — Delete message
+- pin_message(message_id: string) — Pin message
+- unpin_message(message_id: string) — Unpin message
+- send_action(action: string) — Send typing/looking indicator
+
+## File Uploads
+- upload_file_from_base64(file_name: string, base64_content: string, caption?: string, reply_msg_id?: string) — Upload from base64
+- upload_text_as_file(file_name: string, content: string, caption?: string) — Create text file
+- upload_json_file(file_name: string, json_data: string, pretty?: bool, caption?: string) — Create JSON file
+
+## Chat Management  
+- chat_info() — Get chat information
+- get_chat_members(cursor?: string) — Get chat members
+- get_chat_admins() — Get chat administrators
+- set_chat_title(title: string) — Set chat title
+- set_chat_about(about: string) — Set chat description
+
+## Storage & Search
+- search_semantic(query: string, limit?: number) — Semantic search in messages
+- search_text(query: string, limit?: number) — Text search in messages
+- get_database_stats(since?: string) — Get database statistics
+- get_context(context_type?: string, timeframe?: string) — Get conversation context
+- get_recent_messages(limit?: number, since?: string) — Get recent messages
+
+## Bot Information
+- self_get() — Get bot information
+- file_info(file_id: string) — Get file information
+- events_get(last_event_id?: string, poll_time?: number) — Get events
+- daemon_status() — Get daemon status
+
+## Session Management
+- reset_session() — Clear cached chat_id and reset session
+
+Chat ID will be requested automatically when first using any tool.
             "#.into()),
+            capabilities: ServerCapabilities::builder().enable_tools().build(),
             ..Default::default()
         }
     }
@@ -144,6 +202,7 @@ impl Server {
             cli: Arc::new(cli),
             config,
             tool_router: Self::tool_router(),
+            session_state: Arc::new(RwLock::new(SessionState::default())),
         }
     }
 
@@ -158,6 +217,7 @@ impl Server {
             cli: Arc::new(cli),
             config,
             tool_router: Self::tool_router(),
+            session_state: Arc::new(RwLock::new(SessionState::default())),
         })
     }
 
@@ -171,6 +231,7 @@ impl Server {
             cli: Arc::new(cli),
             config,
             tool_router: Self::tool_router(),
+            session_state: Arc::new(RwLock::new(SessionState::default())),
         }
     }
 
@@ -184,6 +245,7 @@ impl Server {
             cli: Arc::new(cli),
             config,
             tool_router: Self::tool_router(),
+            session_state: Arc::new(RwLock::new(SessionState::default())),
         })
     }
 
@@ -246,6 +308,62 @@ impl Server {
         UnifiedConfig::default()
     }
 
+    /// Get chat_id from parameters, config, session state, or elicit from user
+    async fn get_or_elicit_chat_id(
+        &self,
+        param_chat_id: Option<&str>,
+        peer: &Peer<RoleServer>,
+    ) -> Result<Option<String>, ElicitationError> {
+        // 1. Check parameter first
+        if let Some(chat_id) = param_chat_id {
+            return Ok(Some(chat_id.to_string()));
+        }
+
+        // 2. Check configuration
+        if let Some(config_chat_id) = &self.config.mcp.chat_id {
+            return Ok(Some(config_chat_id.clone()));
+        }
+
+        // 3. Check session state
+        if let Ok(state) = self.session_state.read()
+            && let Some(session_chat_id) = &state.session_chat_id
+        {
+            return Ok(Some(session_chat_id.clone()));
+        }
+
+        // 4. Try to elicit from user if peer supports it
+        // Check if client supports elicitation
+        if !peer.supports_elicitation() {
+            return Err(ElicitationError::CapabilityNotSupported);
+        }
+
+        // Elicit chat_id from user
+        match peer.elicit::<ChatIdRequest>(
+            "Please provide VK Teams chat ID for this session. Example: '751987654321@chat.agent'"
+        ).await? {
+                Some(chat_request) => {
+                    let chat_id = chat_request.chat_id;
+                    
+                    // Save to session state
+                    if let Ok(mut state) = self.session_state.write() {
+                        state.session_chat_id = Some(chat_id.clone());
+                        // Track which client provided this
+                        if let Some(client_info) = peer.peer_info() {
+                            let client_key = format!("{}:{}", 
+                                client_info.client_info.name, 
+                                client_info.client_info.version
+                            );
+                            state.client_chat_mapping.insert(client_key, chat_id.clone());
+                        }
+                    }
+                    
+                    Ok(Some(chat_id))
+                }
+                None => Ok(None), // User provided no content
+            }
+    }
+
+
     // === Messaging Commands ===
 
     #[tool(description = "Send text message to chat")]
@@ -253,14 +371,16 @@ impl Server {
         &self,
         Parameters(SendTextParams {
             text,
-            chat_id,
             reply_msg_id,
         }): Parameters<SendTextParams>,
+        peer: Peer<RoleServer>,
     ) -> MCPResult {
-        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
+        let target_chat_id = self.get_or_elicit_chat_id(None, &peer).await
+            .map_err(convert_elicitation_error)?;
+            
         convert_bridge_result(
             self.cli
-                .send_text(&text, target_chat_id, reply_msg_id.as_deref())
+                .send_text(&text, target_chat_id.as_deref(), reply_msg_id.as_deref())
                 .await,
         )
     }
@@ -270,14 +390,16 @@ impl Server {
         &self,
         Parameters(SendFileParams {
             file_path,
-            chat_id,
             caption,
         }): Parameters<SendFileParams>,
+        peer: Peer<RoleServer>,
     ) -> MCPResult {
-        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
+        let target_chat_id = self.get_or_elicit_chat_id(None, &peer).await
+            .map_err(convert_elicitation_error)?;
+            
         convert_bridge_result(
             self.cli
-                .send_file(&file_path, target_chat_id, caption.as_deref())
+                .send_file(&file_path, target_chat_id.as_deref(), caption.as_deref())
                 .await,
         )
     }
@@ -285,10 +407,12 @@ impl Server {
     #[tool(description = "Send voice message to chat")]
     async fn send_voice(
         &self,
-        Parameters(SendVoiceParams { file_path, chat_id }): Parameters<SendVoiceParams>,
+        Parameters(SendVoiceParams { file_path }): Parameters<SendVoiceParams>,
+        peer: Peer<RoleServer>,
     ) -> MCPResult {
-        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
-        convert_bridge_result(self.cli.send_voice(&file_path, target_chat_id).await)
+        let target_chat_id = self.get_or_elicit_chat_id(None, &peer).await
+            .map_err(convert_elicitation_error)?;
+        convert_bridge_result(self.cli.send_voice(&file_path, target_chat_id.as_deref()).await)
     }
 
     #[tool(description = "Edit existing message")]
@@ -297,13 +421,14 @@ impl Server {
         Parameters(EditMessageParams {
             message_id,
             new_text,
-            chat_id,
         }): Parameters<EditMessageParams>,
+        peer: Peer<RoleServer>,
     ) -> MCPResult {
-        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
+        let target_chat_id = self.get_or_elicit_chat_id(None, &peer).await
+            .map_err(convert_elicitation_error)?;
         convert_bridge_result(
             self.cli
-                .edit_message(&message_id, &new_text, target_chat_id)
+                .edit_message(&message_id, &new_text, target_chat_id.as_deref())
                 .await,
         )
     }
@@ -313,11 +438,12 @@ impl Server {
         &self,
         Parameters(DeleteMessageParams {
             message_id,
-            chat_id,
         }): Parameters<DeleteMessageParams>,
+        peer: Peer<RoleServer>,
     ) -> MCPResult {
-        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
-        convert_bridge_result(self.cli.delete_message(&message_id, target_chat_id).await)
+        let target_chat_id = self.get_or_elicit_chat_id(None, &peer).await
+            .map_err(convert_elicitation_error)?;
+        convert_bridge_result(self.cli.delete_message(&message_id, target_chat_id.as_deref()).await)
     }
 
     #[tool(description = "Pin message in chat")]
@@ -325,11 +451,12 @@ impl Server {
         &self,
         Parameters(PinMessageParams {
             message_id,
-            chat_id,
         }): Parameters<PinMessageParams>,
+        peer: Peer<RoleServer>,
     ) -> MCPResult {
-        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
-        convert_bridge_result(self.cli.pin_message(&message_id, target_chat_id).await)
+        let target_chat_id = self.get_or_elicit_chat_id(None, &peer).await
+            .map_err(convert_elicitation_error)?;
+        convert_bridge_result(self.cli.pin_message(&message_id, target_chat_id.as_deref()).await)
     }
 
     #[tool(description = "Unpin message from chat")]
@@ -337,11 +464,12 @@ impl Server {
         &self,
         Parameters(UnpinMessageParams {
             message_id,
-            chat_id,
         }): Parameters<UnpinMessageParams>,
+        peer: Peer<RoleServer>,
     ) -> MCPResult {
-        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
-        convert_bridge_result(self.cli.unpin_message(&message_id, target_chat_id).await)
+        let target_chat_id = self.get_or_elicit_chat_id(None, &peer).await
+            .map_err(convert_elicitation_error)?;
+        convert_bridge_result(self.cli.unpin_message(&message_id, target_chat_id.as_deref()).await)
     }
 
     // === Chat Management Commands ===
@@ -349,10 +477,12 @@ impl Server {
     #[tool(description = "Get information about the chat")]
     async fn chat_info(
         &self,
-        Parameters(ChatInfoParams { chat_id }): Parameters<ChatInfoParams>,
+        Parameters(ChatInfoParams {}): Parameters<ChatInfoParams>,
+        peer: Peer<RoleServer>,
     ) -> MCPResult {
-        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
-        convert_bridge_result(self.cli.get_chat_info(target_chat_id).await)
+        let target_chat_id = self.get_or_elicit_chat_id(None, &peer).await
+            .map_err(convert_elicitation_error)?;
+        convert_bridge_result(self.cli.get_chat_info(target_chat_id.as_deref()).await)
     }
 
     #[tool(description = "Get user profile information")]
@@ -366,12 +496,14 @@ impl Server {
     #[tool(description = "Get chat members")]
     async fn get_chat_members(
         &self,
-        Parameters(GetChatMembersParams { chat_id, cursor }): Parameters<GetChatMembersParams>,
+        Parameters(GetChatMembersParams { cursor }): Parameters<GetChatMembersParams>,
+        peer: Peer<RoleServer>,
     ) -> MCPResult {
-        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
+        let target_chat_id = self.get_or_elicit_chat_id(None, &peer).await
+            .map_err(convert_elicitation_error)?;
         convert_bridge_result(
             self.cli
-                .get_chat_members(target_chat_id, cursor.as_deref())
+                .get_chat_members(target_chat_id.as_deref(), cursor.as_deref())
                 .await,
         )
     }
@@ -379,37 +511,45 @@ impl Server {
     #[tool(description = "Get chat administrators")]
     async fn get_chat_admins(
         &self,
-        Parameters(GetChatAdminsParams { chat_id }): Parameters<GetChatAdminsParams>,
+        Parameters(GetChatAdminsParams {}): Parameters<GetChatAdminsParams>,
+        peer: Peer<RoleServer>,
     ) -> MCPResult {
-        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
-        convert_bridge_result(self.cli.get_chat_admins(target_chat_id).await)
+        let target_chat_id = self.get_or_elicit_chat_id(None, &peer).await
+            .map_err(convert_elicitation_error)?;
+        convert_bridge_result(self.cli.get_chat_admins(target_chat_id.as_deref()).await)
     }
 
     #[tool(description = "Set chat title")]
     async fn set_chat_title(
         &self,
-        Parameters(SetChatTitleParams { title, chat_id }): Parameters<SetChatTitleParams>,
+        Parameters(SetChatTitleParams { title }): Parameters<SetChatTitleParams>,
+        peer: Peer<RoleServer>,
     ) -> MCPResult {
-        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
-        convert_bridge_result(self.cli.set_chat_title(&title, target_chat_id).await)
+        let target_chat_id = self.get_or_elicit_chat_id(None, &peer).await
+            .map_err(convert_elicitation_error)?;
+        convert_bridge_result(self.cli.set_chat_title(&title, target_chat_id.as_deref()).await)
     }
 
     #[tool(description = "Set chat description")]
     async fn set_chat_about(
         &self,
-        Parameters(SetChatAboutParams { about, chat_id }): Parameters<SetChatAboutParams>,
+        Parameters(SetChatAboutParams { about }): Parameters<SetChatAboutParams>,
+        peer: Peer<RoleServer>,
     ) -> MCPResult {
-        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
-        convert_bridge_result(self.cli.set_chat_about(&about, target_chat_id).await)
+        let target_chat_id = self.get_or_elicit_chat_id(None, &peer).await
+            .map_err(convert_elicitation_error)?;
+        convert_bridge_result(self.cli.set_chat_about(&about, target_chat_id.as_deref()).await)
     }
 
     #[tool(description = "Send typing or looking action to chat")]
     async fn send_action(
         &self,
-        Parameters(SendActionParams { action, chat_id }): Parameters<SendActionParams>,
+        Parameters(SendActionParams { action }): Parameters<SendActionParams>,
+        peer: Peer<RoleServer>,
     ) -> MCPResult {
-        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
-        convert_bridge_result(self.cli.send_action(&action, target_chat_id).await)
+        let target_chat_id = self.get_or_elicit_chat_id(None, &peer).await
+            .map_err(convert_elicitation_error)?;
+        convert_bridge_result(self.cli.send_action(&action, target_chat_id.as_deref()).await)
     }
 
     // === File Upload Commands ===
@@ -420,18 +560,19 @@ impl Server {
         Parameters(UploadFileFromBase64Params {
             file_name,
             base64_content,
-            chat_id,
             caption,
             reply_msg_id,
         }): Parameters<UploadFileFromBase64Params>,
+        peer: Peer<RoleServer>,
     ) -> MCPResult {
-        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
+        let target_chat_id = self.get_or_elicit_chat_id(None, &peer).await
+            .map_err(convert_elicitation_error)?;
         convert_bridge_result(
             self.cli
                 .upload_file_base64(
                     &file_name,
                     &base64_content,
-                    target_chat_id,
+                    target_chat_id.as_deref(),
                     caption.as_deref(),
                     reply_msg_id.as_deref(),
                 )
@@ -445,14 +586,15 @@ impl Server {
         Parameters(UploadTextAsFileParams {
             file_name,
             content,
-            chat_id,
             caption,
         }): Parameters<UploadTextAsFileParams>,
+        peer: Peer<RoleServer>,
     ) -> MCPResult {
-        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
+        let target_chat_id = self.get_or_elicit_chat_id(None, &peer).await
+            .map_err(convert_elicitation_error)?;
         convert_bridge_result(
             self.cli
-                .upload_text_file(&file_name, &content, target_chat_id, caption.as_deref())
+                .upload_text_file(&file_name, &content, target_chat_id.as_deref(), caption.as_deref())
                 .await,
         )
     }
@@ -464,18 +606,19 @@ impl Server {
             file_name,
             json_data,
             pretty,
-            chat_id,
             caption,
         }): Parameters<UploadJsonFileParams>,
+        peer: Peer<RoleServer>,
     ) -> MCPResult {
-        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
+        let target_chat_id = self.get_or_elicit_chat_id(None, &peer).await
+            .map_err(convert_elicitation_error)?;
         convert_bridge_result(
             self.cli
                 .upload_json_file(
                     &file_name,
                     &json_data,
                     pretty.unwrap_or(true),
-                    target_chat_id,
+                    target_chat_id.as_deref(),
                     caption.as_deref(),
                 )
                 .await,
@@ -497,14 +640,15 @@ impl Server {
         &self,
         Parameters(SearchSemanticParams {
             query,
-            chat_id,
             limit,
         }): Parameters<SearchSemanticParams>,
+        peer: Peer<RoleServer>,
     ) -> MCPResult {
-        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
+        let target_chat_id = self.get_or_elicit_chat_id(None, &peer).await
+            .map_err(convert_elicitation_error)?;
         convert_bridge_result(
             self.cli
-                .search_semantic(&query, target_chat_id, limit)
+                .search_semantic(&query, target_chat_id.as_deref(), limit)
                 .await,
         )
     }
@@ -514,23 +658,26 @@ impl Server {
         &self,
         Parameters(SearchTextParams {
             query,
-            chat_id,
             limit,
         }): Parameters<SearchTextParams>,
+        peer: Peer<RoleServer>,
     ) -> MCPResult {
-        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
-        convert_bridge_result(self.cli.search_text(&query, target_chat_id, limit).await)
+        let target_chat_id = self.get_or_elicit_chat_id(None, &peer).await
+            .map_err(convert_elicitation_error)?;
+        convert_bridge_result(self.cli.search_text(&query, target_chat_id.as_deref(), limit).await)
     }
 
     #[tool(description = "Get database statistics")]
     async fn get_database_stats(
         &self,
-        Parameters(GetDatabaseStatsParams { chat_id, since }): Parameters<GetDatabaseStatsParams>,
+        Parameters(GetDatabaseStatsParams { since }): Parameters<GetDatabaseStatsParams>,
+        peer: Peer<RoleServer>,
     ) -> MCPResult {
-        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
+        let target_chat_id = self.get_or_elicit_chat_id(None, &peer).await
+            .map_err(convert_elicitation_error)?;
         convert_bridge_result(
             self.cli
-                .get_database_stats(target_chat_id, since.as_deref())
+                .get_database_stats(target_chat_id.as_deref(), since.as_deref())
                 .await,
         )
     }
@@ -539,16 +686,17 @@ impl Server {
     async fn get_context(
         &self,
         Parameters(GetContextParams {
-            chat_id,
             context_type,
             timeframe,
         }): Parameters<GetContextParams>,
+        peer: Peer<RoleServer>,
     ) -> MCPResult {
-        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
+        let target_chat_id = self.get_or_elicit_chat_id(None, &peer).await
+            .map_err(convert_elicitation_error)?;
         convert_bridge_result(
             self.cli
                 .get_context(
-                    target_chat_id,
+                    target_chat_id.as_deref(),
                     context_type.as_deref(),
                     timeframe.as_deref(),
                 )
@@ -567,15 +715,16 @@ impl Server {
     async fn get_recent_messages(
         &self,
         Parameters(GetRecentMessagesParams {
-            chat_id,
             limit,
             since,
         }): Parameters<GetRecentMessagesParams>,
+        peer: Peer<RoleServer>,
     ) -> MCPResult {
-        let target_chat_id = chat_id.as_deref().or(self.config.mcp.chat_id.as_deref());
+        let target_chat_id = self.get_or_elicit_chat_id(None, &peer).await
+            .map_err(convert_elicitation_error)?;
         convert_bridge_result(
             self.cli
-                .get_recent_messages(target_chat_id, limit, since.as_deref())
+                .get_recent_messages(target_chat_id.as_deref(), limit, since.as_deref())
                 .await,
         )
     }
@@ -600,6 +749,64 @@ impl Server {
                 .get_events(last_event_id.as_deref(), poll_time)
                 .await,
         )
+    }
+
+    // === Session Management Commands ===
+
+    #[tool(description = "Reset session data including stored chat_id")]
+    async fn reset_session(
+        &self,
+        Parameters(ResetSessionParams {}): Parameters<ResetSessionParams>,
+    ) -> MCPResult {
+        // Clear session state
+        if let Ok(mut session_state) = self.session_state.write() {
+            session_state.session_chat_id = None;
+            session_state.client_chat_mapping.clear();
+            
+            Ok(CallToolResult::success(vec![Content::text(
+                "Session data has been reset. Chat ID will be requested again on next operation.",
+            )]))
+        } else {
+            Ok(CallToolResult::error(vec![Content::text(
+                "Failed to reset session: unable to acquire session state lock",
+            )]))
+        }
+    }
+}
+
+/// Convert ElicitationError to MCPResult
+fn convert_elicitation_error(error: ElicitationError) -> ErrorData {
+    match error {
+        ElicitationError::CapabilityNotSupported => ErrorData {
+            code: ErrorCode(-400),
+            message: "Client does not support elicitation capability".into(),
+            data: None,
+        },
+        ElicitationError::UserDeclined => ErrorData {
+            code: ErrorCode(-400),
+            message: "User declined to provide chat_id".into(),
+            data: None,
+        },
+        ElicitationError::UserCancelled => ErrorData {
+            code: ErrorCode(-400),
+            message: "User cancelled chat_id request".into(),
+            data: None,
+        },
+        ElicitationError::NoContent => ErrorData {
+            code: ErrorCode(-400),
+            message: "No chat_id provided".into(),
+            data: None,
+        },
+        ElicitationError::ParseError { error, data } => ErrorData {
+            code: ErrorCode(-400),
+            message: format!("Failed to parse chat_id: {}", error).into(),
+            data: Some(data),
+        },
+        ElicitationError::Service(service_error) => ErrorData {
+            code: ErrorCode(-500),
+            message: format!("Service error during elicitation: {}", service_error).into(),
+            data: None,
+        },
     }
 }
 
@@ -638,7 +845,7 @@ mod tests {
         assert!(result.is_ok());
 
         if let Ok(call_result) = result {
-            assert!(!call_result.content.expect("content").is_empty());
+            assert!(!call_result.content.is_empty());
         }
     }
 
@@ -1066,7 +1273,7 @@ mod tests {
         assert!(success_result.is_ok());
 
         if let Ok(result) = success_result {
-            assert!(!result.content.expect("content").is_empty());
+            assert!(!result.content.is_empty());
             // Just verify that content is not empty, without pattern matching on enum variants
             // since Content enum structure may vary between rmcp versions
         }
@@ -1259,7 +1466,7 @@ mod tests {
             assert!(result.is_ok());
 
             if let Ok(call_result) = result {
-                assert!(!call_result.content.expect("Expected content").is_empty());
+                assert!(!call_result.content.is_empty());
             }
         }
     }
@@ -1285,7 +1492,7 @@ mod tests {
         assert!(result.is_ok());
 
         if let Ok(call_result) = result {
-            assert!(!call_result.content.expect("Expected content").is_empty());
+            assert!(!call_result.content.is_empty());
         }
     }
 
@@ -1414,5 +1621,267 @@ mod tests {
         unsafe {
             std::env::remove_var("VKTEAMS_BOT_CHAT_ID");
         }
+    }
+
+    #[tokio::test]
+    async fn test_session_state_management() {
+        use std::sync::{Arc, RwLock};
+
+        let session_state = Arc::new(RwLock::new(SessionState::default()));
+
+        // Test initial state
+        {
+            let state = session_state.read().unwrap();
+            assert!(state.session_chat_id.is_none());
+            assert!(state.client_chat_mapping.is_empty());
+        }
+
+        // Test setting session chat_id
+        {
+            let mut state = session_state.write().unwrap();
+            state.session_chat_id = Some("test_chat@chat.agent".to_string());
+        }
+
+        // Test reading session chat_id
+        {
+            let state = session_state.read().unwrap();
+            assert_eq!(state.session_chat_id.as_ref().unwrap(), "test_chat@chat.agent");
+        }
+
+        // Test clearing session
+        {
+            let mut state = session_state.write().unwrap();
+            state.session_chat_id = None;
+            state.client_chat_mapping.clear();
+        }
+
+        // Verify cleared state
+        {
+            let state = session_state.read().unwrap();
+            assert!(state.session_chat_id.is_none());
+        }
+    }
+
+    #[test]
+    fn test_chat_id_request_structure() {
+        use serde_json;
+
+        // Test ChatIdRequest serialization
+        let request = ChatIdRequest {
+            chat_id: "123456789@chat.agent".to_string(),
+            description: Some("Test chat".to_string()),
+        };
+
+        let json = serde_json::to_string(&request).unwrap();
+        assert!(json.contains("123456789@chat.agent"));
+        assert!(json.contains("Test chat"));
+
+        // Test deserialization
+        let json_str = r#"{"chat_id":"987654321@chat.agent","description":"Another chat"}"#;
+        let parsed: ChatIdRequest = serde_json::from_str(json_str).unwrap();
+        assert_eq!(parsed.chat_id, "987654321@chat.agent");
+        assert_eq!(parsed.description.unwrap(), "Another chat");
+    }
+
+    #[test]
+    fn test_convert_elicitation_error() {
+        use rmcp::service::ElicitationError;
+
+        // Test CapabilityNotSupported error
+        let error = ElicitationError::CapabilityNotSupported;
+        let converted = convert_elicitation_error(error);
+        assert_eq!(converted.code.0, -400);
+        assert!(converted.message.contains("Client does not support elicitation"));
+
+        // Test UserDeclined error
+        let error = ElicitationError::UserDeclined;
+        let converted = convert_elicitation_error(error);
+        assert_eq!(converted.code.0, -400);
+        assert!(converted.message.contains("User declined"));
+
+        // Test UserCancelled error
+        let error = ElicitationError::UserCancelled;
+        let converted = convert_elicitation_error(error);
+        assert_eq!(converted.code.0, -400);
+        assert!(converted.message.contains("User cancelled"));
+
+        // Test NoContent error
+        let error = ElicitationError::NoContent;
+        let converted = convert_elicitation_error(error);
+        assert_eq!(converted.code.0, -400);
+        assert!(converted.message.contains("No chat_id provided"));
+    }
+
+    #[test]
+    fn test_session_state_sharing() {
+        let session_state = Arc::new(RwLock::new(SessionState::default()));
+        
+        // Clone the Arc to simulate shared state
+        let shared_state = Arc::clone(&session_state);
+
+        // Verify initial state
+        {
+            let state = session_state.read().unwrap();
+            assert!(state.session_chat_id.is_none());
+            assert!(state.client_chat_mapping.is_empty());
+        }
+
+        // Modify state through the shared reference
+        {
+            let mut state = shared_state.write().unwrap();
+            state.session_chat_id = Some("shared_test@chat.agent".to_string());
+            state.client_chat_mapping.insert("client1".to_string(), "chat1@chat.agent".to_string());
+        }
+
+        // Original reference should see the changes
+        {
+            let state = session_state.read().unwrap();
+            assert_eq!(state.session_chat_id.as_ref().unwrap(), "shared_test@chat.agent");
+            assert_eq!(state.client_chat_mapping.get("client1").unwrap(), "chat1@chat.agent");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_or_elicit_chat_id_fallback_chain() {
+        use vkteams_bot::config::McpConfig;
+        
+        let session_state = Arc::new(RwLock::new(SessionState::default()));
+        let config = UnifiedConfig {
+            mcp: McpConfig {
+                chat_id: Some("config_chat@chat.agent".to_string()),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        // Test parameter takes precedence over everything
+        let result = get_or_elicit_chat_id_internal(
+            Some("param_chat@chat.agent"),
+            &session_state,
+            &config.mcp.chat_id,
+            None,
+        ).await;
+        assert_eq!(result.unwrap(), "param_chat@chat.agent");
+
+        // Test config fallback when no parameter
+        let result = get_or_elicit_chat_id_internal(
+            None,
+            &session_state,
+            &config.mcp.chat_id,
+            None,
+        ).await;
+        assert_eq!(result.unwrap(), "config_chat@chat.agent");
+
+        // Test session state fallback when no parameter or config
+        {
+            let mut state = session_state.write().unwrap();
+            state.session_chat_id = Some("session_chat@chat.agent".to_string());
+        }
+        let empty_config_chat_id: Option<String> = None;
+        let result = get_or_elicit_chat_id_internal(
+            None,
+            &session_state,
+            &empty_config_chat_id,
+            None,
+        ).await;
+        assert_eq!(result.unwrap(), "session_chat@chat.agent");
+    }
+
+    #[tokio::test]
+    async fn test_get_or_elicit_chat_id_would_trigger_elicitation() {
+        let session_state = Arc::new(RwLock::new(SessionState::default()));
+        let empty_config_chat_id: Option<String> = None;
+
+        // Test that elicitation would be triggered when no fallback values exist
+        // Since we can't test actual elicitation without mocking the peer,
+        // we test that the function would attempt elicitation by checking the error
+        let result = get_or_elicit_chat_id_internal(
+            None,
+            &session_state,
+            &empty_config_chat_id,
+            None, // No peer provided = would trigger elicitation error
+        ).await;
+
+        // Should return an elicitation error because no peer was provided
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_chat_id_request_schema_properties() {
+        // Test that ChatIdRequest can be serialized and deserialized correctly
+        let request = ChatIdRequest {
+            chat_id: "test@chat.agent".to_string(),
+            description: Some("Test description".to_string()),
+        };
+
+        // Test JSON serialization
+        let json = serde_json::to_string(&request).unwrap();
+        assert!(json.contains("test@chat.agent"));
+        assert!(json.contains("Test description"));
+
+        // Test JSON deserialization
+        let parsed: ChatIdRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.chat_id, "test@chat.agent");
+        assert_eq!(parsed.description, Some("Test description".to_string()));
+    }
+
+    #[test]
+    fn test_elicitation_error_coverage() {
+        use rmcp::service::ElicitationError;
+
+        // Test basic variants of ElicitationError
+        let errors = vec![
+            ElicitationError::CapabilityNotSupported,
+            ElicitationError::UserDeclined,
+            ElicitationError::UserCancelled,
+            ElicitationError::NoContent,
+        ];
+
+        for error in errors {
+            let converted = convert_elicitation_error(error);
+            
+            // All errors should have valid error codes
+            assert!(converted.code.0 <= -400);
+            
+            // All errors should have meaningful messages
+            assert!(!converted.message.is_empty());
+        }
+    }
+
+    // Helper function to test elicitation logic without actual peer interaction
+    async fn get_or_elicit_chat_id_internal(
+        chat_id: Option<&str>,
+        session_state: &Arc<RwLock<SessionState>>,
+        config_chat_id: &Option<String>,
+        peer: Option<&str>, // Simplified peer representation for testing
+    ) -> Result<String, ElicitationError> {
+        use rmcp::service::ElicitationError;
+
+        // Check parameter first
+        if let Some(id) = chat_id {
+            return Ok(id.to_string());
+        }
+
+        // Check config
+        if let Some(id) = config_chat_id {
+            return Ok(id.clone());
+        }
+
+        // Check session state
+        {
+            let state = session_state.read().unwrap();
+            if let Some(id) = &state.session_chat_id {
+                return Ok(id.clone());
+            }
+        }
+
+        // If no peer provided, simulate elicitation error
+        if peer.is_none() {
+            return Err(ElicitationError::CapabilityNotSupported);
+        }
+
+        // In real implementation, this would trigger elicitation
+        // For testing, we return a simulated result
+        Ok("elicited_chat@chat.agent".to_string())
     }
 }

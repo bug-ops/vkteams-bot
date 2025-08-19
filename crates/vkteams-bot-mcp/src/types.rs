@@ -1,7 +1,8 @@
 use crate::cli_bridge::CliBridge;
+use crate::server::SessionState;
 use rmcp::{handler::server::router::tool::ToolRouter, schemars};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use vkteams_bot::config::UnifiedConfig;
 
 #[derive(Debug)]
@@ -9,6 +10,7 @@ pub struct Server {
     pub cli: Arc<CliBridge>,
     pub config: UnifiedConfig,
     pub tool_router: ToolRouter<Self>,
+    pub session_state: Arc<RwLock<SessionState>>,
 }
 
 impl Clone for Server {
@@ -17,6 +19,7 @@ impl Clone for Server {
             cli: Arc::clone(&self.cli),
             config: self.config.clone(),
             tool_router: self.tool_router.clone(),
+            session_state: Arc::clone(&self.session_state),
         }
     }
 }
@@ -33,8 +36,6 @@ pub struct SendTextParams {
             <pre>pre-formatted code block</pre>
         "#)]
     pub text: String,
-    #[schemars(description = "Chat ID (optional, uses default if not provided)")]
-    pub chat_id: Option<String>,
     #[schemars(description = "Reply to message ID (optional)")]
     pub reply_msg_id: Option<String>,
 }
@@ -43,8 +44,6 @@ pub struct SendTextParams {
 pub struct SendFileParams {
     #[schemars(description = "Path to file to send")]
     pub file_path: String,
-    #[schemars(description = "Chat ID (optional, uses default if not provided)")]
-    pub chat_id: Option<String>,
     #[schemars(description = "Caption for the file (optional)")]
     pub caption: Option<String>,
 }
@@ -53,8 +52,6 @@ pub struct SendFileParams {
 pub struct SendVoiceParams {
     #[schemars(description = "Path to voice file to send (.ogg, .mp3, .wav, .m4a)")]
     pub file_path: String,
-    #[schemars(description = "Chat ID (optional, uses default if not provided)")]
-    pub chat_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
@@ -63,38 +60,29 @@ pub struct EditMessageParams {
     pub message_id: String,
     #[schemars(description = "New text for the message")]
     pub new_text: String,
-    #[schemars(description = "Chat ID (optional, uses default if not provided)")]
-    pub chat_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct DeleteMessageParams {
     #[schemars(description = "Message ID to delete")]
     pub message_id: String,
-    #[schemars(description = "Chat ID (optional, uses default if not provided)")]
-    pub chat_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct PinMessageParams {
     #[schemars(description = "Message ID to pin")]
     pub message_id: String,
-    #[schemars(description = "Chat ID (optional, uses default if not provided)")]
-    pub chat_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct UnpinMessageParams {
     #[schemars(description = "Message ID to unpin")]
     pub message_id: String,
-    #[schemars(description = "Chat ID (optional, uses default if not provided)")]
-    pub chat_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct ChatInfoParams {
-    #[schemars(description = "Chat ID (optional, uses default if not provided)")]
-    pub chat_id: Option<String>,
+    // No parameters needed - chat_id is obtained via elicitation
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
@@ -105,40 +93,31 @@ pub struct GetProfileParams {
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct GetChatMembersParams {
-    #[schemars(description = "Chat ID (optional, uses default if not provided)")]
-    pub chat_id: Option<String>,
     #[schemars(description = "Cursor for pagination (optional)")]
     pub cursor: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct GetChatAdminsParams {
-    #[schemars(description = "Chat ID (optional, uses default if not provided)")]
-    pub chat_id: Option<String>,
+    // No parameters needed - chat_id is obtained via elicitation
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct SetChatTitleParams {
     #[schemars(description = "New chat title")]
     pub title: String,
-    #[schemars(description = "Chat ID (optional, uses default if not provided)")]
-    pub chat_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct SetChatAboutParams {
     #[schemars(description = "New chat description")]
     pub about: String,
-    #[schemars(description = "Chat ID (optional, uses default if not provided)")]
-    pub chat_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct SendActionParams {
     #[schemars(description = "Action to send: 'typing' or 'looking'")]
     pub action: String,
-    #[schemars(description = "Chat ID (optional, uses default if not provided)")]
-    pub chat_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
@@ -147,8 +126,6 @@ pub struct UploadFileFromBase64Params {
     pub file_name: String,
     #[schemars(description = "Base64 encoded file content")]
     pub base64_content: String,
-    #[schemars(description = "Chat ID (optional, uses default if not provided)")]
-    pub chat_id: Option<String>,
     #[schemars(description = "Caption for the file (optional)")]
     pub caption: Option<String>,
     #[schemars(description = "Reply to message ID (optional)")]
@@ -161,8 +138,6 @@ pub struct UploadTextAsFileParams {
     pub file_name: String,
     #[schemars(description = "Text content to save as file")]
     pub content: String,
-    #[schemars(description = "Chat ID (optional, uses default if not provided)")]
-    pub chat_id: Option<String>,
     #[schemars(description = "Caption for the file (optional)")]
     pub caption: Option<String>,
 }
@@ -175,8 +150,6 @@ pub struct UploadJsonFileParams {
     pub json_data: String,
     #[schemars(description = "Pretty print JSON (default: true)")]
     pub pretty: Option<bool>,
-    #[schemars(description = "Chat ID (optional, uses default if not provided)")]
-    pub chat_id: Option<String>,
     #[schemars(description = "Caption for the file (optional)")]
     pub caption: Option<String>,
 }
@@ -191,8 +164,6 @@ pub struct FileInfoParams {
 pub struct SearchSemanticParams {
     #[schemars(description = "Search query")]
     pub query: String,
-    #[schemars(description = "Chat ID to search in (optional, searches all if not provided)")]
-    pub chat_id: Option<String>,
     #[schemars(description = "Maximum number of results (default: 10)")]
     pub limit: Option<usize>,
 }
@@ -201,26 +172,18 @@ pub struct SearchSemanticParams {
 pub struct SearchTextParams {
     #[schemars(description = "Search query")]
     pub query: String,
-    #[schemars(description = "Chat ID to search in (optional, searches all if not provided)")]
-    pub chat_id: Option<String>,
     #[schemars(description = "Maximum number of results (default: 10)")]
     pub limit: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct GetDatabaseStatsParams {
-    #[schemars(
-        description = "Chat ID for specific chat stats (optional, all chats if not provided)"
-    )]
-    pub chat_id: Option<String>,
     #[schemars(description = "Date since when to count (optional)")]
     pub since: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct GetContextParams {
-    #[schemars(description = "Chat ID (optional, uses default if not provided)")]
-    pub chat_id: Option<String>,
     #[schemars(
         description = "Context type: 'recent', 'summary', or 'keywords' (default: 'recent')"
     )]
@@ -231,8 +194,6 @@ pub struct GetContextParams {
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct GetRecentMessagesParams {
-    #[schemars(description = "Chat ID (optional, gets from all chats if not provided)")]
-    pub chat_id: Option<String>,
     #[schemars(description = "Maximum number of messages to return (default: 50)")]
     pub limit: Option<usize>,
     #[schemars(description = "Get messages since this timestamp (ISO 8601 format)")]
@@ -245,4 +206,9 @@ pub struct EventsGetParams {
     pub last_event_id: Option<String>,
     #[schemars(description = "Poll time in seconds (optional)")]
     pub poll_time: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct ResetSessionParams {
+    // No parameters needed - resets all session data
 }
