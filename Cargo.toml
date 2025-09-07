@@ -5,7 +5,6 @@ resolver = "2"
 [workspace.package]
 license = "MIT OR Apache-2.0"
 edition = "2024"
-rust-version = "1.89"
 keywords = ["vkteams", "bot", "api", "chatbot", "automation", "mcp"]
 categories = ["api-bindings", "command-line-utilities", "web-programming"]
 description = "High-performance VK Teams Bot API toolkit with CLI and MCP server support"
@@ -13,6 +12,7 @@ readme = "README.md"
 homepage = "https://github.com/bug-ops/vkteams-bot"
 repository = "https://github.com/bug-ops/vkteams-bot"
 documentation = "https://docs.rs/vkteams-bot"
+publish = true
 
 # Optimize release profile for minimal binary size
 [profile.release]
@@ -48,7 +48,7 @@ crossbeam-utils = "0.8"
 console = "0.16"
 dashmap = "6.0"
 dhat = "0.3"
-dialoguer = "0.11"
+dialoguer = "0.12"
 dirs = "6.0"
 dotenvy = "0.15"
 exitcode = "1"
@@ -78,8 +78,8 @@ sqlx = "0.8"
 tabled = "0.20"
 tempfile = "3.8"
 tera = "1"
-testcontainers = "0.24"
-testcontainers-modules = "0.12"
+testcontainers = "0.25"
+testcontainers-modules = "0.13"
 thiserror = "2"
 tokio = "1.47"
 tokio-test = "0.4.4"
