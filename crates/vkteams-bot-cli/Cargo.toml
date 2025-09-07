@@ -1,6 +1,6 @@
 [package]
 name = "vkteams-bot-cli"
-version = "0.7.5"
+version = "0.7.6"
 authors = ["Andrei G. <k05h31@gmail.com>"]
 keywords = ["vkteams", "bot", "api", "automation", "mcp"]
 categories = ["api-bindings", "command-line-utilities", "web-programming"]
@@ -11,7 +11,7 @@ documentation = "https://docs.rs/vkteams-bot"
 repository = "https://github.com/bug-ops/vkteams-bot/tree/master/crates/vkteams-bot-cli"
 license.workspace = true
 edition.workspace = true
-rust-version.workspace = true
+publish.workspace = true
 
 [[bin]]
 name = "vkteams-bot-cli"

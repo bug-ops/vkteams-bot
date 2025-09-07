@@ -7,11 +7,11 @@ repository = "https://github.com/bug-ops/vkteams-bot/tree/master"
 homepage = "https://github.com/bug-ops/vkteams-bot"
 documentation = "https://docs.rs/vkteams-bot"
 name = "vkteams-bot"
-version = "0.11.4"
+version = "0.11.5"
 authors = ["Andrei G. <k05h31@gmail.com>"]
 license.workspace = true
 edition.workspace = true
-rust-version.workspace = true
+publish.workspace = true
 
 [dependencies]
 async-trait = { workspace = true }
@@ -127,7 +127,10 @@ serial_test = { workspace = true }
 tempfile = { workspace = true }
 tonic = { workspace = true }
 testcontainers = { workspace = true }
-testcontainers-modules = { workspace = true, features = ["postgres"] }
+testcontainers-modules = { workspace = true, features = [
+    "postgres",
+    "blocking",
+] }
 vkteams-bot = { workspace = true, features = ["full"] }
 
 [[bench]]

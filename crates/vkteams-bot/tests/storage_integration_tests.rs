@@ -3,8 +3,8 @@
 #[cfg(all(test, feature = "storage-full"))]
 mod tests {
     use std::time::Duration;
-    use testcontainers::runners::AsyncRunner;
-    use testcontainers_modules::postgres::Postgres;
+    // use testcontainers::runners::AsyncRunner;
+    use testcontainers_modules::{postgres::Postgres, testcontainers::runners::AsyncRunner};
     use vkteams_bot::storage::{
         StorageConfig, StorageManager,
         config::{DatabaseConfig, StorageSettings},
@@ -12,10 +12,7 @@ mod tests {
 
     /// Setup a test PostgreSQL container with pgvector extension
     async fn setup_postgres_container() -> testcontainers::ContainerAsync<Postgres> {
-        let postgres_container = Postgres::default()
-            .start()
-            .await
-            .expect("Failed to start PostgreSQL container");
+        let postgres_container = Postgres::default().start().await.unwrap();
 
         // Additional wait for PostgreSQL to be fully ready
         tokio::time::sleep(Duration::from_secs(2)).await;
